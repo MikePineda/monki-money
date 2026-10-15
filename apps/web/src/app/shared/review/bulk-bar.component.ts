@@ -5,8 +5,9 @@ import { IconButtonComponent } from '../ui/icon-button/icon-button.component'
  * The bulk bar of a review list (DESIGN.md, Review row): fixed to the
  * bottom edge over the safe area, surface-1 at level 2. A close button
  * clears the selection, the count ("2 selected") is announced politely,
- * and the consumer projects its actions (secondary ones first, the single
- * primary last).
+ * and the consumer projects its actions: `[bulkAside]` next to the count
+ * (a quiet one, "Ignore"), the rest in a row below (secondary first, the
+ * single primary last).
  */
 @Component({
   selector: 'app-bulk-bar',
@@ -26,6 +27,7 @@ import { IconButtonComponent } from '../ui/icon-button/icon-button.component'
         <p class="min-w-0 flex-1 truncate text-body-strong text-ink-1" aria-live="polite">
           {{ countLabel() }}
         </p>
+        <ng-content select="[bulkAside]" />
       </div>
       <div class="flex items-center gap-2 [&>*]:min-w-0 [&>*]:flex-1">
         <ng-content />

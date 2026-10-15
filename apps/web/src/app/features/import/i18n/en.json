@@ -1,0 +1,225 @@
+{
+  "upload": {
+    "title": "Import bank CSV",
+    "back": "Back",
+    "intro": "Export the transactions of one account from NAB internet banking as CSV and choose the file here. Nothing reaches your month until you review and confirm it.",
+    "account": "Account",
+    "accountAuto": "Read it from the file",
+    "accountTitle": "Which account is this file from?",
+    "choose": "Choose CSV file",
+    "hint": "A CSV file up to 2 MB.",
+    "uploading": "Uploading {name}",
+    "progressLabel": "Upload progress",
+    "progress": "{percent}% of {size}",
+    "size": {
+      "kb": "{value} KB",
+      "mb": "{value} MB"
+    },
+    "cancel": "Cancel upload",
+    "another": "Choose another file",
+    "waiting": "Waiting for review",
+    "continue": "Continue",
+    "several": {
+      "title": "This file has {count, plural, one {# account} other {# accounts}}",
+      "body": "Review each account’s movements on its own."
+    },
+    "nothingNew": {
+      "title": "Nothing new in this file",
+      "body": "Every movement in it was imported before."
+    },
+    "problem": {
+      "notCsv": "This is not a CSV file. Export the transactions as CSV from your bank.",
+      "empty": "This file is empty.",
+      "tooLarge": "This file is over 2 MB. Export a shorter period.",
+      "limit": "Your plan’s imports for this month are used up.",
+      "batchOpen": "This account already has an import waiting for review. Confirm or cancel it first.",
+      "openAction": "Continue that review"
+    },
+    "csv": {
+      "E_CSV_TOO_LARGE": "This file is over 2 MB. Export a shorter period.",
+      "E_CSV_TOO_MANY_ROWS": "This file has too many rows. Export a shorter period.",
+      "E_CSV_ENCODING": "This file’s text encoding cannot be read. Export it again as CSV.",
+      "E_CSV_UNKNOWN_FORMAT": "This does not look like a NAB export. Export the transactions as CSV from NAB internet banking.",
+      "E_CSV_MALFORMED": "This file is damaged and cannot be read.",
+      "E_CSV_INVALID_VALUE": "A value in this file cannot be read.",
+      "E_CSV_EMPTY": "This file has no movements.",
+      "where": "Line {line}, column {column}.",
+      "whereLine": "Line {line}."
+    }
+  },
+  "mapping": {
+    "title": "Which account is each number?",
+    "body": "These bank account numbers are new here. Choose the account each one belongs to; it is remembered for next time.",
+    "number": "Account {number}",
+    "choose": "Choose account",
+    "newAccount": "New account",
+    "newAccountName": "NAB account {number}",
+    "continue": "Continue import"
+  },
+  "review": {
+    "title": "Review import",
+    "back": "Back to import",
+    "cancel": "Cancel",
+    "rows": "{count, plural, one {# row} other {# rows}}",
+    "loading": "Loading the import",
+    "listLabel": "Imported movements",
+    "selectAll": "Select all",
+    "more": "Show more",
+    "summary": {
+      "auto": "{count} auto",
+      "doubtful": "{count} to review",
+      "new": "{count} new",
+      "duplicate": "{count, plural, one {# duplicate} other {# duplicates}}",
+      "transfer": "{count, plural, one {# transfer} other {# transfers}}",
+      "ignored": "{count} ignored"
+    },
+    "summaryLabel": "Rows by state",
+    "filter": {
+      "label": "Show",
+      "all": "All",
+      "doubtful": "To review",
+      "new": "New",
+      "ignored": "Ignored"
+    },
+    "classify": "Classify with AI ({count})",
+    "classifying": "Classifying {count, plural, one {# movement} other {# movements}}",
+    "error": {
+      "title": "The import could not be loaded."
+    },
+    "closed": {
+      "title": "This import is closed.",
+      "body": "It was confirmed or cancelled. Import a new file to keep going.",
+      "action": "Import a file"
+    },
+    "empty": {
+      "title": "Nothing to show here.",
+      "body": "No movement of this import matches this filter.",
+      "action": "Show all"
+    },
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "categoryTitle": "Category for the selected rows",
+    "bulk": {
+      "label": "Selected movements",
+      "clear": "Clear selection",
+      "ignore": "Ignore",
+      "category": "Category",
+      "accept": "Accept ({count})"
+    },
+    "blocking": "{count, plural, one {# movement needs a decision before you confirm.} other {# movements need a decision before you confirm.}}",
+    "showBlocking": "Show",
+    "acceptAll": "Accept suggested ({count})",
+    "confirm": "Confirm import",
+    "cancelSheet": {
+      "title": "Cancel this import?",
+      "body": "The movements waiting for review are dropped. Nothing changes in your month, and you can import the same file again.",
+      "confirm": "Cancel import",
+      "keep": "Keep reviewing"
+    }
+  },
+  "status": {
+    "auto": "Auto",
+    "ready": "Ready",
+    "review": "Review",
+    "new": "New",
+    "transfer": "Transfer",
+    "ignored": "Ignored",
+    "duplicate": "Duplicate"
+  },
+  "source": {
+    "rule": "Rule",
+    "bank": "Bank",
+    "ai": "AI",
+    "aiConfidence": "AI {percent}%"
+  },
+  "people": {
+    "you": "You",
+    "joint": "Both of us"
+  },
+  "row": {
+    "private": "Private",
+    "uncategorized": "Uncategorised",
+    "transferUnknown": "Transfer to an unknown account",
+    "split": "Split in {count}",
+    "transferTo": "Transfer to {account}",
+    "matches": "Matches {payee}",
+    "possibleMatch": "Maybe {payee}",
+    "suggestion": "{category} ?",
+    "select": "Select {title}, {amount}",
+    "change": "Change",
+    "accept": "Accept"
+  },
+  "triage": {
+    "title": "Review movement",
+    "card": "Card {suffix}",
+    "pending": "Pending",
+    "accept": "Accept {category}",
+    "link": "Same as an existing movement",
+    "category": "Category",
+    "categoryTitle": "Category",
+    "split": "Split",
+    "splitLines": "{count} lines",
+    "transfer": "Transfer",
+    "transferTitle": "Transfer to which account?",
+    "notTransfer": "Not a transfer",
+    "payer": "Paid by",
+    "payerTitle": "Who paid?",
+    "create": "Add it as a new movement",
+    "learn": "Remember this merchant",
+    "learnHint": "Next imports sort it the same way.",
+    "ignore": "Ignore this movement",
+    "restore": "Restore",
+    "private": "This is your partner’s private movement.",
+    "nothing": "There is nothing to decide for this movement.",
+    "done": "Done"
+  },
+  "reason": {
+    "possible_match": "It may be a movement you already added.",
+    "transfer_destination_unknown": "It looks like a transfer, but the other account is unknown.",
+    "category_needs_review": "The category is a guess.",
+    "future_date": "It is dated in the future.",
+    "zero_amount": "Its amount is $0.00.",
+    "duplicate_hash": "It was imported before."
+  },
+  "split": {
+    "title": "Split {amount}",
+    "rest": "Rest",
+    "amount": "Amount of line {number}",
+    "remove": "Remove line {number}",
+    "add": "Add line",
+    "save": "Save split",
+    "unsplit": "Remove split",
+    "over": "The lines go {amount} over.",
+    "missingCategory": "Choose a category for every line.",
+    "zeroLine": "Give every line an amount.",
+    "balanced": "The lines add up to {amount}.",
+    "chooseCategory": "Choose category",
+    "categoryTitle": "Category"
+  },
+  "result": {
+    "title": "Import confirmed",
+    "close": "Close",
+    "loading": "Loading the result",
+    "headline": "{count, plural, one {new movement added} other {new movements added}}",
+    "created": "Added",
+    "matched": "Matched",
+    "transfers": "Transfers",
+    "ignored": "Ignored",
+    "balanced": "Balanced with the bank: {amount} on {date}.",
+    "missing": "{amount} away from the bank’s balance. Movements before {date} are missing: import an older export to fill the gap.",
+    "differs": "{amount} away from the bank’s balance.",
+    "unknown": "There was no bank balance to compare with.",
+    "error": "The result could not be loaded.",
+    "viewMonth": "View month",
+    "another": "Import another file"
+  },
+  "toast": {
+    "bulkDone": "{count, plural, one {# movement updated.} other {# movements updated.}}",
+    "classifyRunning": "The AI is already classifying this import.",
+    "classified": "AI suggestions are in.",
+    "undecided": "Some movements still need a decision.",
+    "cancelled": "Import cancelled.",
+    "closed": "This import was already closed.",
+    "quota": "The AI allowance of your plan is used up this month.",
+    "refused": "Not saved: {reason}"
+  }
+}

@@ -62,6 +62,7 @@ page's store or translation scope.
 
 Inputs: `countLabel` ("2 selected", plural rules stay in the consumer's
 catalogue), `clearLabel`, `label` (toolbar name). Output: `cleared`.
-Project the actions as buttons: secondary ones first, the single primary
-last. The bar is `fixed` to the bottom edge over the safe area; give the
-page enough bottom padding to scroll past it.
+Project the actions as buttons: `[bulkAside]` sits next to the count (a
+quiet action such as "Ignore"), the rest share the row below (secondary
+first, the single primary last). The bar is `fixed` to the bottom edge
+over the safe area; give the page enough bottom padding to scroll past it.

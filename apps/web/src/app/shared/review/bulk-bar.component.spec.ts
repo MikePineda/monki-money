@@ -11,7 +11,8 @@ import { BulkBarComponent } from './bulk-bar.component'
       [countLabel]="count() + ' selected'"
       (cleared)="clears.set(clears() + 1)"
     >
-      <button type="button" class="action">Ignore</button>
+      <button bulkAside type="button" class="aside">Ignore</button>
+      <button type="button" class="action">Category</button>
       <button type="button" class="action">Accept</button>
     </app-bulk-bar>
   `,
@@ -46,9 +47,12 @@ describe('BulkBarComponent', () => {
     const { element, fixture, host } = await setup()
 
     expect([...element.querySelectorAll('.action')].map((item) => item.textContent)).toEqual([
-      'Ignore',
+      'Category',
       'Accept',
     ])
+    // The aside action sits on the count's line, next to it.
+    const countLine = element.querySelector('[aria-live="polite"]')?.parentElement
+    expect(countLine?.querySelector('.aside')?.textContent).toBe('Ignore')
     element.querySelector<HTMLButtonElement>('[aria-label="Clear selection"]')?.click()
     await fixture.whenStable()
 
