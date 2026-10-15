@@ -77,6 +77,9 @@ router
                 router
                   .post('email/resend', [controllers.EmailVerification, 'resend'])
                   .as('email.resend')
+                router
+                  .post('email/verify-code', [controllers.EmailVerification, 'verifyCode'])
+                  .as('email.verifyCode')
               })
               .prefix('auth')
               .as('auth')
@@ -84,6 +87,14 @@ router
             router.patch('me', [controllers.Profile, 'update']).as('me.update')
           })
           .use(authenticated())
+
+        /*
+         * Verified users without a household (never had one, or left it).
+         */
+        router
+          .post('households', [controllers.Households, 'store'])
+          .as('households.store')
+          .use([...authenticated(), middleware.verified()])
 
         /*
          * Restore is the only household route open while the household is
@@ -110,6 +121,7 @@ router
                 router.get('members', [controllers.Household, 'members']).as('members')
                 router.get('export', [controllers.Household, 'export']).as('export')
                 router.post('delete', [controllers.Household, 'destroy']).as('delete')
+                router.post('leave', [controllers.Household, 'leave']).as('leave')
 
                 router
                   .get('invitations', [controllers.HouseholdInvitations, 'index'])

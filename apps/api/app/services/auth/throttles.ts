@@ -7,8 +7,9 @@ import limiter from '@adonisjs/limiter/services/main'
 
 /**
  * Public auth endpoints (login, sign-up, forgot/reset password,
- * invitations) and password re-checks of logged-in users: 5 attempts per
- * minute per key, then the key is blocked for 20 minutes.
+ * invitations), verification codes and password re-checks of logged-in
+ * users: 5 attempts per minute per key, then the key is blocked for 20
+ * minutes.
  */
 export function authAttempts() {
   return limiter.use({ requests: 5, duration: '1 minute', blockDuration: '20 mins' })

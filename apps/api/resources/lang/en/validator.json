@@ -66,7 +66,8 @@
       "pattern": "pattern",
       "payeeOverride": "payee",
       "priority": "priority",
-      "applyToFuture": "apply to future movements"
+      "applyToFuture": "apply to future movements",
+      "turnstileToken": "security check"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -119,7 +120,11 @@
       "matchTransactionId.amountMismatch": "Choose a transaction with the same amount",
       "matchTransactionId.claimed": "Another bank movement is already linked to this transaction",
       "accountId.accountNumberMismatch": "This account is linked to another bank account number",
-      "accountId.oneAccountOnly": "This file has movements of several accounts. Import it without choosing one"
+      "accountId.oneAccountOnly": "This file has movements of several accounts. Import it without choosing one",
+      "turnstile": "Complete the security check and try again",
+      "verificationCode.invalid": "This code is not right. Check the email and try again",
+      "verificationCode.expired": "This code has expired. Ask for a new email to get another one",
+      "verificationCode.locked": "Too many wrong codes. Ask for a new email to get another one"
     }
   }
 }

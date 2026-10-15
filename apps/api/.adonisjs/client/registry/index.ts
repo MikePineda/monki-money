@@ -90,11 +90,23 @@ const routes = {
     tokens: [{"old":"/api/v1/auth/email/resend","type":0,"val":"api","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"email","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"resend","end":""}],
     types: placeholder as Registry['auth.email.resend']['types'],
   },
+  'auth.email.verifyCode': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/email/verify-code',
+    tokens: [{"old":"/api/v1/auth/email/verify-code","type":0,"val":"api","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"email","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"verify-code","end":""}],
+    types: placeholder as Registry['auth.email.verifyCode']['types'],
+  },
   'me.update': {
     methods: ["PATCH"],
     pattern: '/api/v1/me',
     tokens: [{"old":"/api/v1/me","type":0,"val":"api","end":""},{"old":"/api/v1/me","type":0,"val":"v1","end":""},{"old":"/api/v1/me","type":0,"val":"me","end":""}],
     types: placeholder as Registry['me.update']['types'],
+  },
+  'households.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/households',
+    tokens: [{"old":"/api/v1/households","type":0,"val":"api","end":""},{"old":"/api/v1/households","type":0,"val":"v1","end":""},{"old":"/api/v1/households","type":0,"val":"households","end":""}],
+    types: placeholder as Registry['households.store']['types'],
   },
   'household.restore': {
     methods: ["POST"],
@@ -131,6 +143,12 @@ const routes = {
     pattern: '/api/v1/household/delete',
     tokens: [{"old":"/api/v1/household/delete","type":0,"val":"api","end":""},{"old":"/api/v1/household/delete","type":0,"val":"v1","end":""},{"old":"/api/v1/household/delete","type":0,"val":"household","end":""},{"old":"/api/v1/household/delete","type":0,"val":"delete","end":""}],
     types: placeholder as Registry['household.delete']['types'],
+  },
+  'household.leave': {
+    methods: ["POST"],
+    pattern: '/api/v1/household/leave',
+    tokens: [{"old":"/api/v1/household/leave","type":0,"val":"api","end":""},{"old":"/api/v1/household/leave","type":0,"val":"v1","end":""},{"old":"/api/v1/household/leave","type":0,"val":"household","end":""},{"old":"/api/v1/household/leave","type":0,"val":"leave","end":""}],
+    types: placeholder as Registry['household.leave']['types'],
   },
   'household.invitations.index': {
     methods: ["GET","HEAD"],

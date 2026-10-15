@@ -6,6 +6,8 @@ export interface CapturedMail {
   subject: string
   /** Every URL found in the text body (verify, reset and invite links). */
   links: string[]
+  /** Every line of the text body that is a 6-digit code (email verification). */
+  codes: string[]
   sentAt: string
 }
 
@@ -32,6 +34,7 @@ export const capturedOutbox = {
       to: addresses(message.to),
       subject: typeof message.subject === 'string' ? message.subject : '',
       links: text.match(/https?:\/\/[^\s<>"]+/g) ?? [],
+      codes: [...text.matchAll(/^\s*(\d{6})\s*$/gm)].map((match) => match[1]),
       sentAt: new Date().toISOString(),
     })
     if (entries.length > CAPACITY) entries.splice(0, entries.length - CAPACITY)
