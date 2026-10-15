@@ -17,3 +17,10 @@
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
+
+// The target date is a reference too: a solid vertical hairline, never dashed.
+.marker-line {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}

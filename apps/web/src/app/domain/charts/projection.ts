@@ -2,7 +2,9 @@
  * Projection layout (goals, later): a solid line for actual months and a
  * projected segment, the only dashed mark the charts allow, that continues
  * from the last actual month. An optional threshold (the goal) widens the
- * axis and the first month that reaches it gets a marker. Pure.
+ * axis and the first month that reaches it gets a marker; an optional
+ * marker month (the goal's target date) gets a vertical reference line when
+ * it is on the axis. Pure.
  */
 import { layoutLine, linePath, type LineLayout, type LineLayoutOptions } from './line'
 
@@ -19,6 +21,8 @@ export interface ProjectionInput {
   thresholdCents?: number | null
   /** Last month to draw ('YYYY-MM'); projected months after it are trimmed. */
   horizon?: string | null
+  /** A month to mark with a vertical line ('YYYY-MM', the target date). */
+  markerMonth?: string | null
 }
 
 export interface ProjectionPoint {
@@ -50,6 +54,8 @@ export interface ProjectionLayout {
   crossing: ProjectionCrossing | null
   /** Set when the goal is only reached after the horizon, in this month. */
   beyondHorizon: { month: string } | null
+  /** The marker month's position; null when it is not on the axis. */
+  marker: { month: string; x: number } | null
 }
 
 /** Index of the first value that reaches the threshold from the side the series starts on. */
@@ -118,5 +124,14 @@ export function layoutProjection(
     threshold: threshold === null ? null : { valueCents: threshold, y: line.y(threshold) },
     crossing,
     beyondHorizon,
+    marker: markerOn(points, input.markerMonth ?? null),
   }
+}
+
+function markerOn(
+  points: readonly ProjectionPoint[],
+  month: string | null
+): ProjectionLayout['marker'] {
+  const point = month === null ? undefined : points.find((item) => item.month === month)
+  return point ? { month: point.month, x: point.x } : null
 }

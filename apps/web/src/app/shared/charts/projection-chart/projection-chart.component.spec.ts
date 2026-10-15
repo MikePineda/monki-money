@@ -36,6 +36,7 @@ const PROJECTION: MonthValue[] = [
         [projection]="projection"
         [thresholdCents]="threshold()"
         [horizon]="horizon()"
+        [markerMonth]="marker()"
       />
     </app-chart-frame>
   `,
@@ -45,10 +46,13 @@ class Host {
   readonly projection = PROJECTION
   readonly threshold = signal<number | null>(1_000_000)
   readonly horizon = signal<string | null>(null)
+  readonly marker = signal<string | null>(null)
 }
 
 describe('ProjectionChartComponent', () => {
-  async function setup(options: { threshold?: number | null; horizon?: string | null } = {}) {
+  async function setup(
+    options: { threshold?: number | null; horizon?: string | null; marker?: string | null } = {}
+  ) {
     TestBed.configureTestingModule({
       imports: [chartsI18nTesting()],
       providers: [i18nTestingProviders(), { provide: APP_LOCALE, useValue: signal('en-AU') }],
@@ -59,6 +63,9 @@ describe('ProjectionChartComponent', () => {
     }
     if (options.horizon !== undefined) {
       fixture.componentInstance.horizon.set(options.horizon)
+    }
+    if (options.marker !== undefined) {
+      fixture.componentInstance.marker.set(options.marker)
     }
     const loader = TestbedHarnessEnvironment.loader(fixture)
     const chart = await loader.getHarness(ProjectionChartHarness)
@@ -124,6 +131,25 @@ describe('ProjectionChartComponent', () => {
 
     expect(root.querySelector('line.threshold')).toBeNull()
     expect(root.querySelector('[data-projection-note]')).toBeNull()
+  })
+
+  it('test_a_target_month_on_the_axis_is_a_labelled_vertical_reference', async () => {
+    const { fixture, root } = await setup({ marker: '2027-02' })
+    await fixture.whenStable()
+
+    const line = root.querySelector('line[data-marker]')
+    expect(line?.getAttribute('class')).toBe('marker-line')
+    expect(line?.getAttribute('stroke-dasharray')).toBeNull()
+    expect(root.querySelector('text[data-marker-label]')?.textContent?.trim()).toBe(
+      'Target Feb 2027'
+    )
+  })
+
+  it('test_no_target_month_draws_no_reference', async () => {
+    const { fixture, root } = await setup({ marker: '2028-01' })
+    await fixture.whenStable()
+
+    expect(root.querySelector('line[data-marker]')).toBeNull()
   })
 
   it('test_the_legend_tells_actual_from_projected', async () => {
