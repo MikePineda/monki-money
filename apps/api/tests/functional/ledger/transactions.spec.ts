@@ -225,6 +225,38 @@ test.group('Transactions: create', () => {
     const stored = await Transaction.findOrFail(response.body().data.id)
     assert.deepEqual(stored.tags, ['trip'])
   })
+
+  test('test_create_accepts_a_scanned_receipt_as_source_but_no_internal_one', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, accounts } = await createHousehold({ accounts: [{}] })
+    const entry = {
+      accountId: accounts[0].id,
+      kind: 'expense',
+      date: '2026-09-14',
+      amountCents: 2_345,
+    }
+
+    const scanned = await client
+      .post('/api/v1/transactions')
+      .json({ ...entry, payee: 'Corner Grocer', source: 'receipt' })
+      .actingAs(owner)
+
+    scanned.assertStatus(201)
+    scanned.assertBodyContains({ data: { source: 'receipt', amountCents: -2_345 } })
+    const stored = await Transaction.findOrFail(scanned.body().data.id)
+    assert.equal(stored.source, 'receipt')
+
+    for (const source of ['import', 'telegram', 'bank']) {
+      const response = await client
+        .post('/api/v1/transactions')
+        .json({ ...entry, source })
+        .actingAs(owner)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field: 'source', rule: 'enum' }] })
+    }
+  })
 })
 
 test.group('Transactions: quick add', () => {

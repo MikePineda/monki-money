@@ -70,7 +70,8 @@
       "turnstileToken": "security check",
       "contentType": "file type",
       "byteSize": "file size",
-      "key": "photo"
+      "key": "photo",
+      "source": "origin"
     },
     "messages": {
       "required": "Enter the {field}",
