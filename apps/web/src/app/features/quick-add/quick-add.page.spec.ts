@@ -227,6 +227,19 @@ describe('QuickAddPage', () => {
     expect(api.remove).toHaveBeenCalledWith(501)
   })
 
+  it('test_typing_the_next_amount_dismisses_the_saved_toast', async () => {
+    const { root, loader, harness } = await open()
+    const keypad = await loader.getHarness(AmountKeypadHarness)
+    await keypad.press('1', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+    expect(root.querySelector('app-toast')).not.toBeNull()
+
+    await keypad.press('2')
+
+    expect(root.querySelector('app-toast')).toBeNull()
+  })
+
   it('test_a_retry_after_a_network_error_reuses_the_client_id', async () => {
     const { root, loader, harness } = await open()
     api.quick.mockRejectedValueOnce(networkError())

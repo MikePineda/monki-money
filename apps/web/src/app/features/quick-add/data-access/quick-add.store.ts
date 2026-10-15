@@ -143,6 +143,8 @@ export class QuickAddStore {
 
   private readonly recent = signal<RecentEntry[]>([])
   private attempt: Attempt | null = null
+  /** The "Saved · Undo" toast of the last save, while it may still be on screen. */
+  private savedToast: number | null = null
 
   readonly today = computed(() => todayIn(this.timeZone()))
   readonly youId = computed(() => this.session.user()?.id ?? null)
@@ -373,7 +375,7 @@ export class QuickAddStore {
       navigator.vibrate(10)
     }
     this.months.invalidate(monthOf(saved.date))
-    this.toasts.show({
+    this.savedToast = this.toasts.show({
       messageKey: TOAST_KEYS.saved,
       action: { labelKey: TOAST_KEYS.undo, run: () => void this.undo(saved) },
     })
@@ -387,6 +389,17 @@ export class QuickAddStore {
     this.payee.set('')
     this.note.set('')
     this.isPrivate.set(false)
+  }
+
+  /**
+   * The next entry has started (a keypad press): the "Saved · Undo" toast
+   * docks under the top bar, over the type segment, so it gets out of the way.
+   */
+  startNextEntry(): void {
+    if (this.savedToast !== null) {
+      this.toasts.dismiss(this.savedToast)
+      this.savedToast = null
+    }
   }
 
   /** "Undo" on the toast: deletes what was just saved. */

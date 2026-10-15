@@ -175,7 +175,13 @@ export interface PresetChoice {
         class="min-w-0 flex-1 truncate text-body"
         [class]="summary() ? 'text-ink-1' : 'text-ink-2'"
       >
-        {{ summary() || ('quickAdd.details.toggle' | transloco) }}
+        @if (summary()) {
+          {{ summary() }}
+        } @else if (kind() === 'transfer') {
+          {{ 'quickAdd.details.toggleTransfer' | transloco }}
+        } @else {
+          {{ 'quickAdd.details.toggle' | transloco }}
+        }
       </span>
       <app-icon
         name="chevron-down"

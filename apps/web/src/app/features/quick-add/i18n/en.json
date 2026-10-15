@@ -45,6 +45,7 @@
   },
   "details": {
     "toggle": "Add note, merchant, date",
+    "toggleTransfer": "Add note, date",
     "payee": "Merchant",
     "suggestions": "Recent merchants",
     "note": "Note",

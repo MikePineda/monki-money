@@ -45,6 +45,7 @@
   },
   "details": {
     "toggle": "Agregar nota, comercio, fecha",
+    "toggleTransfer": "Agregar nota, fecha",
     "payee": "Comercio",
     "suggestions": "Comercios recientes",
     "note": "Nota",

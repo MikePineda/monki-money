@@ -117,7 +117,7 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
           }
         }
       </h1>
-      <app-toast-outlet class="sticky top-0 z-20" />
+      <app-toast-outlet class="fixed inset-x-0 top-[calc(var(--safe-top)+56px)] z-20" />
 
       <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
         @if (store.failure(); as failure) {
@@ -200,6 +200,7 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
         data-testid="quickAdd.keypad"
         [disabled]="!store.hasAccounts() || store.loadState() !== 'ready'"
         [(value)]="store.amountCents"
+        (touch)="store.startNextEntry()"
       />
       <div class="shrink-0 px-4 pt-4 pb-[calc(var(--safe-bottom)+16px)]">
         <button

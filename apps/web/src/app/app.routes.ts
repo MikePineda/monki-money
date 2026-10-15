@@ -34,6 +34,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./layouts/app-shell/app-shell.component').then((m) => m.AppShellComponent),
     canActivate: inTheApp,
+    // Re-check the session on every move between tabs: a session that ended
+    // while a request was in flight must not leave the next tab half-loaded.
+    runGuardsAndResolvers: 'always',
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'month' },
       { path: 'month', loadComponent: () => import('./features/month/month.page') },

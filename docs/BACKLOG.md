@@ -21,3 +21,7 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 `applyToFuture` on `PATCH /transactions/:id` and `applyRuleToFuture` on bulk categorize (learn a merchant rule) land with `merchant_rules` in WP 3.3; the ledger endpoints do not accept them yet.
 - 2026-10-15 Tag filter for `GET /transactions` (`tag=`) and per-tag totals in reports (the column exists since WP 2.1).
 - 2026-10-15 Charts: opt-in texture fill (45/135 degrees) for forced-colors, print and full CVD (dataviz backup channel); today legends, direct labels and table views carry identity.
+- 2026-10-15 Month strip: tapping the selected month should open the year-grid sheet (DESIGN.md, Month picker); the picker emits `yearGrid`, no sheet listens yet.
+- 2026-10-15 `reports.month` could carry the previous month's totals and the top expenses, saving the Month view its `reports.trend` dependency for the delta and a `transactions.index` call.
+- 2026-10-15 Quick add ranks categories, payees and transfer routes from the last 100 rows on the client; a `GET /transactions/suggestions` (per person) would scale past that window and give the "last account used" without reading the ledger.
+- 2026-10-15 The members (and the partner's display name) could come with `GET /auth/me`, so screens that only need names skip `GET /household/members`.

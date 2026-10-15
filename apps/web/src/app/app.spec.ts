@@ -134,6 +134,15 @@ describe('app routes', () => {
     }
   })
 
+  it('test_a_session_that_ended_sends_the_next_tab_to_login', async () => {
+    await navigate('/settings')
+    TestBed.inject(SessionStore).clear()
+
+    await TestBed.inject(Router).navigateByUrl('/transactions')
+
+    expect(TestBed.inject(Router).url).toBe('/login?returnUrl=%2Ftransactions')
+  })
+
   it('test_the_old_more_tab_url_opens_settings', async () => {
     await navigate('/more')
 
