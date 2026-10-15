@@ -9,4 +9,66 @@ export interface ApiDefinition {
   config: {
     show: typeof routes['config.show']
   }
+  auth: {
+    signup: typeof routes['auth.signup']
+    login: typeof routes['auth.login']
+    email: {
+      verify: typeof routes['auth.email.verify']
+      resend: typeof routes['auth.email.resend']
+    }
+    password: {
+      forgot: typeof routes['auth.password.forgot']
+      reset: typeof routes['auth.password.reset']
+    }
+    invitations: {
+      show: typeof routes['auth.invitations.show']
+      accept: typeof routes['auth.invitations.accept']
+    }
+    me: typeof routes['auth.me']
+    logout: typeof routes['auth.logout']
+    logoutAll: typeof routes['auth.logout_all']
+  }
+  me: {
+    update: typeof routes['me.update']
+  }
+  household: {
+    restore: typeof routes['household.restore']
+    show: typeof routes['household.show']
+    update: typeof routes['household.update']
+    members: typeof routes['household.members']
+    export: typeof routes['household.export']
+    delete: typeof routes['household.delete']
+    invitations: {
+      index: typeof routes['household.invitations.index']
+      store: typeof routes['household.invitations.store']
+      destroy: typeof routes['household.invitations.destroy']
+      resend: typeof routes['household.invitations.resend']
+    }
+  }
+  accounts: {
+    index: typeof routes['accounts.index']
+    store: typeof routes['accounts.store']
+    reorder: typeof routes['accounts.reorder']
+    show: typeof routes['accounts.show']
+    update: typeof routes['accounts.update']
+    destroy: typeof routes['accounts.destroy']
+    cards: {
+      store: typeof routes['accounts.cards.store']
+      destroy: typeof routes['accounts.cards.destroy']
+    }
+  }
+  categoryGroups: {
+    index: typeof routes['category_groups.index']
+    store: typeof routes['category_groups.store']
+    reorder: typeof routes['category_groups.reorder']
+    update: typeof routes['category_groups.update']
+    destroy: typeof routes['category_groups.destroy']
+  }
+  categories: {
+    index: typeof routes['categories.index']
+    store: typeof routes['categories.store']
+    reorder: typeof routes['categories.reorder']
+    update: typeof routes['categories.update']
+    destroy: typeof routes['categories.destroy']
+  }
 }

@@ -4,7 +4,20 @@
  */
 
 export const controllers = {
+  AccountCards: () => import('#controllers/account_cards_controller'),
+  Accounts: () => import('#controllers/accounts_controller'),
+  Categories: () => import('#controllers/categories_controller'),
+  CategoryGroups: () => import('#controllers/category_groups_controller'),
+  EmailVerification: () => import('#controllers/email_verification_controller'),
   HealthChecks: () => import('#controllers/health_checks_controller'),
+  Household: () => import('#controllers/household_controller'),
+  HouseholdInvitations: () => import('#controllers/household_invitations_controller'),
+  InvitationAcceptance: () => import('#controllers/invitation_acceptance_controller'),
+  PasswordReset: () => import('#controllers/password_reset_controller'),
+  Profile: () => import('#controllers/profile_controller'),
   PublicConfig: () => import('#controllers/public_config_controller'),
+  Sessions: () => import('#controllers/sessions_controller'),
+  Signup: () => import('#controllers/signup_controller'),
   Spa: () => import('#controllers/spa_controller'),
+  TestSupport: () => import('#controllers/test_support_controller'),
 }

@@ -5,14 +5,14 @@ ARM server). Fill the TODOs as the infrastructure work packages land.
 
 ## Dokploy ids
 
-| What               | Value                                                           |
-| ------------------ | --------------------------------------------------------------- |
-| Project            | `monkimoney` (projectId `<id>`, environmentId `<id>`)                   |
-| Postgres service   | `monkimoney-db` (postgresId `<id>`, appName/host `monkimoney-db-xxxxxx`, volume `monkimoney-db-xxxxxx-data`)                     |
-| Application        | `monkimoney-web` (applicationId `<id>`, appName `monkimoney-web-xxxxxx`, domainId `<id>`)                 |
-| Domain             | `app.example.com`, https, `certificateType: none`, port 3333 |
-| GitHub provider    | App `dokploy-<server>` (githubId `<id>`)                      |
-| Backup destination | R2 destination `<id>`, prefix `monkimoney/`, daily 16:15 UTC, keep 60 (backupId: see panel)        |
+| What               | Value                                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Project            | `monkimoney` (projectId `<id>`, environmentId `<id>`)                                       |
+| Postgres service   | `monkimoney-db` (postgresId `<id>`, appName/host `monkimoney-db-xxxxxx`, volume `monkimoney-db-xxxxxx-data`) |
+| Application        | `monkimoney-web` (applicationId `<id>`, appName `monkimoney-web-xxxxxx`, domainId `<id>`)   |
+| Domain             | `app.example.com`, https, `certificateType: none`, port 3333                                                               |
+| GitHub provider    | App `dokploy-<server>` (githubId `<id>`)                                                                  |
+| Backup destination | R2 destination `<id>`, prefix `monkimoney/`, daily 16:15 UTC, keep 60 (backupId: see panel)                  |
 
 ## GitHub
 
@@ -67,8 +67,16 @@ The full, commented list is `apps/api/.env.example`. Production specifics:
 `DB_HOST=monkimoney-db`, `DB_*`, `SESSION_DRIVER=cookie`,
 `LIMITER_STORE=database`, `REGISTRATION_OPEN=false`, `DRIVE_DISK`, `S3_*`,
 `LLM_*`, `MAIL_DRIVER`, `RESEND_API_KEY`, `MAIL_FROM`, `SENTRY_DSN`,
-`SENTRY_DSN_WEB`, `MIGRATE_ON_START=true`, `SEED_USERS` (first deploy only),
-`SEED_HOUSEHOLD`, `SEED_USERS_JSON`, `SEED_ACCOUNTS`, `SMOKE_PASSWORD`.
+`SENTRY_DSN_WEB`, `APP_DEFAULT_LOCALE` (optional, `en`), `MIGRATE_ON_START=true`,
+`SEED_USERS` (first deploy only), `SEED_HOUSEHOLD_NAME`, `SEED_LOCALE`,
+`SEED_USER1_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
+`SEED_USER2_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
+`SEED_JOINT_ACCOUNT_NUMBER`, `SMOKE_PASSWORD`.
+
+The production bootstrap (`database/seeders/production_bootstrap_seeder`) is
+idempotent by email and account name and never resets a password, so a
+redeploy with `SEED_USERS=true` is harmless; still set it back to `false` and
+delete the `SEED_*_PASSWORD` values after the first deploy. It logs ids only.
 
 ## Backups, restore and drill
 
@@ -117,6 +125,14 @@ SSL Full (strict) via configuration rule, cache bypass for `/`,
 `/index.html`, `/ngsw-worker.js`, `/ngsw.json`, `/manifest.webmanifest`,
 `/i18n/*`, `/api/*`; Rocket Loader and Bot Fight Mode off; rate limit on
 `/api/v1/auth/`. TODO: confirm each item once applied.
+
+**Client IP trust depends on Traefik's Cloudflare allowlist (`cf-only@file`).**
+The API takes the client IP from `CF-Connecting-IP` only when the TCP peer
+is the local proxy (loopback/private address), i.e. Traefik, and Traefik only
+accepts Cloudflare's ranges. Never remove `cf-only@file` from the router, nor
+publish the app port directly: anyone could then forge the header and get
+a fresh rate-limit bucket per request. If Cloudflare publishes new ranges,
+update the allowlist (otherwise every request is answered 403).
 
 ## Smoke test (Bruno)
 

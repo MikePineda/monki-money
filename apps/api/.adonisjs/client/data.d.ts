@@ -5,9 +5,54 @@
 
 /// <reference path="./manifest.d.ts" />
 import type { InferData, InferVariants } from '@adonisjs/core/types/transformers'
+import type AccountCardTransformer from '#transformers/account_card_transformer'
+import type AccountTransformer from '#transformers/account_transformer'
+import type CategoryGroupTransformer from '#transformers/category_group_transformer'
+import type CategoryTransformer from '#transformers/category_transformer'
+import type CategoryTreeTransformer from '#transformers/category_tree_transformer'
+import type HouseholdTransformer from '#transformers/household_transformer'
+import type InvitationTransformer from '#transformers/invitation_transformer'
+import type MemberTransformer from '#transformers/member_transformer'
+import type MembershipTransformer from '#transformers/membership_transformer'
 import type UserTransformer from '#transformers/user_transformer'
 
 export namespace Data {
+  export type AccountCard = InferData<AccountCardTransformer>
+  export namespace AccountCard {
+    export type Variants = InferVariants<AccountCardTransformer>
+  }
+  export type Account = InferData<AccountTransformer>
+  export namespace Account {
+    export type Variants = InferVariants<AccountTransformer>
+  }
+  export type CategoryGroup = InferData<CategoryGroupTransformer>
+  export namespace CategoryGroup {
+    export type Variants = InferVariants<CategoryGroupTransformer>
+  }
+  export type Category = InferData<CategoryTransformer>
+  export namespace Category {
+    export type Variants = InferVariants<CategoryTransformer>
+  }
+  export type CategoryTree = InferData<CategoryTreeTransformer>
+  export namespace CategoryTree {
+    export type Variants = InferVariants<CategoryTreeTransformer>
+  }
+  export type Household = InferData<HouseholdTransformer>
+  export namespace Household {
+    export type Variants = InferVariants<HouseholdTransformer>
+  }
+  export type Invitation = InferData<InvitationTransformer>
+  export namespace Invitation {
+    export type Variants = InferVariants<InvitationTransformer>
+  }
+  export type Member = InferData<MemberTransformer>
+  export namespace Member {
+    export type Variants = InferVariants<MemberTransformer>
+  }
+  export type Membership = InferData<MembershipTransformer>
+  export namespace Membership {
+    export type Variants = InferVariants<MembershipTransformer>
+  }
   export type User = InferData<UserTransformer>
   export namespace User {
     export type Variants = InferVariants<UserTransformer>

@@ -24,4 +24,6 @@ export interface PublicConfig {
   version: string
   turnstileSiteKey: string | null
   sentryDsnWeb: string | null
+  /** Locale used when neither the user nor the browser picks a supported one. */
+  defaultLocale: string
 }
