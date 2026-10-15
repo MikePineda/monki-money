@@ -191,7 +191,7 @@ async function stagedBatch(householdId: number, accountId: number) {
     accountId,
     source: 'nab_csv',
     status: 'staged',
-    fileSha256: 'a'.repeat(64),
+    fileHash: 'a'.repeat(64),
   })
   const row = await ImportRow.create({
     importBatchId: batch.id,
@@ -287,12 +287,14 @@ test.group('Tenant isolation', () => {
         taxonomy: true,
         accounts: [{ name: 'Attacker account' }],
       })
+      const { batch: attackerBatch } = await stagedBatch(
+        attackerHousehold.household.id,
+        attackerHousehold.accounts[0].id
+      )
       const attacker = {
         household: attackerHousehold,
         account: attackerHousehold.accounts[0],
-        batch: (
-          await stagedBatch(attackerHousehold.household.id, attackerHousehold.accounts[0].id)
-        ).batch,
+        batch: attackerBatch,
       }
 
       const request = client[entry.method](entry.url(victim, attacker))

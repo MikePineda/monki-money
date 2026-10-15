@@ -1,5 +1,5 @@
 import type ImportRow from '#models/import_row'
-import { isHiddenFrom } from '#domain/ledger/privacy'
+import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import { decodeHtmlEntities } from '#importers/html_entities'
@@ -14,7 +14,7 @@ import { decodeHtmlEntities } from '#importers/html_entities'
 export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
   constructor(
     resource: ImportRow,
-    protected viewerUserId: number
+    protected viewer: PrivacyViewer
   ) {
     super(resource)
   }
@@ -54,7 +54,7 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
                 ? {
                     date: matched.date,
                     amountCents: matched.amountCents,
-                    payee: isHiddenFrom(matched, this.viewerUserId) ? null : matched.payee,
+                    payee: isHiddenFrom(matched, this.viewer) ? null : matched.payee,
                     source: matched.source,
                     status: matched.status,
                   }

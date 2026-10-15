@@ -94,13 +94,10 @@ test.group('Imports: staging', (group) => {
     const home = await nabHousehold()
     const first = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
     const batchId = first.body().data[0].id
-    ;(await client.post(`/api/v1/imports/${batchId}/confirm`).actingAs(home.owner)).assertStatus(
-      200
-    )
+    const confirmed = await client.post(`/api/v1/imports/${batchId}/confirm`).actingAs(home.owner)
+    confirmed.assertStatus(200)
     const rowsBefore = await countOf(ImportRow.query().where('household_id', home.household.id))
-    const ledgerBefore = await countOf(Transaction.query()
-      .where('household_id', home.household.id)
-      )
+    const ledgerBefore = await countOf(Transaction.query().where('household_id', home.household.id))
 
     const again = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
 
@@ -200,7 +197,8 @@ test.group('Imports: staging', (group) => {
 
     const confirm = await client.post(`/api/v1/imports/${batch.id}/confirm`).actingAs(home.owner)
     confirm.assertStatus(200)
-    assert.equal((await ImportRow.findOrFail(row.id)).transactionId, twins[1].id)
+    const linkedRow = await ImportRow.findOrFail(row.id)
+    assert.equal(linkedRow.transactionId, twins[1].id)
     assert.lengthOf(
       await Transaction.query()
         .where('account_id', home.everyday.id)
@@ -352,10 +350,33 @@ test.group('Imports: staging', (group) => {
     assert.equal(await countOf(ImportBatch.query().where('household_id', home.household.id)), 1)
   })
 
+  test('test_monthly_import_limit_returns_402', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    // The free plan allows 30 batches a month (config/plans.ts).
+    await ImportBatch.createMany(
+      Array.from({ length: 30 }, (_, index) => ({
+        householdId: home.household.id,
+        accountId: home.savings.id,
+        source: 'nab_csv' as const,
+        status: 'cancelled' as const,
+        fileHash: String(index).padStart(64, '0'),
+      }))
+    )
+
+    const response = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+
+    response.assertStatus(402)
+    response.assertBodyContains({ code: 'E_IMPORT_LIMIT_REACHED' })
+    assert.equal(await countOf(ImportRow.query().where('household_id', home.household.id)), 0)
+  })
+
   test('test_csv_over_limit_is_rejected', async ({ client, assert }) => {
     const home = await nabHousehold()
     const line = nabLine({ date: '01 Oct 26', amount: '-1.00', details: 'X'.repeat(200) })
-    const lines = Array.from({ length: Math.ceil((2 * 1024 * 1024) / line.length) + 10 }, () => line)
+    const lines = Array.from(
+      { length: Math.ceil((2 * 1024 * 1024) / line.length) + 10 },
+      () => line
+    )
     const huge = nabCsv(lines)
     assert.isAbove(huge.length, 2 * 1024 * 1024)
 

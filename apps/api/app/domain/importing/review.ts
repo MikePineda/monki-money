@@ -71,7 +71,7 @@ export interface ReconciliationInput {
   openingBalanceCents: number | null
 }
 
-export interface Reconciliation extends ReconciliationInput {
+export interface Reconciliation extends Omit<ReconciliationInput, 'dateFrom'> {
   /** expected - computed; null when either side is unknown. */
   differenceCents: number | null
   balanced: boolean | null

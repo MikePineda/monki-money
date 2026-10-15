@@ -90,3 +90,64 @@ transfer account differs from the suggestion, the suggestion did not come
 from a rule (LLM, NAB map, none), or the user changed the payer. Matched,
 ignored, uncategorized and opted-out rows teach nothing; the last decision
 for a merchant in a batch wins.
+
+The service adds two filters before `learnRules`: a guess nobody looked at
+(a suggestion still under review that the person did not change) teaches
+nothing, and rows a person decided go last, so their decision wins over
+the guesses for the same merchant. `PATCH /transactions/:id` with
+`applyToFuture: true` and a category learns the same kind of rule from the
+bank row the transaction came from (`RuleLearner.learnFromEdit`).
+
+## The import service (`app/services/imports`)
+
+Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rules).
+
+| Piece                 | Does                                                                                                                                                                                                                                                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ImportStager`        | `POST /imports`: parse, map `Account Number` -> account (or `accountId`, which remembers the number), plan limit (`importsPerMonth`), one staged batch per account (409), stage + resolve every account first (one account's row may be the other leg of another's transfer), then one DB transaction for batches and rows; archive the CSV. |
+| `ImportContextLoader` | `ResolverContext` from the database: stored hashes, candidates, transfer legs, rules, payers.                                                                                                                                                                                                                                                |
+| `ImportDecisions`     | `PATCH /imports/:id/rows/:rowId`: stores the person's decision in `import_rows.decision` (jsonb; absent keys keep the proposal) and validates it; confirm validates again.                                                                                                                                                                   |
+| `ImportConfirmer`     | `POST /imports/:id/confirm`: one transaction with the batch `FOR UPDATE`; `review.ts` (pure) says what each row becomes.                                                                                                                                                                                                                     |
+| `ImportClassifier`    | Run by `ClassifyImportRowsJob` (`@adonisjs/queue`, inline with `QUEUE_DRIVER=sync`).                                                                                                                                                                                                                                                         |
+| `ImportBookkeeping`   | Batch counts by resolution; ledger balance for the reconciliation.                                                                                                                                                                                                                                                                           |
+| `ImportArchive`       | The original CSV at `imports/{householdId}/{batchId}.csv` when `DRIVE_DISK` is set (best effort).                                                                                                                                                                                                                                            |
+
+- **Upload**: `POST /imports` is in `bodyparser.multipart.processManually`;
+  the controller reads the `file` part into memory and aborts past 2 MB
+  (`E_CSV_TOO_LARGE`). Nothing touches the container's disk.
+- **Candidates**: the account's ledger rows in the date window that no
+  import row of this account is linked to yet, plus pending imports. A
+  transfer leg created while importing another account (source `import`,
+  cleared, unlinked here) is offered to the matcher as a hand entry, so the
+  other account's own export later matches it instead of duplicating it.
+- **Transfer legs**: standalone expenses/income of the other accounts
+  (never rows already in a transfer) and the new rows of the other accounts
+  of the same upload.
+- **Payer**: personal account -> its owner; joint account -> the card
+  holder; a joint row without a card (BPAY, transfers, salary) is joint
+  (`null`), unless a rule says otherwise.
+- **Confirm**: `new` -> expense/income (`source: import`, `pending` while
+  NAB shows no `Processed On`); `auto_matched` -> stamps bank date, bank
+  text, card and `cleared` on the existing row (a pending import is
+  upgraded and its old row `superseded`; a proposed match deleted meanwhile
+  becomes a new row); `transfer_leg` -> a `transfers` row with this
+  account's leg plus the other leg: the standalone movement found at
+  staging (turned into a leg), the other account's row of the same upload
+  (linked and confirmed with it) or a new leg; `ignored` stays stored.
+  `needs_confirmation` rows block the confirm (422 with their ids) until a
+  person picks `new`, `auto_matched` (+ `matchTransactionId`),
+  `transfer_leg` (+ `transferAccountId`) or `ignored`.
+- **Opening balance**: on the account's first import (no opening date, zero
+  opening, no earlier batch) the batch keeps `openingBalanceCents(rows)`;
+  confirm stores it with `opening_balance_date` = the day before the
+  earliest date of the batch, so every imported row counts after it.
+- **Reconciliation**: bank balance on the newest row vs opening + ledger
+  rows with `COALESCE(bank_date, date) <= dateTo` (pending included).
+- **System rules** (`SystemRulesSeeder`, insert-only): category rules when
+  a household is created, all of them (transfer rules need the accounts) in
+  the production bootstrap and on the household's first import.
+- **Deleting** an imported transaction marks its bank row `ignored`, so a
+  re-import never brings it back.
+- **Backfill**: `node ace import:nab <file> --account <number|id>
+--household <id> [--confirm-auto]` (stages as the owner; `--confirm-auto`
+  confirms what `isAutoConfirmable` allows and leaves the rest staged).

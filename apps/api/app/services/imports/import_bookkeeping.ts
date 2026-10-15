@@ -1,11 +1,15 @@
 import type Account from '#models/account'
+import { addDays } from '#domain/importing/iso_days'
 import db from '@adonisjs/lucid/services/db'
 import type ImportBatch from '#models/import_batch'
 import type { ImportResolution } from '@monkimoney/shared'
-import type {
-  QueryClientContract,
-  TransactionClientContract,
-} from '@adonisjs/lucid/types/database'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+
+/** An account's opening balance: the balance at the end of `date` (null = before everything). */
+export interface Opening {
+  cents: number
+  date: string | null
+}
 
 /** Batch count column per row resolution (duplicates are counted at staging only). */
 const COUNT_COLUMNS: Partial<Record<ImportResolution, keyof ImportBatch>> = {
@@ -24,8 +28,8 @@ const COUNT_COLUMNS: Partial<Record<ImportResolution, keyof ImportBatch>> = {
  */
 export default class ImportBookkeeping {
   /** Re-counts the batch's stored rows by resolution and saves the batch. */
-  async refreshCounts(batch: ImportBatch, client: QueryClientContract = db) {
-    const counts: Array<{ resolution: ImportResolution; total: number }> = await client
+  async refreshCounts(batch: ImportBatch, trx?: TransactionClientContract) {
+    const counts: Array<{ resolution: ImportResolution; total: number }> = await (trx ?? db)
       .from('import_rows')
       .where('import_batch_id', batch.id)
       .groupBy('resolution')
@@ -40,28 +44,51 @@ export default class ImportBookkeeping {
       if (column) values[column] = Number(row.total)
     }
     batch.merge(values)
-    if (client.isTransaction) batch.useTransaction(client as TransactionClientContract)
+    if (trx) batch.useTransaction(trx)
     await batch.save()
   }
 
   /**
    * Opening balance + every ledger row of the account the bank had seen by
-   * `asOf` (bank date, or the date of rows typed by hand). Pending rows
-   * count: the bank's running balance includes them.
+   * `asOf` (bank date, or the date of rows typed by hand), like
+   * AccountBalances: rows dated on or before the opening date are already
+   * inside the opening balance. Pending rows count: the bank's running
+   * balance includes them. `opening` replaces the account's own (a first
+   * import that has not set it yet).
    */
   async ledgerBalance(
-    account: Pick<Account, 'id' | 'openingBalanceCents'>,
+    account: Pick<Account, 'id' | 'openingBalanceCents' | 'openingBalanceDate'>,
     asOf: string,
-    options: { openingBalanceCents?: number; client?: QueryClientContract } = {}
+    options: { opening?: Opening; client?: TransactionClientContract } = {}
   ): Promise<number> {
     const client = options.client ?? db
+    const opening = options.opening ?? {
+      cents: account.openingBalanceCents,
+      date: account.openingBalanceDate,
+    }
     const row = await client
       .from('transactions')
       .where('account_id', account.id)
       .whereRaw('COALESCE(bank_date, date) <= ?', [asOf])
+      .if(opening.date, (query) => query.where('date', '>', opening.date!))
       .sum('amount_cents as total')
       .first()
-    const opening = options.openingBalanceCents ?? account.openingBalanceCents
-    return opening + Number(row?.total ?? 0)
+    return opening.cents + Number(row?.total ?? 0)
+  }
+
+  /**
+   * The opening balance a first import derives: the balance before the
+   * oldest bank row, as of the day before the earliest date of the batch
+   * (purchase or posting), so every imported row counts after it.
+   */
+  async derivedOpening(batch: ImportBatch, trx?: TransactionClientContract): Promise<Opening> {
+    const client = trx ?? db
+    const row = await client
+      .from('import_rows')
+      .where('import_batch_id', batch.id)
+      .select(client.raw('MIN(LEAST(date, bank_date)) AS earliest'))
+      .first()
+    const earliest: string = row?.earliest ?? batch.dateFrom!
+    return { cents: batch.openingBalanceCents ?? 0, date: addDays(earliest, -1) }
   }
 }

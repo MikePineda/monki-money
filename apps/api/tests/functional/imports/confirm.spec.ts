@@ -56,7 +56,8 @@ test.group('Imports: confirm', (group) => {
 
     confirm.assertStatus(200)
     assert.include(confirm.body().data, { created: 28, matched: 0, ignored: 3, transfers: 4 })
-    assert.equal((await ImportBatch.findOrFail(batch.id)).status, 'completed')
+    const closed = await ImportBatch.findOrFail(batch.id)
+    assert.equal(closed.status, 'completed')
 
     const ledger = await Transaction.query().where('account_id', home.everyday.id)
     assert.lengthOf(ledger, 28 + 4)
@@ -144,14 +145,14 @@ test.group('Imports: confirm', (group) => {
     confirm.assertStatus(422)
     confirm.assertBodyContains({ errors: [{ field: 'categoryId', rule: 'database.exists' }] })
     assert.equal(await countOf(Transaction.query().where('household_id', home.household.id)), 0)
-    assert.equal((await ImportBatch.findOrFail(batch.id)).status, 'staged')
+    const stillStaged = await ImportBatch.findOrFail(batch.id)
+    assert.equal(stillStaged.status, 'staged')
     const rows = await ImportRow.query().where('import_batch_id', batch.id)
     assert.isTrue(rows.every((row) => row.confirmedAt === null && row.transactionId === null))
     assert.equal(
-      await countOf(MerchantRule.query()
-        .where('household_id', home.household.id)
-        .where('origin', 'learned')
-        ),
+      await countOf(
+        MerchantRule.query().where('household_id', home.household.id).where('origin', 'learned')
+      ),
       0
     )
   })
@@ -208,7 +209,7 @@ test.group('Imports: confirm', (group) => {
 
     const everyday = await Account.findOrFail(home.everyday.id)
     assert.equal(everyday.openingBalanceCents, 150_000)
-    assert.equal(everyday.openingBalanceDate, '2025-12-22')
+    assert.equal(everyday.openingBalanceDate, '2025-12-21', 'the day before the oldest movement')
     const balances = await client.get('/api/v1/reports/balances').actingAs(home.owner)
     const row = balances
       .body()
@@ -269,7 +270,8 @@ test.group('Imports: confirm', (group) => {
     })
     await pendingRow.refresh()
     assert.equal(pendingRow.resolution, 'superseded')
-    assert.equal((await ImportRow.findOrFail(posted.id)).transactionId, pending.id)
+    const postedRow = await ImportRow.findOrFail(posted.id)
+    assert.equal(postedRow.transactionId, pending.id)
   })
 
   test('test_deleted_imported_transaction_is_not_resurrected_by_reimport', async ({
@@ -287,7 +289,10 @@ test.group('Imports: confirm', (group) => {
     const destroyed = await client.delete(`/api/v1/transactions/${bakery.id}`).actingAs(home.owner)
 
     destroyed.assertStatus(204)
-    const row = await ImportRow.query().where('household_id', home.household.id).where('date', '2026-08-23').firstOrFail()
+    const row = await ImportRow.query()
+      .where('household_id', home.household.id)
+      .where('date', '2026-08-23')
+      .firstOrFail()
     assert.equal(row.resolution, 'ignored')
     assert.isNull(row.transactionId)
     const again = await uploadCsv(client, home.owner, nabFixture('sample.csv'))

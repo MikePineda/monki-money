@@ -1,4 +1,5 @@
 import type ImportRow from '#models/import_row'
+import type { PrivacyViewer } from '#domain/ledger/privacy'
 import type ImportBatch from '#models/import_batch'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import ImportRowTransformer from '#transformers/import_row_transformer'
@@ -9,7 +10,7 @@ export default class ImportBatchDetailTransformer extends BaseTransformer<Import
   constructor(
     resource: ImportBatch,
     protected rows: ImportRow[],
-    protected viewerUserId: number
+    protected viewer: PrivacyViewer
   ) {
     super(resource)
   }
@@ -17,7 +18,7 @@ export default class ImportBatchDetailTransformer extends BaseTransformer<Import
   toObject() {
     return {
       ...new ImportBatchTransformer(this.resource).toObject(),
-      rows: ImportRowTransformer.transform(this.rows, this.viewerUserId),
+      rows: ImportRowTransformer.transform(this.rows, this.viewer),
     }
   }
 }

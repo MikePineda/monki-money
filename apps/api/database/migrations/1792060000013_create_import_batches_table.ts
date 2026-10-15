@@ -64,7 +64,7 @@ export default class extends BaseSchema {
         .notNullable()
         .defaultTo('staged')
       table.string('file_name', 255).nullable()
-      table.string('file_sha256', 64).notNullable()
+      table.string('file_hash', 64).notNullable() // sha256 hex of the upload
       table.string('file_path', 255).nullable()
       table.date('date_from').nullable()
       table.date('date_to').nullable()

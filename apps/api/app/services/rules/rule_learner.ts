@@ -5,7 +5,7 @@ import MerchantRule from '#models/merchant_rule'
 import db from '@adonisjs/lucid/services/db'
 import { learnRules, type LearningDecision } from '#domain/importing/learning'
 import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
-import type { QueryClientContract, TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**
  * Turns decisions into `merchant` rules (pattern = full merchant key of the
@@ -88,7 +88,8 @@ export default class RuleLearner {
   }
 
   /** Counts the rules that decided confirmed rows (`hit_count`, `last_hit_at`). */
-  async recordHits(ruleIds: readonly number[], client: QueryClientContract = db) {
+  async recordHits(ruleIds: readonly number[], trx?: TransactionClientContract) {
+    const client = trx ?? db
     const hits = new Map<number, number>()
     for (const id of ruleIds) hits.set(id, (hits.get(id) ?? 0) + 1)
     for (const [id, count] of hits) {

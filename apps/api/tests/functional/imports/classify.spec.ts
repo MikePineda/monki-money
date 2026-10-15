@@ -44,9 +44,7 @@ test.group('Imports: classify', (group) => {
     const upload = await uploadCsv(client, home.owner, csv)
     const batch = upload.body().data[0]
 
-    const classify = await client
-      .post(`/api/v1/imports/${batch.id}/classify`)
-      .actingAs(home.owner)
+    const classify = await client.post(`/api/v1/imports/${batch.id}/classify`).actingAs(home.owner)
 
     classify.assertStatus(202)
     const detail = await client.get(`/api/v1/imports/${batch.id}`).actingAs(home.owner)
@@ -60,7 +58,11 @@ test.group('Imports: classify', (group) => {
     })
     assert.isFalse(coles.needsReview)
     const [mystery] = rowsStartingWith(detail.body().data.rows, 'V2222 30/09')
-    assert.include(mystery.suggestion, { source: 'nab_map', categoryId: misc.id, needsReview: true })
+    assert.include(mystery.suggestion, {
+      source: 'nab_map',
+      categoryId: misc.id,
+      needsReview: true,
+    })
 
     const usage = await LlmUsage.query().where('household_id', home.household.id)
     assert.lengthOf(usage, 1)
@@ -87,9 +89,7 @@ test.group('Imports: classify', (group) => {
     const upload = await uploadCsv(client, home.owner, csv)
     const batch = upload.body().data[0]
 
-    const classify = await client
-      .post(`/api/v1/imports/${batch.id}/classify`)
-      .actingAs(home.owner)
+    const classify = await client.post(`/api/v1/imports/${batch.id}/classify`).actingAs(home.owner)
 
     classify.assertStatus(402)
     classify.assertBodyContains({ code: 'E_LLM_QUOTA_EXCEEDED' })
@@ -112,9 +112,7 @@ test.group('Imports: classify', (group) => {
     const llm = (await app.container.make(LlmProvider)) as any
     llm.script(new LlmProviderError('vendor down', 503))
 
-    const classify = await client
-      .post(`/api/v1/imports/${batch.id}/classify`)
-      .actingAs(home.owner)
+    const classify = await client.post(`/api/v1/imports/${batch.id}/classify`).actingAs(home.owner)
 
     classify.assertStatus(202)
     const rows = await ImportRow.query().where('import_batch_id', batch.id)

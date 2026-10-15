@@ -81,7 +81,7 @@ export default class ImportService {
     await this.entitlements.assertLlmQuota(household)
 
     // Registered here too: console commands do not autoload app/jobs.
-    Locator.register(ClassifyImportRowsJob.options.name!, ClassifyImportRowsJob)
+    Locator.register(ClassifyImportRowsJob.options.name!, ClassifyImportRowsJob as never)
     await ClassifyImportRowsJob.dispatch({
       householdId: household.id,
       userId: actor.id,

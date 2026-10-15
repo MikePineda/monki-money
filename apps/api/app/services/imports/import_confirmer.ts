@@ -121,11 +121,9 @@ export default class ImportConfirmer {
       await this.learn(household, actor, selected, trx)
 
       if (batch.openingBalanceCents !== null && account.openingBalanceDate === null) {
+        const opening = await this.bookkeeping.derivedOpening(batch, trx)
         account.useTransaction(trx)
-        account.merge({
-          openingBalanceCents: batch.openingBalanceCents,
-          openingBalanceDate: batch.dateFrom,
-        })
+        account.merge({ openingBalanceCents: opening.cents, openingBalanceDate: opening.date })
         await account.save()
       }
 
@@ -162,18 +160,24 @@ export default class ImportConfirmer {
     trx: TransactionClientContract
   ) {
     switch (entry.action) {
-      case 'create':
-        await this.link(entry.row, (await this.create(household, actor, account, entry, trx)).id)
+      case 'create': {
+        const created = await this.create(household, actor, account, entry, trx)
+        await this.link(entry.row, created.id)
         tally.created++
         return
-      case 'match':
-        await this.link(entry.row, (await this.match(entry, trx)).id)
+      }
+      case 'match': {
+        const matched = await this.match(entry, trx)
+        await this.link(entry.row, matched.id)
         tally.matched++
         return
-      case 'transfer':
-        await this.link(entry.row, (await this.transfer(household, actor, account, entry, trx)).id)
+      }
+      case 'transfer': {
+        const leg = await this.transfer(household, actor, account, entry, trx)
+        await this.link(entry.row, leg.id)
         tally.transfers++
         return
+      }
       case 'ignore':
         entry.row.merge({ resolution: 'ignored', confirmedAt: DateTime.now() })
         await entry.row.save()
@@ -236,7 +240,9 @@ export default class ImportConfirmer {
     target.merge({
       bankDate: row.bankDate,
       rawDescription: decodeHtmlEntities(row.descriptionRaw),
-      cardSuffix: upgrade ? (row.cardSuffix ?? target.cardSuffix) : (target.cardSuffix ?? row.cardSuffix),
+      cardSuffix: upgrade
+        ? (row.cardSuffix ?? target.cardSuffix)
+        : (target.cardSuffix ?? row.cardSuffix),
       status: row.isPending ? target.status : 'cleared',
       ...(upgrade && target.paidByUserId === null ? { paidByUserId: effective.paidByUserId } : {}),
     })
@@ -264,11 +270,7 @@ export default class ImportConfirmer {
     { row, effective }: Applied,
     trx: TransactionClientContract
   ) {
-    const other = await this.decisions.transferAccount(
-      household,
-      row,
-      effective.transferAccountId!
-    )
+    const other = await this.decisions.transferAccount(household, row, effective.transferAccountId!)
     const outgoing = row.amountCents < 0
     const transfer = await Transfer.create(
       {
@@ -332,7 +334,11 @@ export default class ImportConfirmer {
   }
 
   /** The standalone movement in the other account the staging step paired with the row. */
-  protected async existingLeg(row: ImportRow, otherAccountId: number, trx: TransactionClientContract) {
+  protected async existingLeg(
+    row: ImportRow,
+    otherAccountId: number,
+    trx: TransactionClientContract
+  ) {
     if (row.transferLegTransactionId === null) return null
     const leg = await Transaction.query({ client: trx })
       .where('household_id', row.householdId)
@@ -346,7 +352,11 @@ export default class ImportConfirmer {
   }
 
   /** The other account's row of the same upload, still open and waiting as a transfer leg. */
-  protected async stagedLeg(row: ImportRow, otherAccountId: number, trx: TransactionClientContract) {
+  protected async stagedLeg(
+    row: ImportRow,
+    otherAccountId: number,
+    trx: TransactionClientContract
+  ) {
     if (row.transferLegHash === null) return null
     return ImportRow.query({ client: trx })
       .where('household_id', row.householdId)
@@ -404,10 +414,12 @@ export default class ImportConfirmer {
           categoryId: row.suggestedCategoryId,
           transferAccountId: row.suggestedTransferAccountId,
           paidByUserId: row.suggestedPaidByUserId,
-          fromRule: action === 'transfer' ? row.transferSignal === 'rule' : row.suggestionSource === 'rule',
+          fromRule:
+            action === 'transfer' ? row.transferSignal === 'rule' : row.suggestionSource === 'rule',
         },
         final: {
-          categoryId: action === 'create' && effective.splits.length === 0 ? effective.categoryId : null,
+          categoryId:
+            action === 'create' && effective.splits.length === 0 ? effective.categoryId : null,
           transferAccountId: action === 'transfer' ? effective.transferAccountId : null,
           paidByUserId: effective.paidByUserId,
         },

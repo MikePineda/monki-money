@@ -11,13 +11,10 @@ import { isHiddenFrom } from '#domain/ledger/privacy'
 import { findInHousehold } from '#repositories/scoped'
 import { decodeHtmlEntities } from '#importers/html_entities'
 import LedgerReferences from '#services/ledger/ledger_references'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
 import { findMatchingRule, type RuleSubject } from '#domain/importing/rule_matching'
-import {
-  merchantFullKey,
-  merchantKey,
-  normalizeDescription,
-} from '#domain/importing/normalize'
+import { merchantFullKey, merchantKey, normalizeDescription } from '#domain/importing/normalize'
 
 /** Unique index of migration 16: one rule per (household, match_type, pattern). */
 const PATTERN_CONSTRAINT = 'merchant_rules_household_type_pattern_unique'
@@ -49,7 +46,11 @@ export default class RulesService {
       .orderBy('id')
   }
 
-  async create(household: Household, actor: User, input: RuleInput & { matchType: RuleMatchType; pattern: string }) {
+  async create(
+    household: Household,
+    actor: User,
+    input: RuleInput & { matchType: RuleMatchType; pattern: string }
+  ) {
     const values = await this.validated(household, null, input)
     try {
       return await MerchantRule.create({
@@ -97,7 +98,8 @@ export default class RulesService {
       .where('needs_review', true)
       .whereNot('kind', 'transfer')
       .where('is_split', false)
-    const visible = candidates.filter((row) => !isHiddenFrom(row, actor.id))
+    const viewer = await privacyViewer(household, actor)
+    const visible = candidates.filter((row) => !isHiddenFrom(row, viewer))
     const bankRows = await this.bankRowsOf(visible.map((row) => row.id))
 
     const ruleValue = rule.toRule()

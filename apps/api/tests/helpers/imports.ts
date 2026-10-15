@@ -102,6 +102,6 @@ export async function countOf(query: ModelQueryBuilderContract<LucidModel, unkno
 }
 
 /** Rows of `GET /imports/:id` whose bank details start with `prefix`. */
-export function rowsStartingWith(rows: Array<{ description: string }>, prefix: string) {
+export function rowsStartingWith(rows: any[], prefix: string): any[] {
   return rows.filter((row) => row.description.startsWith(prefix))
 }

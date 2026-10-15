@@ -122,7 +122,8 @@ export default class ImportDecisions {
       await this.references.payer(household, decision.paidByUserId)
     }
 
-    const transferTarget = row.resolution === 'transfer_leg' || Object.hasOwn(decision, 'transferAccountId')
+    const transferTarget =
+      row.resolution === 'transfer_leg' || Object.hasOwn(decision, 'transferAccountId')
     if (typeof effective.transferAccountId === 'number' && transferTarget) {
       await this.transferAccount(household, row, effective.transferAccountId)
     }

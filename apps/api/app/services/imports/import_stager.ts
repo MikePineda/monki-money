@@ -9,6 +9,7 @@ import ImportBatch from '#models/import_batch'
 import type Household from '#models/household'
 import db from '@adonisjs/lucid/services/db'
 import { todayIn } from '#domain/calendar/month'
+import { addDays } from '#domain/importing/iso_days'
 import { CsvEmptyError } from '#importers/errors'
 import { FieldError } from '#exceptions/field_error'
 import { parseBankCsv } from '#importers/registry'
@@ -72,7 +73,7 @@ export default class ImportStager {
     if (firstImport) await this.systemRules.seed(household.id)
 
     const plans = await this.resolve(household, groups, accounts)
-    const fileSha256 = createHash('sha256').update(input.buffer).digest('hex')
+    const fileHash = createHash('sha256').update(input.buffer).digest('hex')
 
     const batchIds = await db.transaction(async (trx) => {
       const ids: number[] = []
@@ -80,7 +81,7 @@ export default class ImportStager {
         const batch = await this.persist(household, actor, plan, trx, {
           source: parsed.source,
           fileName: input.fileName,
-          fileSha256,
+          fileHash,
         })
         ids.push(batch.id)
       }
@@ -209,7 +210,7 @@ export default class ImportStager {
     actor: User,
     plan: AccountPlan,
     trx: TransactionClientContract,
-    file: { source: ImportSource; fileName: string | null; fileSha256: string }
+    file: { source: ImportSource; fileName: string | null; fileHash: string }
   ): Promise<ImportBatch> {
     const { account, rows } = plan
     const stored = plan.resolved.filter((resolved) => resolved.resolution !== 'duplicate')
@@ -223,9 +224,13 @@ export default class ImportStager {
     const firstImport =
       previous === null && account.openingBalanceDate === null && account.openingBalanceCents === 0
     const opening = firstImport ? openingBalanceCents(rows) : null
+    const earliest = plan.staged
+      .flatMap((row) => [row.date, row.bankDate])
+      .sort()
+      .at(0)!
 
     const ledger = await this.bookkeeping.ledgerBalance(account, asOf, {
-      openingBalanceCents: opening ?? undefined,
+      opening: opening === null ? undefined : { cents: opening, date: addDays(earliest, -1) },
       client: trx,
     })
     const projected = stored
@@ -240,7 +245,7 @@ export default class ImportStager {
         source: file.source,
         status: 'staged',
         fileName: file.fileName?.slice(0, 255) ?? null,
-        fileSha256: file.fileSha256,
+        fileHash: file.fileHash,
         dateFrom: bankDates[0],
         dateTo: asOf,
         rowCount: rows.length,

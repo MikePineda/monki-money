@@ -170,7 +170,7 @@ export class HouseholdSchema extends BaseModel {
 }
 
 export class ImportBatchSchema extends BaseModel {
-  static $columns = ['accountId', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileName', 'filePath', 'fileSha256', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
+  static $columns = ['accountId', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
   $columns = ImportBatchSchema.$columns
   @column()
   declare accountId: number
@@ -191,11 +191,11 @@ export class ImportBatchSchema extends BaseModel {
   @column()
   declare expectedBalanceCents: number | null
   @column()
+  declare fileHash: string
+  @column()
   declare fileName: string | null
   @column()
   declare filePath: string | null
-  @column()
-  declare fileSha256: string
   @column()
   declare householdId: number
   @column({ isPrimary: true })

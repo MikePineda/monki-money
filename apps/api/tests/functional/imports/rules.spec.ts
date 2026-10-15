@@ -123,7 +123,11 @@ test.group('Merchant rules', (group) => {
 
     const index = await client.get('/api/v1/rules').actingAs(home.owner)
     index.assertStatus(200)
-    assert.lengthOf(index.body().data, 3)
+    assert.lengthOf(
+      index.body().data.filter((rule: any) => rule.origin === 'user'),
+      3,
+      'the bank defaults are listed too'
+    )
     assert.equal(index.body().data[0].id, created.body().data.id, 'highest priority first')
 
     const destroyed = await client

@@ -62,6 +62,18 @@ export type ScannedRoutes = {
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.balances': { paramsTuple?: []; params?: {} }
+    'imports.index': { paramsTuple?: []; params?: {} }
+    'imports.store': { paramsTuple?: []; params?: {} }
+    'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.classify': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.confirm': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.cancel': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }
+    'rules.index': { paramsTuple?: []; params?: {} }
+    'rules.store': { paramsTuple?: []; params?: {} }
+    'rules.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
@@ -84,6 +96,9 @@ export type ScannedRoutes = {
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.balances': { paramsTuple?: []; params?: {} }
+    'imports.index': { paramsTuple?: []; params?: {} }
+    'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rules.index': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
@@ -106,6 +121,9 @@ export type ScannedRoutes = {
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.balances': { paramsTuple?: []; params?: {} }
+    'imports.index': { paramsTuple?: []; params?: {} }
+    'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rules.index': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
@@ -130,6 +148,12 @@ export type ScannedRoutes = {
     'transactions.quick': { paramsTuple?: []; params?: {} }
     'transactions.bulkCategorize': { paramsTuple?: []; params?: {} }
     'transfers.store': { paramsTuple?: []; params?: {} }
+    'imports.store': { paramsTuple?: []; params?: {} }
+    'imports.classify': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.confirm': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.cancel': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rules.store': { paramsTuple?: []; params?: {} }
+    'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PATCH: {
     'me.update': { paramsTuple?: []; params?: {} }
@@ -139,6 +163,8 @@ export type ScannedRoutes = {
     'categories.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }
+    'rules.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
     'household.invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -148,6 +174,7 @@ export type ScannedRoutes = {
     'categories.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'accounts.reorder': { paramsTuple?: []; params?: {} }

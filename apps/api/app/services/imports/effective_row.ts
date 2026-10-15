@@ -20,7 +20,9 @@ export interface EffectiveRow {
 export function effectiveRow(row: ImportRow): EffectiveRow {
   const decision = row.decision ?? {}
   const pick = <Key extends keyof typeof decision, Fallback>(key: Key, fallback: Fallback) =>
-    Object.hasOwn(decision, key) ? (decision[key] as Exclude<(typeof decision)[Key], undefined>) : fallback
+    Object.hasOwn(decision, key)
+      ? (decision[key] as Exclude<(typeof decision)[Key], undefined>)
+      : fallback
   const splits = decision.splits ?? []
 
   return {

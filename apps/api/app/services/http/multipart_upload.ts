@@ -1,4 +1,5 @@
-import type { Request } from '@adonisjs/core/http'
+import type { HttpRequest } from '@adonisjs/core/http'
+import type { MultipartStream } from '@adonisjs/core/types/bodyparser'
 
 export interface InMemoryUpload {
   buffer: Buffer
@@ -14,7 +15,7 @@ export interface InMemoryUpload {
  * no such file (or is not multipart at all).
  */
 export async function readUploadIntoMemory(
-  request: Request,
+  request: HttpRequest,
   field: string,
   options: { maxBytes: number; tooLarge: () => Error }
 ): Promise<InMemoryUpload | null> {
@@ -23,7 +24,7 @@ export async function readUploadIntoMemory(
   const multipart = request.multipart
   let upload: InMemoryUpload | null = null
 
-  multipart.onFile(field, {}, async (part) => {
+  multipart.onFile(field, {}, async (part: MultipartStream) => {
     const chunks: Buffer[] = []
     let size = 0
     for await (const chunk of part as AsyncIterable<Buffer>) {

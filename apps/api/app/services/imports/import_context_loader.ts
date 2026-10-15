@@ -4,13 +4,11 @@ import Category from '#models/category'
 import ImportRow from '#models/import_row'
 import Transaction from '#models/transaction'
 import MerchantRule from '#models/merchant_rule'
-import db from '@adonisjs/lucid/services/db'
 import { addDays } from '#domain/importing/iso_days'
 import type { PayerContext } from '#domain/importing/paid_by'
 import { TRANSFER_LEG_WINDOW_DAYS } from '#domain/importing/transfer_detector'
 import { DAYS_AFTER_POSTING, DAYS_BEFORE_PURCHASE } from '#domain/importing/matcher'
 import CandidatesRepository, { type MatchCandidate } from '#repositories/candidates_repository'
-import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
 import type {
   CandidateTx,
@@ -29,10 +27,8 @@ import type {
 export default class ImportContextLoader {
   constructor(protected candidates: CandidatesRepository) {}
 
-  async rules(household: HouseholdRef, client: QueryClientContract = db): Promise<RuleValue[]> {
-    const rules = await MerchantRule.query({ client }).withScopes((scopes) =>
-      scopes.forHousehold(household)
-    )
+  async rules(household: HouseholdRef): Promise<RuleValue[]> {
+    const rules = await MerchantRule.query().withScopes((scopes) => scopes.forHousehold(household))
     return rules.map((rule) => rule.toRule())
   }
 

@@ -13,10 +13,11 @@ import { NAB_SYSTEM_RULES, resolveSystemRules } from '#importers/nab/system_rule
  * accounts exist: bootstrap and first import call this again).
  */
 export default class SystemRulesSeeder {
-  async seed(householdId: number, client: QueryClientContract = db): Promise<number> {
+  async seed(householdId: number, trx?: QueryClientContract): Promise<number> {
+    const options = trx ? { client: trx } : {}
     const [categories, accounts] = await Promise.all([
-      Category.query({ client }).where('household_id', householdId).select('id', 'slug'),
-      Account.query({ client })
+      Category.query(options).where('household_id', householdId).select('id', 'slug'),
+      Account.query(options)
         .where('household_id', householdId)
         .where('is_active', true)
         .select('id', 'institution', 'kind'),
@@ -33,7 +34,7 @@ export default class SystemRulesSeeder {
     if (seeds.length === 0) return 0
 
     const now = new Date()
-    const inserted: Array<{ id: number }> = await client
+    const inserted: Array<{ id: number }> = await (trx ?? db)
       .knexQuery()
       .table('merchant_rules')
       .insert(
