@@ -1,0 +1,8 @@
+# Extends the default gitleaks rules with the repo's known false positives.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders and domain vocabulary that trip generic rules"
+regexes = ['''merchant key''', '''test-key-not-real''', '''gitleaks:allow''']
+paths = ['''apps/api/tests/fixtures/''']
