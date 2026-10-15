@@ -21,3 +21,9 @@ npm run verify     # the gate before any pull request
 
 Agents: run the `verify` skill (`.claude/skills/verify`) before opening a pull
 request; it refuses to open one while the gate is red.
+
+## License
+
+monkimoney is free software under the [GNU AGPL-3.0](LICENSE). You may self-host
+it and change it; if you run a modified version as a service, you must publish
+your changes under the same license. The name and logo are not covered by it.

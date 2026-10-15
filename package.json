@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "monkimoney: a couples' finance PWA (AUD). AdonisJS 7 API + Angular 22 PWA monorepo.",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "workspaces": [
     "apps/*",
     "packages/*",

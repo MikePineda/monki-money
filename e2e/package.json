@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "description": "Playwright end-to-end suite. Runs against the real stack: docker-compose.test.yml + the production build of the API serving the built Angular app.",
   "scripts": {
     "e2e": "bash ../scripts/e2e.sh",
