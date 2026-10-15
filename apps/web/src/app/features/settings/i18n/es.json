@@ -52,6 +52,12 @@
   "categories": {
     "title": "Categorías"
   },
+  "import": {
+    "title": "Importar CSV del banco"
+  },
+  "rules": {
+    "title": "Reglas de comercios"
+  },
   "accounts": {
     "title": "Cuentas",
     "add": "Agregar cuenta",
