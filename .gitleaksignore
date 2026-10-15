@@ -2,3 +2,8 @@
 # Kept empty on purpose: fingerprints are tied to commit SHAs and go stale
 # when history is rewritten. Mark a false positive inline with a
 # `gitleaks:allow` comment on its line instead (see .gitleaks.toml).
+# Fake tokens in tests and examples (commits before the inline gitleaks:allow comments existed)
+0761187646f11f85c870f190232b73a671b84223:apps/api/app/domain/importing/suggesters/rule_suggester.ts:generic-api-key:13
+35d643b93fe6590539c66e3d9f0d1901ab61e40f:apps/web/src/app/domain/invitation-link.spec.ts:generic-api-key:3
+35d643b93fe6590539c66e3d9f0d1901ab61e40f:apps/web/src/app/features/onboarding/feature/create-household.page.spec.ts:generic-api-key:27
+b684efdc829f2831da03f282e891ca81c75b9ba9:apps/api/tests/unit/llm/anthropic_compatible_provider.spec.ts:generic-api-key:9
