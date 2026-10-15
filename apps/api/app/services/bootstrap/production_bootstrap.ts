@@ -9,6 +9,7 @@ import HouseholdMember from '#models/household_member'
 import logger from '@adonisjs/core/services/logger'
 import type { AccountKind, Locale } from '@monkimoney/shared'
 import TaxonomySeeder from '#services/households/taxonomy_seeder'
+import SystemRulesSeeder from '#services/rules/system_rules_seeder'
 import HouseholdCreator from '#services/households/household_creator'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { BootstrapInput, BootstrapUserInput, SmokeUserInput } from '#services/bootstrap/dto'
@@ -40,16 +41,19 @@ const ACCOUNTS: AccountSpec[] = [
 
 /**
  * First-deploy bootstrap (also the E2E seed): the household, its two
- * verified users and the starting accounts. Idempotent by email (users),
- * by the owner's current household, by account name and by card suffix:
- * re-running never duplicates rows nor resets a password. Also creates the
- * post-deploy smoke user in a household of its own (ensureSmokeUser).
+ * verified users, the starting accounts and the bank's default rules.
+ * Idempotent by email (users), by the owner's current household, by
+ * account name, by card suffix and by rule pattern: re-running never
+ * duplicates rows nor resets a password, and adds the default rules to a
+ * household seeded before they existed. Also creates the post-deploy smoke
+ * user in a household of its own (ensureSmokeUser).
  */
 @inject()
 export default class ProductionBootstrap {
   constructor(
     protected households: HouseholdCreator,
-    protected taxonomy: TaxonomySeeder
+    protected taxonomy: TaxonomySeeder,
+    protected systemRules: SystemRulesSeeder
   ) {}
 
   async run(input: BootstrapInput) {
@@ -85,6 +89,9 @@ export default class ProductionBootstrap {
           await this.ensureCard(everyday, person.cardSuffix, user, trx)
         }
       }
+
+      // Bank defaults, transfer rules included now that the accounts exist.
+      await this.systemRules.seed(household.id, trx)
 
       return { household, owner, member, accounts }
     })

@@ -102,4 +102,20 @@ test.group('Exception handler', () => {
       assert.notInclude(JSON.stringify(body), 'transactions_category_id_foreign')
     }
   })
+
+  test('test_deadlock_or_serialization_failure_maps_to_409_retryable', async ({ assert }) => {
+    for (const code of ['40P01', '40001']) {
+      const error = Object.assign(new Error('deadlock detected on relation "import_rows"'), {
+        code,
+      })
+
+      const { status, body } = await render(error, { debug: false })
+
+      assert.equal(status, 409, code)
+      assert.deepEqual(body, {
+        message: 'This was being saved at the same time elsewhere. Try again',
+        code: 'E_CONCURRENT_UPDATE',
+      })
+    }
+  })
 })

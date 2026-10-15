@@ -4,17 +4,22 @@ import Household from '#models/household'
 import db from '@adonisjs/lucid/services/db'
 import HouseholdMember from '#models/household_member'
 import TaxonomySeeder from '#services/households/taxonomy_seeder'
+import SystemRulesSeeder from '#services/rules/system_rules_seeder'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { AddMemberInput, CreateHouseholdInput } from '#services/households/dto'
 
 /**
  * Creates households and memberships. Used by sign-up, invitation accept,
  * the production bootstrap seeder and the E2E seed, so every household is
- * born the same way: owner membership, current household set, taxonomy.
+ * born the same way: owner membership, current household set, taxonomy
+ * and the bank's default category rules.
  */
 @inject()
 export default class HouseholdCreator {
-  constructor(protected taxonomy: TaxonomySeeder) {}
+  constructor(
+    protected taxonomy: TaxonomySeeder,
+    protected systemRules: SystemRulesSeeder
+  ) {}
 
   async create(
     input: CreateHouseholdInput,
@@ -39,6 +44,8 @@ export default class HouseholdCreator {
 
     if (input.withTaxonomy !== false) {
       await this.taxonomy.seed(household.id, input.locale, trx)
+      // Category rules only: transfer rules need accounts (bootstrap, first import).
+      await this.systemRules.seed(household.id, trx)
     }
 
     return { household, membership }

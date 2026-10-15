@@ -426,6 +426,78 @@ const routes = {
     tokens: [{"old":"/api/v1/insights/:month/generate","type":0,"val":"api","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"v1","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"insights","end":""},{"old":"/api/v1/insights/:month/generate","type":1,"val":"month","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"generate","end":""}],
     types: placeholder as Registry['insights.generate']['types'],
   },
+  'imports.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/imports',
+    tokens: [{"old":"/api/v1/imports","type":0,"val":"api","end":""},{"old":"/api/v1/imports","type":0,"val":"v1","end":""},{"old":"/api/v1/imports","type":0,"val":"imports","end":""}],
+    types: placeholder as Registry['imports.index']['types'],
+  },
+  'imports.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports',
+    tokens: [{"old":"/api/v1/imports","type":0,"val":"api","end":""},{"old":"/api/v1/imports","type":0,"val":"v1","end":""},{"old":"/api/v1/imports","type":0,"val":"imports","end":""}],
+    types: placeholder as Registry['imports.store']['types'],
+  },
+  'imports.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/imports/:id',
+    tokens: [{"old":"/api/v1/imports/:id","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['imports.show']['types'],
+  },
+  'imports.classify': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/:id/classify',
+    tokens: [{"old":"/api/v1/imports/:id/classify","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/classify","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/classify","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/classify","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/classify","type":0,"val":"classify","end":""}],
+    types: placeholder as Registry['imports.classify']['types'],
+  },
+  'imports.confirm': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/:id/confirm',
+    tokens: [{"old":"/api/v1/imports/:id/confirm","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/confirm","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/confirm","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/confirm","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/confirm","type":0,"val":"confirm","end":""}],
+    types: placeholder as Registry['imports.confirm']['types'],
+  },
+  'imports.cancel': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/:id/cancel',
+    tokens: [{"old":"/api/v1/imports/:id/cancel","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/cancel","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"cancel","end":""}],
+    types: placeholder as Registry['imports.cancel']['types'],
+  },
+  'imports.rows.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/imports/:id/rows/:rowId',
+    tokens: [{"old":"/api/v1/imports/:id/rows/:rowId","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/rows/:rowId","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/rows/:rowId","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/rows/:rowId","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/rows/:rowId","type":0,"val":"rows","end":""},{"old":"/api/v1/imports/:id/rows/:rowId","type":1,"val":"rowId","end":""}],
+    types: placeholder as Registry['imports.rows.update']['types'],
+  },
+  'rules.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/rules',
+    tokens: [{"old":"/api/v1/rules","type":0,"val":"api","end":""},{"old":"/api/v1/rules","type":0,"val":"v1","end":""},{"old":"/api/v1/rules","type":0,"val":"rules","end":""}],
+    types: placeholder as Registry['rules.index']['types'],
+  },
+  'rules.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/rules',
+    tokens: [{"old":"/api/v1/rules","type":0,"val":"api","end":""},{"old":"/api/v1/rules","type":0,"val":"v1","end":""},{"old":"/api/v1/rules","type":0,"val":"rules","end":""}],
+    types: placeholder as Registry['rules.store']['types'],
+  },
+  'rules.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/rules/:id',
+    tokens: [{"old":"/api/v1/rules/:id","type":0,"val":"api","end":""},{"old":"/api/v1/rules/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/rules/:id","type":0,"val":"rules","end":""},{"old":"/api/v1/rules/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['rules.update']['types'],
+  },
+  'rules.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/rules/:id',
+    tokens: [{"old":"/api/v1/rules/:id","type":0,"val":"api","end":""},{"old":"/api/v1/rules/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/rules/:id","type":0,"val":"rules","end":""},{"old":"/api/v1/rules/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['rules.destroy']['types'],
+  },
+  'rules.apply': {
+    methods: ["POST"],
+    pattern: '/api/v1/rules/:id/apply',
+    tokens: [{"old":"/api/v1/rules/:id/apply","type":0,"val":"api","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"v1","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"rules","end":""},{"old":"/api/v1/rules/:id/apply","type":1,"val":"id","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"apply","end":""}],
+    types: placeholder as Registry['rules.apply']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }
