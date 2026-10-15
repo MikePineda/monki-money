@@ -1,0 +1,2 @@
+# Synthetic NAB exports keep the bank's CRLF line endings byte for byte.
+*.csv -text

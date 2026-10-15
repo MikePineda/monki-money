@@ -1,0 +1,3 @@
+Date,Amount,Account Number,,Transaction Type,Transaction Details,Balance,Category,Merchant Name,Processed On
+26 Sept 26,-6.00,123456789,,EFTPOS DEBIT,POS 26/09 KMART 9999 SAMPLEVILLE,494,Other shopping,Kmart (Sampleville),
+29 Sept 26,-6.00,123456789,,MISCELLANEOUS DEBIT,V1111 26/09 KMART 9999 SAMPLEVILLE 70000009001,488,Other shopping,Kmart (Sampleville),29 Sept 26
