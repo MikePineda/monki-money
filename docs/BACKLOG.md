@@ -31,3 +31,9 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 `test_reset_wipes_the_database_and_seeds_the_e2e_household` fails when its file runs alone: `RESTART IDENTITY` gives the new E2E household the leftover's id 1 (passes in the full suite).
 - 2026-10-16 After a member leaves, `accounts.owner_user_id` and `account_cards.user_id` still point at them, so `defaultPayer` gives new rows on those accounts/cards to the ex-member: decide whether leaving makes their accounts joint or the default payer skips non-members.
 - 2026-10-16 Household ownership transfer (owners can only delete today, `household.leave` answers 422 for them), and letting a member leave while the household is pending deletion (today 403 like every household route).
+- 2026-10-16 `GET /goals` could carry each goal's projection (`?include=projection`): the goals list reads `GET /goals/:id/projection` once per goal today.
+- 2026-10-16 Goal projections have no history: the chart's solid "actual" line is today's point only. A tracked account's month-end balances (or the household's monthly net) would give it real months.
+- 2026-10-16 Goals never change status by themselves: when `remainingCents` reaches 0 the detail could offer "Mark as reached" more prominently (or a push "you reached {goal}"), and show `reachedAt` ("Reached on 3 Nov").
+- 2026-10-16 The Month summary card asks `GET /insights/:month` on every month it shows (404 until generated); a flag on the month report (or `GET /insights?from=&to=`) would save the call.
+- 2026-10-16 The web initial bundle is ~350.3 kB, past its 350 kB warning budget already on main before WP 5.2 (the goals routes add ~0.2 kB): trim the eager app or raise the budget.
+- 2026-10-16 Vitest's module cache (`node_modules/.vitest-cache`) served a stale component when a spec file's text matched an earlier run (a fixed template still failed until the spec changed); delete the folder when a spec result makes no sense, or disable the cache.
