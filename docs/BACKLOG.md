@@ -14,3 +14,4 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Siri / Apple Shortcuts quick add through a personal-token endpoint (P3).
 - 2026-10-15 SaaS in Australia: own domain, Privacy Act (APPs) policy and retention, data residency (APAC), full `audit_log`, private analytics only if needed.
 - 2026-10-15 Real data never in the repo or in agents' context: synthetic fixtures with the real structure; real CSVs only in Downloads and the private bucket.
+- 2026-10-15 Charts: opt-in texture fill (45/135 degrees) for forced-colors, print and full CVD (dataviz backup channel); today legends, direct labels and table views carry identity.
