@@ -1,0 +1,11 @@
+{
+  "title": "Month",
+  "picker": {
+    "label": "Month"
+  },
+  "empty": {
+    "title": "No transactions in {month} yet.",
+    "body": "Add the first one, or import your bank's CSV once import is ready.",
+    "action": "Add transaction"
+  }
+}

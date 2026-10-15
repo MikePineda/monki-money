@@ -1,0 +1,148 @@
+{
+  "title": "UI kit",
+  "devOnly": "Development only",
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "lang": {
+    "label": "Language",
+    "en": "English",
+    "es": "Español"
+  },
+  "sections": {
+    "tokens": "Colour tokens",
+    "tokensHint": "Semantic tokens from DESIGN.md; they switch with the theme.",
+    "type": "Type scale",
+    "buttons": "Buttons",
+    "fields": "Text fields",
+    "amounts": "Amounts and keypad",
+    "chips": "Chips",
+    "rows": "List rows",
+    "month": "Month picker and stat tiles",
+    "cardEyebrow": "Insight",
+    "card": "Section header and card",
+    "sheets": "Bottom sheets",
+    "feedback": "Toasts and banners",
+    "progress": "Progress",
+    "empty": "Empty state and skeleton",
+    "tabBar": "Tab bar"
+  },
+  "type": {
+    "title": "Title · October",
+    "heading": "Heading · Spend by category",
+    "body": "Body · Groceries are 14% below your mid-month average.",
+    "bodyStrong": "Body strong · Save expense",
+    "label": "Label · Account",
+    "eyebrow": "Spent in October",
+    "caption": "Caption · Groceries · NAB Everyday"
+  },
+  "plural": {
+    "transactions": "{count, plural, =0 {No transactions} one {# transaction} other {# transactions}}"
+  },
+  "button": {
+    "primary": "Save expense",
+    "secondary": "Choose account",
+    "ghost": "Cancel",
+    "link": "See all",
+    "destructive": "Delete transaction",
+    "disabled": "Save",
+    "loading": "Tap to load",
+    "block": "Save −$42.50",
+    "search": "Search",
+    "table": "Show as table",
+    "pickMonth": "Choose month"
+  },
+  "field": {
+    "note": "Note",
+    "noteHint": "Optional. Only you and your partner see it.",
+    "email": "Email",
+    "emailError": "Enter a valid email address.",
+    "disabled": "Account"
+  },
+  "kind": {
+    "label": "Transaction type",
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer"
+  },
+  "amount": {
+    "heroHint": "Type with the keypad below"
+  },
+  "data": {
+    "groceries": "Groceries",
+    "rent": "Rent",
+    "utilities": "Utilities",
+    "eatingOut": "Eating out",
+    "transport": "Transport",
+    "health": "Health",
+    "phone": "Phone",
+    "coffee": "Café",
+    "other": "Other",
+    "income": "Income",
+    "toSavings": "To savings",
+    "shared": "Shared",
+    "you": "You",
+    "partner": "Your partner"
+  },
+  "month": {
+    "label": "Month"
+  },
+  "stats": {
+    "income": "Income",
+    "incomeDelta": "2% less",
+    "spending": "Spending",
+    "spendingDelta": "9% less",
+    "saved": "Net savings",
+    "savedDelta": "4% more"
+  },
+  "card": {
+    "seeAll": "See all",
+    "eyebrow": "Insight",
+    "body": "Rent is 51% of what you spent in October."
+  },
+  "sheet": {
+    "open": "Open a sheet",
+    "openAccount": "Choose account",
+    "openCategory": "Choose category",
+    "current": "Account: {account} · Category: {category}",
+    "accountTitle": "Account",
+    "categoryTitle": "Category",
+    "demoTitle": "About this sheet",
+    "demoBody": "Sheets rise from the bottom over the scrim, trap focus, lock the page scroll and close with Escape, the close button or a tap outside.",
+    "demoAction": "Got it"
+  },
+  "toast": {
+    "saved": "Expense saved.",
+    "undo": "Undo",
+    "show": "Show toast",
+    "showPersistent": "Show update toast"
+  },
+  "banner": {
+    "update": "A new version is ready.",
+    "offline": "You are offline. Changes will need a connection.",
+    "warning": "3 rows need a review before importing.",
+    "serious": "Groceries are past 90% of the budget."
+  },
+  "progress": {
+    "upload": "Upload progress",
+    "uploadDetail": "1.2 MB of 3.4 MB",
+    "indeterminate": "Preparing",
+    "meter": "Budget used",
+    "steps": "Step 2 of 4"
+  },
+  "empty": {
+    "title": "No transactions in October yet.",
+    "body": "Add the first one or import your bank's CSV.",
+    "action": "Add transaction"
+  },
+  "tabs": {
+    "label": "Main (demo)",
+    "month": "Month",
+    "transactions": "Transactions",
+    "more": "More",
+    "add": "Add transaction"
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "title": "Kit de UI",
+  "devOnly": "Solo en desarrollo",
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "lang": {
+    "label": "Idioma",
+    "en": "English",
+    "es": "Español"
+  },
+  "sections": {
+    "tokens": "Tokens de color",
+    "tokensHint": "Tokens semánticos de DESIGN.md; cambian con el tema.",
+    "type": "Escala tipográfica",
+    "buttons": "Botones",
+    "fields": "Campos de texto",
+    "amounts": "Montos y teclado",
+    "chips": "Chips",
+    "rows": "Filas de lista",
+    "month": "Selector de mes y cifras",
+    "cardEyebrow": "Observación",
+    "card": "Encabezado de sección y tarjeta",
+    "sheets": "Hojas inferiores",
+    "feedback": "Avisos y banners",
+    "progress": "Progreso",
+    "empty": "Estado vacío y esqueleto",
+    "tabBar": "Barra de pestañas"
+  },
+  "type": {
+    "title": "Título · Octubre",
+    "heading": "Encabezado · Gasto por categoría",
+    "body": "Cuerpo · Súper va 14% por debajo de tu promedio a mitad de mes.",
+    "bodyStrong": "Cuerpo fuerte · Guardar gasto",
+    "label": "Etiqueta · Cuenta",
+    "eyebrow": "Gastado en octubre",
+    "caption": "Nota · Súper · NAB Everyday"
+  },
+  "plural": {
+    "transactions": "{count, plural, =0 {Sin movimientos} one {# movimiento} other {# movimientos}}"
+  },
+  "button": {
+    "primary": "Guardar gasto",
+    "secondary": "Elegir cuenta",
+    "ghost": "Cancelar",
+    "link": "Ver todo",
+    "destructive": "Eliminar movimiento",
+    "disabled": "Guardar",
+    "loading": "Toca para cargar",
+    "block": "Guardar −$42.50",
+    "search": "Buscar",
+    "table": "Ver como tabla",
+    "pickMonth": "Elegir mes"
+  },
+  "field": {
+    "note": "Nota",
+    "noteHint": "Opcional. Solo tú y tu pareja la ven.",
+    "email": "Correo",
+    "emailError": "Escribe un correo válido.",
+    "disabled": "Cuenta"
+  },
+  "kind": {
+    "label": "Tipo de movimiento",
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "transfer": "Transferencia"
+  },
+  "amount": {
+    "heroHint": "Escribe con el teclado de abajo"
+  },
+  "data": {
+    "groceries": "Súper",
+    "rent": "Renta",
+    "utilities": "Servicios",
+    "eatingOut": "Comida fuera",
+    "transport": "Transporte",
+    "health": "Salud",
+    "phone": "Teléfono",
+    "coffee": "Café",
+    "other": "Otros",
+    "income": "Ingreso",
+    "toSavings": "Al ahorro",
+    "shared": "Compartida",
+    "you": "Tú",
+    "partner": "Tu pareja"
+  },
+  "month": {
+    "label": "Mes"
+  },
+  "stats": {
+    "income": "Ingreso",
+    "incomeDelta": "2% menos",
+    "spending": "Gasto",
+    "spendingDelta": "9% menos",
+    "saved": "Ahorro neto",
+    "savedDelta": "4% más"
+  },
+  "card": {
+    "seeAll": "Ver todo",
+    "eyebrow": "Observación",
+    "body": "La renta es el 51% de lo gastado en octubre."
+  },
+  "sheet": {
+    "open": "Abrir una hoja",
+    "openAccount": "Elegir cuenta",
+    "openCategory": "Elegir categoría",
+    "current": "Cuenta: {account} · Categoría: {category}",
+    "accountTitle": "Cuenta",
+    "categoryTitle": "Categoría",
+    "demoTitle": "Sobre esta hoja",
+    "demoBody": "Las hojas suben desde abajo sobre el fondo oscurecido, atrapan el foco, bloquean el scroll de la página y se cierran con Escape, el botón de cerrar o un toque afuera.",
+    "demoAction": "Entendido"
+  },
+  "toast": {
+    "saved": "Gasto guardado.",
+    "undo": "Deshacer",
+    "show": "Mostrar aviso",
+    "showPersistent": "Mostrar aviso de versión"
+  },
+  "banner": {
+    "update": "Hay una versión nueva.",
+    "offline": "Estás sin conexión. Los cambios necesitan conexión.",
+    "warning": "3 filas necesitan revisión antes de importar.",
+    "serious": "Súper pasó el 90% del presupuesto."
+  },
+  "progress": {
+    "upload": "Progreso de la carga",
+    "uploadDetail": "1.2 MB de 3.4 MB",
+    "indeterminate": "Preparando",
+    "meter": "Presupuesto usado",
+    "steps": "Paso 2 de 4"
+  },
+  "empty": {
+    "title": "Aún no hay movimientos en octubre.",
+    "body": "Agrega el primero o importa el CSV de tu banco.",
+    "action": "Agregar movimiento"
+  },
+  "tabs": {
+    "label": "Principal (demo)",
+    "month": "Mes",
+    "transactions": "Movimientos",
+    "more": "Más",
+    "add": "Agregar movimiento"
+  }
+}

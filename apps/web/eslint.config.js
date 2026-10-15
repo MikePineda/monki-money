@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint'
 import angular from 'angular-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist/', '.angular/', 'coverage/'] },
+  { ignores: ['dist/', '.angular/', 'coverage/', 'public/'] },
   {
     files: ['**/*.ts'],
     extends: [
@@ -19,9 +19,14 @@ export default tseslint.config(
         'error',
         { type: 'attribute', prefix: 'app', style: 'camelCase' },
       ],
+      // Elements for composite components; attributes for components that
+      // enhance a native element (`button[appButton]`) so semantics stay native.
       '@angular-eslint/component-selector': [
         'error',
-        { type: 'element', prefix: 'app', style: 'kebab-case' },
+        [
+          { type: 'element', prefix: 'app', style: 'kebab-case' },
+          { type: 'attribute', prefix: 'app', style: 'camelCase' },
+        ],
       ],
       '@angular-eslint/prefer-standalone': 'error',
       '@angular-eslint/prefer-signals': 'error',
@@ -32,7 +37,13 @@ export default tseslint.config(
     files: ['**/*.html'],
     extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
     rules: {
-      '@angular-eslint/template/no-inline-styles': 'error',
+      // Static inline styles are banned (use tokens through classes); bindings
+      // whose value is data-driven (a bar width, a progress value) are allowed.
+      '@angular-eslint/template/no-inline-styles': ['error', { allowBindToStyle: 'dynamic' }],
+      '@angular-eslint/template/prefer-control-flow': 'error',
+      // Icon buttons (`button[appIconButton]`) get their accessible name from
+      // the required `label` input, which the component sets as aria-label.
+      '@angular-eslint/template/elements-content': ['error', { allowList: ['label'] }],
     },
   }
 )

@@ -1,0 +1,10 @@
+// Hairline between options, inset by the 16px gutter (DESIGN.md, Select sheet).
+.option + .option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  height: 1px;
+  background: var(--line);
+}
