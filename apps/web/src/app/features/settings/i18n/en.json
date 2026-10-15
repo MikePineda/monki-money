@@ -52,6 +52,9 @@
   "categories": {
     "title": "Categories"
   },
+  "goals": {
+    "title": "Savings goals"
+  },
   "accounts": {
     "title": "Accounts",
     "add": "Add account",

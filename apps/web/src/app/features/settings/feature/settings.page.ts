@@ -249,6 +249,9 @@ function timeZones(): string[] {
         <a appSettingsRow data-testid="settings.categories" routerLink="/categories">
           {{ 'settings.categories.title' | transloco }}
         </a>
+        <a appSettingsRow data-testid="settings.goals" routerLink="/goals">
+          {{ 'settings.goals.title' | transloco }}
+        </a>
         @if (showUpgrade()) {
           <a appSettingsRow data-testid="settings.upgrade" routerLink="/upgrade">
             {{ 'settings.upgrade.row' | transloco }}

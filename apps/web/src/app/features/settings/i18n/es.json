@@ -52,6 +52,9 @@
   "categories": {
     "title": "Categorías"
   },
+  "goals": {
+    "title": "Metas de ahorro"
+  },
   "accounts": {
     "title": "Cuentas",
     "add": "Agregar cuenta",
