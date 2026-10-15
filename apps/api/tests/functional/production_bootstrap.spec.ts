@@ -2,11 +2,12 @@ import { test } from '@japa/runner'
 import User from '#models/user'
 import Account from '#models/account'
 import Category from '#models/category'
+import Household from '#models/household'
 import app from '@adonisjs/core/services/app'
 import hash from '@adonisjs/core/services/hash'
 import AccountCard from '#models/account_card'
 import HouseholdMember from '#models/household_member'
-import type { BootstrapInput } from '#services/bootstrap/dto'
+import type { BootstrapInput, SmokeUserInput } from '#services/bootstrap/dto'
 import ProductionBootstrap from '#services/bootstrap/production_bootstrap'
 import { createHousehold } from '#tests/helpers/household'
 
@@ -115,5 +116,79 @@ test.group('Production bootstrap', () => {
     assert.lengthOf(await HouseholdMember.query().where('household_id', household.id), 1)
     // No card is attributed to someone outside the household.
     assert.lengthOf(await AccountCard.query().where('account_id', accounts[0].id), 1)
+  })
+})
+
+const smoke: SmokeUserInput = { email: 'smoke@example.test', password: 'smoke-password-123' }
+
+test.group('Production bootstrap: smoke user', () => {
+  test('test_smoke_user_gets_its_own_verified_household_without_accounts', async ({ assert }) => {
+    const bootstrap = await app.container.make(ProductionBootstrap)
+
+    const { user, household } = await bootstrap.ensureSmokeUser(smoke)
+
+    assert.isNotNull(user.emailVerifiedAt)
+    assert.isTrue(await hash.verify(user.password, 'smoke-password-123'))
+    assert.equal(household?.name, 'Smoke')
+    assert.equal(user.currentHouseholdId, household!.id)
+    const members = await HouseholdMember.query().where('household_id', household!.id)
+    assert.deepEqual(
+      members.map((m) => [m.userId, m.role]),
+      [[user.id, 'owner']]
+    )
+    assert.lengthOf(await Account.query().where('household_id', household!.id), 0)
+    // The smoke run reads categories, so the household gets the taxonomy.
+    const categories = await Category.query().where('household_id', household!.id)
+    assert.isAbove(categories.length, 0)
+  })
+
+  test('test_smoke_bootstrap_is_idempotent_and_never_resets_the_password', async ({ assert }) => {
+    const bootstrap = await app.container.make(ProductionBootstrap)
+    const first = await bootstrap.ensureSmokeUser(smoke)
+
+    const second = await bootstrap.ensureSmokeUser({ ...smoke, password: 'another-password-1' })
+
+    assert.equal(second.user.id, first.user.id)
+    assert.equal(second.household?.id, first.household?.id)
+    assert.lengthOf(await User.query().where('email', smoke.email), 1)
+    assert.lengthOf(await Household.query().where('name', 'Smoke'), 1)
+    await second.user.refresh()
+    assert.isTrue(await hash.verify(second.user.password, 'smoke-password-123'))
+  })
+
+  test('test_smoke_household_is_separate_from_the_real_household', async ({ assert }) => {
+    const bootstrap = await app.container.make(ProductionBootstrap)
+    const real = await bootstrap.run(input)
+
+    const { user, household } = await bootstrap.ensureSmokeUser(smoke)
+
+    assert.notEqual(household!.id, real.household.id)
+    assert.lengthOf(await HouseholdMember.query().where('household_id', real.household.id), 2)
+    assert.lengthOf(await HouseholdMember.query().where('user_id', user.id), 1)
+  })
+
+  test('test_smoke_user_who_shares_a_household_is_left_alone', async ({ assert }) => {
+    const shared = await createHousehold({ users: 2 })
+    const bootstrap = await app.container.make(ProductionBootstrap)
+
+    const result = await bootstrap.ensureSmokeUser({ ...smoke, email: shared.member.email })
+
+    assert.isNull(result.household)
+    const memberships = await HouseholdMember.query().where('user_id', shared.member.id)
+    assert.deepEqual(
+      memberships.map((m) => m.householdId),
+      [shared.household.id]
+    )
+    assert.lengthOf(await Household.query().where('name', 'Smoke'), 0)
+  })
+
+  test('test_smoke_user_alone_in_an_existing_household_keeps_it', async ({ assert }) => {
+    const solo = await createHousehold({ name: 'Solo' })
+    const bootstrap = await app.container.make(ProductionBootstrap)
+
+    const result = await bootstrap.ensureSmokeUser({ ...smoke, email: solo.owner.email })
+
+    assert.equal(result.household?.id, solo.household.id)
+    assert.lengthOf(await Household.query().where('name', 'Smoke'), 0)
   })
 })

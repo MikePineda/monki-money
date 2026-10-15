@@ -25,6 +25,8 @@
     "e2e": "turbo run e2e",
     "verify": "turbo run lint typecheck test build && npm run e2e",
     "verify:quick": "turbo run lint typecheck test build",
+    "smoke:local": "bash scripts/smoke.sh local",
+    "smoke:prod": "bash scripts/smoke.sh prod",
     "prepare": "node scripts/install-git-hooks.mjs"
   },
   "devDependencies": {
