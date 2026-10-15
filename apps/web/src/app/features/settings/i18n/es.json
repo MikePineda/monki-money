@@ -49,6 +49,9 @@
       "full": "Tu hogar ya tiene a todos sus miembros."
     }
   },
+  "categories": {
+    "title": "Categorías"
+  },
   "accounts": {
     "title": "Cuentas",
     "add": "Agregar cuenta",

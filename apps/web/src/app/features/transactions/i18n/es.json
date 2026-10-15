@@ -1,8 +1,140 @@
 {
   "title": "Movimientos",
+  "search": {
+    "open": "Buscar movimientos",
+    "close": "Cerrar búsqueda",
+    "label": "Busca comercio, nota o texto del banco"
+  },
+  "filters": {
+    "label": "Filtros",
+    "allAccounts": "Todas las cuentas",
+    "everyone": "Todos",
+    "category": "Categoría",
+    "allCategories": "Cualquier categoría",
+    "uncategorized": "Sin categoría",
+    "clear": "Limpiar",
+    "monthTitle": "Mes",
+    "accountTitle": "Cuenta",
+    "personTitle": "Quién pagó",
+    "categoryTitle": "Categoría"
+  },
+  "people": {
+    "you": "Tú",
+    "joint": "Compartido"
+  },
+  "day": {
+    "today": "Hoy · {date}",
+    "yesterday": "Ayer · {date}"
+  },
+  "row": {
+    "private": "Privado",
+    "uncategorized": "Sin categoría",
+    "split": "Dividido",
+    "transfer": "Transferencia",
+    "noPayee": "Sin comercio",
+    "transferFrom": "Transferencia desde {account}",
+    "transferTo": "Transferencia a {account}"
+  },
+  "list": {
+    "loadMore": "Cargar más"
+  },
   "empty": {
-    "title": "Aún no hay movimientos.",
-    "body": "Todo lo que tú y tu pareja registren aparece aquí, agrupado por día.",
+    "title": "Aún no hay movimientos en {month}.",
+    "body": "Agrega el primero o importa el CSV de tu banco.",
     "action": "Agregar movimiento"
+  },
+  "filtered": {
+    "title": "Nada coincide con estos filtros.",
+    "body": "Prueba otra cuenta, persona o categoría, o limpia los filtros.",
+    "action": "Limpiar filtros"
+  },
+  "error": {
+    "title": "No se cargaron los movimientos.",
+    "body": "Revisa tu conexión e intenta de nuevo.",
+    "retry": "Intentar de nuevo"
+  },
+  "actions": {
+    "title": "Movimiento",
+    "edit": "Editar",
+    "duplicate": "Duplicar con fecha de hoy",
+    "delete": "Eliminar"
+  },
+  "toast": {
+    "saved": "Cambios guardados.",
+    "splitSaved": "División guardada.",
+    "transferSaved": "Transferencia guardada.",
+    "deleted": "Movimiento eliminado.",
+    "transferDeleted": "Transferencia eliminada.",
+    "undo": "Deshacer",
+    "duplicated": "Copia agregada con fecha de hoy.",
+    "private": "Solo quien pagó puede cambiar un movimiento privado."
+  },
+  "edit": {
+    "title": "Editar movimiento",
+    "privateTitle": "Movimiento privado",
+    "transferTitle": "Transferencia",
+    "editTransferTitle": "Editar transferencia",
+    "save": "Guardar cambios",
+    "delete": "Eliminar movimiento",
+    "editTransfer": "Editar transferencia",
+    "deleteTransfer": "Eliminar transferencia",
+    "saveTransfer": "Guardar transferencia",
+    "loadError": "No se pudo cargar este movimiento. Tal vez ya se eliminó.",
+    "privateBody": "{name} lo marcó como privado. Ves el monto; solo esa persona puede cambiarlo.",
+    "from": "Desde",
+    "to": "A",
+    "date": "Fecha",
+    "memo": "Nota",
+    "account": "Cuenta",
+    "paidBy": "Pagó"
+  },
+  "form": {
+    "kind": "Tipo",
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "amount": "Monto",
+    "amountHint": "Toca el monto para cambiarlo.",
+    "amountLocked": "Un movimiento dividido conserva su monto. Quita la división para cambiarlo.",
+    "chooseAccount": "Elige una cuenta",
+    "accountTitle": "Cuenta",
+    "personTitle": "Quién pagó",
+    "category": "Categoría",
+    "categoryTitle": "Categoría",
+    "uncategorized": "Sin categoría",
+    "split": "Dividir",
+    "splitInto": "{count, plural, one {Dividido · # categoría} other {Dividido · # categorías}}",
+    "date": "Fecha",
+    "payee": "Comercio",
+    "suggestions": "Comercios recientes",
+    "note": "Nota",
+    "tags": "Etiquetas",
+    "addTag": "Agregar etiqueta",
+    "removeTag": "Quitar etiqueta {tag}",
+    "private": "Privado",
+    "privateHint": "Tu pareja ve el monto, no el comercio, la nota ni la categoría."
+  },
+  "split": {
+    "title": "Dividir {amount}",
+    "chooseCategory": "Elige una categoría",
+    "categoryTitle": "Categoría",
+    "amount": "Monto de la línea {number}",
+    "rest": "Resto",
+    "remove": "Quitar línea {number}",
+    "add": "Agregar línea",
+    "over": "Las líneas se pasan por {amount}.",
+    "missingCategory": "Elige una categoría para cada línea.",
+    "zeroLine": "Cada línea necesita un monto.",
+    "balanced": "Las líneas suman {amount}.",
+    "save": "Guardar división",
+    "unsplit": "Quitar división"
+  },
+  "transfer": {
+    "from": "Desde",
+    "to": "A",
+    "memo": "Nota",
+    "chooseAccount": "Elige una cuenta",
+    "sameAccount": "Elige dos cuentas distintas.",
+    "fromTitle": "Cuenta de origen",
+    "toTitle": "Cuenta de destino"
   }
 }

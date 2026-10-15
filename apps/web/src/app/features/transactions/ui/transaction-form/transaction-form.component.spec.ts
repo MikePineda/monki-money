@@ -1,0 +1,137 @@
+import { Component, signal, viewChild } from '@angular/core'
+import { TestBed } from '@angular/core/testing'
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
+import { i18nTesting, i18nTestingProviders } from '../../../../../testing/i18n-testing'
+import { aCategoryTree, aTransaction } from '../../../../../testing/ledger-fixtures'
+import { flattenCategories } from '../../../../domain/category-tree'
+import { AmountKeypadHarness } from '../../../../shared/ui/amount-keypad/amount-keypad.harness'
+import { BottomSheetService } from '../../../../shared/ui/bottom-sheet/bottom-sheet.service'
+import { SelectSheetHarness } from '../../../../shared/ui/select-sheet/select-sheet.harness'
+import { TextFieldHarness } from '../../../../shared/ui/text-field/text-field.harness'
+import transactionsEn from '../../i18n/en.json'
+import { draftFromTransaction, type TransactionDraft } from './transaction-draft'
+import { TransactionFormComponent } from './transaction-form.component'
+
+@Component({
+  imports: [TransactionFormComponent],
+  template: `<app-transaction-form
+    [(draft)]="draft"
+    [accounts]="accounts"
+    [people]="people"
+    [categories]="categories"
+    [payees]="payees"
+    [serverErrors]="errors()"
+  />`,
+})
+class Host {
+  readonly draft = signal<TransactionDraft>(
+    draftFromTransaction(aTransaction({ amountCents: -4820, categoryId: 20, payee: '' }))
+  )
+  readonly errors = signal<Record<string, string>>({})
+  readonly accounts = [
+    { value: 1, label: 'NAB Everyday' },
+    { value: 2, label: 'NAB Savings' },
+  ]
+  readonly people = [
+    { value: 1 as number | null, label: 'You', person: 'a' as const },
+    { value: null, label: 'Joint', person: 'joint' as const },
+  ]
+  readonly categories = flattenCategories(aCategoryTree())
+  readonly payees = ['Corner Grocer', 'Coffee Cart', 'Bus Ticket']
+  readonly form = viewChild.required(TransactionFormComponent)
+}
+
+describe('TransactionFormComponent', () => {
+  async function setup() {
+    TestBed.configureTestingModule({
+      imports: [i18nTesting({ scopes: { 'transactions/en': transactionsEn } })],
+      providers: [i18nTestingProviders()],
+    })
+    const fixture = TestBed.createComponent(Host)
+    await fixture.whenStable()
+    return {
+      fixture,
+      host: fixture.componentInstance,
+      loader: TestbedHarnessEnvironment.loader(fixture),
+      root: TestbedHarnessEnvironment.documentRootLoader(fixture),
+      element: fixture.nativeElement as HTMLElement,
+    }
+  }
+
+  afterEach(() => TestBed.inject(BottomSheetService).closeAll())
+
+  it('test_a_422_puts_each_message_under_its_field_and_unknown_ones_on_top', async () => {
+    const { host, fixture, loader, element } = await setup()
+
+    host.errors.set({
+      'amountCents': 'The amount is too large.',
+      'payee': 'The payee is too long.',
+      'tags.0': 'A tag is too long.',
+      'clientId': 'Something is off.',
+    })
+    await fixture.whenStable()
+
+    expect(
+      element.querySelector('[data-testid="transactions.form.amountError"]')?.textContent
+    ).toContain('The amount is too large.')
+    const payee = await loader.getHarness(TextFieldHarness.with({ label: 'Payee' }))
+    expect(await payee.getMessage()).toContain('The payee is too long.')
+    expect(await payee.isInvalid()).toBe(true)
+    const tag = await loader.getHarness(TextFieldHarness.with({ label: 'Add a tag' }))
+    expect(await tag.getMessage()).toContain('A tag is too long.')
+    expect(element.querySelector('app-banner')?.textContent).toContain('Something is off.')
+  })
+
+  it('test_the_amount_comes_from_the_keypad_only', async () => {
+    const { host, fixture, loader, element } = await setup()
+    expect(element.querySelector('input[inputmode="decimal"]')).toBeNull()
+
+    ;(element.querySelector('[data-testid="transactions.form.amount"]') as HTMLElement).click()
+    await fixture.whenStable()
+    const keypad = await loader.getHarness(AmountKeypadHarness)
+    await keypad.press('backspace', '0')
+
+    expect(host.draft().amountCents).toBe(4820)
+    expect(host.form().valid()).toBe(true)
+  })
+
+  it('test_a_zero_amount_makes_the_form_invalid', async () => {
+    const { host, fixture } = await setup()
+
+    host.draft.update((draft) => ({ ...draft, amountCents: 0 }))
+    await fixture.whenStable()
+
+    expect(host.form().valid()).toBe(false)
+  })
+
+  it('test_typing_a_payee_offers_recent_ones_and_a_tap_fills_it', async () => {
+    const { host, fixture, loader, element } = await setup()
+    const payee = await loader.getHarness(TextFieldHarness.with({ label: 'Payee' }))
+
+    await payee.setValue('co')
+    await fixture.whenStable()
+    const suggestions = [...element.querySelectorAll('[aria-label="Recent payees"] button')]
+    expect(suggestions.map((button) => button.textContent?.trim())).toEqual([
+      'Corner Grocer',
+      'Coffee Cart',
+    ])
+
+    ;(suggestions[1] as HTMLElement).click()
+    await fixture.whenStable()
+    expect(host.draft().payee).toBe('Coffee Cart')
+  })
+
+  it('test_category_picker_lists_categories_of_the_same_kind', async () => {
+    const { host, fixture, root, element } = await setup()
+
+    ;(element.querySelector('[data-testid="transactions.form.category"]') as HTMLElement).click()
+    await fixture.whenStable()
+    const sheet = await root.getHarness(SelectSheetHarness)
+    const options = await sheet.getOptions()
+
+    expect(options.some((option) => option.startsWith('Salary'))).toBe(false)
+    await sheet.choose('Rent')
+    await fixture.whenStable()
+    expect(host.draft().categoryId).toBe(10)
+  })
+})

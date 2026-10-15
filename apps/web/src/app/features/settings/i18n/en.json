@@ -49,6 +49,9 @@
       "full": "Your household already has all its members."
     }
   },
+  "categories": {
+    "title": "Categories"
+  },
   "accounts": {
     "title": "Accounts",
     "add": "Add account",

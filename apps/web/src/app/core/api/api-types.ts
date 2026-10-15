@@ -12,3 +12,6 @@ export type Member = Data.Member
 export type Invitation = Data.Invitation
 export type Account = Data.Account
 export type AccountCard = Data.AccountCard
+export type Transaction = Data.Transaction
+export type TransactionSplit = Data.TransactionSplit
+export type Transfer = Data.Transfer
