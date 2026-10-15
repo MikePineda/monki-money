@@ -9,6 +9,8 @@ export interface AccountInput {
   /** null = joint account. */
   ownerUserId?: number | null
   isActive?: boolean
+  /** The bank's account number, as bank exports print it (CSV imports map rows by it). */
+  externalAccountNumber?: string | null
 }
 
 /** Data access for the household's accounts and their cards. */
