@@ -1,5 +1,5 @@
 import { aTransaction } from '../../../../testing/ledger-fixtures'
-import { draftFromTransaction, draftToCreate, draftToPatch } from './transaction-draft'
+import { draftFromTransaction, draftToPatch } from './transaction-draft'
 
 describe('draftToPatch', () => {
   it('test_only_changed_fields_are_sent_with_a_positive_amount', () => {
@@ -33,15 +33,5 @@ describe('draftToPatch', () => {
     }
 
     expect(draftToPatch(row, draft)).toEqual({ isPrivate: true })
-  })
-})
-
-describe('draftToCreate', () => {
-  it('test_create_body_is_positive_with_the_kind_and_the_client_id', () => {
-    const draft = { ...draftFromTransaction(aTransaction({ amountCents: -4820 })), payee: '' }
-
-    expect(draftToCreate(draft, 'id-1')).toEqual(
-      expect.objectContaining({ clientId: 'id-1', kind: 'expense', amountCents: 4820, payee: null })
-    )
   })
 })

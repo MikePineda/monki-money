@@ -31,6 +31,7 @@ export class SessionStore {
   private readonly _me = signal<Me | null>(null)
   private readonly _unreachable = signal(false)
   private readonly clearHooks = new Set<() => void>()
+  private readonly logoutHooks = new Set<() => void>()
 
   readonly me = this._me.asReadonly()
   /** The boot call could not reach the API (offline or server error). */
@@ -114,12 +115,24 @@ export class SessionStore {
     this.clearHooks.add(hook)
   }
 
+  /**
+   * Data that must go on an explicit logout but survive an expired session
+   * (the offline outbox: entries saved on this phone sync after logging in
+   * again). Hooks run while the session is still known, before `clear()`.
+   */
+  onLogout(hook: () => void): void {
+    this.logoutHooks.add(hook)
+  }
+
   /** Ends this session on the server (best effort) and everywhere in the app. */
   async logout(): Promise<void> {
     try {
       await this.api.logout()
     } catch {
       // Offline or already expired: the local session ends regardless.
+    }
+    for (const hook of this.logoutHooks) {
+      hook()
     }
     this.clear()
     await this.router.navigateByUrl('/login')

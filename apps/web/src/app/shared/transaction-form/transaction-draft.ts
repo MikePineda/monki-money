@@ -1,4 +1,6 @@
 import type { EntryKind } from '@monkimoney/shared'
+import type { TransactionPayload, TransferPayload } from '../../domain/outbox'
+import type { TransferDraft } from './transfer-form.component'
 
 /**
  * What the transaction form edits. Amounts are positive integer cents (the
@@ -63,4 +65,76 @@ export function addTag(tags: readonly string[], typed: string): string[] {
     return [...tags]
   }
   return [...tags, tag]
+}
+
+/** Free text as the API stores it: trimmed, and null when blank. */
+export function blankToNull(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
+}
+
+/**
+ * The create body of an expense or income (`POST /transactions[/quick]`,
+ * also what the offline outbox keeps): amount positive, the kind gives the
+ * sign, blank text is null. Quick add and "duplicate" both build it here.
+ */
+export function draftToCreate(draft: TransactionDraft, clientId: string): TransactionPayload {
+  if (draft.accountId === null) {
+    throw new RangeError('A transaction needs an account')
+  }
+  return {
+    clientId,
+    kind: draft.kind,
+    accountId: draft.accountId,
+    date: draft.date,
+    amountCents: draft.amountCents,
+    categoryId: draft.categoryId,
+    payee: blankToNull(draft.payee),
+    description: blankToNull(draft.description),
+    paidByUserId: draft.paidByUserId,
+    isPrivate: draft.isPrivate,
+    tags: [...draft.tags],
+  }
+}
+
+/** The form's draft back from a create body (editing a queued entry). */
+export function draftFromCreate(body: TransactionPayload): TransactionDraft {
+  return {
+    kind: body.kind,
+    amountCents: body.amountCents,
+    accountId: body.accountId,
+    paidByUserId: body.paidByUserId,
+    categoryId: body.categoryId,
+    date: body.date,
+    payee: body.payee ?? '',
+    description: body.description ?? '',
+    isPrivate: body.isPrivate,
+    tags: [...body.tags],
+  }
+}
+
+/** The create body of a transfer (`POST /transfers`). */
+export function transferToCreate(draft: TransferDraft, clientId: string): TransferPayload {
+  if (draft.fromAccountId === null || draft.toAccountId === null) {
+    throw new RangeError('A transfer needs two accounts')
+  }
+  return {
+    clientId,
+    fromAccountId: draft.fromAccountId,
+    toAccountId: draft.toAccountId,
+    date: draft.date,
+    amountCents: draft.amountCents,
+    memo: blankToNull(draft.memo),
+  }
+}
+
+/** The transfer form's draft back from a create body. */
+export function transferFromCreate(body: TransferPayload): TransferDraft {
+  return {
+    fromAccountId: body.fromAccountId,
+    toAccountId: body.toAccountId,
+    amountCents: body.amountCents,
+    date: body.date,
+    memo: body.memo ?? '',
+  }
 }

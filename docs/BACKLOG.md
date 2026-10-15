@@ -34,3 +34,9 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 Turnstile: if Shield's CSP is ever switched on, allow `https://challenges.cloudflare.com` in `script-src` and `frame-src` (the web widget loads its script and iframe from there).
 - 2026-10-16 Onboarding progress is device-local: a household created from `/household/new` resumes the wizard on the accounts step on this device only (another device starts at step 1, harmless but repetitive). An `onboardedAt` on the household would make it server-side.
 - 2026-10-16 E2E runs Turnstile against a stand-in script (`e2e/support/turnstile.ts`): Cloudflare answers 403 to the per-test `CF-Connecting-IP` header and WebKit re-adds context headers on the script's redirect. A smoke against the real widget (staging, or a header scoped to the app origin) would cover Cloudflare itself.
+- 2026-10-16 Outbox: warn before an explicit logout when entries are still queued (logout deletes them from the device today).
+- 2026-10-16 Outbox across tabs: reload it on the `storage` event so two open windows do not overwrite each other's queue (both sync idempotently today, but a write can drop the other tab's newest entry).
+- 2026-10-16 Outbox: "Undo" on the "Saved offline" toast (remove the queued entry, or delete the row once synced); queued entries can only be discarded from the sync sheet today.
+- 2026-10-16 Outbox: say so when localStorage refuses the write (quota, private mode); the entry then lives in memory until the app closes.
+- 2026-10-16 Outbox: a queued expense does not feed quick add's category/payee ranking until it syncs and the next visit reloads the recent rows.
+- 2026-10-16 Offline cold start: opening the installed app with no network ends on login (`GET /auth/me` fails, the session is in memory only) and quick add needs the accounts loaded this session; keeping a last-known session and directory on the device would let the outbox work from a cold start.

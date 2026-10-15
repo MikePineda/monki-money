@@ -1,10 +1,14 @@
 import type { Transaction } from '../../../core/api/api-types'
-import type { TransactionDraft } from '../../../shared/transaction-form/transaction-draft'
-import type { TransactionCreateInput, TransactionPatch } from '../data-access/transactions.api'
+import {
+  blankToNull as text,
+  type TransactionDraft,
+} from '../../../shared/transaction-form/transaction-draft'
+import type { TransactionPatch } from '../data-access/transactions.api'
 
 /**
  * The transaction form's draft (shared/transaction-form) to and from this
- * feature's API bodies: a row to edit, a PATCH of what changed, a create.
+ * feature's API bodies: a row to edit and a PATCH of what changed (creates
+ * are built by `draftToCreate` in shared/transaction-form).
  */
 
 export function draftFromTransaction(row: Transaction): TransactionDraft {
@@ -20,11 +24,6 @@ export function draftFromTransaction(row: Transaction): TransactionDraft {
     isPrivate: row.isPrivate,
     tags: [...row.tags],
   }
-}
-
-function text(value: string): string | null {
-  const trimmed = value.trim()
-  return trimmed === '' ? null : trimmed
 }
 
 function sameTags(a: readonly string[], b: readonly string[]): boolean {
@@ -55,24 +54,4 @@ export function draftToPatch(row: Transaction, draft: TransactionDraft): Transac
   if (draft.isPrivate !== before.isPrivate) patch.isPrivate = draft.isPrivate
   if (!sameTags(draft.tags, before.tags)) patch.tags = [...draft.tags]
   return patch
-}
-
-/** A `POST /transactions` body (quick add and "duplicate" reuse it). */
-export function draftToCreate(draft: TransactionDraft, clientId: string): TransactionCreateInput {
-  if (draft.accountId === null) {
-    throw new RangeError('A transaction needs an account')
-  }
-  return {
-    clientId,
-    accountId: draft.accountId,
-    kind: draft.kind,
-    date: draft.date,
-    amountCents: draft.amountCents,
-    categoryId: draft.categoryId,
-    payee: text(draft.payee),
-    description: text(draft.description),
-    paidByUserId: draft.paidByUserId,
-    isPrivate: draft.isPrivate,
-    tags: [...draft.tags],
-  }
 }
