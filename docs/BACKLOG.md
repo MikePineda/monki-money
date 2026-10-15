@@ -34,3 +34,9 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 E2E journey for receipts: the E2E image has no LLM fixtures and `receipts.scan` answers 503 without a live model outside the Japa suite; it needs an `E2E_MODE` fake receipt answer (and the stack's MinIO reachable from the browser) before Playwright can scan.
 - 2026-10-16 Move the receipt upload limits (`image/jpeg|png|webp`, 10 MB) to `@monkimoney/shared` so the web checks them before asking for a presigned URL; today they live in the API (`app/domain/receipts/receipt_key.ts`, `MAX_RECEIPT_BYTES`).
 - 2026-10-16 `S3_PUBLIC_ENDPOINT` for presigned URLs if `S3_ENDPOINT` ever becomes an address browsers cannot reach (an internal Docker hostname); R2 and local MinIO are reachable today.
+- 2026-10-16 Outbox: warn before an explicit logout when entries are still queued (logout deletes them from the device today).
+- 2026-10-16 Outbox across tabs: reload it on the `storage` event so two open windows do not overwrite each other's queue (both sync idempotently today, but a write can drop the other tab's newest entry).
+- 2026-10-16 Outbox: "Undo" on the "Saved offline" toast (remove the queued entry, or delete the row once synced); queued entries can only be discarded from the sync sheet today.
+- 2026-10-16 Outbox: say so when localStorage refuses the write (quota, private mode); the entry then lives in memory until the app closes.
+- 2026-10-16 Outbox: a queued expense does not feed quick add's category/payee ranking until it syncs and the next visit reloads the recent rows.
+- 2026-10-16 Offline cold start: opening the installed app with no network ends on login (`GET /auth/me` fails, the session is in memory only) and quick add needs the accounts loaded this session; keeping a last-known session and directory on the device would let the outbox work from a cold start.

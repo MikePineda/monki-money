@@ -1,5 +1,5 @@
 import { TuyauHTTPError, TuyauNetworkError } from '@tuyau/core/client'
-import { toApiError } from './http-errors'
+import { apiErrorMessage, toApiError } from './http-errors'
 
 /** Builds the error Tuyau throws for a non-2xx response (it wraps a Ky HTTPError). */
 function httpError(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -96,5 +96,20 @@ describe('toApiError', () => {
   it('test_anything_else_maps_to_server', () => {
     expect(toApiError(new Error('boom'))).toEqual({ kind: 'server' })
     expect(toApiError('weird')).toEqual({ kind: 'server' })
+  })
+})
+
+describe('apiErrorMessage', () => {
+  it('test_reads_the_message_of_an_api_error_body', () => {
+    expect(
+      apiErrorMessage(httpError(404, { message: 'Row not found', code: 'E_ROW_NOT_FOUND' }))
+    ).toBe('Row not found')
+  })
+
+  it('test_is_null_without_a_message_or_for_anything_but_an_http_error', () => {
+    expect(apiErrorMessage(httpError(404, {}))).toBeNull()
+    expect(apiErrorMessage(httpError(404, { message: '  ' }))).toBeNull()
+    expect(apiErrorMessage(new TuyauNetworkError(new TypeError('Failed to fetch')))).toBeNull()
+    expect(apiErrorMessage(new Error('boom'))).toBeNull()
   })
 })
