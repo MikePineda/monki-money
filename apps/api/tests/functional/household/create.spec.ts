@@ -136,10 +136,11 @@ test.group('Household / create', (group) => {
     const newHome = created.body().data.household
     assert.notEqual(newHome.id, oldHome.id)
 
+    // Same shapes as the SPA's boot call.
     const me = await client.get('/api/v1/auth/me').actingAs(member)
-    me.assertBodyContains({
-      data: { household: { id: newHome.id }, membership: { role: 'owner' } },
-    })
+    assert.deepEqual(me.body().data.household, newHome)
+    assert.deepEqual(me.body().data.membership, created.body().data.membership)
+    assert.equal(me.body().data.membership.role, 'owner')
     const accounts = await client.get('/api/v1/accounts').actingAs(member)
     accounts.assertStatus(200)
     accounts.assertBody({ data: [] })

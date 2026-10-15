@@ -39,7 +39,7 @@ export default class HouseholdService {
         .first()
       if (owner.currentHouseholdId !== null || membership) throw new AlreadyInHousehold()
 
-      return this.creator.create(
+      const created = await this.creator.create(
         {
           owner,
           name: input.name,
@@ -49,6 +49,11 @@ export default class HouseholdService {
         },
         trx
       )
+      // Reload the column defaults (e.g. the member colour) so the response
+      // has the same shape as GET /auth/me.
+      await created.household.refresh()
+      await created.membership.refresh()
+      return created
     })
   }
 
