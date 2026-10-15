@@ -89,6 +89,62 @@ export const TransferLegReadOnly = domainError(
 )
 
 /**
+ * A domain error that carries extra fields for the client (rendered next
+ * to `message` and `code`, e.g. the account numbers to map). Only plain,
+ * non-sensitive values go in `details`.
+ */
+function detailedError<Details extends Record<string, unknown>>(
+  code: string,
+  status: number,
+  message: string
+) {
+  return class extends Exception {
+    static override status = status
+    static override code = code
+    static override message = message
+
+    constructor(readonly details: Details) {
+      super()
+    }
+  }
+}
+
+/** The upload has `Account Number` values no account of the household carries. */
+export const ImportUnknownAccounts = detailedError<{ accountNumbers: string[] }>(
+  'E_IMPORT_UNKNOWN_ACCOUNTS',
+  422,
+  'Map these account numbers to an account first'
+)
+
+/** The account already has a batch waiting for review (confirm or cancel it first). */
+export const ImportBatchOpen = detailedError<{ batchId: number; accountId: number }>(
+  'E_IMPORT_BATCH_OPEN',
+  409,
+  'This account has an import waiting for review'
+)
+
+/** Confirm needs a decision on these rows (possible matches, unknown transfer accounts). */
+export const ImportRowsUndecided = detailedError<{ rowIds: number[] }>(
+  'E_IMPORT_ROWS_UNDECIDED',
+  422,
+  'Some rows still need a decision'
+)
+
+/** The batch (or row) was already confirmed or cancelled. */
+export const ImportBatchClosed = domainError(
+  'E_IMPORT_BATCH_CLOSED',
+  409,
+  'This import is already closed'
+)
+
+/** The household's plan does not allow another import this month. */
+export const ImportLimitReached = domainError(
+  'E_IMPORT_LIMIT_REACHED',
+  402,
+  'Plan import limit reached'
+)
+
+/**
  * A private transaction of the partner: its amount counts in the household
  * totals but only its owner (the payer, or the creator of a joint one) may
  * see or change its details.

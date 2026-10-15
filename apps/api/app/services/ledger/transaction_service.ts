@@ -15,6 +15,7 @@ import TransactionSplit from '#models/transaction_split'
 import { findInHousehold, idsInHousehold } from '#repositories/scoped'
 import { signedAmount, signedLines } from '#domain/ledger/amounts'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
+import RuleLearner from '#services/rules/rule_learner'
 import LedgerReferences from '#services/ledger/ledger_references'
 import TransactionListing from '#services/ledger/transaction_listing'
 import { PrivateTransaction, TransferLegReadOnly } from '#exceptions/errors'
@@ -51,7 +52,8 @@ export default class TransactionService {
   constructor(
     protected references: LedgerReferences,
     protected listing: TransactionListing,
-    protected clock: Clock
+    protected clock: Clock,
+    protected learner: RuleLearner = new RuleLearner()
   ) {}
 
   list(household: Household, viewer: User, filters: TransactionFilters) {
@@ -216,14 +218,30 @@ export default class TransactionService {
           .where('transaction_id', transaction.id)
           .update({ amount_cents: trx.raw('-amount_cents'), updated_at: new Date() })
       }
+      if (input.applyToFuture && input.categoryId) {
+        await this.learner.learnFromEdit(household, actor, transaction, trx)
+      }
     })
 
     return this.find(household, transaction.id)
   }
 
+  /**
+   * Hard delete. The bank row it came from stays, marked `ignored`, so
+   * re-importing the export never brings it back.
+   */
   async destroy(household: Household, actor: User, transactionId: number) {
     const transaction = await this.findForWrite(household, actor, transactionId)
-    await transaction.delete()
+    await db.transaction(async (trx) => {
+      await trx
+        .from('import_rows')
+        .where('household_id', transaction.householdId)
+        .where('transaction_id', transaction.id)
+        .whereNot('resolution', 'superseded')
+        .update({ resolution: 'ignored', updated_at: new Date() })
+      transaction.useTransaction(trx)
+      await transaction.delete()
+    })
   }
 
   /**

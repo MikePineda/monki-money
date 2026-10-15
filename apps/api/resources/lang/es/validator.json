@@ -56,7 +56,17 @@
       "needsReview": "por revisar",
       "uncategorized": "sin categoría",
       "months": "meses",
-      "groupBy": "agrupación"
+      "groupBy": "agrupación",
+      "file": "archivo",
+      "resolution": "decisión",
+      "transferAccountId": "cuenta de la transferencia",
+      "matchTransactionId": "movimiento coincidente",
+      "learnRule": "recordar para la próxima",
+      "matchType": "tipo de regla",
+      "pattern": "patrón",
+      "payeeOverride": "comercio",
+      "priority": "prioridad",
+      "applyToFuture": "aplicar a movimientos futuros"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -97,7 +107,15 @@
       "splits.zeroLine": "Cada línea de la división necesita un monto",
       "categoryId.split": "Un movimiento dividido toma sus categorías de sus líneas",
       "amountCents.splitSum": "Cambia las líneas de la división junto con el monto",
-      "toAccountId.sameAccount": "Elige dos cuentas distintas"
+      "toAccountId.sameAccount": "Elige dos cuentas distintas",
+      "file.required": "Elige el archivo CSV que exportaste de tu banco",
+      "transferAccountId.sameAccount": "Elige una cuenta distinta a la importada",
+      "matchTransactionId.sameAccount": "Elige un movimiento de la cuenta importada",
+      "categoryId.required": "Elige una categoría o una cuenta de transferencia",
+      "pattern.taken": "Otra regla ya usa este patrón",
+      "pattern.regex": "Esta no es una expresión regular válida",
+      "accountId.accountNumberMismatch": "Esta cuenta está ligada a otro número de cuenta bancaria",
+      "accountId.oneAccountOnly": "Este archivo trae movimientos de varias cuentas. Impórtalo sin elegir una"
     }
   }
 }

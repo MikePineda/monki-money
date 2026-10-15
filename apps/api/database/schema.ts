@@ -6,7 +6,7 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, LlmPurpose, LlmUsageStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, ImportSource, ImportBatchStatus, ImportRowDecision, ImportResolution, SuggestionSource, LlmPurpose, LlmUsageStatus, RuleMatchType, RuleOrigin, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
 import { jsonColumn } from '#database/json_column'
 
 export class AccountCardSchema extends BaseModel {
@@ -169,6 +169,162 @@ export class HouseholdSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class ImportBatchSchema extends BaseModel {
+  static $columns = ['accountId', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileName', 'filePath', 'fileSha256', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
+  $columns = ImportBatchSchema.$columns
+  @column()
+  declare accountId: number
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column()
+  declare computedBalanceCents: number | null
+  @column()
+  declare confirmationCount: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare dateFrom: string | null
+  @column()
+  declare dateTo: string | null
+  @column()
+  declare duplicateCount: number
+  @column()
+  declare expectedBalanceCents: number | null
+  @column()
+  declare fileName: string | null
+  @column()
+  declare filePath: string | null
+  @column()
+  declare fileSha256: string
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare ignoredCount: number
+  @column()
+  declare matchedCount: number
+  @column()
+  declare newCount: number
+  @column()
+  declare openingBalanceCents: number | null
+  @column()
+  declare rowCount: number
+  @column()
+  declare source: ImportSource
+  @column()
+  declare status: ImportBatchStatus
+  @column()
+  declare supersededCount: number
+  @column()
+  declare transferCount: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare uploadedByUserId: number | null
+}
+
+export class ImportRowSchema extends BaseModel {
+  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
+  $columns = ImportRowSchema.$columns
+  @column()
+  declare accountId: number
+  @column()
+  declare amountCents: number
+  @column()
+  declare balanceCents: number | null
+  @column()
+  declare bankDate: string
+  @column()
+  declare cardSuffix: string | null
+  @column.dateTime()
+  declare confirmedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare date: string
+  @column.dateTime()
+  declare decidedAt: DateTime | null
+  @column()
+  declare decidedByUserId: number | null
+  @jsonColumn()
+  declare decision: ImportRowDecision | null
+  @column()
+  declare descriptionNormalized: string
+  @column()
+  declare descriptionRaw: string
+  @column()
+  declare externalHash: string
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare importBatchId: number
+  @column()
+  declare isFutureDated: boolean
+  @column()
+  declare isPending: boolean
+  @column()
+  declare matchScore: number | null
+  @column()
+  declare matchTransactionId: number | null
+  @column()
+  declare merchantFullKey: string
+  @column()
+  declare merchantKey: string
+  @column()
+  declare nabCategory: string | null
+  @column()
+  declare nabMerchant: string | null
+  @column()
+  declare needsReview: boolean
+  @column()
+  declare occurrence: number
+  @column()
+  declare processedOn: string | null
+  @jsonColumn()
+  declare raw: Record<string, string>
+  @jsonColumn()
+  declare reasons: string[]
+  @column()
+  declare resolution: ImportResolution
+  @column()
+  declare rowIndex: number
+  @column()
+  declare suggestedCategoryId: number | null
+  @column()
+  declare suggestedPaidByUserId: number | null
+  @column()
+  declare suggestedPayee: string | null
+  @column()
+  declare suggestedTransferAccountId: number | null
+  @column()
+  declare suggestionConfidence: number | null
+  @column()
+  declare suggestionNeedsReview: boolean
+  @column()
+  declare suggestionRuleId: number | null
+  @column()
+  declare suggestionSource: SuggestionSource | null
+  @column()
+  declare transactionId: number | null
+  @column()
+  declare transactionType: string
+  @column()
+  declare transferLegHash: string | null
+  @column()
+  declare transferLegTransactionId: number | null
+  @column()
+  declare transferRuleId: number | null
+  @column()
+  declare transferSignal: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare upgradesPending: boolean
+}
+
 export class InvitationSchema extends BaseModel {
   static $columns = ['acceptedAt', 'createdAt', 'email', 'expiresAt', 'householdId', 'id', 'invitedByUserId', 'role', 'tokenHash', 'updatedAt'] as const
   $columns = InvitationSchema.$columns
@@ -225,6 +381,41 @@ export class LlmUsageSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare userId: number | null
+}
+
+export class MerchantRuleSchema extends BaseModel {
+  static $columns = ['categoryId', 'createdAt', 'createdByUserId', 'hitCount', 'householdId', 'id', 'lastHitAt', 'matchType', 'origin', 'paidByUserId', 'pattern', 'payeeOverride', 'priority', 'transferAccountId', 'updatedAt'] as const
+  $columns = MerchantRuleSchema.$columns
+  @column()
+  declare categoryId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare hitCount: number
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastHitAt: DateTime | null
+  @column()
+  declare matchType: RuleMatchType
+  @column()
+  declare origin: RuleOrigin
+  @column()
+  declare paidByUserId: number | null
+  @column()
+  declare pattern: string
+  @column()
+  declare payeeOverride: string | null
+  @column()
+  declare priority: number
+  @column()
+  declare transferAccountId: number | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class TransactionSplitSchema extends BaseModel {

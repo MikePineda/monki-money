@@ -14,6 +14,13 @@ const shared = (name: string) => ({
   decorators: [{ name: '@column' }],
 })
 
+/** A jsonb column typed as `tsType`, stringified on write. */
+const json = (tsType: string) => ({
+  tsType,
+  imports: [{ source: '#database/json_column', namedImports: ['jsonColumn'] }],
+  decorators: [{ name: '@jsonColumn' }],
+})
+
 export default {
   types: {
     date: { tsType: 'string', imports: [], decorators: [{ name: '@column' }] },
@@ -71,6 +78,36 @@ export default {
       columns: {
         purpose: shared('LlmPurpose'),
         status: shared('LlmUsageStatus'),
+      },
+    },
+    import_batches: {
+      columns: {
+        source: shared('ImportSource'),
+        status: shared('ImportBatchStatus'),
+      },
+    },
+    import_rows: {
+      columns: {
+        resolution: shared('ImportResolution'),
+        // Nullable columns get `| null` from the generator.
+        suggestion_source: shared('SuggestionSource'),
+        // jsonb: stringified on write (see database/json_column.ts).
+        raw: json('Record<string, string>'),
+        reasons: json('string[]'),
+        decision: {
+          tsType: 'ImportRowDecision',
+          imports: [
+            { source: '@monkimoney/shared', typeImports: ['ImportRowDecision'] },
+            { source: '#database/json_column', namedImports: ['jsonColumn'] },
+          ],
+          decorators: [{ name: '@jsonColumn' }],
+        },
+      },
+    },
+    merchant_rules: {
+      columns: {
+        match_type: shared('RuleMatchType'),
+        origin: shared('RuleOrigin'),
       },
     },
   },

@@ -63,6 +63,8 @@ export default defineConfig({
     () => import('@adonisjs/limiter/limiter_provider'),
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('#providers/llm_provider'),
+    () => import('@adonisjs/drive/drive_provider'),
+    () => import('@adonisjs/queue/queue_provider'),
   ],
 
   /*

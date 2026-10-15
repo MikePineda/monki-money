@@ -56,7 +56,17 @@
       "needsReview": "needs review",
       "uncategorized": "uncategorized",
       "months": "months",
-      "groupBy": "grouping"
+      "groupBy": "grouping",
+      "file": "file",
+      "resolution": "decision",
+      "transferAccountId": "transfer account",
+      "matchTransactionId": "matching transaction",
+      "learnRule": "remember for next time",
+      "matchType": "rule type",
+      "pattern": "pattern",
+      "payeeOverride": "payee",
+      "priority": "priority",
+      "applyToFuture": "apply to future movements"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -97,7 +107,15 @@
       "splits.zeroLine": "Every split line needs an amount",
       "categoryId.split": "A split transaction takes its categories from its lines",
       "amountCents.splitSum": "Change the split lines together with the amount",
-      "toAccountId.sameAccount": "Choose two different accounts"
+      "toAccountId.sameAccount": "Choose two different accounts",
+      "file.required": "Choose the CSV file exported from your bank",
+      "transferAccountId.sameAccount": "Choose an account other than the imported one",
+      "matchTransactionId.sameAccount": "Choose a transaction of the imported account",
+      "categoryId.required": "Choose a category or a transfer account",
+      "pattern.taken": "Another rule already uses this pattern",
+      "pattern.regex": "This is not a valid regular expression",
+      "accountId.accountNumberMismatch": "This account is linked to another bank account number",
+      "accountId.oneAccountOnly": "This file has movements of several accounts. Import it without choosing one"
     }
   }
 }

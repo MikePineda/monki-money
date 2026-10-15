@@ -66,6 +66,11 @@ export interface UpdateTransactionInput {
   isPrivate?: boolean
   tags?: string[]
   needsReview?: boolean
+  /**
+   * With a new `categoryId` on an imported transaction: remember it for
+   * this merchant (a learned merchant rule). Default false.
+   */
+  applyToFuture?: boolean
 }
 
 export interface UpdateSplitsInput {

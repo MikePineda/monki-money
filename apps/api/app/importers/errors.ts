@@ -16,6 +16,20 @@ export class CsvImportError extends Exception {
   ) {
     super(message)
   }
+
+  /** Rendered next to `message` / `code` by the handler when known. */
+  get details() {
+    return {
+      ...(this.line === null ? {} : { line: this.line }),
+      ...(this.column === null ? {} : { column: this.column }),
+    }
+  }
+}
+
+/** A header and no data rows: nothing to import. */
+export class CsvEmptyError extends CsvImportError {
+  static override code = 'E_CSV_EMPTY'
+  static override message = 'The file has no movements'
 }
 
 export class CsvTooLargeError extends CsvImportError {

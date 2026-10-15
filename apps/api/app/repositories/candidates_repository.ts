@@ -1,5 +1,5 @@
 import Transaction from '#models/transaction'
-import type { TransactionSource, TransactionStatus } from '@monkimoney/shared'
+import type { TransactionKind, TransactionSource, TransactionStatus } from '@monkimoney/shared'
 import type { HouseholdRef } from '#models/mixins/household_scoped'
 
 /** What the import matcher may compare an incoming bank row against. */
@@ -32,6 +32,7 @@ export type MatchCandidate = {
   cardSuffix: string | null
   paidByUserId: number | null
   transferId: number | null
+  kind: TransactionKind
 }
 
 /**
@@ -53,7 +54,44 @@ export default class CandidatesRepository {
       .orderBy('date')
       .orderBy('id')
 
-    return rows.map((row) => ({
+    return rows.map((row) => this.toCandidate(row))
+  }
+
+  /**
+   * Everything one account's bank export may be the copy of, in a date
+   * window: ledger rows of the account that no import row of this account
+   * is linked to yet (typed by hand, scanned, or the other leg of a transfer
+   * created while importing another account), plus imports still pending
+   * at the bank. Any amount: the matcher filters. Rows created from this
+   * account's export and already cleared are never offered (the hash
+   * catches re-imports instead).
+   */
+  async forImport(
+    household: HouseholdRef,
+    query: { accountId: number; from: string; to: string }
+  ): Promise<MatchCandidate[]> {
+    const rows = await Transaction.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .where('account_id', query.accountId)
+      .whereBetween('date', [query.from, query.to])
+      .where((builder) => {
+        builder
+          .where((pending) => pending.where('source', 'import').where('status', 'pending'))
+          .orWhereNotExists((linked) => {
+            linked
+              .from('import_rows')
+              .whereColumn('import_rows.transaction_id', 'transactions.id')
+              .whereColumn('import_rows.account_id', 'transactions.account_id')
+          })
+      })
+      .orderBy('date')
+      .orderBy('id')
+
+    return rows.map((row) => this.toCandidate(row))
+  }
+
+  protected toCandidate(row: Transaction): MatchCandidate {
+    return {
       id: row.id,
       accountId: row.accountId,
       date: row.date,
@@ -67,6 +105,7 @@ export default class CandidatesRepository {
       cardSuffix: row.cardSuffix,
       paidByUserId: row.paidByUserId,
       transferId: row.transferId,
-    }))
+      kind: row.kind,
+    }
   }
 }

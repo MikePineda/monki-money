@@ -17,6 +17,14 @@ function isUniqueViolation(error: unknown): error is Error & { status?: number; 
   )
 }
 
+/** Extra client fields a domain error carries (`details`, see app/exceptions/errors.ts). */
+function detailsOf(error: unknown): Record<string, unknown> {
+  const details = (error as { details?: unknown } | null)?.details
+  return typeof details === 'object' && details !== null && !Array.isArray(details)
+    ? (details as Record<string, unknown>)
+    : {}
+}
+
 /**
  * JSON-only API error rendering:
  *
@@ -26,7 +34,8 @@ function isUniqueViolation(error: unknown): error is Error & { status?: number; 
  *   JSON_RENDERED_CODES) answers 403 `{ message, code }`.
  * - `FieldError` (service-level validation) renders like a VineJS error.
  * - Any other 4xx answers `{ message, code }` with the message translated
- *   from `errors.<code>` (E_ROW_NOT_FOUND -> 404 "Not found", domain errors).
+ *   from `errors.<code>` (E_ROW_NOT_FOUND -> 404 "Not found", domain errors),
+ *   plus the error's `details` when it has them (`accountNumbers`, `line`...).
  *   Never the debug page: 4xx bodies are part of the contract.
  * - Postgres unique violations (a lost race the services could not
  *   pre-check) answer 409 `E_CONFLICT`, never the constraint name.
@@ -81,7 +90,9 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       const message = httpError.code
         ? translate(httpError.code, httpError.message)
         : httpError.message
-      return ctx.response.status(httpError.status).send({ message, code: httpError.code })
+      return ctx.response
+        .status(httpError.status)
+        .send({ ...detailsOf(error), message, code: httpError.code })
     }
 
     if (httpError.status >= 500 && !this.debug) {
