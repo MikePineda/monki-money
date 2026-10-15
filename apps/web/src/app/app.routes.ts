@@ -39,7 +39,18 @@ export const routes: Routes = [
       { path: 'month', loadComponent: () => import('./features/month/month.page') },
       {
         path: 'transactions',
-        loadComponent: () => import('./features/transactions/transactions.page'),
+        loadComponent: () => import('./features/transactions/feature/list.page'),
+        // The transaction sheet opens over the list, which keeps its state.
+        children: [
+          {
+            path: ':id',
+            loadComponent: () => import('./features/transactions/feature/transaction.route'),
+          },
+        ],
+      },
+      {
+        path: 'categories',
+        loadComponent: () => import('./features/categories/feature/categories.page'),
       },
       {
         path: 'settings',

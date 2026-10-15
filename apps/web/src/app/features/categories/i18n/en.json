@@ -1,0 +1,46 @@
+{
+  "title": "Categories",
+  "back": "Back to settings",
+  "reorder": "Reorder categories",
+  "reorderHint": "Move categories with the arrows, or drag them by the handle.",
+  "group": {
+    "up": "Move group {name} up",
+    "down": "Move group {name} down"
+  },
+  "row": {
+    "icon": "Change the icon of {name}",
+    "rename": "Rename {name}",
+    "up": "Move {name} up",
+    "down": "Move {name} down",
+    "archive": "Archive {name}"
+  },
+  "add": {
+    "action": "Add a category",
+    "label": "New category in {group}"
+  },
+  "archived": {
+    "title": "Archived ({count})",
+    "restore": "Restore {name}",
+    "delete": "Delete {name}"
+  },
+  "icons": {
+    "title": "Icon for {name}",
+    "option": "Icon: {name}"
+  },
+  "delete": {
+    "reassignTitle": "{name} has transactions. Move them to"
+  },
+  "toast": {
+    "archived": "{name} archived. Its transactions keep it.",
+    "deleted": "Category deleted.",
+    "undo": "Undo"
+  },
+  "error": {
+    "title": "Categories did not load.",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "errors": {
+    "invalid": "{message}"
+  }
+}
