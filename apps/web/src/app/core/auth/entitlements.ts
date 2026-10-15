@@ -23,7 +23,7 @@ export function homePath(session: SessionSnapshot): string {
     return '/verify-email'
   }
   if (!session.hasHousehold) {
-    return '/no-household'
+    return '/household/new'
   }
   if (session.pendingDeletion) {
     return '/household-deleted'

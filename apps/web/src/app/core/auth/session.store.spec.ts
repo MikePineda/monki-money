@@ -120,6 +120,32 @@ describe('SessionStore', () => {
     expect(store.isAuthenticated()).toBe(false)
   })
 
+  it('test_logout_runs_the_logout_hooks_before_the_session_is_cleared', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const seen: string[] = []
+    store.onLogout(() => seen.push(`logout:${store.user()?.id}`))
+    store.onClear(() => seen.push('clear'))
+
+    await store.logout()
+
+    expect(seen).toEqual(['logout:1', 'clear'])
+  })
+
+  it('test_an_expired_session_clears_without_running_the_logout_hooks', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const loggedOut = vi.fn()
+    const cleared = vi.fn()
+    store.onLogout(loggedOut)
+    store.onClear(cleared)
+
+    TestBed.inject(SessionExpiry).notify()
+
+    expect(cleared).toHaveBeenCalled()
+    expect(loggedOut).not.toHaveBeenCalled()
+  })
+
   it('test_a_401_while_signed_in_clears_the_session_and_goes_to_login_without_a_toast', async () => {
     const store = setup(async () => aMe())
     await store.load()
@@ -154,5 +180,28 @@ describe('SessionStore', () => {
 
     expect(store.user()?.fullName).toBe('Sam R.')
     expect(store.household()?.name).toBe('Sam’s home')
+  })
+
+  it('test_leaving_or_switching_households_drops_the_cached_household_data', async () => {
+    const store = setup(async () => aMe('member'))
+    await store.load()
+    const dropped = vi.fn()
+    store.onClear(dropped)
+
+    api.me.mockResolvedValueOnce(aMe('member'))
+    await store.load()
+    expect(dropped).not.toHaveBeenCalled()
+
+    api.me.mockResolvedValueOnce(aMe('noHousehold'))
+    await store.load()
+    expect(dropped).toHaveBeenCalledTimes(1)
+    expect(store.isAuthenticated()).toBe(true)
+    expect(store.homePath()).toBe('/household/new')
+
+    const fresh = aMe('owner')
+    fresh.household = { ...fresh.household!, id: 11 }
+    api.me.mockResolvedValueOnce(fresh)
+    await store.load()
+    expect(dropped).toHaveBeenCalledTimes(2)
   })
 })

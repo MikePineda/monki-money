@@ -27,6 +27,7 @@
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
   "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
   "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
+  "E_INSIGHTS_UNAVAILABLE": "Los resúmenes del mes no están disponibles por ahora. Intenta más tarde",
   "E_CSV_TOO_LARGE": "El archivo pesa más de 2 MB. Exporta un periodo más corto",
   "E_CSV_TOO_MANY_ROWS": "El archivo tiene más de 20,000 movimientos. Exporta un periodo más corto",
   "E_CSV_ENCODING": "El archivo no es un CSV de texto (UTF-8). Descárgalo de nuevo de tu banco",
@@ -42,5 +43,6 @@
   "E_IMPORT_CLASSIFY_RUNNING": "La IA ya está revisando esta importación. Espera un momento",
   "E_CONCURRENT_UPDATE": "Esto se estaba guardando al mismo tiempo en otro lado. Inténtalo de nuevo",
   "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento",
-  "E_OWNER_CANNOT_LEAVE": "Quien administra el hogar no puede salir de él. Bórralo en su lugar"
+  "E_OWNER_CANNOT_LEAVE": "Quien administra el hogar no puede salir de él. Bórralo en su lugar",
+  "E_STORAGE_UNAVAILABLE": "La subida de fotos no está disponible ahora. Inténtalo más tarde"
 }

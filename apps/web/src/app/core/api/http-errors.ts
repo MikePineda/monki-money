@@ -116,6 +116,19 @@ export function toApiError(error: unknown): ApiError {
   return { kind: 'server' }
 }
 
+/** The `message` of an API error body (`{ message, code }`), when the call got an answer with one. */
+export function apiErrorMessage(error: unknown): string | null {
+  if (!isTuyauError(error) || error.kind !== 'http') {
+    return null
+  }
+  const body = error.response
+  if (typeof body !== 'object' || body === null || !('message' in body)) {
+    return null
+  }
+  const { message } = body as { message: unknown }
+  return typeof message === 'string' && message.trim() !== '' ? message.trim() : null
+}
+
 /** True for a non-2xx answer with this status (a 404 for an unknown invitation, a 409...). */
 export function hasStatus(error: ApiError, status: number): boolean {
   return 'status' in error && error.status === status

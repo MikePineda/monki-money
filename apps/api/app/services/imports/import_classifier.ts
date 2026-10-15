@@ -1,11 +1,9 @@
 import { inject } from '@adonisjs/core'
-import Category from '#models/category'
 import ImportRow from '#models/import_row'
-import { TAXONOMY } from '@monkimoney/shared'
 import ImportBatch from '#models/import_batch'
 import { LlmProvider } from '#llm/llm_provider'
-import type { LlmCategoryOption } from '#llm/types'
 import logger from '@adonisjs/core/services/logger'
+import { llmCategoryChoices } from '#services/categories/llm_category_choices'
 import { decodeHtmlEntities } from '#importers/html_entities'
 import type { ClassifyRows } from '#domain/importing/suggesters/llm_suggester'
 import { LlmProviderError, LlmQuotaExceededError } from '#llm/errors'
@@ -27,13 +25,6 @@ export const MAX_ROWS_PER_RUN = 500
 
 /** A classify claim older than this belongs to a run that died. */
 export const CLASSIFY_CLAIM_MINUTES = 10
-
-/** English names of the shared taxonomy, by slug (what the model reads). */
-const TAXONOMY_NAMES = new Map(
-  TAXONOMY.flatMap((group) =>
-    group.categories.map((category) => [category.slug, { name: category.nameEn, group }] as const)
-  )
-)
 
 /**
  * The classify step of an import (`ClassifyImportRowsJob`): rows that will
@@ -84,7 +75,7 @@ export default class ImportClassifier {
     const [rules, categoryIdBySlug, categories] = await Promise.all([
       this.loader.rules(payload.householdId),
       this.loader.categoryIdBySlug(payload.householdId),
-      this.categoriesFor(payload.householdId),
+      llmCategoryChoices(payload.householdId),
     ])
     const classify: ClassifyRows = async (requests) => {
       const result = await this.llm.classifyTransactions(
@@ -177,24 +168,6 @@ export default class ImportClassifier {
     return rows.filter(
       (row) => !Object.hasOwn(row.decision ?? {}, 'categoryId') && !row.decision?.splits?.length
     )
-  }
-
-  /** The household's visible categories as the model sees them (stable slugs). */
-  protected async categoriesFor(householdId: number): Promise<LlmCategoryOption[]> {
-    const categories = await Category.query()
-      .where('household_id', householdId)
-      .where('is_hidden', false)
-      .preload('group')
-      .orderBy('sort_order')
-    return categories.map((category) => {
-      const known = TAXONOMY_NAMES.get(category.slug)
-      return {
-        slug: category.slug,
-        name: category.isSystem && known ? known.name : category.name,
-        group: category.group?.isSystem && known ? known.group.nameEn : category.group?.name,
-        kind: category.group?.kind,
-      }
-    })
   }
 }
 

@@ -81,7 +81,10 @@ describe('route guards', () => {
     return true
   }
 
-  afterEach(() => localStorage.clear())
+  afterEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
 
   const matrix: [string, CanActivateFn, Record<State, true | string>][] = [
     [
@@ -102,7 +105,7 @@ describe('route guards', () => {
       {
         guest: true,
         unverified: '/verify-email',
-        noHousehold: '/no-household',
+        noHousehold: '/household/new',
         pendingDeletion: '/household-deleted',
         member: '/month',
         owner: '/month',
@@ -127,7 +130,7 @@ describe('route guards', () => {
         guest: '/login',
         // Verification is verifiedGuard's job, which runs first in the chain.
         unverified: true,
-        noHousehold: '/no-household',
+        noHousehold: '/household/new',
         pendingDeletion: '/household-deleted',
         member: true,
         owner: true,
@@ -151,7 +154,7 @@ describe('route guards', () => {
       {
         guest: '/login',
         unverified: '/verify-email',
-        noHousehold: '/no-household',
+        noHousehold: '/household/new',
         pendingDeletion: true,
         member: '/month',
         owner: '/month',
@@ -185,6 +188,13 @@ describe('route guards', () => {
     await signIn('owner', ['billing'])
     expect(await run(flagGuard('billing'))).toBe(true)
     expect(await run(flagGuard('beta'))).toBe('/month')
+  })
+
+  it('test_without_a_household_a_pending_invitation_comes_before_creating_one', async () => {
+    await signIn('noHousehold')
+    sessionStorage.setItem('mm:invite', 'invite-token-123')
+
+    expect(await run(noHouseholdGuard)).toBe('/invite/invite-token-123')
   })
 
   it('test_sign_up_matches_while_registration_is_open', async () => {

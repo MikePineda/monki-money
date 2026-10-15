@@ -6,6 +6,18 @@ import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 /** Self-rendering framework errors whose own rendering does not fit a JSON API. */
 const JSON_RENDERED_CODES = new Set(['E_BAD_CSRF_TOKEN'])
 
+/**
+ * Server errors whose translated message is meant for people: a dependency
+ * (the LLM vendor, object storage) is down or not configured, not a bug.
+ * They keep `{ message, code }` in production too, and are logged at warn
+ * with their detail (vendor message, S3 error) for operators.
+ */
+const PUBLIC_SERVER_ERROR_CODES = new Set([
+  'E_INSIGHTS_UNAVAILABLE',
+  'E_LLM_UNAVAILABLE',
+  'E_STORAGE_UNAVAILABLE',
+])
+
 /** Postgres unique_violation: a race lost against a concurrent insert. */
 const PG_UNIQUE_VIOLATION = '23505'
 
@@ -68,12 +80,18 @@ function detailsOf(error: unknown): Record<string, unknown> {
  *   when deleting the parent lost a race against an insert, else
  *   `E_CONFLICT`. Deadlocks and serialization failures answer 409
  *   `E_CONCURRENT_UPDATE` (retryable).
- * - 5xx: debug page in development; in production a generic translated
+ * - 5xx: `E_INSIGHTS_UNAVAILABLE` / `E_LLM_UNAVAILABLE` /
+ *   `E_STORAGE_UNAVAILABLE` (503, see PUBLIC_SERVER_ERROR_CODES) answer
+ *   their translated `{ message, code }` everywhere; any other one shows the
+ *   debug page in development and, in production, a generic translated
  *   `{ message, code: 'E_INTERNAL_SERVER_ERROR' }` (driver messages, table
  *   and constraint names never leave the server, they go to the logs).
  */
 export default class HttpExceptionHandler extends ExceptionHandler {
   protected override debug = !app.inProduction
+
+  /** No LLM configured: already warned once at boot (providers/llm_provider.ts). */
+  protected override ignoreCodes = ['E_INSIGHTS_UNAVAILABLE']
 
   override async handle(error: unknown, ctx: HttpContext) {
     const i18n = 'i18n' in ctx ? (ctx.i18n as I18n | undefined) : undefined
@@ -138,6 +156,12 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         .send({ ...detailsOf(error), message, code: httpError.code })
     }
 
+    if (httpError.status >= 500 && PUBLIC_SERVER_ERROR_CODES.has(httpError.code ?? '')) {
+      return ctx.response
+        .status(httpError.status)
+        .send({ message: translate(httpError.code!, httpError.message), code: httpError.code })
+    }
+
     if (httpError.status >= 500 && !this.debug) {
       return ctx.response.status(httpError.status).send({
         message: translate('E_INTERNAL_SERVER_ERROR', 'Internal server error'),
@@ -149,6 +173,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
   }
 
   override async report(error: unknown, ctx: HttpContext) {
+    const code = (error as { code?: unknown } | null)?.code
+    if (typeof code === 'string' && PUBLIC_SERVER_ERROR_CODES.has(code)) {
+      // An expected degradation (vendor down, storage off): the client got
+      // its 503; the detail (vendor message, S3 error) stays for operators.
+      ctx.logger.warn({ err: error }, (error as Error).message)
+      return
+    }
     return super.report(error, ctx)
   }
 }

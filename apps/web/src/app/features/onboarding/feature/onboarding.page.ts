@@ -9,9 +9,8 @@ import { provideOnboardingScope } from '../onboarding.scope'
 import { AccountsStepComponent } from './accounts-step.component'
 import { HouseholdStepComponent } from './household-step.component'
 import { InviteStepComponent } from './invite-step.component'
+import { ONBOARDING_STEPS } from '../onboarding-steps'
 import { RegionStepComponent } from './region-step.component'
-
-export const ONBOARDING_STEPS = 4
 
 /**
  * The onboarding wizard (< 2 minutes, 4 steps): household name, money and

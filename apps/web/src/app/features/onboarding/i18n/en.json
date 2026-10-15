@@ -47,5 +47,22 @@
     "sent": "Invitation sent to {email}.",
     "finish": "Finish",
     "full": "Your household already has all its members."
+  },
+  "create": {
+    "title": "Start your household",
+    "body": "You are not in a household right now. Start a new one, or join your partner’s with the link from their invitation.",
+    "submit": "Create household",
+    "haveInvite": "I have an invite link",
+    "logout": "Log out",
+    "alreadyIn": "You already have a household.",
+    "goToApp": "Go to the app",
+    "join": {
+      "title": "Join with an invitation",
+      "body": "Paste the link from the invitation email, or just its code.",
+      "label": "Invitation link or code",
+      "submit": "Open invitation",
+      "invalid": "That is not an invitation link. Copy the whole link from the email.",
+      "back": "Create a household instead"
+    }
   }
 }

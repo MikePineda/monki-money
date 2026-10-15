@@ -19,6 +19,7 @@
     "kit": "src/app/kit/i18n",
     "charts": "src/app/shared/charts/i18n",
     "import": "src/app/features/import/i18n",
-    "rules": "src/app/features/rules/i18n"
+    "rules": "src/app/features/rules/i18n",
+    "outbox": "src/app/core/outbox/i18n"
   }
 }

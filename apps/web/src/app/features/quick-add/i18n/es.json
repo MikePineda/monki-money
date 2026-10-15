@@ -26,7 +26,9 @@
   "toast": {
     "saved": "Guardado",
     "undo": "Deshacer",
-    "undone": "Eliminado"
+    "undone": "Eliminado",
+    "queued": "Guardado sin conexión · se sincronizará",
+    "updated": "Movimiento actualizado · se sincronizará"
   },
   "noAccounts": {
     "title": "Primero agrega una cuenta.",

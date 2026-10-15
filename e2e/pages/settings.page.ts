@@ -19,6 +19,9 @@ export class SettingsPage {
   get invite() {
     return this.page.getByTestId('settings.invite')
   }
+  get leave() {
+    return this.page.getByTestId('settings.leave')
+  }
   get logout() {
     return this.page.getByTestId('settings.logout')
   }
@@ -41,6 +44,12 @@ export class SettingsPage {
     await this.invite.click()
     await this.page.getByTestId('settings.inviteSheet.input').locator('input').fill(email)
     await this.page.getByTestId('settings.inviteSheet.submit').click()
+  }
+
+  /** A member leaves from the danger zone, confirming in the sheet. */
+  async leaveHousehold(): Promise<void> {
+    await this.page.getByTestId('settings.leave').click()
+    await this.page.getByTestId('leave.confirm').click()
   }
 
   async changePassword(current: string, next: string): Promise<void> {

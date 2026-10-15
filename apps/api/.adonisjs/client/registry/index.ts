@@ -372,6 +372,60 @@ const routes = {
     tokens: [{"old":"/api/v1/reports/balances","type":0,"val":"api","end":""},{"old":"/api/v1/reports/balances","type":0,"val":"v1","end":""},{"old":"/api/v1/reports/balances","type":0,"val":"reports","end":""},{"old":"/api/v1/reports/balances","type":0,"val":"balances","end":""}],
     types: placeholder as Registry['reports.balances']['types'],
   },
+  'goals.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/goals',
+    tokens: [{"old":"/api/v1/goals","type":0,"val":"api","end":""},{"old":"/api/v1/goals","type":0,"val":"v1","end":""},{"old":"/api/v1/goals","type":0,"val":"goals","end":""}],
+    types: placeholder as Registry['goals.index']['types'],
+  },
+  'goals.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/goals',
+    tokens: [{"old":"/api/v1/goals","type":0,"val":"api","end":""},{"old":"/api/v1/goals","type":0,"val":"v1","end":""},{"old":"/api/v1/goals","type":0,"val":"goals","end":""}],
+    types: placeholder as Registry['goals.store']['types'],
+  },
+  'goals.reorder': {
+    methods: ["PUT"],
+    pattern: '/api/v1/goals/reorder',
+    tokens: [{"old":"/api/v1/goals/reorder","type":0,"val":"api","end":""},{"old":"/api/v1/goals/reorder","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/reorder","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/reorder","type":0,"val":"reorder","end":""}],
+    types: placeholder as Registry['goals.reorder']['types'],
+  },
+  'goals.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/goals/:id',
+    tokens: [{"old":"/api/v1/goals/:id","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['goals.show']['types'],
+  },
+  'goals.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/goals/:id',
+    tokens: [{"old":"/api/v1/goals/:id","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['goals.update']['types'],
+  },
+  'goals.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/goals/:id',
+    tokens: [{"old":"/api/v1/goals/:id","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['goals.destroy']['types'],
+  },
+  'goals.projection': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/goals/:id/projection',
+    tokens: [{"old":"/api/v1/goals/:id/projection","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id/projection","type":1,"val":"id","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"projection","end":""}],
+    types: placeholder as Registry['goals.projection']['types'],
+  },
+  'insights.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/insights/:month',
+    tokens: [{"old":"/api/v1/insights/:month","type":0,"val":"api","end":""},{"old":"/api/v1/insights/:month","type":0,"val":"v1","end":""},{"old":"/api/v1/insights/:month","type":0,"val":"insights","end":""},{"old":"/api/v1/insights/:month","type":1,"val":"month","end":""}],
+    types: placeholder as Registry['insights.show']['types'],
+  },
+  'insights.generate': {
+    methods: ["POST"],
+    pattern: '/api/v1/insights/:month/generate',
+    tokens: [{"old":"/api/v1/insights/:month/generate","type":0,"val":"api","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"v1","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"insights","end":""},{"old":"/api/v1/insights/:month/generate","type":1,"val":"month","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"generate","end":""}],
+    types: placeholder as Registry['insights.generate']['types'],
+  },
   'imports.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/imports',
@@ -443,6 +497,18 @@ const routes = {
     pattern: '/api/v1/rules/:id/apply',
     tokens: [{"old":"/api/v1/rules/:id/apply","type":0,"val":"api","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"v1","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"rules","end":""},{"old":"/api/v1/rules/:id/apply","type":1,"val":"id","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"apply","end":""}],
     types: placeholder as Registry['rules.apply']['types'],
+  },
+  'uploads.presign': {
+    methods: ["POST"],
+    pattern: '/api/v1/uploads/presign',
+    tokens: [{"old":"/api/v1/uploads/presign","type":0,"val":"api","end":""},{"old":"/api/v1/uploads/presign","type":0,"val":"v1","end":""},{"old":"/api/v1/uploads/presign","type":0,"val":"uploads","end":""},{"old":"/api/v1/uploads/presign","type":0,"val":"presign","end":""}],
+    types: placeholder as Registry['uploads.presign']['types'],
+  },
+  'receipts.scan': {
+    methods: ["POST"],
+    pattern: '/api/v1/receipts/scan',
+    tokens: [{"old":"/api/v1/receipts/scan","type":0,"val":"api","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"v1","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"receipts","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"scan","end":""}],
+    types: placeholder as Registry['receipts.scan']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 

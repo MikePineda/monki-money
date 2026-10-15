@@ -739,6 +739,114 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['balances']>>>
     }
   }
+  'goals.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/goals'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/goals').listGoalsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/goals'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/goals').createGoalValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/goals').createGoalValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.reorder': {
+    methods: ["PUT"]
+    pattern: '/api/v1/goals/reorder'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/reorder').reorderValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/reorder').reorderValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['reorder']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['reorder']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/goals/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/goals').goalParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/goals/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/goals').updateGoalValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/goals').updateGoalValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/goals/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/goals').goalParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/goals').goalParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.projection': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/goals/:id/projection'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/goals').goalParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['projection']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['projection']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'insights.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/insights/:month'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { month: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/insights').insightParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'insights.generate': {
+    methods: ["POST"]
+    pattern: '/api/v1/insights/:month/generate'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/insights').generateInsightValidator)>>
+      paramsTuple: [ParamValue]
+      params: { month: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/insights').generateInsightValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['generate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['generate']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'imports.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/imports'
@@ -881,6 +989,30 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/merchant_rules').ruleParamsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['apply']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['apply']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'uploads.presign': {
+    methods: ["POST"]
+    pattern: '/api/v1/uploads/presign'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/uploads').presignUploadValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/uploads').presignUploadValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/uploads_controller').default['presign']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/uploads_controller').default['presign']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'receipts.scan': {
+    methods: ["POST"]
+    pattern: '/api/v1/receipts/scan'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
 }

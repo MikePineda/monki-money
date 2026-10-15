@@ -133,6 +133,23 @@ describe('InvitePage', () => {
     )
   })
 
+  it('test_an_invitation_for_another_address_can_be_set_aside', async () => {
+    const { root } = await setup('withoutHousehold', async () => ({
+      ...preview,
+      email: 'robin@example.test',
+    }))
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="invite.otherEmail"]')).not.toBeNull()
+    )
+    expect(sessionStorage.getItem('mm:invite')).toBe(TOKEN)
+
+    root.querySelector<HTMLButtonElement>('[data-testid="invite.notNow"]')?.click()
+
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/month'))
+    expect(sessionStorage.getItem('mm:invite')).toBeNull()
+    expect(session['logout']).not.toHaveBeenCalled()
+  })
+
   it('test_an_unknown_link_says_so', async () => {
     const { root } = await setup('guest', () => Promise.reject(httpError(404)))
 
