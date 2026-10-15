@@ -1,0 +1,225 @@
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>monkimoney - Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "tertiary-fixed": "#dfe4e0",
+          "inverse-primary": "#ecefed",
+          "tertiary": "#000000",
+          "surface-tint": "#5b5f5c",
+          "status-critical": "#c8393a",
+          "inverse-surface": "#2d3130",
+          "on-primary-container": "#818582",
+          "primary-container": "#dff5e7",
+          "on-tertiary-container": "#131715",
+          "outline-variant": "#c4c7c4",
+          "tertiary-container": "#e7ebe9",
+          "primary-fixed-dim": "#c4c7c4",
+          "on-secondary": "#ffffff",
+          "on-error-container": "#93000a",
+          "surface-container-low": "#f3f6f4",
+          "on-surface": "#181c1c",
+          "on-error": "#ffffff",
+          "surface-dim": "#d8dcda",
+          "surface-container-high": "#e6e9e7",
+          "on-background": "#131715",
+          "inverse-on-surface": "#eef1ef",
+          "tertiary-fixed-dim": "#c3c8c4",
+          "outline": "#7c827e",
+          "surface-variant": "#e0e3e1",
+          "primary-fixed": "#e0e3df",
+          "person-b": "#eb6834",
+          "accent": "#08633d",
+          "secondary-fixed": "#dfe4df",
+          "secondary-container": "#edf1ef",
+          "on-tertiary-fixed": "#181d1a",
+          "on-surface-variant": "#494e4b",
+          "surface-container-highest": "#e1e5e3",
+          "on-primary-fixed": "#181c1a",
+          "person-a": "#2a78d6",
+          "on-tertiary-fixed-variant": "#434845",
+          "surface-bright": "#f7faf8",
+          "secondary-fixed-dim": "#c3c8c4",
+          "surface-container-lowest": "#ffffff",
+          "on-secondary-fixed": "#181d1a",
+          "surface": "#f8fbf9",
+          "mark-muted": "#b4b9b6",
+          "expense": "#131715",
+          "background": "#f8fbf9",
+          "error-container": "#fbe9e8",
+          "on-tertiary": "#ffffff",
+          "secondary": "#5b5f5c",
+          "transfer": "#686d6a",
+          "surface-container": "#edf1ef",
+          "primary": "#000000",
+          "on-secondary-fixed-variant": "#434845",
+          "income": "#3b7b1f",
+          "on-primary": "#ffffff",
+          "on-secondary-container": "#616562",
+          "error": "#c8393a",
+          "status-warning": "#b37903",
+          "mark-neutral": "#606562",
+          "line": "#dee2e0",
+          "line-strong": "#7c827e",
+          "on-primary-fixed-variant": "#444845",
+          "accent-soft": "#dff5e7",
+          "status-serious": "#c0571e",
+          "status-good": "#0ca30c"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-sm": "0.5rem",
+          "margin": "1.5rem",
+          "space-lg": "1.5rem",
+          "space-md": "1rem",
+          "gutter": "1rem",
+          "space-xs": "0.25rem",
+          "space-xl": "2rem"
+        },
+        "fontFamily": {
+          "title": ["Inter"],
+          "heading": ["Inter"],
+          "display": ["Inter"],
+          "body": ["Inter"],
+          "display-mobile": ["Inter"],
+          "label": ["Inter"],
+          "body-sm": ["Inter"]
+        },
+        "fontSize": {
+          "title": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600"}],
+          "heading": ["18px", {"lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600"}],
+          "display": ["44px", {"lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500"}],
+          "body": ["16px", {"lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400"}],
+          "display-mobile": ["32px", {"lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500"}],
+          "label": ["12px", {"lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500"}],
+          "body-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400"}]
+        }
+      },
+    },
+  }
+</script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body antialiased flex justify-center items-center min-h-screen m-0 p-0">
+<div class="w-[390px] h-[844px] bg-surface-container-lowest flex flex-col justify-between relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface text-primary dark:text-inverse-primary font-heading text-heading flex justify-between items-center w-full px-gutter py-space-md">
+<button class="flex items-center justify-center p-1 rounded-full hover:bg-surface-container transition-all duration-200">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<div class="flex flex-col items-end">
+<span class="text-label text-on-surface-variant font-medium">Step 3 of 4</span>
+<div class="flex gap-1 mt-1">
+<div class="w-6 h-1 bg-expense rounded-full"></div>
+<div class="w-6 h-1 bg-expense rounded-full"></div>
+<div class="w-6 h-1 bg-expense rounded-full"></div>
+<div class="w-6 h-1 bg-mark-muted rounded-full"></div>
+</div>
+</div>
+</header>
+<!-- Main Scrollable Content -->
+<main class="flex-1 overflow-y-auto px-gutter py-space-md flex flex-col gap-space-lg">
+<div>
+<h1 class="font-title text-title font-semibold text-on-surface">Add your accounts</h1>
+<p class="font-body text-secondary mt-1">Tap the accounts you use. You can add more later.</p>
+</div>
+<!-- Preset Chips -->
+<div class="flex flex-wrap gap-2 my-2">
+<!-- Selected Chip -->
+<div class="flex items-center gap-1.5 px-3 py-2 bg-accent-soft border border-accent rounded-lg text-accent font-label cursor-pointer shadow-sm">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check</span>
+<span>NAB Everyday</span>
+</div>
+<!-- Selected Chip -->
+<div class="flex items-center gap-1.5 px-3 py-2 bg-accent-soft border border-accent rounded-lg text-accent font-label cursor-pointer shadow-sm">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check</span>
+<span>NAB Savings</span>
+</div>
+<!-- Selected Chip -->
+<div class="flex items-center gap-1.5 px-3 py-2 bg-accent-soft border border-accent rounded-lg text-accent font-label cursor-pointer shadow-sm">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check</span>
+<span>Hnry</span>
+</div>
+<!-- At rest Chip -->
+<div class="flex items-center gap-1.5 px-3 py-2 bg-surface-container-low border border-line-strong rounded-lg text-expense font-label cursor-pointer hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Cash</span>
+</div>
+<!-- At rest Chip -->
+<div class="flex items-center gap-1.5 px-3 py-2 bg-surface-container-low border border-line-strong rounded-lg text-expense font-label cursor-pointer hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Other</span>
+</div>
+</div>
+<!-- Section: Who owns each account -->
+<section>
+<h2 class="font-heading text-on-surface mb-3">Who owns each account</h2>
+<div class="flex flex-col gap-3">
+<!-- Row 1: NAB Everyday -->
+<div class="flex flex-col justify-between gap-3 min-h-[56px] py-4 border-b border-line items-center">
+<div class="flex items-center justify-between">
+<span class="font-body font-semibold text-on-surface">NAB Everyday</span>
+</div>
+<!-- Segmented Control -->
+<div class="flex bg-secondary-container p-0.5 rounded-lg w-full">
+<button class="flex-1 py-1.5 text-center text-label font-medium text-on-secondary-container rounded-md transition-all">You</button>
+<button class="flex-1 py-1.5 text-center text-label font-medium text-on-secondary-container rounded-md transition-all">{partner}</button>
+<button class="flex-1 py-1.5 text-center text-label font-semibold text-accent bg-surface-container-lowest rounded-md shadow-sm">Joint</button>
+</div>
+</div>
+<!-- Row 2: NAB Savings -->
+<div class="flex flex-col justify-between gap-3 min-h-[56px] py-4 border-b border-line items-center">
+<div class="flex items-center justify-between">
+<span class="font-body font-semibold text-on-surface">NAB Savings</span>
+</div>
+<!-- Segmented Control -->
+<div class="flex bg-secondary-container p-0.5 rounded-lg w-full">
+<button class="flex-1 py-1.5 text-center text-label font-medium text-on-secondary-container rounded-md transition-all">You</button>
+<button class="flex-1 py-1.5 text-center text-label font-medium text-on-secondary-container rounded-md transition-all">{partner}</button>
+<button class="flex-1 py-1.5 text-center text-label font-semibold text-accent bg-surface-container-lowest rounded-md shadow-sm">Joint</button>
+</div>
+</div>
+<!-- Row 3: Hnry -->
+<div class="flex flex-col justify-between gap-3 min-h-[56px] py-4 border-b border-line items-center">
+<div class="flex items-center justify-between">
+<span class="font-body font-semibold text-on-surface">Hnry</span>
+</div>
+<!-- Segmented Control -->
+<div class="flex bg-secondary-container p-0.5 rounded-lg w-full">
+<button class="flex-1 py-1.5 text-center text-label font-semibold text-accent bg-surface-container-lowest rounded-md shadow-sm">You</button>
+<button class="flex-1 py-1.5 text-center text-label font-medium text-on-secondary-container rounded-md transition-all">{partner}</button>
+<button class="flex-1 py-1.5 text-center text-label font-medium text-on-secondary-container rounded-md transition-all">Joint</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Area -->
+<footer class="px-gutter pb-6 pt-2 bg-surface-container-lowest flex flex-col items-center gap-2">
+<button class="w-full h-12 text-center text-label font-medium text-secondary hover:text-on-surface transition-colors cursor-pointer">
+      Skip for now
+    </button>
+<button class="w-full h-14 bg-expense text-on-primary font-heading rounded-xl flex items-center justify-center hover:opacity-95 active:scale-[0.98] transition-all duration-200 cursor-pointer shadow-md">
+      Continue
+    </button>
+</footer>
+</div>
+</body></html>

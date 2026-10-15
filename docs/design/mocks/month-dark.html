@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>monkimoney - Ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "page-bg": "#0c0f0d",
+            "raised": "#151816",
+            "sunken": "#1e2320",
+            "txt-main": "#ecefed",
+            "txt-muted": "#bbbfbc",
+            "txt-subtle": "#8e9490",
+            "hairline": "#2b2f2c",
+            "border-custom": "#6b706d",
+            "accent-custom": "#5abb88",
+            "selection-wash": "#162f21",
+            "income-custom": "#88d56c",
+            "expense-custom": "#e66767",
+            "btn-fill": "#ecefed",
+            "btn-label": "#0c0f0d",
+            "person-a-custom": "#3987e5",
+            "person-b-custom": "#d95926",
+            "chart-line": "#a0a6a3",
+            "chart-mark": "#444946",
+          },
+          fontFamily: {
+            "label": ["Inter"],
+            "display": ["Inter"],
+            "title": ["Inter"],
+            "display-mobile": ["Inter"],
+            "heading": ["Inter"],
+            "body-sm": ["Inter"],
+            "body": ["Inter"]
+          },
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+      background-color: #0c0f0d;
+      color: #ecefed;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-[#0c0f0d] text-[#ecefed] font-body antialiased pb-28">
+<!-- Month Strip as Absolute Top Row -->
+<header class="sticky top-0 z-40 w-full overflow-x-auto no-scrollbar px-4 py-3 bg-[#0c0f0d] border-b border-[#2b2f2c] flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<div class="px-3 py-1.5 rounded-full text-[#8e9490] font-label text-xs hover:bg-[#1e2320] transition-all cursor-pointer border border-transparent hover:border-[#6b706d]">May</div>
+<div class="px-3 py-1.5 rounded-full text-[#8e9490] font-label text-xs hover:bg-[#1e2320] transition-all cursor-pointer border border-transparent hover:border-[#6b706d]">Jun</div>
+<div class="px-3 py-1.5 rounded-full text-[#8e9490] font-label text-xs hover:bg-[#1e2320] transition-all cursor-pointer border border-transparent hover:border-[#6b706d]">Jul</div>
+<div class="px-3 py-1.5 rounded-full text-[#8e9490] font-label text-xs hover:bg-[#1e2320] transition-all cursor-pointer border border-transparent hover:border-[#6b706d]">Aug</div>
+<div class="px-3 py-1.5 rounded-full text-[#8e9490] font-label text-xs hover:bg-[#1e2320] transition-all cursor-pointer border border-transparent hover:border-[#6b706d]">Sep</div>
+<div class="px-3.5 py-1.5 rounded-full bg-[#162f21] text-[#5abb88] font-label text-xs font-bold border border-[#6b706d]">Oct</div>
+<div class="px-3 py-1.5 rounded-full text-[#8e9490] font-label text-xs hover:bg-[#1e2320] transition-all cursor-pointer opacity-60 border border-transparent hover:border-[#6b706d]">Nov</div>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1e2320] text-[#bbbfbc] font-label text-xs shrink-0 border border-[#6b706d]">
+<span>BNE · AUD</span>
+</div>
+</header>
+<main class="max-w-md mx-auto px-4 pt-6 space-y-8">
+<!-- Header Section -->
+<section class="space-y-1 pb-4 border-b border-[#2b2f2c]">
+<div class="text-[#8e9490] font-label text-xs uppercase tracking-wider">SPENT IN OCTOBER</div>
+<div class="font-display text-[44px] leading-[48px] font-bold tracking-tight text-[#ecefed]">$3,284.50</div>
+<div class="text-[#8e9490] font-body-sm text-[14px]">8% less than September ($3,571.20)</div>
+</section>
+<!-- Three Stat Tiles -->
+<section class="grid grid-cols-3 py-3 border-b border-[#2b2f2c]">
+<div class="pr-2">
+<div class="text-[#8e9490] font-label text-xs">Income</div>
+<div class="font-heading text-[18px] font-semibold mt-0.5 text-[#ecefed]">$6,450</div>
+</div>
+<div class="px-2 border-l border-[#2b2f2c]">
+<div class="text-[#8e9490] font-label text-xs">Spent</div>
+<div class="font-heading text-[18px] font-semibold mt-0.5 text-[#ecefed]">$3,285</div>
+</div>
+<div class="pl-2 border-l border-[#2b2f2c]">
+<div class="text-[#8e9490] font-label text-xs">Net saved</div>
+<div class="font-heading text-[18px] font-semibold mt-0.5 text-[#ecefed]">$3,165</div>
+</div>
+</section>
+<!-- Spending by Category -->
+<section class="space-y-4 pb-4 border-b border-[#2b2f2c]">
+<div class="flex justify-between items-center">
+<h2 class="font-heading text-[18px] text-[#ecefed]">Spending by category</h2>
+<span class="text-[#8e9490] font-label text-xs">6 categories</span>
+</div>
+<div class="space-y-3">
+<!-- Category Item -->
+<div class="space-y-1.5 pb-3 border-b border-[#2b2f2c]">
+<div class="flex justify-between text-[14px]">
+<span class="font-medium text-[#ecefed]">Housing</span>
+<span class="font-mono tabular-nums text-[#bbbfbc]">$1,620.00</span>
+</div>
+<div class="w-full bg-[#1e2320] h-1.5 rounded-none overflow-hidden">
+<div class="bg-[#ecefed] h-full rounded-none" style="width: 49.3%;"></div>
+</div>
+</div>
+<!-- Category Item -->
+<div class="space-y-1.5 pb-3 border-b border-[#2b2f2c]">
+<div class="flex justify-between text-[14px]">
+<span class="font-medium text-[#ecefed]">Food</span>
+<span class="font-mono tabular-nums text-[#bbbfbc]">$842.30</span>
+</div>
+<div class="w-full bg-[#1e2320] h-1.5 rounded-none overflow-hidden">
+<div class="bg-[#ecefed] h-full rounded-none" style="width: 25.6%;"></div>
+</div>
+</div>
+<!-- Category Item -->
+<div class="space-y-1.5 pb-3 border-b border-[#2b2f2c]">
+<div class="flex justify-between text-[14px]">
+<span class="font-medium text-[#ecefed]">Transport</span>
+<span class="font-mono tabular-nums text-[#bbbfbc]">$214.60</span>
+</div>
+<div class="w-full bg-[#1e2320] h-1.5 rounded-none overflow-hidden">
+<div class="bg-[#ecefed] h-full rounded-none" style="width: 6.5%;"></div>
+</div>
+</div>
+<!-- Category Item -->
+<div class="space-y-1.5 pb-3 border-b border-[#2b2f2c]">
+<div class="flex justify-between text-[14px]">
+<span class="font-medium text-[#ecefed]">Leisure</span>
+<span class="font-mono tabular-nums text-[#bbbfbc]">$188.40</span>
+</div>
+<div class="w-full bg-[#1e2320] h-1.5 rounded-none overflow-hidden">
+<div class="bg-[#ecefed] h-full rounded-none" style="width: 5.7%;"></div>
+</div>
+</div>
+<!-- Category Item -->
+<div class="space-y-1.5 pb-3 border-b border-[#2b2f2c]">
+<div class="flex justify-between text-[14px]">
+<span class="font-medium text-[#ecefed]">Health</span>
+<span class="font-mono tabular-nums text-[#bbbfbc]">$142.00</span>
+</div>
+<div class="w-full bg-[#1e2320] h-1.5 rounded-none overflow-hidden">
+<div class="bg-[#ecefed] h-full rounded-none" style="width: 4.3%;"></div>
+</div>
+</div>
+<!-- Category Item -->
+<div class="space-y-1.5">
+<div class="flex justify-between text-[14px]">
+<span class="font-medium text-[#ecefed]">Other</span>
+<span class="font-mono tabular-nums text-[#bbbfbc]">$277.20</span>
+</div>
+<div class="w-full bg-[#1e2320] h-1.5 rounded-none overflow-hidden">
+<div class="bg-[#8e9490] h-full rounded-none" style="width: 8.4%;"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Trend · 6 Months Chart -->
+<section class="space-y-4 pb-4 border-b border-[#2b2f2c]">
+<div class="flex justify-between items-baseline">
+<h2 class="font-heading text-[18px] text-[#ecefed]">Trend · 6 months</h2>
+<span class="text-[#8e9490] font-label text-xs">May – Oct</span>
+</div>
+<div class="relative h-44 w-full pt-4">
+<!-- Y-Axis Ticks -->
+<div class="absolute inset-0 flex flex-col justify-between text-[11px] text-[#8e9490] font-mono pointer-events-none pr-2">
+<div class="border-b border-[#2b2f2c] pb-0.5 flex justify-between"><span>$4k</span></div>
+<div class="border-b border-[#2b2f2c] pb-0.5 flex justify-between"><span>$2k</span></div>
+<div class="border-b border-[#2b2f2c] pb-0.5 flex justify-between"><span>$0</span></div>
+</div>
+<!-- SVG Line Chart (No Area Fill) -->
+<div class="absolute inset-0 pl-6 pt-2 pb-5">
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 300 120">
+<path d="M 0,40 Q 60,30 120,55 T 240,25 T 300,35" fill="none" stroke="#a0a6a3" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Data points with chart marks -->
+<circle class="fill-[#151816] stroke-[#a0a6a3]" cx="0" cy="40" r="3" stroke-width="2"></circle>
+<circle class="fill-[#151816] stroke-[#a0a6a3]" cx="60" cy="35" r="3" stroke-width="2"></circle>
+<circle class="fill-[#151816] stroke-[#a0a6a3]" cx="120" cy="55" r="3" stroke-width="2"></circle>
+<circle class="fill-[#151816] stroke-[#a0a6a3]" cx="180" cy="45" r="3" stroke-width="2"></circle>
+<circle class="fill-[#151816] stroke-[#a0a6a3]" cx="240" cy="25" r="3" stroke-width="2"></circle>
+<circle cx="300" cy="35" r="4" stroke-width="2" style="fill: #a0a6a3; stroke: #0c0f0d;"></circle>
+</svg>
+</div>
+<!-- X-Axis Labels -->
+<div class="absolute bottom-0 inset-x-0 pl-6 flex justify-between text-[11px] text-[#8e9490] font-label">
+<span>May</span>
+<span>Jun</span>
+<span>Jul</span>
+<span>Aug</span>
+<span>Sep</span>
+<span class="">Oct</span>
+</div>
+</div>
+</section>
+<!-- Who Paid Section -->
+<section class="space-y-4 pb-4 border-b border-[#2b2f2c]">
+<h2 class="font-heading text-[18px] text-[#ecefed]">Who paid</h2>
+<div class="space-y-3">
+<!-- 100% Stacked Bar (Exactly 24px tall) -->
+<div class="w-full h-[24px] rounded-none overflow-hidden flex gap-0.5 bg-[#1e2320]">
+<div class="h-full" style="width: 46%; background-color: #3987e5;" title="You: 46%"></div>
+<div class="h-full" style="width: 31%; background-color: #d95926;" title="Partner: 31%"></div>
+<div class="h-full bg-[#8e9490]" style="width: 23%;" title="Shared: 23%"></div>
+</div>
+<!-- Legend displayed as three vertical rows underneath -->
+<div class="flex flex-col gap-2 pt-1">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-none shrink-0" style="background-color: #3987e5;"></div>
+<div class="text-[14px] flex justify-between w-full">
+<span class="font-medium text-[#ecefed]">You</span>
+<span class="text-[#8e9490] font-mono text-[13px]">46% ($1,510)</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-none shrink-0" style="background-color: #d95926;"></div>
+<div class="text-[14px] flex justify-between w-full">
+<span class="font-medium text-[#ecefed]">{partner}</span>
+<span class="text-[#8e9490] font-mono text-[13px]">31% ($1,018)</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-none shrink-0 bg-[#8e9490]"></div>
+<div class="text-[14px] flex justify-between w-full">
+<span class="font-medium text-[#ecefed]">Shared</span>
+<span class="text-[#8e9490] font-mono text-[13px]">23% ($756)</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Top Transactions List -->
+<section class="space-y-3 pb-4 border-b border-[#2b2f2c]">
+<div class="flex justify-between items-center">
+<h2 class="font-heading text-[18px] text-[#ecefed]">Top transactions</h2>
+<span class="text-[#5abb88] font-label text-xs cursor-pointer">View all</span>
+</div>
+<div class="divide-y divide-[#2b2f2c]">
+<!-- Transaction Item -->
+<div class="py-3 flex items-center justify-between h-[56px]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-none bg-[#1e2320] flex items-center justify-center text-[#bbbfbc] border border-[#6b706d]">
+<span class="material-symbols-outlined text-[18px]">home</span>
+</div>
+<div>
+<div class="font-medium text-[14px] text-[#ecefed]">DEFT Payments</div>
+<div class="text-[#8e9490] text-[12px]">Housing · Oct 28</div>
+</div>
+</div>
+<div class="font-mono tabular-nums font-semibold text-[#e66767]">−$1,240.00</div>
+</div>
+<!-- Transaction Item -->
+<div class="py-3 flex items-center justify-between h-[56px]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-none bg-[#1e2320] flex items-center justify-center text-[#bbbfbc] border border-[#6b706d]">
+<span class="material-symbols-outlined text-[18px]">shopping_cart</span>
+</div>
+<div>
+<div class="font-medium text-[14px] text-[#ecefed]">Woolworths Riverside</div>
+<div class="text-[#8e9490] text-[12px]">Food · Oct 26</div>
+</div>
+</div>
+<div class="font-mono tabular-nums font-semibold text-[#e66767]">−$186.45</div>
+</div>
+<!-- Transaction Item -->
+<div class="py-3 flex items-center justify-between h-[56px]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-none bg-[#1e2320] flex items-center justify-center text-[#bbbfbc] border border-[#6b706d]">
+<span class="material-symbols-outlined text-[18px]">store</span>
+</div>
+<div>
+<div class="font-medium text-[14px] text-[#ecefed]">Kmart</div>
+<div class="text-[#8e9490] text-[12px]">Other · Oct 24</div>
+</div>
+</div>
+<div class="font-mono tabular-nums font-semibold text-[#e66767]">−$64.90</div>
+</div>
+<!-- Transaction Item -->
+<div class="py-3 flex items-center justify-between h-[56px]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-none bg-[#1e2320] flex items-center justify-center text-[#bbbfbc] border border-[#6b706d]">
+<span class="material-symbols-outlined text-[18px]">train</span>
+</div>
+<div>
+<div class="font-medium text-[14px] text-[#ecefed]">Translink</div>
+<div class="text-[#8e9490] text-[12px]">Transport · Oct 22</div>
+</div>
+</div>
+<div class="font-mono tabular-nums font-semibold text-[#e66767]">−$48.20</div>
+</div>
+<!-- Transaction Item -->
+<div class="py-3 flex items-center justify-between h-[56px]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-none bg-[#1e2320] flex items-center justify-center text-[#bbbfbc] border border-[#6b706d]">
+<span class="material-symbols-outlined text-[18px]">smartphone</span>
+</div>
+<div>
+<div class="font-medium text-[14px] text-[#ecefed]">Mobile Co</div>
+<div class="text-[#8e9490] text-[12px]">Other · Oct 20</div>
+</div>
+</div>
+<div class="font-mono tabular-nums font-semibold text-[#e66767]">−$35.00</div>
+</div>
+</div>
+</section>
+<!-- Two Observation Insight Cards -->
+<section class="space-y-3 pb-6">
+<h2 class="font-heading text-[18px] text-[#ecefed]">Observations</h2>
+<div class="py-3 border-b border-[#2b2f2c] space-y-1">
+<div class="text-[11px] font-label text-[#5abb88] font-bold tracking-wider">OBSERVATION</div>
+<p class="text-[14px] font-medium text-[#ecefed]">Housing costs make up nearly half of your monthly outgoings, but remain stable compared to last quarter.</p>
+</div>
+<div class="py-3 space-y-1">
+<div class="text-[11px] font-label text-[#5abb88] font-bold tracking-wider">OBSERVATION</div>
+<p class="text-[14px] font-medium text-[#ecefed]">Food spending decreased by $140 following your home-cooked meal initiative this month.</p>
+</div>
+</section>
+</main>
+<!-- Bottom Tab Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 bg-[#0c0f0d] border-t border-[#2b2f2c]">
+<!-- Month (Active) -->
+<a class="flex flex-col items-center justify-center bg-[#ecefed] text-[#0c0f0d] rounded-none px-4 py-2 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+<span class="font-label text-xs mt-1 font-bold">Month</span>
+</a>
+<!-- Activity -->
+<a class="flex flex-col items-center justify-center text-[#8e9490] p-2 hover:bg-[#1e2320] rounded-none transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">swap_horiz</span>
+<span class="font-label text-xs mt-1">Activity</span>
+</a>
+<!-- Center Add Button -->
+<div class="flex items-center justify-center p-1">
+<button class="w-12 h-12 text-[#0c0f0d] flex items-center justify-center rounded-none transition-transform duration-200 bg-[#ecefed]">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+</div>
+<!-- More -->
+<a class="flex flex-col items-center justify-center text-[#8e9490] p-2 hover:bg-[#1e2320] rounded-none transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+<span class="font-label text-xs mt-1">More</span>
+</a>
+</nav>
+</body></html>

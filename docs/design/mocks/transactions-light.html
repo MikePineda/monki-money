@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>monkimoney - Activity</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-surface": "#2d3130",
+            "inverse-on-surface": "#eef1ef",
+            "line": "#dee2e0",
+            "error": "#c8393a",
+            "surface-variant": "#e0e3e1",
+            "on-secondary-container": "#131715",
+            "status-critical": "#c8393a",
+            "on-primary-container": "#08633d",
+            "on-tertiary-container": "#808582",
+            "on-error-container": "#93000a",
+            "mark-muted": "#b4b9b6",
+            "surface-dim": "#d7dbd9",
+            "on-secondary": "#ffffff",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed": "#e0e3df",
+            "outline-variant": "#c4c7c4",
+            "secondary-fixed": "#dfe4df",
+            "primary": "#000000",
+            "surface-container-low": "#f3f6f4",
+            "accent-soft": "#dff5e7",
+            "expense": "#131715",
+            "secondary-fixed-dim": "#c3c8c4",
+            "income": "#3b7b1f",
+            "surface-container-high": "#e7ebe9",
+            "surface-tint": "#5b5f5c",
+            "tertiary-container": "#181d1a",
+            "error-container": "#fbe9e8",
+            "primary-container": "#181c1a",
+            "on-primary-fixed": "#181c1a",
+            "person-a": "#2a78d6",
+            "on-tertiary": "#ffffff",
+            "tertiary": "#000000",
+            "status-serious": "#c0571e",
+            "secondary": "#5b5f5c",
+            "line-strong": "#7c827e",
+            "inverse-primary": "#ecefed",
+            "on-primary": "#f8fbf9",
+            "on-surface": "#181c1c",
+            "secondary-container": "#edf1ef",
+            "on-surface-variant": "#494e4b",
+            "tertiary-fixed": "#dfe4e0",
+            "status-good": "#0ca30c",
+            "on-error": "#ffffff",
+            "on-background": "#181c1c",
+            "mark-neutral": "#606562",
+            "primary-fixed-dim": "#c4c7c4",
+            "outline": "#7c827e",
+            "transfer": "#686d6a",
+            "surface-container-highest": "#e1e5e3",
+            "on-secondary-fixed-variant": "#434845",
+            "background": "#f8fbf9",
+            "person-b": "#eb6834",
+            "surface": "#f8fbf9",
+            "surface-container": "#ebefed",
+            "surface-bright": "#ffffff",
+            "on-secondary-fixed": "#181d1a",
+            "on-primary-fixed-variant": "#444845",
+            "accent": "#08633d",
+            "on-tertiary-fixed": "#181d1a",
+            "on-tertiary-fixed-variant": "#434845",
+            "status-warning": "#b37903",
+            "tertiary-fixed-dim": "#c3c8c4"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "1rem",
+            "space-xl": "2rem",
+            "space-lg": "1.5rem",
+            "margin": "1.5rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "label": ["Inter"],
+            "title": ["Inter"],
+            "display": ["Inter"],
+            "body": ["Inter"],
+            "heading": ["Inter"],
+            "display-mobile": ["Inter"],
+            "body-sm": ["Inter"]
+          },
+          "fontSize": {
+            "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }],
+            "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+            "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }],
+            "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }],
+            "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+            "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body antialiased min-h-screen flex flex-col pb-24 selection:bg-accent-soft selection:text-accent">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface sticky top-0 z-40 flex justify-between items-center w-full px-gutter py-space-md max-w-7xl mx-auto">
+<div class="flex items-center gap-space-sm">
+<button class="text-primary dark:text-inverse-primary p-space-xs hover:bg-surface-variant dark:hover:bg-inverse-surface rounded-full transition-all duration-200 active:scale-98">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-heading text-heading text-primary dark:text-inverse-primary">Activity</h1>
+</div>
+<div>
+<button class="text-primary dark:text-inverse-primary p-space-xs hover:bg-surface-variant dark:hover:bg-inverse-surface rounded-full transition-all duration-200 active:scale-98">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+</header>
+<!-- Filter Chips Row -->
+<div class="w-full px-gutter py-space-sm flex items-center gap-space-sm overflow-x-auto no-scrollbar bg-surface border-b border-line">
+<!-- Selected October Chip -->
+<div class="h-[36px] px-space-md rounded-lg bg-accent-soft border border-accent flex items-center gap-space-xs shrink-0 cursor-pointer active:scale-98 transition-all duration-200">
+<span class="material-symbols-outlined text-accent text-sm" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span>
+<span class="font-label text-label text-accent">October</span>
+</div>
+<!-- All accounts Chip -->
+<div class="h-[36px] px-space-md rounded-lg bg-surface border border-line-strong flex items-center gap-space-xs shrink-0 cursor-pointer hover:bg-surface-container transition-all duration-200 active:scale-98">
+<span class="font-label text-label text-on-surface">All accounts</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">arrow_drop_down</span>
+</div>
+<!-- Everyone Chip -->
+<div class="h-[36px] px-space-md rounded-lg bg-surface border border-line-strong flex items-center gap-space-xs shrink-0 cursor-pointer hover:bg-surface-container transition-all duration-200 active:scale-98">
+<span class="font-label text-label text-on-surface">Everyone</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">arrow_drop_down</span>
+</div>
+<!-- Category Chip -->
+<div class="h-[36px] px-space-md rounded-lg bg-surface border border-line-strong flex items-center gap-space-xs shrink-0 cursor-pointer hover:bg-surface-container transition-all duration-200 active:scale-98">
+<span class="font-label text-label text-on-surface">Category</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">arrow_drop_down</span>
+</div>
+</div>
+<!-- Transaction List Content -->
+<main class="w-full max-w-7xl mx-auto px-gutter flex-1">
+<!-- Group: Today -->
+<div class="mt-space-md">
+<!-- Day Header -->
+<div class="h-[32px] flex items-center justify-between border-b border-line">
+<span class="font-label text-label text-on-surface-variant uppercase tracking-wider">Today · Wed 15 Oct</span>
+<span class="font-body-sm text-on-surface-variant tabular-nums">−$48.70</span>
+</div>
+<!-- Row 1: Woolworths Riverside -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">shopping_bag</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">Woolworths Riverside</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Groceries · NAB Everyday</span>
+<span class="inline-block w-2 h-2 rounded-full bg-person-a ml-1" title="You"></span>
+</div>
+</div>
+</div>
+<div class="font-body text-on-surface font-medium tabular-nums">−$48.20</div>
+</div>
+<!-- Row 2: Translink -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">directions_bus</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">Translink</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Public transport · NAB Everyday</span>
+<span class="inline-block w-2 h-2 rounded-full bg-person-b ml-1" title="Partner"></span>
+</div>
+</div>
+</div>
+<div class="font-body text-on-surface font-medium tabular-nums">−$0.50</div>
+</div>
+</div>
+<!-- Group: Yesterday -->
+<div class="mt-space-lg">
+<!-- Day Header -->
+<div class="h-[32px] flex items-center justify-between border-b border-line">
+<span class="font-label text-label text-on-surface-variant uppercase tracking-wider">Yesterday · Tue 14 Oct</span>
+<span class="font-body-sm text-on-surface-variant tabular-nums text-income font-medium">+$1,595.00</span>
+</div>
+<!-- Row 1: Hnry → NAB Everyday -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-transfer text-xl">swap_horiz</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">Hnry → NAB Everyday</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Transfer · NAB Everyday</span>
+</div>
+</div>
+</div>
+<div class="font-body text-transfer font-medium tabular-nums flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-sm">compare_arrows</span>
+          $4,820.00
+        </div>
+</div>
+<!-- Row 2: Salary -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-income text-xl">work</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">Salary</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Salary · Hnry</span>
+<span class="inline-block w-2 h-2 rounded-full bg-person-a ml-1" title="You"></span>
+</div>
+</div>
+</div>
+<div class="font-body text-income font-medium tabular-nums">+$6,450.00</div>
+</div>
+<!-- Row 3: Mobile Co -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">smartphone</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">Mobile Co</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Phone &amp; internet · NAB Everyday</span>
+<span class="inline-block w-2 h-2 rounded-full bg-person-b ml-1" title="Partner"></span>
+</div>
+</div>
+</div>
+<div class="font-body text-on-surface font-medium tabular-nums">−$35.00</div>
+</div>
+</div>
+<!-- Group: Mon 13 Oct -->
+<div class="mt-space-lg mb-space-xl">
+<!-- Day Header -->
+<div class="h-[32px] flex items-center justify-between border-b border-line">
+<span class="font-label text-label text-on-surface-variant uppercase tracking-wider">Mon 13 Oct</span>
+<span class="font-body-sm text-on-surface-variant tabular-nums">−$1,272.00</span>
+</div>
+<!-- Row 1: DEFT Payments -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">home</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">DEFT Payments</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Rent · NAB Everyday</span>
+<span class="inline-block w-2 h-2 rounded-full border border-outline ml-1" title="Shared"></span>
+</div>
+</div>
+</div>
+<div class="font-body text-on-surface font-medium tabular-nums">−$1,240.00</div>
+</div>
+<!-- Row 2: NAB Everyday → NAB Savings -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-transfer text-xl">swap_horiz</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">NAB Everyday → NAB Savings</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Transfer</span>
+</div>
+</div>
+</div>
+<div class="font-body text-transfer font-medium tabular-nums flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-sm">compare_arrows</span>
+          $500.00
+        </div>
+</div>
+<!-- Row 3: Liquorland -->
+<div class="h-[56px] flex items-center justify-between border-b border-line hover:bg-surface-container-low transition-colors px-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-[36px] h-[36px] rounded-lg bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">wine_bar</span>
+</div>
+<div>
+<div class="font-body text-on-surface font-medium leading-tight">Liquorland</div>
+<div class="flex items-center gap-space-xs mt-0.5">
+<span class="font-body-sm text-on-surface-variant">Alcohol · NAB Everyday</span>
+<span class="inline-block w-2 h-2 rounded-full bg-person-a ml-1" title="You"></span>
+</div>
+</div>
+</div>
+<div class="font-body text-on-surface font-medium tabular-nums">−$32.00</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-space-xs pt-space-xs bg-surface dark:bg-inverse-surface">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-space-sm py-space-xs hover:bg-surface-container dark:hover:bg-inverse-surface hover:text-on-surface dark:hover:text-inverse-on-surface transition-all duration-200 active:scale-98 rounded-2xl" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label text-label mt-0.5">Month</span>
+</a>
+<!-- Activity (Active) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-2xl px-space-sm py-space-xs transition-all duration-200 active:scale-98" href="#">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="font-label text-label mt-0.5">Activity</span>
+</a>
+<!-- Add (+) Button -->
+<button class="w-[48px] h-[48px] rounded-xl bg-[#131715] flex items-center justify-center text-surface shadow-md hover:opacity-90 transition-all duration-200 active:scale-98">
+<span class="material-symbols-outlined text-surface">add</span>
+</button>
+<!-- Analytics (Inactive) -->
+<!-- Profile (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-space-sm py-space-xs hover:bg-surface-container dark:hover:bg-inverse-surface hover:text-on-surface dark:hover:text-inverse-on-surface transition-all duration-200 active:scale-98 rounded-2xl" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label text-label mt-0.5">More</span>
+</a>
+</nav>
+</body></html>

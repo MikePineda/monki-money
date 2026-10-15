@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>monkimoney - Ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-highest": "#1e2320",
+            "on-surface-variant": "#bbbfbc",
+            "primary-fixed-dim": "#8e9490",
+            "tertiary": "#ecefed",
+            "on-tertiary": "#0c0f0d",
+            "on-secondary-fixed": "#ecefed",
+            "tertiary-container": "#151816",
+            "surface-container-lowest": "#0c0f0d",
+            "surface-container": "#1e2320",
+            "on-primary": "#0c0f0d",
+            "inverse-surface": "#ecefed",
+            "error": "#c8393a",
+            "surface-container-low": "#151816",
+            "secondary": "#8e9490",
+            "inverse-primary": "#151816",
+            "tertiary-fixed-dim": "#6b706d",
+            "outline-variant": "#2b2f2c",
+            "secondary-fixed": "#1e2320",
+            "primary": "#5abb88",
+            "error-container": "#3c1818",
+            "secondary-container": "#1e2320",
+            "surface-container-high": "#1e2320",
+            "status-serious": "#c0571e",
+            "background": "#0c0f0d",
+            "surface-bright": "#151816",
+            "on-secondary-container": "#ecefed",
+            "on-tertiary-container": "#8e9490",
+            "transfer": "#8e9490",
+            "on-background": "#ecefed",
+            "accent-soft": "#162f21",
+            "income": "#5abb88",
+            "primary-container": "#162f21",
+            "line-strong": "#6b706d",
+            "surface-dim": "#151816",
+            "on-secondary": "#0c0f0d",
+            "primary-fixed": "#1e2320",
+            "on-error-container": "#f1a1a1",
+            "status-warning": "#b37903",
+            "on-primary-fixed-variant": "#bbbfbc",
+            "on-error": "#0c0f0d",
+            "inverse-on-surface": "#0c0f0d",
+            "on-primary-container": "#5abb88",
+            "surface-tint": "#5abb88",
+            "outline": "#6b706d",
+            "mark-neutral": "#8e9490",
+            "status-critical": "#c8393a",
+            "person-b": "#eb6834",
+            "person-a": "#2a78d6",
+            "expense": "#ecefed",
+            "surface-variant": "#151816",
+            "on-tertiary-fixed-variant": "#bbbfbc",
+            "on-tertiary-fixed": "#ecefed",
+            "secondary-fixed-dim": "#6b706d",
+            "surface": "#0c0f0d",
+            "accent": "#5abb88",
+            "on-primary-fixed": "#ecefed",
+            "tertiary-fixed": "#1e2320",
+            "line": "#2b2f2c",
+            "on-surface": "#ecefed",
+            "mark-muted": "#8e9490",
+            "status-good": "#5abb88",
+            "on-secondary-fixed-variant": "#bbbfbc"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-md": "1rem",
+            "gutter": "1rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "space-xs": "0.25rem",
+            "margin": "1.5rem"
+          },
+          "fontFamily": {
+            "label": ["Inter"],
+            "display": ["Inter"],
+            "title": ["Inter"],
+            "display-mobile": ["Inter"],
+            "heading": ["Inter"],
+            "body-sm": ["Inter"],
+            "body": ["Inter"]
+          },
+          "fontSize": {
+            "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }],
+            "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }],
+            "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+            "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+            "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }],
+            "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+      background-color: #0c0f0d;
+      color: #ecefed;
+    }
+    * {
+      box-shadow: none !important;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body antialiased pb-28">
+<!-- Month Strip as Absolute Top Row -->
+<header class="sticky top-0 z-40 w-full overflow-x-auto no-scrollbar px-4 py-3 bg-[#0c0f0d] border-b border-[#2b2f2c] flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<div class="px-3 py-1.5 rounded-full text-[#bbbfbc] font-label text-label hover:bg-[#1e2320] transition-all cursor-pointer">May</div>
+<div class="px-3 py-1.5 rounded-full text-[#bbbfbc] font-label text-label hover:bg-[#1e2320] transition-all cursor-pointer">Jun</div>
+<div class="px-3 py-1.5 rounded-full text-[#bbbfbc] font-label text-label hover:bg-[#1e2320] transition-all cursor-pointer">Jul</div>
+<div class="px-3 py-1.5 rounded-full text-[#bbbfbc] font-label text-label hover:bg-[#1e2320] transition-all cursor-pointer">Aug</div>
+<div class="px-3 py-1.5 rounded-full text-[#bbbfbc] font-label text-label hover:bg-[#1e2320] transition-all cursor-pointer">Sep</div>
+<div class="px-3 py-1.5 rounded-full text-[#bbbfbc] font-label text-label hover:bg-[#1e2320] transition-all cursor-pointer">Oct</div>
+<div class="px-3.5 py-1.5 rounded-full bg-[#162f21] text-[#5abb88] font-label text-label font-bold">Nov</div>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#151816] text-[#bbbfbc] font-label text-label shrink-0 border border-[#2b2f2c]"><span>BNE · AUD</span></div>
+</header>
+<main class="max-w-md mx-auto px-4 pt-6 space-y-8">
+<!-- Header Section -->
+<section class="space-y-1 pb-4 border-b border-[#2b2f2c]">
+<div class="text-[#8e9490] font-label text-label uppercase tracking-wider">SPENT IN NOVEMBER</div>
+<div class="font-display text-display font-bold tracking-tight text-[#ecefed]">$0.00</div>
+</section>
+<!-- Empty State Section -->
+<section class="py-16 flex flex-col items-center justify-center text-center space-y-4">
+<div class="w-12 h-12 rounded-xl bg-[#1e2320] flex items-center justify-center text-[#bbbfbc]">
+<span class="material-symbols-outlined text-[24px]">calendar_month</span>
+</div>
+<div class="space-y-1">
+<h2 class="font-heading text-heading text-[#ecefed]">No activity in November yet</h2>
+<p class="text-body-sm text-[#bbbfbc]">Add the first one or import your bank CSV.</p>
+</div>
+<button class="px-4 py-2 rounded-lg border border-[#6b706d] text-body-sm font-medium text-[#ecefed] bg-[#151816] hover:bg-[#1e2320] transition-all">Import CSV</button>
+</section>
+</main>
+<!-- Bottom Tab Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 bg-[#0c0f0d] border-t border-[#2b2f2c]">
+<!-- Month (Active) -->
+<a class="flex flex-col items-center justify-center bg-[#162f21] text-[#5abb88] rounded-2xl px-4 py-2 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+<span class="font-label text-label mt-1">Month</span>
+</a>
+<!-- Activity -->
+<a class="flex flex-col items-center justify-center text-[#bbbfbc] p-2 hover:bg-[#1e2320] rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">swap_horiz</span>
+<span class="font-label text-label mt-1">Activity</span>
+</a>
+<!-- Center Add Button -->
+<div class="flex items-center justify-center p-1">
+<button class="w-12 h-12 text-[#0c0f0d] bg-[#ecefed] flex items-center justify-center transition-transform duration-200 rounded-xl">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+</div>
+<!-- More -->
+<a class="flex flex-col items-center justify-center text-[#bbbfbc] p-2 hover:bg-[#1e2320] rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+<span class="font-label text-label mt-1">More</span>
+</a>
+</nav>
+</body></html>

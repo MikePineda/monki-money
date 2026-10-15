@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Monkimoney - Add Transaction</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              background: "#0c0f0d",
+              surface: "#151816",
+              "surface-container": "#1e2320",
+              "surface-container-high": "#1e2320",
+              "surface-container-lowest": "#151816",
+              "on-surface": "#ecefed",
+              "on-surface-variant": "#bbbfbc",
+              "outline": "#6b706d",
+              "outline-variant": "#2b2f2c",
+              "line": "#2b2f2c",
+              "line-strong": "#6b706d",
+              accent: "#5abb88",
+              "accent-soft": "#162f21",
+              "on-primary-container": "#5abb88",
+              "surface-tint": "#ecefed",
+              "on-primary": "#0c0f0d",
+              "person-a": "#5abb88"
+            },
+            fontFamily: {
+              heading: ["Inter"],
+              body: ["Inter"],
+              label: ["Inter"],
+              display: ["Inter"],
+              "body-sm": ["Inter"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-[#0c0f0d] text-[#ecefed] font-body antialiased flex justify-center items-center min-h-screen">
+<!-- iPhone 390x844 Frame Container -->
+<div class="w-[390px] h-[844px] bg-[#0c0f0d] flex flex-col justify-between relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-[#0c0f0d] flex justify-between items-center w-full px-space-md py-space-sm max-w-full z-20">
+<!-- Leading Action: close -->
+<button class="flex items-center text-[#ecefed] hover:bg-[#1e2320] transition-colors p-space-xs rounded-full active:opacity-80"><span class="font-heading text-heading text-[#ecefed]">Done</span></button>
+<!-- Trailing Action: Date Chip -->
+<div class="flex items-center gap-space-xs">
+<span class="bg-[#1e2320] px-space-sm py-1 rounded-full font-label text-label text-[#8e9490] border border-[#6b706d]">Today · Wed 15 Oct</span>
+</div>
+</header>
+<div class="flex bg-[#1e2320] p-1 rounded-xl mx-space-md mb-space-md">
+<button class="flex-1 py-1.5 bg-[#151816] text-[#ecefed] font-label text-label rounded-lg text-center shadow-none">Expense</button>
+<button class="flex-1 py-1.5 text-[#bbbfbc] font-label text-label rounded-lg text-center">Income</button>
+<button class="flex-1 py-1.5 text-[#bbbfbc] font-label text-label rounded-lg text-center">Transfer</button>
+</div>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col px-space-md overflow-y-auto pb-24">
+<!-- Hero Amount -->
+<div class="flex flex-col justify-center my-space-sm items-start">
+<div class="text-[44px] leading-[48px] font-display font-medium tracking-tight text-[#ecefed]">$42.50</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center gap-1 bg-[#1e2320] px-space-sm py-1 rounded-full font-label text-label text-[#bbbfbc] border border-[#6b706d]">
+                        NAB Everyday <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</span>
+<span class="inline-flex items-center gap-1 bg-[#1e2320] px-space-sm py-1 rounded-full font-label text-label text-[#bbbfbc] border border-[#6b706d]">
+<span class="w-2 h-2 rounded-full bg-[#5abb88] inline-block"></span> You <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</span>
+</div>
+</div>
+<!-- Category Grid (4x2) -->
+<div class="grid grid-cols-4 gap-2 my-space-md">
+<!-- Groceries (Selected) -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#162f21] border border-[#5abb88] cursor-pointer">
+<span class="material-symbols-outlined text-[#5abb88] text-xl">shopping_cart</span>
+<span class="font-label text-label text-[#5abb88] mt-1">Groceries</span>
+</div>
+<!-- Restaurants -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">restaurant</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">Dine out</span>
+</div>
+<!-- Transport -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">directions_car</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">Transport</span>
+</div>
+<!-- Coffee -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">local_cafe</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">Coffee</span>
+</div>
+<!-- Alcohol -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">wine_bar</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">Drinks</span>
+</div>
+<!-- Rent -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">home</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">Rent</span>
+</div>
+<!-- Phone -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">smartphone</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">Phone</span>
+</div>
+<!-- More -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1e2320] hover:bg-[#151816] transition-colors cursor-pointer border border-[#6b706d]">
+<span class="material-symbols-outlined text-[#bbbfbc] text-xl">grid_view</span>
+<span class="font-label text-label text-[#bbbfbc] mt-1">More</span>
+</div>
+</div>
+<!-- Collapsed row: Note, merchant, date -->
+<div class="flex items-center justify-between px-space-md py-3 bg-[#151816] rounded-xl border border-[#6b706d] text-[#bbbfbc] font-body-sm mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-base">edit_note</span>
+<span>Add note, merchant...</span>
+</div>
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</div>
+<!-- Numeric Keypad -->
+<div class="grid grid-cols-3 divide-x divide-y divide-[#2b2f2c] mt-auto border-t border-[#2b2f2c]">
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">1</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">2</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">3</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">4</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">5</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">6</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">7</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">8</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">9</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">00</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">0</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-[#ecefed] hover:bg-[#1e2320] transition-colors">
+<span class="material-symbols-outlined">backspace</span>
+</button>
+</div>
+</main>
+<!-- Fixed full-width button -->
+<div class="absolute bottom-0 left-0 w-full p-space-md bg-[#0c0f0d] border-t border-[#2b2f2c] z-30">
+<button class="w-full bg-[#ecefed] text-[#0c0f0d] py-3.5 rounded-xl font-heading text-heading flex items-center justify-center gap-space-sm shadow-none active:opacity-90 transition-opacity">
+                Save −$42.50
+            </button>
+</div>
+</div>
+</body></html>
