@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>monkimoney - Log in</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-fixed-variant": "#434845",
+            "inverse-surface": "#2a2f2c",
+            "tertiary-fixed": "#dfe4e0",
+            "person-b": "#eb6834",
+            "on-secondary-container": "#616562",
+            "on-surface": "#ecefed",
+            "primary-fixed": "#e0e3df",
+            "error-container": "#ffdad6",
+            "outline": "#6b706d",
+            "surface-container": "#151816",
+            "on-primary": "#0c0f0d",
+            "person-a": "#2a78d6",
+            "background": "#0c0f0d",
+            "surface-container-high": "#151816",
+            "inverse-primary": "#ecefed",
+            "surface-dim": "#151816",
+            "tertiary-container": "#181d1a",
+            "surface-tint": "#5b5f5c",
+            "secondary-fixed-dim": "#c3c8c4",
+            "error": "#e66767",
+            "transfer": "#686d6a",
+            "mark-neutral": "#606562",
+            "surface": "#0c0f0d",
+            "outline-variant": "#2b2f2c",
+            "surface-container-low": "#151816",
+            "on-tertiary-fixed": "#181d1a",
+            "on-background": "#ecefed",
+            "line-strong": "#7c827e",
+            "expense": "#131715",
+            "on-secondary-fixed-variant": "#434845",
+            "line": "#2b2f2c",
+            "on-error-container": "#93000a",
+            "secondary": "#8e9490",
+            "on-tertiary": "#ffffff",
+            "surface-variant": "#151816",
+            "surface-container-lowest": "#151816",
+            "on-secondary": "#ffffff",
+            "primary-container": "#151816",
+            "on-primary-fixed-variant": "#444845",
+            "on-primary-container": "#bbbfbc",
+            "tertiary-fixed-dim": "#c3c8c4",
+            "status-critical": "#e66767",
+            "on-surface-variant": "#bbbfbc",
+            "inverse-on-surface": "#eef1ef",
+            "status-good": "#0ca30c",
+            "mark-muted": "#b4b9b6",
+            "income": "#3b7b1f",
+            "status-warning": "#b37903",
+            "on-error": "#ffffff",
+            "on-primary-fixed": "#181c1a",
+            "primary-fixed-dim": "#c4c7c4",
+            "surface-container-highest": "#151816",
+            "secondary-container": "#151816",
+            "status-serious": "#c0571e",
+            "on-tertiary-container": "#131715",
+            "tertiary": "#000000",
+            "secondary-fixed": "#dfe4df",
+            "accent": "#5abb88",
+            "primary": "#ecefed",
+            "accent-soft": "#151816",
+            "on-secondary-fixed": "#181d1a",
+            "surface-bright": "#151816"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "gutter": "1rem",
+            "space-md": "1rem",
+            "margin": "1.5rem"
+          },
+          "fontFamily": {
+            "display": ["Inter"],
+            "title": ["Inter"],
+            "label": ["Inter"],
+            "heading": ["Inter"],
+            "body-sm": ["Inter"],
+            "display-mobile": ["Inter"],
+            "body": ["Inter"]
+          },
+          "fontSize": {
+            "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }],
+            "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+            "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }],
+            "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }],
+            "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+            "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+      background-color: #0c0f0d;
+    }
+  </style>
+</head>
+<body class="bg-[#0c0f0d] text-[#ecefed] font-body antialiased flex justify-center items-center min-h-screen">
+<div class="w-[390px] h-[844px] bg-[#0c0f0d] flex flex-col justify-between px-margin py-space-xl relative overflow-hidden">
+<!-- Top Bar / Wordmark -->
+<div class="flex flex-col space-y-space-lg">
+<header class="w-full flex items-center justify-between py-space-xs">
+<span class="text-[18px] font-medium tracking-normal text-[#ecefed] lowercase">monkimoney</span>
+</header>
+<!-- Main Heading -->
+<div class="flex flex-col space-y-space-xs pt-space-md">
+<h1 class="text-title font-title font-semibold text-[#ecefed]">Log in</h1>
+</div>
+<!-- Form Fields -->
+<form class="flex flex-col space-y-space-md pt-space-sm" onsubmit="event.preventDefault();">
+<!-- Email Field -->
+<div class="flex flex-col space-y-space-xs">
+<label class="text-[13px] font-medium text-[#bbbfbc]">Email</label>
+<input class="h-[48px] bg-[#151816] border border-[#6b706d] rounded-lg px-space-md text-[#ecefed] text-body focus:outline-none focus:ring-1 focus:ring-[#5abb88]" type="email" value="you@example.com"/>
+</div>
+<!-- Password Field -->
+<div class="flex flex-col space-y-space-xs">
+<label class="text-[13px] font-medium text-[#bbbfbc]">Password</label>
+<div class="relative flex items-center">
+<input class="w-full h-[48px] bg-[#151816] border border-[#6b706d] rounded-lg px-space-md pr-12 text-[#ecefed] text-body focus:outline-none focus:ring-1 focus:ring-[#5abb88]" type="password" value="••••••••••••"/>
+<button class="absolute right-3 text-[#8e9490] hover:text-[#ecefed] focus:outline-none flex items-center" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+<!-- Forgot Password Link -->
+<div class="flex justify-end pt-space-xs">
+<a class="text-[14px] font-medium text-[#5abb88] hover:underline" href="#">Forgot password?</a>
+</div>
+</form>
+</div>
+<!-- Bottom Actions -->
+<div class="flex flex-col space-y-space-md pb-space-md">
+<button class="w-full h-[56px] bg-[#ecefed] text-[#0c0f0d] font-medium text-body rounded-lg flex items-center justify-center active:opacity-90 transition-opacity" type="button">
+        Log in
+      </button>
+<div class="text-center">
+<span class="text-body-sm text-[#bbbfbc]">New here? </span>
+<a class="text-body-sm font-medium text-[#5abb88] hover:underline" href="#">Create account</a>
+</div>
+</div>
+</div>
+</body></html>

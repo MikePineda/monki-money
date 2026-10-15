@@ -1,0 +1,274 @@
+<html class="light"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "transfer": "#686d6a",
+          "primary-fixed": "#e0e3df",
+          "tertiary": "#000000",
+          "on-background": "#131715",
+          "mark-muted": "#b4b9b6",
+          "outline-variant": "#c4c7c4",
+          "surface-tint": "#5b5f5c",
+          "error": "#c8393a",
+          "person-b": "#eb6834",
+          "primary-fixed-dim": "#c4c7c4",
+          "inverse-on-surface": "#eef1ef",
+          "surface-container-lowest": "#ffffff",
+          "on-primary": "#f8fbf9",
+          "on-tertiary": "#ffffff",
+          "inverse-primary": "#ecefed",
+          "surface-bright": "#ffffff",
+          "surface-container-low": "#f1f4f2",
+          "outline": "#7c827e",
+          "on-error": "#ffffff",
+          "error-container": "#ffdad6",
+          "inverse-surface": "#2d3130",
+          "status-good": "#0ca30c",
+          "tertiary-container": "#181d1a",
+          "accent-soft": "#dff5e7",
+          "primary-container": "#181c1a",
+          "secondary": "#5b5f5c",
+          "on-secondary-container": "#616562",
+          "status-critical": "#c8393a",
+          "secondary-fixed-dim": "#c3c8c4",
+          "on-tertiary-fixed-variant": "#434845",
+          "surface-container-highest": "#e0e3e1",
+          "on-tertiary-container": "#131715",
+          "line-strong": "#7c827e",
+          "expense": "#131715",
+          "surface-container": "#edf1ef",
+          "on-tertiary-fixed": "#181d1a",
+          "on-primary-container": "#08633d",
+          "surface": "#f8fbf9",
+          "status-serious": "#c0571e",
+          "on-secondary-fixed": "#181d1a",
+          "on-secondary": "#ffffff",
+          "accent": "#08633d",
+          "surface-dim": "#d8dcda",
+          "person-a": "#2a78d6",
+          "on-secondary-fixed-variant": "#434845",
+          "mark-neutral": "#606562",
+          "on-surface-variant": "#444845",
+          "secondary-container": "#dfe4df",
+          "on-primary-fixed": "#181c1a",
+          "on-error-container": "#93000a",
+          "surface-container-high": "#e7ebe9",
+          "line": "#dee2e0",
+          "primary": "#000000",
+          "on-primary-fixed-variant": "#444845",
+          "on-surface": "#181c1c",
+          "tertiary-fixed-dim": "#c3c8c4",
+          "surface-variant": "#e0e3e1",
+          "income": "#3b7b1f",
+          "tertiary-fixed": "#dfe4e0",
+          "background": "#f8fbf9",
+          "status-warning": "#b37903",
+          "secondary-fixed": "#dfe4df"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-xl": "2rem",
+          "space-lg": "1.5rem",
+          "space-md": "1rem",
+          "space-xs": "0.25rem",
+          "gutter": "1rem",
+          "space-sm": "0.5rem",
+          "margin": "1.5rem"
+        },
+        "fontFamily": {
+          "label": ["Inter"],
+          "display": ["Inter"],
+          "title": ["Inter"],
+          "heading": ["Inter"],
+          "display-mobile": ["Inter"],
+          "body-sm": ["Inter"],
+          "body": ["Inter"]
+        },
+        "fontSize": {
+          "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }],
+          "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }],
+          "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+          "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+          "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+          "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }],
+          "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }]
+        }
+      }
+    }
+  }
+</script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body antialiased flex justify-center items-center min-h-screen m-0">
+<!-- Mobile Screen Frame (390x844) -->
+<div class="w-[390px] h-[844px] bg-surface flex flex-col relative overflow-hidden shadow-2xl">
+<!-- TopAppBar -->
+<header class="bg-surface flex justify-between items-center w-full px-gutter py-space-md z-20">
+<div class="flex items-center gap-space-md">
+<button class="p-space-xs rounded-full hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<div>
+<h1 class="font-heading text-heading font-bold text-on-surface tracking-tight">Review import</h1>
+<p class="font-label text-label text-on-surface-variant">NAB Everyday · 1–30 Sep · 142 rows</p>
+</div>
+</div>
+<button class="font-label text-label text-on-surface-variant hover:text-on-surface transition-colors">Cancel</button>
+</header>
+<!-- Content Area -->
+<main class="flex-1 overflow-y-auto pb-28 px-gutter flex flex-col gap-space-md">
+<!-- Summary Line -->
+<div class="bg-surface-container-low rounded-lg p-space-sm px-space-md flex items-center justify-between font-label text-label text-on-surface-variant">
+<span><strong class="text-on-surface">118</strong> auto</span>
+<span>•</span>
+<span><strong class="text-status-warning">9</strong> to review</span>
+<span>•</span>
+<span><strong class="text-on-surface">11</strong> new</span>
+<span>•</span>
+<span><strong class="text-on-surface">4</strong> duplicates</span>
+</div>
+<!-- Segmented Control -->
+<div class="flex bg-surface-container p-1 rounded-xl">
+<button class="flex-1 py-space-xs font-label text-label text-on-surface bg-surface-container-lowest rounded-lg shadow-sm font-semibold transition-all">All</button>
+<button class="flex-1 py-space-xs font-label text-label text-on-surface-variant hover:text-on-surface transition-all">To review (9)</button>
+<button class="flex-1 py-space-xs font-label text-label text-on-surface-variant hover:text-on-surface transition-all">New (11)</button>
+</div>
+<!-- Transaction List -->
+<div class="flex flex-col gap-space-sm">
+<!-- Row 1: Review State (Woolworths) -->
+<div class="bg-surface-container-lowest border border-line rounded-xl p-space-md flex flex-col gap-space-sm shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<input checked="" class="w-5 h-5 rounded border-outline text-primary focus:ring-0 cursor-pointer" type="checkbox"/>
+<div>
+<h3 class="font-heading text-body-sm font-semibold text-on-surface">Woolworths Riverside</h3>
+<p class="font-label text-label text-on-surface-variant">Mon 29 Sep</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-heading text-body font-semibold text-expense tabular-nums">−$86.40</span>
+<div class="flex items-center justify-end gap-1 text-status-warning mt-0.5">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+<span class="font-label text-[11px] font-medium">Review</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-line text-body-sm">
+<div class="flex items-center gap-space-xs">
+<span class="bg-surface-container px-space-sm py-0.5 rounded-full font-label text-label text-on-surface-variant">Groceries ?</span>
+</div>
+<div class="flex items-center gap-space-md font-label text-label">
+<button class="text-on-surface-variant hover:text-on-surface">Change</button>
+<button class="text-accent font-semibold">Accept</button>
+</div>
+</div>
+</div>
+<!-- Row 2: Review State (Hot pot) -->
+<div class="bg-surface-container-lowest border border-line rounded-xl p-space-md flex flex-col gap-space-sm shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<input checked="" class="w-5 h-5 rounded border-outline text-primary focus:ring-0 cursor-pointer" type="checkbox"/>
+<div>
+<h3 class="font-heading text-body-sm font-semibold text-on-surface">Hot pot (PayID)</h3>
+<p class="font-label text-label text-on-surface-variant">Mon 29 Sep</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-heading text-body font-semibold text-expense tabular-nums">−$45.00</span>
+<div class="flex items-center justify-end gap-1 text-status-warning mt-0.5">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+<span class="font-label text-[11px] font-medium">Review</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-line text-body-sm">
+<div class="flex items-center gap-space-xs">
+<span class="bg-surface-container px-space-sm py-0.5 rounded-full font-label text-label text-on-surface-variant">Shared outings ?</span>
+</div>
+<div class="flex items-center gap-space-md font-label text-label">
+<button class="text-on-surface-variant hover:text-on-surface">Change</button>
+<button class="text-accent font-semibold">Accept</button>
+</div>
+</div>
+</div>
+<!-- Row 3: Auto State (Translink) -->
+<div class="bg-surface-container-lowest border border-line rounded-xl p-space-md flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-space-md">
+<input class="w-5 h-5 rounded border-outline text-primary focus:ring-0 cursor-pointer" type="checkbox"/>
+<div>
+<h3 class="font-heading text-body-sm font-semibold text-on-surface">Translink</h3>
+<p class="font-label text-label text-on-surface-variant">Mon 29 Sep · Public transport</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-heading text-body font-semibold text-expense tabular-nums">−$0.50</span>
+<div class="flex items-center justify-end gap-1 text-status-good mt-0.5">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label text-[11px] font-medium">Auto</span>
+</div>
+</div>
+</div>
+<!-- Row 4: Auto State (DEFT Payments) -->
+<div class="bg-surface-container-lowest border border-line rounded-xl p-space-md flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-space-md">
+<input class="w-5 h-5 rounded border-outline text-primary focus:ring-0 cursor-pointer" type="checkbox"/>
+<div>
+<h3 class="font-heading text-body-sm font-semibold text-on-surface">DEFT Payments</h3>
+<p class="font-label text-label text-on-surface-variant">Sun 28 Sep · Rent</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-heading text-body font-semibold text-expense tabular-nums">−$1,240.00</span>
+<div class="flex items-center justify-end gap-1 text-status-good mt-0.5">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label text-[11px] font-medium">Auto</span>
+</div>
+</div>
+</div>
+<!-- Row 5: New State (Kmart Riverside) -->
+<div class="bg-surface-container-lowest border border-line rounded-xl p-space-md flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-space-md">
+<input class="w-5 h-5 rounded border-outline text-primary focus:ring-0 cursor-pointer" type="checkbox"/>
+<div>
+<h3 class="font-heading text-body-sm font-semibold text-on-surface">Kmart Riverside</h3>
+<p class="font-label text-label text-on-surface-variant">Sat 27 Sep · Uncategorised</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-heading text-body font-semibold text-expense tabular-nums">−$64.90</span>
+<div class="flex items-center justify-end gap-1 text-on-surface-variant mt-0.5">
+<span class="material-symbols-outlined text-[14px]">add_circle</span>
+<span class="font-label text-[11px] font-medium">New</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Bulk Bar -->
+<div class="absolute bottom-0 left-0 w-full bg-surface-container-lowest border-t border-line px-gutter py-space-md flex items-center justify-between z-30 shadow-lg">
+<span class="font-label text-label font-semibold text-on-surface">2 selected</span>
+<div class="flex items-center gap-space-sm">
+<button class="border border-outline text-on-surface px-space-md py-space-sm rounded-xl font-label text-label hover:bg-surface-container transition-all">Assign category</button>
+<button class="bg-primary text-on-primary px-space-md py-space-sm rounded-xl font-label text-label font-semibold hover:opacity-90 transition-all">Accept suggested (9)</button>
+</div>
+</div>
+</div>
+</body></html>
