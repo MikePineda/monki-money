@@ -41,5 +41,8 @@
       "transactionId": "Transaction id",
       "transferId": "Transfer id"
     }
+  },
+  "insights": {
+    "uncategorized": "Uncategorized"
   }
 }

@@ -284,7 +284,9 @@ test.group('Receipts: scan', (group) => {
   test('test_scan_answers_503_when_the_llm_is_not_live', async ({ client, assert, cleanup }) => {
     // Outside tests the fake provider never answers a person with fixtures.
     class LiveOnlyScanner extends ReceiptScanner {
-      protected override allowsFakeLlm = false
+      protected override fakeLlmAllowed() {
+        return false
+      }
     }
     app.container.swap(ReceiptScanner, (resolver) => resolver.make(LiveOnlyScanner))
     cleanup(() => app.container.restore(ReceiptScanner))

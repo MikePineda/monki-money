@@ -40,12 +40,6 @@ const MAX_SIZE_LABEL = '10 MB'
  */
 @inject()
 export default class ReceiptScanner {
-  /**
-   * The fake provider answers with fixtures: fine for the test suite, never
-   * for a person. Anywhere else a scan without a live model answers 503.
-   */
-  protected allowsFakeLlm = app.inTest
-
   constructor(
     protected storage: ObjectStorage,
     protected llm: LlmProvider,
@@ -77,7 +71,7 @@ export default class ReceiptScanner {
     if (object.byteSize > MAX_RECEIPT_BYTES) {
       throw new FieldError('key', 'fileSize', { size: MAX_SIZE_LABEL })
     }
-    if (!this.llm.isLive && !this.allowsFakeLlm) {
+    if (!this.llm.isLive && !this.fakeLlmAllowed()) {
       throw new LlmProviderError('No LLM is configured: receipt scanning needs LLM_API_KEY')
     }
     // Before downloading the photo; the provider checks again before its call.
@@ -127,6 +121,14 @@ export default class ReceiptScanner {
       }
       throw error
     }
+  }
+
+  /**
+   * The fake provider answers with fixtures: fine for the test suite, never
+   * for a person. Anywhere else a scan without a live model answers 503.
+   */
+  protected fakeLlmAllowed() {
+    return app.inTest
   }
 
   /** Best effort: a failed delete is logged and left to the lifecycle rule. */

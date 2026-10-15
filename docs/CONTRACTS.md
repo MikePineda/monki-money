@@ -35,7 +35,8 @@ The SPA fallback route (`spa.fallback`) is excluded from the registry
   403 `E_EMAIL_NOT_VERIFIED` / `E_NO_HOUSEHOLD` / `E_HOUSEHOLD_PENDING_DELETION`
   / `E_HOUSEHOLD_SUSPENDED` / `E_BAD_CSRF_TOKEN` / `E_TRANSACTION_PRIVATE` (a
   partner's private transaction), 402 `E_MEMBER_LIMIT_REACHED`
-  / `E_ACCOUNT_LIMIT_REACHED` (plan limits, `config/plans.ts`), 409
+  / `E_ACCOUNT_LIMIT_REACHED` / `E_LLM_QUOTA_EXCEEDED` (plan limits,
+  `config/plans.ts`), 409
   `E_ACCOUNT_IN_USE` / `E_CATEGORY_IN_USE` / `E_GROUP_NOT_EMPTY` /
   `E_ALREADY_IN_HOUSEHOLD` / `E_TRANSFER_LEG` (edit the transfer, not its leg) /
   `E_CONFLICT` (a unique-constraint race; a foreign-key race answers
@@ -54,9 +55,10 @@ The SPA fallback route (`spa.fallback`) is excluded from the registry
   (or revoked session), 403 role (`HouseholdPolicy`), 429 throttled (with
   `Retry-After`).
 - 5xx in production: a generic translated `{ message, code: 'E_INTERNAL_SERVER_ERROR' }`
-  (driver, table and constraint names stay in the logs). Exception: 503
-  `E_LLM_UNAVAILABLE` (the model is down or not configured) and
-  `E_STORAGE_UNAVAILABLE` (no bucket, or it did not answer) answer the
+  (driver, table and constraint names stay in the logs), except 503
+  `E_INSIGHTS_UNAVAILABLE` (no LLM configured), `E_LLM_UNAVAILABLE` (the
+  LLM vendor failed, or receipt scanning without a configured LLM) and
+  `E_STORAGE_UNAVAILABLE` (no bucket, or it did not answer), which keep their
   translated `{ message, code }` in every environment ("try again later").
 - Unknown routes: JSON 404 (`{ message, code }`), including any `/api/*` GET
   that would otherwise hit the SPA fallback.
@@ -101,7 +103,7 @@ there is one); _authenticated_ (`auth`, session version, 300 req/min per user:
 `households.store`); _household_
 (authenticated, verified email and household context: everything under
 `/household`, `/accounts`, `/category-groups`, `/categories`, `/transactions`,
-`/transfers`, `/reports`).
+`/transfers`, `/reports`, `/goals`, `/insights`).
 `household.restore` is the only household route allowed while the household
 is pending deletion.
 
@@ -169,7 +171,7 @@ members). Bodies in `{ data }` unless noted.
 | `accounts.index`                                              | `GET /accounts`                                                                                | `Account[]` with `cards`, `clearedBalanceCents` (opening + cleared rows), `availableBalanceCents` (opening + every row, pending included). The opening balance is the balance at the end of `openingBalanceDate`: with a date, only rows dated after it count                                                                                              |
 | `accounts.store`                                              | `POST /accounts`                                                                               | `{ name, kind, institution?, ownerUserId? (null = joint), currencyCode?, externalAccountNumber? (unique per household), openingBalanceCents?, openingBalanceDate?, isActive? }` → 201 ; 402 `E_ACCOUNT_LIMIT_REACHED` past the plan limit                                                                                                                  |
 | `accounts.show` / `accounts.update`                           | `GET` / `PATCH /accounts/:id`                                                                  | Same fields, all optional on PATCH                                                                                                                                                                                                                                                                                                                         |
-| `accounts.destroy`                                            | `DELETE /accounts/:id`                                                                         | 204; 409 `E_ACCOUNT_IN_USE` once it has transactions                                                                                                                                                                                                                                                                                                       |
+| `accounts.destroy`                                            | `DELETE /accounts/:id`                                                                         | 204; 409 `E_ACCOUNT_IN_USE` once it has transactions or a savings goal uses it                                                                                                                                                                                                                                                                             |
 | `accounts.reorder`                                            | `PUT /accounts/reorder`                                                                        | `{ ids }` → 204 (`sortOrder` = position)                                                                                                                                                                                                                                                                                                                   |
 | `accounts.cards.store`                                        | `POST /accounts/:id/cards`                                                                     | `{ cardSuffix, userId?, label? }` → 201                                                                                                                                                                                                                                                                                                                    |
 | `accounts.cards.destroy`                                      | `DELETE /accounts/:id/cards/:cardId`                                                           | 204                                                                                                                                                                                                                                                                                                                                                        |
@@ -206,6 +208,48 @@ isMasked, tags[], createdByUserId, updatedByUserId, createdAt, updatedAt }`.
 | `reports.trend`               | `GET /reports/trend`                 | `?months=6` (1–24), `?month=` (last month), `?groupBy=group\|category` → `{ months[], groupBy, totals[{ month, incomeCents, expenseCents, netCents }], series[{ bucket, id, kind, totalCents, points[{ month, amountCents }] }] }`                                                                                                                                                                                                                                                                                                                                                                |
 | `reports.category`            | `GET /reports/category/:id`          | `?months=6&month=` → `{ months[], categoryId, kind, totalCents, averageCents, points[] }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `reports.balances`            | `GET /reports/balances`              | `{ accounts[{ accountId, currencyCode, isActive, clearedBalanceCents, availableBalanceCents }], totals: { [currencyCode]: { clearedBalanceCents, availableBalanceCents } } }` (never adds up different currencies)                                                                                                                                                                                                                                                                                                                                                                                |
+
+### Goals and insights
+
+`Goal` = `{ id, name, targetCents, targetDate, startingCents,
+monthlyContributionCents, accountId, userId (null = a goal of the household),
+status (active|reached|archived), reachedAt, sortOrder, createdAt, updatedAt }`.
+
+`GoalProjection` = `{ goalId, savedCents, targetCents, rateSource
+(contribution|average|none), monthlyRateCents, remainingCents, monthsToGoal,
+projectedDate, requiredMonthlyForTargetDate, onTrack, series[{ month,
+projectedCents }] }`. Month granularity from the current month in the
+household time zone (point 0 = saved today, then one monthly rate per month,
+at most 24 points): `projectedDate` is the first day of the month the target
+is reached, a target date counts as its month, `onTrack` = projectedDate <=
+targetDate. Saved = the account's cleared balance (else `startingCents`);
+rate = `monthlyContributionCents` (an explicit 0 included), else the average
+net (income - expense) of the last three full months (the current month and
+the quiet months before any activity never count), else none. A rate that is
+none or <= 0 leaves the goal open-ended (`monthsToGoal`, `projectedDate`,
+`onTrack` null); reached = `remainingCents` 0, `monthsToGoal` 0; a past target
+date gives `requiredMonthlyForTargetDate` null and `onTrack: false`.
+
+`Insight` = `{ month, locale, headline, bodyMarkdown, highlights[{ tone
+(positive|neutral|warning), text }], model, generatedAt }`, one per household,
+month and language (the request's locale). The model gets the month's totals,
+the previous month's (null when it had no activity) and one line per category
+(`{ slug, name, kind, amountCents, previousAmountCents }`, uncategorized as
+slug `uncategorized`, names in that language), with every private purchase
+counted in the totals but never as a line, the requester's own included: any
+member reads the stored text.
+
+| Name                | Method and path                  | Notes                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `goals.index`       | `GET /goals`                     | `?status=active\|reached\|archived` → `Goal[]` by `sortOrder`                                                                                                                                                                                                                                                                                                         |
+| `goals.store`       | `POST /goals`                    | `{ name, targetCents > 0, targetDate?, startingCents? (>= 0), monthlyContributionCents? (>= 0, null = average), accountId?, userId? }` → 201; a foreign `accountId`/`userId` → 422 `<field>`/`database.exists`                                                                                                                                                        |
+| `goals.reorder`     | `PUT /goals/reorder`             | `{ ids }` → 204 (`sortOrder` = position)                                                                                                                                                                                                                                                                                                                              |
+| `goals.show`        | `GET /goals/:id`                 | `Goal`                                                                                                                                                                                                                                                                                                                                                                |
+| `goals.update`      | `PATCH /goals/:id`               | Any field of `store` plus `status`; `reached` stamps `reachedAt` (kept while archived), `active` clears it. Reads never change the status, even past the target                                                                                                                                                                                                       |
+| `goals.destroy`     | `DELETE /goals/:id`              | 204                                                                                                                                                                                                                                                                                                                                                                   |
+| `goals.projection`  | `GET /goals/:id/projection`      | `GoalProjection`                                                                                                                                                                                                                                                                                                                                                      |
+| `insights.show`     | `GET /insights/:month`           | `Insight` in the request's locale; 404 `E_ROW_NOT_FOUND` until generated in that language (or for a path that is not a `YYYY-MM` month)                                                                                                                                                                                                                               |
+| `insights.generate` | `POST /insights/:month/generate` | `{ force? }` → 201 `Insight & { fresh: true }` (written now, replacing the stored one) or 200 `Insight & { fresh: false }` (the stored one, no LLM call). 422 `month`/`future` (not started) or `month`/`noActivity` (no income or spending) before any call; 402 `E_LLM_QUOTA_EXCEEDED`; 422 `E_LLM_OUTPUT_INVALID`; 503 `E_INSIGHTS_UNAVAILABLE` without an LLM key |
 
 ### Bank imports and merchant rules
 

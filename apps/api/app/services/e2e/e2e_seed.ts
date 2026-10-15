@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
 import { capturedOutbox } from '#services/e2e/captured_outbox'
+import SavingsGoal from '#models/savings_goal'
 import ProductionBootstrap from '#services/bootstrap/production_bootstrap'
 
 /** Synthetic credentials of the E2E household (test databases only). */
@@ -12,8 +13,9 @@ export const E2E_MEMBER_EMAIL = 'member@e2e.test'
 /**
  * Known state for Playwright: wipes every table (except migrations) and
  * seeds household "E2E" with two users, the four starting accounts and the
- * taxonomy, through the same bootstrap production uses. Only reachable in
- * test/E2E mode (start/routes/e2e.ts, commands/seed_e2e.ts).
+ * taxonomy, through the same bootstrap production uses, plus one sample
+ * savings goal (no account, so its projection needs no ledger). Only
+ * reachable in test/E2E mode (start/routes/e2e.ts, commands/seed_e2e.ts).
  */
 @inject()
 export default class E2eSeed {
@@ -43,6 +45,12 @@ export default class E2eSeed {
         cardSuffix: '0002',
       },
       jointAccountNumber: '000000001',
+    })
+    await SavingsGoal.create({
+      householdId: result.household.id,
+      name: 'Emergency fund',
+      targetCents: 500_000,
+      sortOrder: 0,
     })
 
     return {

@@ -112,6 +112,13 @@ export const RULE_ORIGINS = ['user', 'learned', 'system'] as const
 export type RuleOrigin = (typeof RULE_ORIGINS)[number]
 
 /**
+ * Lifecycle of a savings goal: `reached` is set by a person (the API stamps
+ * `reachedAt`), `archived` hides it without deleting its history.
+ */
+export const GOAL_STATUSES = ['active', 'reached', 'archived'] as const
+export type GoalStatus = (typeof GOAL_STATUSES)[number]
+
+/**
  * Native Postgres enum types, by type name. Migrations hardcode the same
  * literals (migrations are immutable history); the API test
  * `test_native_enums_match_shared_enums` keeps both in sync.
@@ -128,6 +135,7 @@ export const POSTGRES_ENUMS = {
   transaction_source: TRANSACTION_SOURCES,
   llm_purpose: LLM_PURPOSES,
   llm_usage_status: LLM_USAGE_STATUSES,
+  goal_status: GOAL_STATUSES,
   import_source: IMPORT_SOURCES,
   import_batch_status: IMPORT_BATCH_STATUSES,
   import_resolution: IMPORT_RESOLUTIONS,

@@ -169,6 +169,16 @@ export const PrivateTransaction = domainError(
 )
 
 /**
+ * Monthly insights are written by a model: without a live one (no
+ * LLM_API_KEY) the API answers 503 instead of ever serving fake content.
+ */
+export const InsightsUnavailable = domainError(
+  'E_INSIGHTS_UNAVAILABLE',
+  503,
+  'Monthly summaries are not available'
+)
+
+/**
  * Object storage (R2/S3) is not configured (`DRIVE_DISK` is not `s3`) or
  * did not answer: direct uploads and receipt scans cannot run right now.
  */

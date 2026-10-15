@@ -3,7 +3,7 @@ import i18nManager from '@adonisjs/i18n/services/main'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { LlmProviderError } from '#llm/errors'
 import HttpExceptionHandler from '#exceptions/handler'
-import { StorageUnavailable } from '#exceptions/errors'
+import { InsightsUnavailable, StorageUnavailable } from '#exceptions/errors'
 
 async function render(error: unknown, options: { debug: boolean; locale?: string }) {
   const ctx = await testUtils.createHttpContext()
@@ -46,6 +46,29 @@ test.group('Exception handler', () => {
       message: 'Something went wrong on our side. Try again in a moment',
       code: 'E_INTERNAL_SERVER_ERROR',
     })
+  })
+
+  test('test_unavailable_dependencies_keep_their_localized_message_in_production', async ({
+    assert,
+  }) => {
+    const cases = [
+      [new InsightsUnavailable(), 'E_INSIGHTS_UNAVAILABLE'],
+      [new LlmProviderError('upstream 529: overloaded', 529), 'E_LLM_UNAVAILABLE'],
+      [new StorageUnavailable('Object storage head failed: upstream'), 'E_STORAGE_UNAVAILABLE'],
+    ] as const
+
+    for (const [error, code] of cases) {
+      for (const debug of [true, false]) {
+        const { status, body } = await render(error, { debug, locale: 'es' })
+
+        assert.equal(status, 503)
+        assert.deepEqual(body, {
+          code,
+          message: i18nManager.locale('es').t(`errors.${code}`),
+        })
+        assert.notInclude(body.message, 'upstream')
+      }
+    }
   })
 
   test('test_server_error_message_is_localized', async ({ assert }) => {
@@ -94,26 +117,6 @@ test.group('Exception handler', () => {
         message: 'This was being saved at the same time elsewhere. Try again',
         code: 'E_CONCURRENT_UPDATE',
       })
-    }
-  })
-
-  test('test_unavailable_services_answer_503_with_a_translated_code', async ({ assert }) => {
-    const cases = [
-      [new StorageUnavailable(), 'E_STORAGE_UNAVAILABLE'],
-      [new LlmProviderError('LLM provider 401: vendor detail', 401), 'E_LLM_UNAVAILABLE'],
-    ] as const
-
-    for (const [error, code] of cases) {
-      for (const debug of [true, false]) {
-        const { status, body } = await render(error, { debug, locale: 'es' })
-
-        assert.equal(status, 503, code)
-        assert.deepEqual(body, {
-          message: i18nManager.locale('es').t(`errors.${code}`),
-          code,
-        })
-        assert.notInclude(JSON.stringify(body), 'vendor detail')
-      }
     }
   })
 })

@@ -26,6 +26,8 @@ import { registerE2eRoutes } from '#start/routes/e2e'
 import { testSupportEnabled } from '#services/e2e/test_support'
 
 const id = router.matchers.number()
+/** A calendar month, 'YYYY-MM'. */
+const month = /^\d{4}-(0[1-9]|1[0-2])$/
 
 const authenticated = () => [middleware.auth(), middleware.sessionVersion(), apiThrottle]
 const inHousehold = () => [...authenticated(), middleware.verified(), middleware.household()]
@@ -246,6 +248,35 @@ router
               .prefix('reports')
               .as('reports')
 
+            router
+              .group(() => {
+                router.get('/', [controllers.Goals, 'index']).as('index')
+                router.post('/', [controllers.Goals, 'store']).as('store')
+                router.put('reorder', [controllers.Goals, 'reorder']).as('reorder')
+                router.get(':id', [controllers.Goals, 'show']).where('id', id).as('show')
+                router.patch(':id', [controllers.Goals, 'update']).where('id', id).as('update')
+                router.delete(':id', [controllers.Goals, 'destroy']).where('id', id).as('destroy')
+                router
+                  .get(':id/projection', [controllers.Goals, 'projection'])
+                  .where('id', id)
+                  .as('projection')
+              })
+              .prefix('goals')
+              .as('goals')
+
+            router
+              .group(() => {
+                router
+                  .get(':month', [controllers.Insights, 'show'])
+                  .where('month', month)
+                  .as('show')
+                router
+                  .post(':month/generate', [controllers.Insights, 'generate'])
+                  .where('month', month)
+                  .as('generate')
+              })
+              .prefix('insights')
+              .as('insights')
             /*
              * Bank imports. `POST /imports` reads its multipart body by hand
              * (config/bodyparser.ts `processManually`).
