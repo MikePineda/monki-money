@@ -37,10 +37,13 @@
   "verify": {
     "pending": {
       "title": "Revisa tu correo",
-      "body": "Enviamos un enlace de confirmación a {email}. Ábrelo para continuar.",
-      "resend": "Enviar el enlace otra vez",
+      "body": "Enviamos un enlace y un código de 6 dígitos a {email}. Abre el enlace o escribe el código aquí.",
+      "code": "Código de 6 dígitos",
+      "codeInvalid": "Este código no es correcto. Revisa el correo e inténtalo de nuevo.",
+      "confirm": "Confirmar",
+      "resend": "Enviar otro correo",
       "resendIn": "Reenviar en {seconds} s",
-      "sent": "Enviamos un enlace nuevo.",
+      "sent": "Enviamos un correo nuevo. El código anterior ya no funciona.",
       "otherAccount": "Usar otra cuenta"
     },
     "confirming": "Confirmando tu correo…",

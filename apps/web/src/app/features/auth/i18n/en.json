@@ -37,10 +37,13 @@
   "verify": {
     "pending": {
       "title": "Check your email",
-      "body": "We sent a confirmation link to {email}. Open it to continue.",
-      "resend": "Send the link again",
+      "body": "We sent a link and a 6-digit code to {email}. Open the link, or type the code here.",
+      "code": "6-digit code",
+      "codeInvalid": "This code is not right. Check the email and try again.",
+      "confirm": "Confirm",
+      "resend": "Send a new email",
       "resendIn": "Send again in {seconds} s",
-      "sent": "We sent a new link.",
+      "sent": "We sent a new email. The previous code no longer works.",
       "otherAccount": "Use another account"
     },
     "confirming": "Confirming your email…",

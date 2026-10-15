@@ -76,6 +76,11 @@ export class AuthApi {
     await (await this.api()).request('auth.email.verify', { body: { token } })
   }
 
+  /** The 6-digit code from the verification email (signed in, not yet verified). */
+  async verifyCode(code: string): Promise<void> {
+    await (await this.api()).request('auth.email.verifyCode', { body: { code } })
+  }
+
   async resendVerification(): Promise<void> {
     await (await this.api()).request('auth.email.resend', {})
   }

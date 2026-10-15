@@ -1,6 +1,6 @@
 import { DOCUMENT, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
-import { TranslocoPipe } from '@jsverse/transloco'
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco'
 import { failureMessage, type Message } from '../../../core/api/error-messages'
 import { toApiError } from '../../../core/api/http-errors'
 import { AuthApi } from '../../../core/auth/auth.api'
@@ -8,26 +8,46 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { BannerComponent } from '../../../shared/ui/banner/banner.component'
 import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component'
+import { TextFieldComponent } from '../../../shared/ui/text-field/text-field.component'
 import { provideAuthScope } from '../auth.scope'
 
-/** Scoped keys used from TypeScript: t(auth.verify.pending.sent) */
+/** Scoped keys used from TypeScript: t(auth.verify.pending.sent, auth.verify.pending.codeInvalid) */
 
-/** Seconds before "send the link again" can be used again. */
+/** Seconds before "send a new email" can be used again. */
 export const RESEND_COOLDOWN_SECONDS = 60
+
+/** Digits in the emailed verification code. */
+export const CODE_LENGTH = 6
+
+/** Shown when the API turns a code down without its own message. */
+const CODE_INVALID_KEY = 'auth.verify.pending.codeInvalid'
+
+/** The digits of what was typed or pasted ("123 456", "123-456" → "123456"). */
+function codeDigits(text: string): string {
+  return text.replace(/\D/g, '')
+}
 
 type State = 'pending' | 'confirming' | 'confirmed' | 'invalid'
 
 /**
  * Email verification, both halves:
- * - pending (`/verify-email`): "check your inbox", resend with a 60 s
- *   cooldown, and a session refresh whenever the app comes back to the
- *   foreground (the link may have been opened in another tab or app);
+ * - pending (`/verify-email`): "check your inbox", the 6-digit code from the
+ *   same email (submitted as soon as six digits are typed or pasted),
+ *   resend with a 60 s cooldown (a new link and a new code), and a session
+ *   refresh whenever the app comes back to the foreground (the link may
+ *   have been opened in another tab or app);
  * - confirmed (`/verify-email?token=`): posts the token, then continues to
  *   onboarding or the month (or to login when this browser is signed out).
  */
 @Component({
   selector: 'app-verify-email-page',
-  imports: [BannerComponent, ButtonComponent, EmptyStateComponent, TranslocoPipe],
+  imports: [
+    BannerComponent,
+    ButtonComponent,
+    EmptyStateComponent,
+    TextFieldComponent,
+    TranslocoPipe,
+  ],
   providers: [provideAuthScope()],
   template: `
     @switch (state()) {
@@ -80,6 +100,28 @@ type State = 'pending' | 'confirming' | 'confirmed' | 'invalid'
             [message]="message.key | transloco: message.params ?? {}"
           />
         }
+        <form class="mt-8 flex flex-col gap-4" novalidate (submit)="submitCode($event)">
+          <app-text-field
+            data-testid="verify.code"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            [label]="'auth.verify.pending.code' | transloco"
+            [value]="code()"
+            [error]="codeError()"
+            (valueChange)="typeCode($event)"
+          />
+          <button
+            appButton
+            type="submit"
+            size="block"
+            data-testid="verify.codeSubmit"
+            [disabled]="!codeComplete()"
+            [loading]="verifying()"
+          >
+            {{ 'auth.verify.pending.confirm' | transloco }}
+          </button>
+        </form>
         <div class="mt-auto flex flex-col items-stretch gap-2 pt-8">
           <button
             appButton
@@ -113,6 +155,7 @@ export default class VerifyEmailPage implements OnInit {
   private readonly route = inject(ActivatedRoute)
   private readonly document = inject(DOCUMENT)
   private readonly destroyRef = inject(DestroyRef)
+  private readonly transloco = inject(TranslocoService)
 
   protected readonly state = signal<State>('pending')
   protected readonly email = computed(() => this.session.user()?.email ?? '')
@@ -122,6 +165,10 @@ export default class VerifyEmailPage implements OnInit {
   protected readonly noticeStatus = computed(() =>
     this.notice()?.key === 'auth.verify.pending.sent' ? 'good' : 'critical'
   )
+  protected readonly code = signal('')
+  protected readonly codeError = signal('')
+  protected readonly verifying = signal(false)
+  protected readonly codeComplete = computed(() => codeDigits(this.code()).length === CODE_LENGTH)
 
   private timer: ReturnType<typeof setInterval> | undefined
 
@@ -164,6 +211,39 @@ export default class VerifyEmailPage implements OnInit {
       this.notice.set(failureMessage(toApiError(error)))
     } finally {
       this.sending.set(false)
+    }
+  }
+
+  /** Every keystroke or paste; six digits send the code at once. */
+  protected typeCode(text: string): void {
+    this.code.set(text)
+    this.codeError.set('')
+    if (this.codeComplete()) {
+      void this.submitCode()
+    }
+  }
+
+  protected async submitCode(event?: Event): Promise<void> {
+    event?.preventDefault()
+    if (!this.codeComplete() || this.verifying()) {
+      return
+    }
+    this.verifying.set(true)
+    this.notice.set(null)
+    try {
+      await this.api.verifyCode(codeDigits(this.code()))
+      // Same ending as the link: refresh the session, then go where it belongs.
+      await this.session.load()
+      await this.router.navigateByUrl(this.session.homePath())
+    } catch (error) {
+      const failure = toApiError(error)
+      if (failure.kind === 'validation') {
+        this.codeError.set(failure.fields['code'] ?? this.transloco.translate(CODE_INVALID_KEY))
+      } else {
+        this.notice.set(failureMessage(failure))
+      }
+    } finally {
+      this.verifying.set(false)
     }
   }
 
