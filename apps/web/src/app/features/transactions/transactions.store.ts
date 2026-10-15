@@ -154,7 +154,14 @@ export class TransactionsStore {
   readonly rows = computed(() => this.shown()?.rows ?? [])
   readonly days = computed(() => groupByDay(this.rows()))
   readonly firstLoad = computed(() => this.shown() === undefined && this.list.isLoading())
-  readonly refreshing = computed(() => this.shown() !== undefined && this.list.isLoading())
+  /** The next page is on its way ("load more"); the rows on screen stay as they are. */
+  readonly loadingMore = computed(
+    () => this.list.isLoading() && this.pages() > (this.shown()?.pages ?? Infinity)
+  )
+  /** A reload (filters, a change elsewhere): the previous rows stay, dimmed. */
+  readonly refreshing = computed(
+    () => this.shown() !== undefined && this.list.isLoading() && !this.loadingMore()
+  )
   readonly failed = computed(() => this.list.status() === 'error')
   readonly hasMore = computed(() => {
     const state = this.shown()

@@ -122,11 +122,11 @@ const KEYS = {
           let firstGroup = $first;
           let lastGroup = $last
         ) {
-          <section class="pt-6" [attr.data-testid]="'categories.group.' + group.id">
+          <section class="pt-4" [attr.data-testid]="'categories.group.' + group.id">
             <div class="flex h-11 items-center justify-between gap-2 pr-1 pl-4">
               <h2 class="truncate text-eyebrow text-ink-2 uppercase">{{ group.name }}</h2>
               @if (reorderMode()) {
-                <div class="flex">
+                <div class="flex gap-3">
                   <button
                     appIconButton
                     type="button"

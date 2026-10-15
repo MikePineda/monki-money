@@ -131,8 +131,14 @@ describe('TransactionsStore', () => {
     expect(store.hasMore()).toBe(true)
 
     store.loadMore()
+    TestBed.tick()
+    // The rows on screen stay put (not dimmed) while the next page loads.
+    expect(store.loadingMore()).toBe(true)
+    expect(store.refreshing()).toBe(false)
+    expect(store.rows().map((row) => row.id)).toEqual([1, 2])
     await settle()
 
+    expect(store.loadingMore()).toBe(false)
     expect(api.list).toHaveBeenCalledTimes(2)
     expect(api.list).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 2 }),

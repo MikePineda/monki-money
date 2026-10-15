@@ -109,6 +109,17 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
               [splitCount]="row()?.isSplit ? (row()?.splits?.length ?? 0) : 0"
               (splitRequested)="openSplit()"
             />
+            <button
+              appButton
+              type="button"
+              variant="destructive"
+              class="mx-4"
+              data-testid="transactions.edit.delete"
+              [disabled]="saving()"
+              (click)="remove()"
+            >
+              {{ 'transactions.edit.delete' | transloco }}
+            </button>
           }
           @case ('masked') {
             <div class="flex flex-col items-center gap-2 px-4 text-center">
@@ -138,6 +149,16 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
                 </div>
               }
             </dl>
+            <button
+              appButton
+              type="button"
+              variant="destructive"
+              class="mx-4"
+              data-testid="transactions.edit.deleteTransfer"
+              (click)="remove()"
+            >
+              {{ 'transactions.edit.deleteTransfer' | transloco }}
+            </button>
           }
           @case ('transferEdit') {
             <app-transfer-form
@@ -167,16 +188,6 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
             >
               {{ 'transactions.edit.save' | transloco }}
             </button>
-            <button
-              appButton
-              type="button"
-              variant="destructive"
-              data-testid="transactions.edit.delete"
-              [disabled]="saving()"
-              (click)="remove()"
-            >
-              {{ 'transactions.edit.delete' | transloco }}
-            </button>
           }
           @case ('transfer') {
             <button
@@ -188,15 +199,6 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
               (click)="editTransfer()"
             >
               {{ 'transactions.edit.editTransfer' | transloco }}
-            </button>
-            <button
-              appButton
-              type="button"
-              variant="destructive"
-              data-testid="transactions.edit.deleteTransfer"
-              (click)="remove()"
-            >
-              {{ 'transactions.edit.deleteTransfer' | transloco }}
             </button>
           }
           @case ('transferEdit') {

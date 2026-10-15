@@ -80,7 +80,7 @@ export interface SplitSheetData {
       <ol class="flex flex-col" data-testid="transactions.split.lines">
         @for (line of filled(); track $index; let i = $index; let last = $last) {
           <li
-            class="flex h-14 items-center gap-2 border-b border-line pr-1 pl-4"
+            class="flex h-14 items-center gap-2 border-b border-line px-4"
             [attr.data-testid]="'transactions.split.line.' + i"
           >
             <button
@@ -95,7 +95,7 @@ export interface SplitSheetData {
             </button>
             @if (last) {
               <span
-                class="flex h-11 shrink-0 flex-col items-end justify-center px-3"
+                class="flex h-11 shrink-0 flex-col items-end justify-center pl-3"
                 data-testid="transactions.split.rest"
               >
                 <span
@@ -133,6 +133,7 @@ export interface SplitSheetData {
                 appIconButton
                 type="button"
                 icon="x"
+                class="-mr-3"
                 [label]="'transactions.split.remove' | transloco: { number: i + 1 }"
                 (click)="remove(i)"
               ></button>

@@ -253,7 +253,7 @@ function capitalize(text: string): string {
               type="button"
               variant="secondary"
               data-testid="transactions.loadMore"
-              [loading]="store.refreshing()"
+              [loading]="store.loadingMore()"
               (click)="store.loadMore()"
             >
               {{ 'transactions.list.loadMore' | transloco }}

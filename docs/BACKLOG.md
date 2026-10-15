@@ -20,3 +20,7 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Type `GET /auth/me` with its `{ data }` wrapper in the registry (the web reads it through `unwrapData`).
 - 2026-10-15 `applyToFuture` on `PATCH /transactions/:id` and `applyRuleToFuture` on bulk categorize (learn a merchant rule) land with `merchant_rules` in WP 3.3; the ledger endpoints do not accept them yet.
 - 2026-10-15 Tag filter for `GET /transactions` (`tag=`) and per-tag totals in reports (the column exists since WP 2.1).
+- 2026-10-15 `GET /transfers/:id` (both legs and the memo in one call): the transaction sheet finds the other leg through `GET /transactions?kind=transfer&from=&to=` today.
+- 2026-10-15 "Joint only" filter for `GET /transactions` (`paidByUserId` cannot ask for null); the person chip offers everyone, you and the partner.
+- 2026-10-15 Tab bar: mark "More" active on screens reached from it outside `/settings` (`/categories`); `TabItem` needs extra match prefixes.
+- 2026-10-15 Move `TransactionForm`/`TransferForm` to `shared/` (or host quick add under `features/transactions`) so the add page can reuse them without a cross-feature import.

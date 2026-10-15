@@ -75,9 +75,9 @@ export function transferDraftValid(draft: TransferDraft): boolean {
         class="rounded-md px-2"
         data-testid="transactions.transfer.amount"
         [attr.aria-expanded]="keypadOpen()"
-        [attr.aria-label]="'transactions.form.amount' | transloco"
         (click)="keypadOpen.set(!keypadOpen())"
       >
+        <span class="sr-only">{{ 'transactions.form.amount' | transloco }}</span>
         <app-amount-display variant="hero" [cents]="draft().amountCents" />
       </button>
       @if (errors()['amountCents']; as message) {

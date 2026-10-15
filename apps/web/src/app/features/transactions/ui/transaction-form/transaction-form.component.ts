@@ -110,10 +110,10 @@ export const EMPTY_DRAFT: TransactionDraft = {
         class="rounded-md px-2 disabled:cursor-default"
         data-testid="transactions.form.amount"
         [attr.aria-expanded]="locked() ? null : keypadOpen()"
-        [attr.aria-label]="'transactions.form.amount' | transloco"
         [disabled]="locked()"
         (click)="keypadOpen.set(!keypadOpen())"
       >
+        <span class="sr-only">{{ 'transactions.form.amount' | transloco }}</span>
         <app-amount-display variant="hero" [cents]="draft().amountCents" />
       </button>
       @if (errors().amount; as message) {
