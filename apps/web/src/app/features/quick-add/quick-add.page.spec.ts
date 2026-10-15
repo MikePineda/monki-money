@@ -9,6 +9,7 @@ import {
   aMember,
   aUser,
   anAccount,
+  httpError,
   networkError,
   validationError,
 } from '../../../testing/session-fixtures'
@@ -23,8 +24,10 @@ import {
   type TransferInput,
 } from '../../core/ledger/transactions.api'
 import { MonthStore } from '../../core/month/month.store'
+import { OutboxStore } from '../../core/outbox/outbox.store'
 import { HOUSEHOLD_TIME_ZONE } from '../../core/platform/time-zone.token'
 import { todayIn } from '../../domain/month'
+import { enqueue, type OutboxEntry, type OutboxItem } from '../../domain/outbox'
 import { AmountKeypadHarness } from '../../shared/ui/amount-keypad/amount-keypad.harness'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { SegmentedControlHarness } from '../../shared/ui/segmented-control/segmented-control.harness'
@@ -45,6 +48,16 @@ describe('QuickAddPage', () => {
     removeTransfer: ReturnType<typeof vi.fn>
   }
   let months: { invalidate: ReturnType<typeof vi.fn> }
+  let outbox: {
+    enqueue: ReturnType<typeof vi.fn<(item: OutboxItem) => void>>
+    flush: ReturnType<typeof vi.fn>
+    entry: ReturnType<typeof vi.fn<(id: string) => OutboxEntry | null>>
+    hold: ReturnType<typeof vi.fn>
+    release: ReturnType<typeof vi.fn>
+    replace: ReturnType<typeof vi.fn<(id: string, item: OutboxItem) => Promise<void>>>
+  }
+  /** Entries the fake outbox holds (for editing a queued entry). */
+  let queued: OutboxEntry[] = []
 
   async function open(url = '/add', recent: Transaction[] = []) {
     api = {
@@ -69,6 +82,14 @@ describe('QuickAddPage', () => {
       removeTransfer: vi.fn(async () => undefined),
     }
     months = { invalidate: vi.fn() }
+    outbox = {
+      enqueue: vi.fn(),
+      flush: vi.fn(async () => undefined),
+      entry: vi.fn((id: string) => queued.find((entry) => entry.id === id) ?? null),
+      hold: vi.fn(),
+      release: vi.fn(async () => undefined),
+      replace: vi.fn(async () => undefined),
+    }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
       providers: [
@@ -82,6 +103,7 @@ describe('QuickAddPage', () => {
         ),
         { provide: TransactionsApi, useValue: api },
         { provide: MonthStore, useValue: months },
+        { provide: OutboxStore, useValue: outbox },
         {
           provide: AccountsApi,
           useValue: {
@@ -113,7 +135,9 @@ describe('QuickAddPage', () => {
     await harness.navigateByUrl(url)
     const root = harness.fixture.nativeElement as HTMLElement
     await vi.waitFor(() => expect(byTestId(root, 'quickAdd.save').textContent).toContain('Save'))
-    await vi.waitFor(() => expect(root.querySelector('app-transaction-form')).not.toBeNull())
+    await vi.waitFor(() =>
+      expect(root.querySelector('app-transaction-form, app-transfer-form')).not.toBeNull()
+    )
     await harness.fixture.whenStable()
     const loader = TestbedHarnessEnvironment.loader(harness.fixture)
     return { harness, root, loader }
@@ -145,7 +169,25 @@ describe('QuickAddPage', () => {
     await harness.fixture.whenStable()
   }
 
-  afterEach(() => localStorage.clear())
+  afterEach(() => {
+    localStorage.clear()
+    queued = []
+    vi.restoreAllMocks()
+  })
+
+  function goOffline(): void {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+  }
+
+  function toastText(root: ParentNode): string {
+    return root.querySelector('app-toast')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+  }
+
+  function toastButtons(root: ParentNode): string[] {
+    return [...(root.querySelector('app-toast')?.querySelectorAll('button') ?? [])].map(
+      (button) => button.textContent?.trim() ?? ''
+    )
+  }
 
   it('test_opens_with_expense_the_stored_account_you_and_today', async () => {
     localStorage.setItem('qa:account:1', '2')
@@ -251,22 +293,189 @@ describe('QuickAddPage', () => {
     expect(root.querySelector('app-toast')).toBeNull()
   })
 
-  it('test_a_retry_after_a_network_error_reuses_the_client_id', async () => {
+  it('test_a_successful_save_also_syncs_the_outbox', async () => {
+    const { root, loader, harness } = await open()
+    await (await loader.getHarness(AmountKeypadHarness)).press('1', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(outbox.flush).toHaveBeenCalled()
+    expect(outbox.enqueue).not.toHaveBeenCalled()
+  })
+
+  it('test_offline_the_entry_is_queued_without_calling_the_api', async () => {
+    const { root, loader, harness } = await open()
+    goOffline()
+    await (await loader.getHarness(AmountKeypadHarness)).press('4', '2', '5', '0')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.quick).not.toHaveBeenCalled()
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1)
+    expect(outbox.enqueue.mock.calls[0]?.[0]).toEqual({
+      kind: 'transaction',
+      payload: {
+        clientId: expect.stringMatching(UUID),
+        kind: 'expense',
+        amountCents: 4250,
+        accountId: 1,
+        date: todayIn(TZ),
+        categoryId: null,
+        payee: null,
+        description: null,
+        paidByUserId: 1,
+        isPrivate: false,
+        tags: [],
+      },
+    })
+    expect(TestBed.inject(Router).url).toBe('/add')
+    expect(heroText(root)).toBe('$0.00')
+    expect(toastText(root)).toContain('Saved offline · will sync')
+    expect(toastButtons(root)).not.toContain('Undo')
+    expect(localStorage.getItem('qa:account:1')).toBe('1')
+  })
+
+  it('test_a_network_error_queues_the_entry_with_the_client_id_it_tried', async () => {
     const { root, loader, harness } = await open()
     api.quick.mockRejectedValueOnce(networkError())
     await (await loader.getHarness(AmountKeypadHarness)).press('1', '00')
     byTestId(root, 'quickAdd.save').click()
     await settle(harness)
 
-    expect(text(root, 'quickAdd.error')).toContain('Can’t reach monkimoney')
-    expect(heroText(root)).toBe('$1.00')
-    const retry = byTestId(root, 'quickAdd.error').querySelector('button') as HTMLButtonElement
-    retry.click()
+    const tried = api.quick.mock.calls[0]?.[0].clientId
+    expect(outbox.enqueue.mock.calls[0]?.[0].payload.clientId).toBe(tried)
+    expect(heroText(root)).toBe('$0.00')
+    expect(toastText(root)).toContain('Saved offline · will sync')
+    expect(root.querySelector('app-banner')).toBeNull()
+  })
+
+  it('test_a_server_error_queues_the_entry_too', async () => {
+    const { root, loader, harness } = await open()
+    api.quick.mockRejectedValueOnce(httpError(503))
+    await (await loader.getHarness(AmountKeypadHarness)).press('1', '00')
+    byTestId(root, 'quickAdd.save').click()
     await settle(harness)
 
-    expect(api.quick).toHaveBeenCalledTimes(2)
-    const [first, second] = api.quick.mock.calls.map(([body]) => body.clientId)
-    expect(second).toBe(first)
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1)
+  })
+
+  it('test_a_queued_transfer_keeps_both_accounts', async () => {
+    const { root, loader, harness } = await open()
+    goOffline()
+    await (await loader.getHarness(SegmentedControlHarness)).select('Transfer')
+    await (await loader.getHarness(AmountKeypadHarness)).press('2', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.transfer).not.toHaveBeenCalled()
+    expect(outbox.enqueue.mock.calls[0]?.[0]).toEqual({
+      kind: 'transfer',
+      payload: {
+        clientId: expect.stringMatching(UUID),
+        fromAccountId: 1,
+        toAccountId: 2,
+        date: todayIn(TZ),
+        amountCents: 200,
+        memo: null,
+      },
+    })
+  })
+
+  it('test_a_refusal_that_is_not_about_a_field_keeps_the_draft_and_says_so', async () => {
+    const { root, loader, harness } = await open()
+    api.quick.mockRejectedValueOnce(httpError(403, { code: 'E_HOUSEHOLD_SUSPENDED' }))
+    await (await loader.getHarness(AmountKeypadHarness)).press('1', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(outbox.enqueue).not.toHaveBeenCalled()
+    expect(heroText(root)).toBe('$1.00')
+    expect(toastText(root)).toContain('Something went wrong')
+  })
+
+  it('test_editing_a_queued_entry_opens_it_prefilled_and_saving_replaces_it', async () => {
+    const item: OutboxItem = {
+      kind: 'transaction',
+      payload: {
+        clientId: '00000000-0000-4000-8000-000000000042',
+        kind: 'expense',
+        accountId: 2,
+        date: todayIn(TZ),
+        amountCents: 1999,
+        categoryId: 10,
+        payee: 'Corner Shop',
+        description: null,
+        paidByUserId: 1,
+        isPrivate: false,
+        tags: [],
+      },
+    }
+    queued = enqueue([], item, new Date())
+    const id = item.payload.clientId
+    const { root, harness } = await open(`/add?outbox=${id}`)
+
+    expect(outbox.hold).toHaveBeenCalledWith(id)
+    expect(heroText(root)).toBe('$19.99')
+    expect(text(root, 'transactions.form.account')).toBe('Savings')
+    expect(root.querySelector('[data-category="10"]')?.getAttribute('aria-pressed')).toBe('true')
+
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.quick).not.toHaveBeenCalled()
+    expect(outbox.enqueue).not.toHaveBeenCalled()
+    expect(outbox.replace).toHaveBeenCalledWith(id, { kind: 'transaction', payload: item.payload })
+    expect(TestBed.inject(Router).url).toBe('/month')
+  })
+
+  it('test_editing_a_queued_transfer_opens_the_transfer_form', async () => {
+    const item: OutboxItem = {
+      kind: 'transfer',
+      payload: {
+        clientId: '00000000-0000-4000-8000-000000000043',
+        fromAccountId: 2,
+        toAccountId: 1,
+        date: todayIn(TZ),
+        amountCents: 700,
+        memo: 'Back',
+      },
+    }
+    queued = enqueue([], item, new Date())
+    const { root, loader } = await open(`/add?outbox=${item.payload.clientId}`)
+
+    expect(await (await loader.getHarness(SegmentedControlHarness)).getSelected()).toBe('Transfer')
+    expect(text(root, 'transactions.transfer.from')).toBe('Savings')
+    expect(text(root, 'transactions.transfer.to')).toBe('Everyday')
+    expect(text(root, 'quickAdd.save')).toBe('Save $7.00')
+  })
+
+  it('test_leaving_an_edit_without_saving_releases_the_entry', async () => {
+    const item: OutboxItem = {
+      kind: 'transfer',
+      payload: {
+        clientId: '00000000-0000-4000-8000-000000000044',
+        fromAccountId: 1,
+        toAccountId: 2,
+        date: todayIn(TZ),
+        amountCents: 700,
+        memo: null,
+      },
+    }
+    queued = enqueue([], item, new Date())
+    const { root, harness } = await open(`/add?outbox=${item.payload.clientId}`)
+
+    byTestId(root, 'quickAdd.done').click()
+    await settle(harness)
+
+    expect(outbox.release).toHaveBeenCalledWith(item.payload.clientId)
+    expect(outbox.replace).not.toHaveBeenCalled()
+  })
+
+  it('test_an_unknown_queued_entry_opens_a_blank_quick_add', async () => {
+    const { root } = await open('/add?outbox=missing')
+
+    expect(outbox.hold).not.toHaveBeenCalled()
+    expect(heroText(root)).toBe('$0.00')
   })
 
   it('test_a_new_entry_gets_a_new_client_id', async () => {
@@ -293,7 +502,8 @@ describe('QuickAddPage', () => {
     expect(
       root.querySelector('[data-testid="transactions.form.amountError"]')?.textContent
     ).toContain('The amount is too large.')
-    expect(root.querySelector('[data-testid="quickAdd.error"]')).toBeNull()
+    expect(outbox.enqueue).not.toHaveBeenCalled()
+    expect(heroText(root)).toBe('$0.09')
   })
 
   it('test_a_transfer_needs_two_different_accounts', async () => {
