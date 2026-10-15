@@ -71,4 +71,27 @@ export interface ApiDefinition {
     update: typeof routes['categories.update']
     destroy: typeof routes['categories.destroy']
   }
+  transactions: {
+    index: typeof routes['transactions.index']
+    store: typeof routes['transactions.store']
+    quick: typeof routes['transactions.quick']
+    bulkCategorize: typeof routes['transactions.bulkCategorize']
+    show: typeof routes['transactions.show']
+    update: typeof routes['transactions.update']
+    destroy: typeof routes['transactions.destroy']
+    splits: {
+      update: typeof routes['transactions.splits.update']
+    }
+  }
+  transfers: {
+    store: typeof routes['transfers.store']
+    update: typeof routes['transfers.update']
+    destroy: typeof routes['transfers.destroy']
+  }
+  reports: {
+    month: typeof routes['reports.month']
+    trend: typeof routes['reports.trend']
+    category: typeof routes['reports.category']
+    balances: typeof routes['reports.balances']
+  }
 }

@@ -22,5 +22,7 @@
   "E_MEMBER_LIMIT_REACHED": "Tu plan no permite más miembros",
   "E_ACCOUNT_LIMIT_REACHED": "Tu plan no permite más cuentas",
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
+  "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
+  "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
   "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento"
 }

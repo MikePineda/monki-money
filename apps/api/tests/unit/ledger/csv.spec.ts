@@ -27,6 +27,9 @@ test.group('Export: CSV', () => {
     // Amounts come from integers, never from user text: a negative amount
     // stays a number for the spreadsheet.
     assert.equal(csvCell(-1234), '-1234')
-    assert.equal(csvRow(['2026-10-01', -12.34, '=evil']), `2026-10-01,-12.34,'=evil\r\n`)
+    assert.equal(csvCell('-12.34'), '-12.34')
+    assert.equal(csvCell('-12.34 refund'), "'-12.34 refund")
+    assert.equal(csvCell('-1+1'), "'-1+1")
+    assert.equal(csvRow(['2026-10-01', '-12.34', '=evil']), `2026-10-01,-12.34,'=evil\r\n`)
   })
 })

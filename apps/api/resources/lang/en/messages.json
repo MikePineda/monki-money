@@ -16,5 +16,30 @@
       "subject": "{inviterName} invited you to {householdName} on monkimoney",
       "body": "Hi,\n\n{inviterName} invited you to share the finances of {householdName} on monkimoney.\n\nAccept the invitation here:\n\n{url}\n\nThe invitation expires in 7 days."
     }
+  },
+  "export": {
+    "private": "Private",
+    "joint": "Joint",
+    "columns": {
+      "date": "Date",
+      "bankDate": "Bank date",
+      "account": "Account",
+      "kind": "Type",
+      "amount": "Amount",
+      "currency": "Currency",
+      "category": "Category",
+      "group": "Group",
+      "payee": "Payee",
+      "description": "Notes",
+      "paidBy": "Paid by",
+      "status": "Status",
+      "source": "Source",
+      "needsReview": "Needs review",
+      "isPrivate": "Private",
+      "tags": "Tags",
+      "memo": "Line memo",
+      "transactionId": "Transaction id",
+      "transferId": "Transfer id"
+    }
   }
 }
