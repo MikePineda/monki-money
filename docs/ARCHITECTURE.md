@@ -63,6 +63,24 @@ is loaded or sent. E2E serves a stand-in for it (`e2e/support/turnstile.ts`).
 Shared (`packages/shared`): wire types and pure helpers used by both sides,
 compiled to `dist/` because Node does not load `.ts` from `node_modules`.
 
+**Review before save (web).** Anything a machine proposes and a person
+confirms (the bank import today, the receipt scanner next) uses the same
+pattern. `domain/import-row.ts` is the pure row state machine: a row's tone
+(auto, doubtful, new, duplicate, transfer, ignored) from the API's proposal
+plus the person's decision, the actions each tone allows, the optimistic
+preview of a decision (`applyDecision`), the bulk changes, the confirm
+payload (`decisionsFor`) and the reconciliation message. The screen's store
+(`features/import/import-review.store.ts`) shows every decision at once,
+`PATCH`es it, takes the API's answer and rolls back on refusal; confirm
+sends `decisionsFor(rows)` again so a lost `PATCH` still lands, then
+invalidates the months the file covers. The UI pieces live in
+`shared/review/` and know nothing about imports (see its README):
+`ReviewList` (leading checkbox, selection, progressive rendering; the row is
+the consumer's template), `RowTriage` (the triage sheet's frame and slots)
+and `BulkBar` (the selection's actions). The CSV goes up through
+`core/api/upload.service.ts` (XHR: real progress, abort, the same CSRF header
+as Tuyau), since fetch cannot report upload progress.
+
 ## Offline outbox (web)
 
 Quick add never loses an entry. Every create carries a `clientId` (uuid)

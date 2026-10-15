@@ -1,4 +1,4 @@
-import { formatDay, formatDayMonth, formatWeekdayDate } from './dates'
+import { formatDateRange, formatDay, formatDayMonth, formatWeekdayDate } from './dates'
 
 describe('formatDay', () => {
   it('test_formats_day_first_with_a_short_month_in_both_locales', () => {
@@ -33,5 +33,24 @@ describe('formatDayMonth', () => {
   it('test_day_and_month_without_the_year', () => {
     expect(formatDayMonth('2026-10-05', 'en-AU')).toBe('5 Oct')
     expect(formatDayMonth('2026-10-05', 'es-MX')).toBe('5 oct')
+  })
+})
+
+describe('formatDateRange', () => {
+  it('test_a_range_inside_one_month_names_the_month_once', () => {
+    expect(formatDateRange('2026-10-01', '2026-10-27', 'en-AU')).toBe('1–27 Oct')
+    expect(formatDateRange('2026-10-01', '2026-10-27', 'es-MX')).toBe('1–27 oct')
+  })
+
+  it('test_a_range_across_months_names_both', () => {
+    expect(formatDateRange('2026-08-22', '2026-10-05', 'en-AU')).toBe('22 Aug–5 Oct')
+  })
+
+  it('test_a_range_across_years_adds_both_years', () => {
+    expect(formatDateRange('2025-12-22', '2026-10-05', 'en-AU')).toBe('22 Dec 2025–5 Oct 2026')
+  })
+
+  it('test_a_single_day_is_one_date', () => {
+    expect(formatDateRange('2026-10-05', '2026-10-05', 'en-AU')).toBe('5 Oct')
   })
 })

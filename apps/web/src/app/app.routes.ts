@@ -22,7 +22,7 @@ const inTheApp = [authGuard, verifiedGuard, householdGuard, onboardedGuard]
  * - The shell (tab bar) wraps the main tabs and settings. It comes first so
  *   `/` redirects to `/month` (an empty-path layout with children would
  *   otherwise match `/` with an empty outlet).
- * - Onboarding and quick add are full screen.
+ * - Onboarding, quick add and the bank import are full screen.
  * - The auth layout frames everything outside the app proper: login,
  *   sign-up, verification, password reset, invitations, "create your
  *   household" (signed in without one), "scheduled for deletion", and the
@@ -70,6 +70,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/feature/accounts.page'),
       },
       {
+        path: 'settings/rules',
+        loadComponent: () => import('./features/rules/feature/rules.page'),
+      },
+      {
         path: 'upgrade',
         canActivate: [flagGuard('billing')],
         loadComponent: () => import('./features/settings/feature/upgrade.page'),
@@ -86,6 +90,12 @@ export const routes: Routes = [
     path: 'add',
     canActivate: inTheApp,
     loadComponent: () => import('./features/quick-add/quick-add.page'),
+  },
+  // Bank import (upload, review, result): full screen, its own bottom actions.
+  {
+    path: 'import',
+    canActivate: inTheApp,
+    loadChildren: () => import('./features/import/import.routes'),
   },
   {
     path: '',

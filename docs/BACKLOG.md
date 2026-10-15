@@ -43,3 +43,10 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 Outbox: say so when localStorage refuses the write (quota, private mode); the entry then lives in memory until the app closes.
 - 2026-10-16 Outbox: a queued expense does not feed quick add's category/payee ranking until it syncs and the next visit reloads the recent rows.
 - 2026-10-16 Offline cold start: opening the installed app with no network ends on login (`GET /auth/me` fails, the session is in memory only) and quick add needs the accounts loaded this session; keeping a last-known session and directory on the device would let the outbox work from a cold start.
+- 2026-10-16 API: expose the classify run on `ImportBatch` (for example `classifying`, from `classify_started_at`); the review screen polls `GET /imports/:id` every 2 s until the suggestions stop changing (at most 2 minutes) because nothing says when a run ends.
+- 2026-10-16 API: duplicate rows are counted (`counts.duplicate`) but never stored, so the review cannot list them behind a "Duplicates (D)" filter as DESIGN.md draws it; the summary shows the count only.
+- 2026-10-16 API: `GET /imports/:id` without its rows (or rows paginated): the result screen after a reload and every classify poll fetch the whole batch.
+- 2026-10-16 Import review: "Undo" for bulk decisions (accept suggested, assign category, ignore), and a bulk "Restore"; today each row is restored from its sheet.
+- 2026-10-16 Rules screen: edit a rule (pattern, category, priority; `PATCH /rules/:id` exists) and create one by hand; today rules are only learned from imports and `applyToFuture`.
+- 2026-10-16 `MonthStore` has no "everything may have changed" hook: applying a rule to history invalidates only the month on screen.
+- 2026-10-16 Web initial bundle is 364 kB, over its 350 kB warning budget (error at 450 kB) since the outbox and product-gap merges; the import and rules routes add about 0.5 kB. Trim the eager code or raise the warning line.

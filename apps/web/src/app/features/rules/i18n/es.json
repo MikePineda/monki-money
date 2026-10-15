@@ -1,0 +1,43 @@
+{
+  "title": "Reglas de comercios",
+  "back": "Volver a ajustes",
+  "intro": "Las reglas ordenan los movimientos importados según el comercio. Se aprenden al confirmar una importación o al cambiar una categoría para el futuro.",
+  "loading": "Cargando las reglas",
+  "error": {
+    "title": "No se pudieron cargar las reglas.",
+    "body": "Revisa tu conexión e inténtalo de nuevo."
+  },
+  "empty": {
+    "title": "Aún no hay reglas.",
+    "body": "Aparecen conforme confirmas importaciones.",
+    "action": "Importar un CSV del banco"
+  },
+  "hits": "{count, plural, =0 {Sin coincidencias aún} one {# coincidencia} other {# coincidencias}}",
+  "transferTo": "Transferencia a {account}",
+  "noTarget": "Sin categoría",
+  "matchType": {
+    "merchant": "Comercio",
+    "contains": "Contiene",
+    "regex": "Patrón"
+  },
+  "origin": {
+    "user": "Tuya",
+    "learned": "Aprendida",
+    "system": "Del banco"
+  },
+  "actions": {
+    "title": "Regla “{pattern}”",
+    "apply": "Aplicar a movimientos por revisar",
+    "delete": "Eliminar regla"
+  },
+  "deleteSheet": {
+    "title": "¿Eliminar esta regla?",
+    "body": "Los movimientos ya ordenados conservan su categoría. Las próximas importaciones dejan de usar “{pattern}” así.",
+    "confirm": "Eliminar regla",
+    "keep": "Conservarla"
+  },
+  "toast": {
+    "deleted": "Regla eliminada.",
+    "applied": "{count, plural, =0 {Ningún movimiento por revisar coincidió con esta regla.} one {# movimiento categorizado.} other {# movimientos categorizados.}}"
+  }
+}
