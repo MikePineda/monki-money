@@ -392,6 +392,20 @@
   outline: none;
 }
 
+/* CDK drag and drop (categories): the dragged row floats one step up
+ * (level 2), its slot stays as a faded placeholder. No transitions: the
+ * row follows the finger and lands instantly (DESIGN.md, Motion). */
+.mm-drag-preview {
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--elevation-2);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
 /* ------------------------------------------------------------- keyframes */
 
 @keyframes skeleton-pulse {

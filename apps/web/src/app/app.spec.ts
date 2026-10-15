@@ -9,7 +9,10 @@ import { routes } from './app.routes'
 import { AuthApi } from './core/auth/auth.api'
 import { SessionStore } from './core/auth/session.store'
 import { AccountsApi } from './core/household/accounts.api'
+import { CategoriesApi } from './core/household/categories.api'
 import { HouseholdApi } from './core/household/household.api'
+import { TransactionsApi } from './features/transactions/data-access/transactions.api'
+import { aCategoryTree } from '../testing/ledger-fixtures'
 
 type State = SessionKind | 'guest'
 
@@ -47,6 +50,11 @@ describe('app routes', () => {
         {
           provide: HouseholdApi,
           useValue: { members: async () => [aMember()], invitations: async () => [] },
+        },
+        { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
+        {
+          provide: TransactionsApi,
+          useValue: { list: async () => ({ rows: [], page: 1, lastPage: 1, total: 0 }) },
         },
       ],
     })
@@ -111,6 +119,7 @@ describe('app routes', () => {
   it('test_main_tabs_render_inside_the_shell', async () => {
     for (const [url, testId] of [
       ['/transactions', 'transactions.empty'],
+      ['/categories', 'categories.page'],
       ['/settings', 'settings.profile'],
     ]) {
       TestBed.resetTestingModule()
