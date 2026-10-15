@@ -28,7 +28,7 @@ test.group('Imports: privacy', (group) => {
         accountId: home.everyday.id,
         kind: 'expense',
         date: '2026-09-19',
-        amountCents: 17_885,
+        amountCents: 16_340,
         payee: 'FreshCo Market Northvale',
         isPrivate: true,
       })
@@ -66,7 +66,7 @@ test.group('Imports: privacy', (group) => {
         accountId: home.savings.id,
         kind: 'income',
         date: '2026-07-31',
-        amountCents: 80_000,
+        amountCents: 75_000,
         payee: 'Secret',
         isPrivate: true,
       })
@@ -86,7 +86,7 @@ test.group('Imports: privacy', (group) => {
     const legs = await Transaction.query()
       .where('account_id', home.savings.id)
       .where('kind', 'transfer')
-      .where('amount_cents', 80_000)
+      .where('amount_cents', 75_000)
     assert.lengthOf(legs, 1, 'a leg of its own instead of the private row')
   })
 })

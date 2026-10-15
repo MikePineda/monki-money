@@ -13,7 +13,7 @@ const HNRY = 3
 
 const linkedTransfer = stagedRow({
   accountId: EVERYDAY,
-  amountCents: -80000,
+  amountCents: -75000,
   bankDate: '2026-07-31',
   date: '2026-07-31',
   transactionType: 'TRANSFER DEBIT',
@@ -29,7 +29,7 @@ const linkedTransfer = stagedRow({
 
 const payIdToFriend = stagedRow({
   accountId: EVERYDAY,
-  amountCents: -12200,
+  amountCents: -11800,
   bankDate: '2026-08-12',
   date: '2026-08-12',
   transactionType: 'TRANSFER DEBIT',
@@ -60,25 +60,25 @@ test.group('Importing / transfer detector', () => {
   test('test_transfer_detector_links_opposite_amount_in_other_account_within_two_days', ({
     assert,
   }) => {
-    const leg = transferLeg({ accountId: SAVINGS, amountCents: 80000, date: '2026-08-02' })
+    const leg = transferLeg({ accountId: SAVINGS, amountCents: 75000, date: '2026-08-02' })
     const detection = detectTransfer(linkedTransfer, {
       rules: [],
       legs: [
         transferLeg({
           accountId: SAVINGS,
-          amountCents: 80000,
+          amountCents: 75000,
           date: '2026-08-03',
           transactionId: 1,
         }),
         transferLeg({
           accountId: EVERYDAY,
-          amountCents: 80000,
+          amountCents: 75000,
           date: '2026-07-31',
           transactionId: 2,
         }),
         transferLeg({
           accountId: SAVINGS,
-          amountCents: -80000,
+          amountCents: -75000,
           date: '2026-07-31',
           transactionId: 3,
         }),
@@ -143,7 +143,7 @@ test.group('Importing / transfer detector', () => {
   })
 
   test('test_transfer_detector_ignores_payid_to_friend', ({ assert }) => {
-    const coincidence = transferLeg({ accountId: SAVINGS, amountCents: 12200, date: '2026-08-12' })
+    const coincidence = transferLeg({ accountId: SAVINGS, amountCents: 11800, date: '2026-08-12' })
     assert.isNull(detectTransfer(payIdToFriend, { rules: seededRules(), legs: [coincidence] }))
   })
 

@@ -69,7 +69,7 @@ describe('ImportResultPage', () => {
     expect(text(root, '[data-testid="import.result.headline"]')).toBe('29')
     expect(text(root, '[data-testid="import.result.count.matched"]')).toBe('Matched 2')
     expect(text(root, '[data-testid="import.result.reconciliation"]')).toBe(
-      'Balanced with the bank: $7,237.31 on 27 Sept 2026.'
+      'Balanced with the bank: $7,642.75 on 27 Sept 2026.'
     )
   })
 
@@ -81,9 +81,9 @@ describe('ImportResultPage', () => {
           counts: { ...anImportBatch().counts, new: 4, autoMatched: 1 },
           reconciliation: {
             asOf: '2026-09-27',
-            expectedBalanceCents: 723731,
+            expectedBalanceCents: 764275,
             computedBalanceCents: 700000,
-            differenceCents: 23731,
+            differenceCents: 64275,
             balanced: false,
             openingBalanceCents: null,
             missingBefore: '2026-09-01',
@@ -94,7 +94,7 @@ describe('ImportResultPage', () => {
     await vi.waitFor(() => expect(text(root, '[data-testid="import.result.headline"]')).toBe('4'))
 
     expect(text(root, '[data-testid="import.result.reconciliation"]')).toBe(
-      '$237.31 away from the bank’s balance. Movements before 1 Sept 2026 are missing: ' +
+      '$642.75 away from the bank’s balance. Movements before 1 Sept 2026 are missing: ' +
         'import an older export to fill the gap.'
     )
   })

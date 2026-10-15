@@ -13,7 +13,7 @@ import { NAB_HEADER, nabCsv, nabFixture, thrown } from '#tests/helpers/importing
 
 const parser = new NabCsvParser()
 const PURCHASE =
-  '21 Sept 26,-178.85,123456789,,MISCELLANEOUS DEBIT,V2222 19/09 FRESHCO MARKET NORTHVALE 70000000601,7298.3,Groceries,FreshCo Market (Northvale Village),21 Sept 26'
+  '21 Sept 26,-163.40,123456789,,MISCELLANEOUS DEBIT,V2222 19/09 FRESHCO MARKET NORTHVALE 70000000601,7714.24,Groceries,FreshCo Market (Northvale Village),21 Sept 26'
 
 test.group('Importing / NAB parser', () => {
   test('test_parser_reads_nab_columns_into_typed_rows', ({ assert }) => {
@@ -22,8 +22,8 @@ test.group('Importing / NAB parser', () => {
       rowIndex: 0,
       accountNumber: '123456789',
       bankDate: '2026-09-21',
-      amountCents: -17885,
-      balanceCents: 729830,
+      amountCents: -16340,
+      balanceCents: 771424,
       transactionType: 'MISCELLANEOUS DEBIT',
       detailsRaw: 'V2222 19/09 FRESHCO MARKET NORTHVALE 70000000601',
       details: 'V2222 19/09 FRESHCO MARKET NORTHVALE 70000000601',
@@ -33,12 +33,12 @@ test.group('Importing / NAB parser', () => {
       isPending: false,
       raw: {
         date: '21 Sept 26',
-        amount: '-178.85',
+        amount: '-163.40',
         accountNumber: '123456789',
         unnamed: '',
         transactionType: 'MISCELLANEOUS DEBIT',
         transactionDetails: 'V2222 19/09 FRESHCO MARKET NORTHVALE 70000000601',
-        balance: '7298.3',
+        balance: '7714.24',
         category: 'Groceries',
         merchantName: 'FreshCo Market (Northvale Village)',
         processedOn: '21 Sept 26',
@@ -49,7 +49,7 @@ test.group('Importing / NAB parser', () => {
   test('test_parser_decodes_html_entities_but_keeps_the_raw_details', ({ assert }) => {
     const [row] = parser.parse(
       nabCsv([
-        '14 Aug 26,-70.29,123456789,,TRANSFER DEBIT,D ROE Z1000000003 Us &amp; Friends,8232.52,Transfers out,,14 Aug 26',
+        '14 Aug 26,-66.15,123456789,,TRANSFER DEBIT,D ROE Z1000000003 Us &amp; Friends,8544.49,Transfers out,,14 Aug 26',
       ])
     )
     assert.equal(row.details, 'D ROE Z1000000003 Us & Friends')
@@ -124,8 +124,8 @@ test.group('Importing / NAB parser', () => {
   })
 
   test('test_parser_rejects_unreadable_values_naming_line_and_column', ({ assert }) => {
-    const badDate = PURCHASE.replace('21 Sept 26,-178.85', '21 Sep 2026x,-178.85')
-    const badAmount = PURCHASE.replace('-178.85', '-178.8x')
+    const badDate = PURCHASE.replace('21 Sept 26,-163.40', '21 Sep 2026x,-163.40')
+    const badAmount = PURCHASE.replace('-163.40', '-163.4x')
     const dateError = thrown(() => parser.parse(nabCsv([PURCHASE, badDate])))
     assert.instanceOf(dateError, CsvInvalidValueError)
     assert.include(dateError as CsvInvalidValueError, { line: 3, column: 'Date' })

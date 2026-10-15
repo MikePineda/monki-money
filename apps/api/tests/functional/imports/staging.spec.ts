@@ -58,7 +58,7 @@ test.group('Imports: staging', (group) => {
       ignored: 2,
       superseded: 0,
     })
-    assert.equal(batch.reconciliation.expectedBalanceCents, 723_731)
+    assert.equal(batch.reconciliation.expectedBalanceCents, 764_275)
     assert.equal(await countOf(ImportRow.query().where('import_batch_id', batch.id)), 35)
 
     const detail = await client.get(`/api/v1/imports/${batch.id}`).actingAs(home.owner)
@@ -123,7 +123,7 @@ test.group('Imports: staging', (group) => {
         accountId: home.everyday.id,
         kind: 'expense',
         date: '2026-09-19',
-        amountCents: 17_885,
+        amountCents: 16_340,
         payee: 'FreshCo Market',
       })
       .actingAs(home.member)
@@ -145,7 +145,7 @@ test.group('Imports: staging', (group) => {
     assert.equal(confirm.body().data.matched, 1)
     const copies = await Transaction.query()
       .where('account_id', home.everyday.id)
-      .where('amount_cents', -17_885)
+      .where('amount_cents', -16_340)
     assert.lengthOf(copies, 1, 'the bank copy did not create a second transaction')
     assert.include(copies[0].serialize(), {
       id: manualId,
@@ -165,7 +165,7 @@ test.group('Imports: staging', (group) => {
       householdId: home.household.id,
       accountId: home.everyday.id,
       date: '2026-09-19',
-      amountCents: -17_885,
+      amountCents: -16_340,
       payee: 'FreshCo Market Northvale',
       paidByUserId: home.member.id,
     }).createMany(2)
@@ -202,7 +202,7 @@ test.group('Imports: staging', (group) => {
     assert.lengthOf(
       await Transaction.query()
         .where('account_id', home.everyday.id)
-        .where('amount_cents', -17_885),
+        .where('amount_cents', -16_340),
       2
     )
   })
@@ -214,7 +214,7 @@ test.group('Imports: staging', (group) => {
       accountId: home.savings.id,
       kind: 'income',
       date: '2026-07-31',
-      amountCents: 80_000,
+      amountCents: 75_000,
       payee: null,
     }).create()
 
@@ -235,8 +235,8 @@ test.group('Imports: staging', (group) => {
     assert.sameDeepMembers(
       legs.map((leg) => [leg.accountId, leg.amountCents]),
       [
-        [home.everyday.id, -80_000],
-        [home.savings.id, 80_000],
+        [home.everyday.id, -75_000],
+        [home.savings.id, 75_000],
       ]
     )
     assert.equal(
@@ -299,7 +299,7 @@ test.group('Imports: staging', (group) => {
     confirm.assertStatus(200)
     const incoming = await Transaction.query()
       .where('account_id', home.everyday.id)
-      .where('amount_cents', 450_000)
+      .where('amount_cents', 435_000)
       .firstOrFail()
     assert.equal(incoming.kind, 'transfer')
     assert.equal(incoming.source, 'import')
@@ -309,7 +309,7 @@ test.group('Imports: staging', (group) => {
       .firstOrFail()
     assert.include(hnryLeg.serialize(), {
       accountId: home.hnry.id,
-      amountCents: -450_000,
+      amountCents: -435_000,
       date: '2026-07-31',
       kind: 'transfer',
     })

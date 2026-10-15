@@ -43,7 +43,7 @@ async function seededLedger() {
     {
       ...base,
       date: '2026-10-01',
-      amountCents: -57_500,
+      amountCents: -48_000,
       categoryId: rent.id,
       paidByUserId: null,
       status: 'pending',
@@ -102,12 +102,12 @@ test.group('Reports', () => {
       month: '2026-10',
       from: '2026-10-01',
       to: '2026-10-31',
-      // 80 - 20 + 100 + 575 + 15
-      expenseCents: 75_000,
+      // 80 - 20 + 100 + 480 + 15
+      expenseCents: 65_500,
       incomeCents: 300_000,
-      netCents: 225_000,
+      netCents: 234_500,
       uncategorizedCents: 1_500,
-      pendingCents: 57_500,
+      pendingCents: 48_000,
       transactionCount: 6,
     })
     const groceries = summary.byCategory.find(
@@ -154,8 +154,8 @@ test.group('Reports', () => {
         bucket: 'joint',
         userId: null,
         incomeCents: 0,
-        expenseCents: 57_500,
-        netCents: -57_500,
+        expenseCents: 48_000,
+        netCents: -48_000,
       },
     ])
 
@@ -187,7 +187,7 @@ test.group('Reports', () => {
 
     const response = await client.get('/api/v1/reports/month').actingAs(owner)
 
-    response.assertBodyContains({ data: { month: '2026-10', expenseCents: 75_000 } })
+    response.assertBodyContains({ data: { month: '2026-10', expenseCents: 65_500 } })
   })
 
   test('test_trend_report_has_one_point_per_month', async ({ client, assert, cleanup }) => {
@@ -204,7 +204,7 @@ test.group('Reports', () => {
     assert.equal(trend.groupBy, 'category')
     assert.deepEqual(
       trend.totals.map((point: any) => point.expenseCents),
-      [0, 9_999, 75_000]
+      [0, 9_999, 65_500]
     )
     const groceries = trend.series.find((series: any) => series.id === categories.groceries.id)
     assert.deepEqual(
@@ -251,17 +251,17 @@ test.group('Reports', () => {
     assert.include(everyday, {
       accountId: accounts[0].id,
       clearedBalanceCents: 272_501,
-      availableBalanceCents: 215_001,
+      availableBalanceCents: 224_501,
     })
     assert.include(savings, { clearedBalanceCents: 50_000, availableBalanceCents: 50_000 })
     assert.deepEqual(response.body().data.totals, {
-      AUD: { clearedBalanceCents: 322_501, availableBalanceCents: 265_001 },
+      AUD: { clearedBalanceCents: 322_501, availableBalanceCents: 274_501 },
     })
 
     const list = await client.get('/api/v1/accounts').actingAs(owner)
     assert.include(list.body().data[0], {
       clearedBalanceCents: 272_501,
-      availableBalanceCents: 215_001,
+      availableBalanceCents: 224_501,
     })
   })
 

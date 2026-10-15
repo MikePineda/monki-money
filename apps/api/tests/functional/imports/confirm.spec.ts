@@ -67,7 +67,7 @@ test.group('Imports: confirm', (group) => {
       categoryId: personalCare.id,
       payee: 'Barber',
       kind: 'expense',
-      amountCents: -410,
+      amountCents: -630,
       source: 'import',
       status: 'cleared',
       bankDate: '2026-09-04',
@@ -168,8 +168,8 @@ test.group('Imports: confirm', (group) => {
 
     confirm.assertStatus(200)
     assert.deepInclude(confirm.body().data.reconciliation, {
-      expectedBalanceCents: 723_731,
-      computedBalanceCents: 723_731,
+      expectedBalanceCents: 764_275,
+      computedBalanceCents: 764_275,
       differenceCents: 0,
       balanced: true,
       missingBefore: null,
@@ -193,8 +193,8 @@ test.group('Imports: confirm', (group) => {
 
     assert.deepInclude(reconciled.body().data.reconciliation, {
       expectedBalanceCents: 700_000,
-      computedBalanceCents: 722_731,
-      differenceCents: -22_731,
+      computedBalanceCents: 763_275,
+      differenceCents: -63_275,
       balanced: false,
       missingBefore: '2026-10-10',
     })
@@ -204,18 +204,18 @@ test.group('Imports: confirm', (group) => {
     const home = await nabHousehold()
     const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
     const batch = upload.body().data[0]
-    assert.equal(batch.reconciliation.openingBalanceCents, 150_000)
+    assert.equal(batch.reconciliation.openingBalanceCents, 138_000)
 
     await client.post(`/api/v1/imports/${batch.id}/confirm`).actingAs(home.owner)
 
     const everyday = await Account.findOrFail(home.everyday.id)
-    assert.equal(everyday.openingBalanceCents, 150_000)
+    assert.equal(everyday.openingBalanceCents, 138_000)
     assert.equal(everyday.openingBalanceDate, '2025-12-21', 'the day before the oldest movement')
     const balances = await client.get('/api/v1/reports/balances').actingAs(home.owner)
     const row = balances
       .body()
       .data.accounts.find((account: any) => account.accountId === home.everyday.id)
-    assert.equal(row.availableBalanceCents, 723_731)
+    assert.equal(row.availableBalanceCents, 764_275)
 
     // Later imports never touch it again.
     const later = nabCsv([
@@ -223,7 +223,7 @@ test.group('Imports: confirm', (group) => {
         date: '10 Oct 26',
         amount: '-10.00',
         details: 'V1111 09/10 CORNER BAKERY SAMPLEVILLE 70000000903',
-        balance: '7227.31',
+        balance: '7632.75',
         category: 'Restaurants & takeaway',
       }),
     ])
@@ -234,7 +234,7 @@ test.group('Imports: confirm', (group) => {
       .actingAs(home.owner)
     assert.isTrue(done.body().data.reconciliation.balanced)
     await everyday.refresh()
-    assert.equal(everyday.openingBalanceCents, 150_000)
+    assert.equal(everyday.openingBalanceCents, 138_000)
   })
 
   test('test_pending_row_is_upgraded_on_next_import', async ({ client, assert }) => {
@@ -332,7 +332,7 @@ test.group('Imports: confirm', (group) => {
         accountId: home.everyday.id,
         kind: 'expense',
         date: '2026-09-26',
-        amountCents: 600,
+        amountCents: 900,
         payee: 'Kmart',
       })
       .actingAs(home.owner)
@@ -464,14 +464,14 @@ test.group('Imports: confirm', (group) => {
         kind: amountCents < 0 ? 'expense' : 'income',
       }).create()
     const otherAmount = await entry(-999, '2026-08-01')
-    const deli = await entry(-3_254, '2026-08-01')
-    const alreadyLinked = await entry(-3_254, '2026-07-01')
-    const cash = await entry(10_000, '2025-12-01')
-    const cashToo = await entry(10_000, '2025-12-02')
+    const deli = await entry(-2_910, '2026-08-01')
+    const alreadyLinked = await entry(-2_910, '2026-07-01')
+    const cash = await entry(12_000, '2025-12-01')
+    const cashToo = await entry(12_000, '2025-12-02')
     const foreign = await TransactionFactory.merge({
       householdId: other.household.id,
       accountId: other.everyday.id,
-      amountCents: -3_254,
+      amountCents: -2_910,
     }).create()
     // `alreadyLinked` is the bank copy of an earlier export.
     const earlier = await ImportBatch.create({
@@ -490,7 +490,7 @@ test.group('Imports: confirm', (group) => {
       raw: {},
       bankDate: '2026-07-01',
       date: '2026-07-01',
-      amountCents: -3_254,
+      amountCents: -2_910,
       descriptionRaw: 'EARLIER',
       descriptionNormalized: 'EARLIER',
       resolution: 'new',
@@ -667,7 +667,7 @@ test.group('Imports: confirm', (group) => {
       .json({
         splits: [
           { categoryId: groceries.id, amountCents: 2_000 },
-          { categoryId: restaurants.id, amountCents: 1_254 },
+          { categoryId: restaurants.id, amountCents: 910 },
         ],
       })
       .actingAs(home.owner)
@@ -682,7 +682,7 @@ test.group('Imports: confirm', (group) => {
     assert.isTrue(created.isSplit)
     assert.sameMembers(
       created.splits.map((line) => line.amountCents),
-      [-2_000, -1_254]
+      [-2_000, -910]
     )
 
     const late = await client

@@ -25,7 +25,7 @@ function aRow(overrides: Partial<ReviewableRow> = {}): ReviewableRow {
     id: 1,
     date: '2026-09-27',
     bankDate: '2026-09-29',
-    amountCents: -2500,
+    amountCents: -2800,
     description: 'V1111 27/09 SAMPLE FEST SYDNEY',
     nabMerchant: null,
     isMasked: false,
@@ -66,7 +66,7 @@ const aMatch = (transactionId = 900) => ({
   upgradesPending: false,
   transaction: {
     date: '2026-09-27',
-    amountCents: -2500,
+    amountCents: -2800,
     payee: 'Sample Fest',
     source: 'manual',
     status: 'cleared',
@@ -415,8 +415,8 @@ describe('classification', () => {
 describe('reconciliation message', () => {
   const base = {
     asOf: '2026-09-27',
-    expectedBalanceCents: 723731,
-    computedBalanceCents: 723731,
+    expectedBalanceCents: 764275,
+    computedBalanceCents: 764275,
     differenceCents: 0,
     balanced: true,
     openingBalanceCents: null,
@@ -427,7 +427,7 @@ describe('reconciliation message', () => {
     expect(reconciliationMessage(base)).toEqual({
       status: 'balanced',
       asOf: '2026-09-27',
-      balanceCents: 723731,
+      balanceCents: 764275,
     })
   })
 
@@ -436,11 +436,11 @@ describe('reconciliation message', () => {
       reconciliationMessage({
         ...base,
         computedBalanceCents: 700000,
-        differenceCents: 23731,
+        differenceCents: 64275,
         balanced: false,
         missingBefore: '2025-12-22',
       })
-    ).toEqual({ status: 'missing', before: '2025-12-22', differenceCents: 23731 })
+    ).toEqual({ status: 'missing', before: '2025-12-22', differenceCents: 64275 })
   })
 
   it('test_a_difference_without_a_date_still_reports_the_gap', () => {

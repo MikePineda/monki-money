@@ -62,13 +62,13 @@ test.describe('journey 5: import a bank CSV', () => {
     await imports.confirm()
     await expect(imports.created).toHaveText('4')
     await expect(imports.reconciliation).toHaveAttribute('data-status', 'balanced')
-    await expect(imports.reconciliation).toContainText('Balanced with the bank: $1,832.15')
+    await expect(imports.reconciliation).toContainText('Balanced with the bank: $1,830.43')
 
     // The month the file ends in now holds the spending: report and hero agree.
-    await expect.poll(() => spentIn(context, MONTH)).toBe(13033)
+    await expect.poll(() => spentIn(context, MONTH)).toBe(13205)
     await imports.viewMonth()
     const month = new MonthPage(page)
     await month.waitReady()
-    await expect(month.hero).toHaveText('$130.33')
+    await expect(month.hero).toHaveText('$132.05')
   })
 })
