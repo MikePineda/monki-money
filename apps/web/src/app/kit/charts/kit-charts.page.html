@@ -1,0 +1,167 @@
+<div
+  data-testid="kit.charts"
+  class="mx-auto flex min-h-dvh w-full max-w-app flex-col bg-surface-0 pt-safe pb-24 text-ink-1"
+>
+  <header class="flex flex-col gap-2 border-b border-line bg-surface-0 px-4 pt-2 pb-3">
+    <div class="flex h-11 items-center justify-between gap-2">
+      <a appButton variant="link" icon="arrow-left" routerLink="/__kit" class="-ml-3">
+        {{ 'kit.charts.back' | transloco }}
+      </a>
+      <span class="text-caption text-ink-3">{{ 'kit.devOnly' | transloco }}</span>
+    </div>
+    <h1 class="text-title">{{ 'kit.charts.title' | transloco }}</h1>
+    <app-kit-preferences />
+    <div
+      role="group"
+      class="flex flex-wrap gap-2"
+      [attr.aria-label]="'kit.charts.state.label' | transloco"
+    >
+      @for (option of states; track option) {
+      <button appChip [selected]="state() === option" (click)="state.set(option)">
+        {{ 'kit.charts.state.' + option | transloco }}
+      </button>
+      }
+    </div>
+  </header>
+
+  <main class="flex flex-col gap-8 px-4 pt-6">
+    <!-- Spending by category: grouped bar list, Food expanded -->
+    <app-chart-frame
+      data-testid="kit.charts.spend"
+      skeletonHeight="320px"
+      [title]="'kit.charts.spend.title' | transloco"
+      [subtitle]="
+        'kit.charts.spend.subtitle' | transloco: { month: monthName(), count: spending().length }
+      "
+      [emptyText]="'kit.charts.spend.empty' | transloco: { month: monthName() }"
+      [state]="state()"
+      (retry)="state.set('ready')"
+    >
+      <app-bar-list
+        [data]="spending()"
+        [(expanded)]="expanded"
+        [nameHeader]="'kit.charts.spend.header' | transloco"
+      />
+    </app-chart-frame>
+
+    <!-- Six-month trend: one neutral series -->
+    <app-chart-frame
+      data-testid="kit.charts.trend"
+      skeletonHeight="180px"
+      [title]="'kit.charts.trend.title' | transloco"
+      [subtitle]="range()"
+      [state]="state()"
+      (retry)="state.set('ready')"
+    >
+      <app-trend-line [series]="trendSeries()" [data]="trendData" />
+    </app-chart-frame>
+
+    <!-- Who paid: 100% stacked by person -->
+    <app-chart-frame
+      data-testid="kit.charts.whoPaid"
+      skeletonHeight="140px"
+      [title]="'kit.charts.whoPaid.title' | transloco"
+      [subtitle]="monthName()"
+      [state]="state()"
+      (retry)="state.set('ready')"
+    >
+      <app-stacked-bar-100 [data]="whoPaid()" />
+    </app-chart-frame>
+
+    <!-- Spending by person: two person series with a legend -->
+    <app-chart-frame
+      data-testid="kit.charts.people"
+      skeletonHeight="210px"
+      [title]="'kit.charts.people.title' | transloco"
+      [subtitle]="range()"
+      [state]="state()"
+      (retry)="state.set('ready')"
+    >
+      <app-trend-line [series]="peopleSeries()" [data]="peopleData" />
+    </app-chart-frame>
+
+    <!-- Top merchants: flat bar list -->
+    <app-chart-frame
+      data-testid="kit.charts.merchants"
+      skeletonHeight="300px"
+      [title]="'kit.charts.merchants.title' | transloco"
+      [subtitle]="monthName()"
+      [state]="state()"
+      (retry)="state.set('ready')"
+    >
+      <app-bar-list [data]="merchants" [nameHeader]="'kit.charts.merchants.header' | transloco" />
+    </app-chart-frame>
+
+    <!-- Goal projection: the only dashed segment -->
+    <app-chart-frame
+      data-testid="kit.charts.goal"
+      skeletonHeight="230px"
+      [title]="'kit.charts.goal.title' | transloco"
+      [subtitle]="'kit.charts.goal.subtitle' | transloco"
+      [state]="state()"
+      (retry)="state.set('ready')"
+    >
+      <app-projection-chart
+        [history]="emergencyFund.history"
+        [projection]="emergencyFund.projection"
+        [thresholdCents]="emergencyFund.goalCents"
+      />
+    </app-chart-frame>
+
+    <!-- Stat tiles with sparklines -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.charts.sections.tiles' | transloco" />
+      <div class="grid grid-cols-3">
+        <app-stat-tile [label]="'kit.stats.income' | transloco" [valueCents]="latest.income">
+          <app-stat-tile-sparkline [values]="incomeTrend" />
+        </app-stat-tile>
+        <app-stat-tile [label]="'kit.stats.spending' | transloco" [valueCents]="latest.spent">
+          <app-stat-tile-sparkline [values]="spendingTrend" />
+        </app-stat-tile>
+        <app-stat-tile [label]="'kit.stats.saved' | transloco" [valueCents]="latest.saved">
+          <app-stat-tile-sparkline [values]="savedTrend" />
+        </app-stat-tile>
+      </div>
+    </section>
+
+    <!-- Frame states, fixed for screenshots -->
+    <section data-testid="kit.charts.states" class="flex flex-col gap-8">
+      <app-section-header
+        [title]="'kit.charts.sections.states' | transloco"
+        [subtitle]="'kit.charts.sections.statesHint' | transloco"
+      />
+      <app-chart-frame
+        [title]="'kit.charts.whoPaid.title' | transloco"
+        [subtitle]="monthName()"
+        [view]="'table'"
+      >
+        <app-stacked-bar-100 [data]="whoPaid()" />
+      </app-chart-frame>
+      <app-chart-frame
+        state="loading"
+        skeletonHeight="180px"
+        [title]="'kit.charts.trend.title' | transloco"
+        [subtitle]="range()"
+      >
+        <app-trend-line [series]="trendSeries()" [data]="trendData" />
+      </app-chart-frame>
+      <app-chart-frame
+        state="reloading"
+        [title]="'kit.charts.merchants.title' | transloco"
+        [subtitle]="monthName()"
+      >
+        <app-bar-list [data]="merchants" />
+      </app-chart-frame>
+      <app-chart-frame
+        state="empty"
+        [title]="'kit.charts.spend.title' | transloco"
+        [emptyText]="'kit.charts.spend.empty' | transloco: { month: monthName() }"
+      >
+        <app-bar-list [data]="[]" />
+      </app-chart-frame>
+      <app-chart-frame state="error" [title]="'kit.charts.people.title' | transloco">
+        <app-trend-line [series]="peopleSeries()" [data]="peopleData" />
+      </app-chart-frame>
+    </section>
+  </main>
+</div>

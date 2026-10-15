@@ -2,7 +2,16 @@ import { Component, computed, forwardRef, inject, input } from '@angular/core'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
 import { chartColorVar, seriesColor, type ChartColor } from '../../../domain/charts/colors'
 import { compactMoney, monthText } from '../../../domain/charts/format'
-import { layoutLine, placeEndLabel, xLabelIndices } from '../../../domain/charts/line'
+import {
+  END_LABEL_GAP,
+  LINE_MARGIN,
+  MARKER_OUTER_RADIUS,
+  MARKER_RADIUS,
+  endLabelRoom,
+  labelsCollide,
+  layoutLine,
+  xLabelIndices,
+} from '../../../domain/charts/line'
 import { formatMoney } from '../../../domain/money'
 import { APP_LOCALE } from '../../ui/app-locale.token'
 import { ChartLegendComponent, type LegendItem } from '../chart-legend/chart-legend.component'
@@ -25,9 +34,6 @@ export interface TrendDatum {
   /** One value per series id; a missing or null value is a gap. */
   series: readonly { id: string; valueCents: number | null }[]
 }
-
-/** End labels closer than this would collide; the legend and tooltip carry them. */
-const END_LABEL_GAP = 16
 
 let nextTrendId = 0
 
@@ -110,14 +116,14 @@ const TABLE_KEYS = ['table.month', 'table.total']
                 class="marker"
                 [attr.cx]="point.x"
                 [attr.cy]="point.y"
-                [attr.r]="point.index === crosshair.active() ? 5 : 4"
+                [attr.r]="point.index === crosshair.active() ? markerRadius + 1 : markerRadius"
                 [style.fill]="line.color"
               />
             }
           </g>
         }
         @for (label of endLabels(); track label.id) {
-          <text class="value-label" text-anchor="end" [attr.x]="label.x" [attr.y]="label.y">
+          <text class="value-label" [attr.x]="label.x" [attr.y]="label.y">
             {{ label.text }}
           </text>
         }
@@ -154,6 +160,7 @@ export class TrendLineComponent implements ChartTableSource {
 
   protected readonly width = injectHostWidth()
   protected readonly summaryId = `trend-summary-${nextTrendId++}`
+  protected readonly markerRadius = MARKER_RADIUS
 
   private readonly colors = computed<ChartColor[]>(() => {
     const series = this.series()
@@ -171,12 +178,49 @@ export class TrendLineComponent implements ChartTableSource {
     )
   )
 
-  protected readonly layout = computed(() =>
-    layoutLine(
-      this.series().map((entry, index) => ({ id: entry.id, values: this.values()[index] ?? [] })),
-      { width: this.width(), height: this.height() }
-    )
+  private readonly lineInputs = computed(() =>
+    this.series().map((entry, index) => ({ id: entry.id, values: this.values()[index] ?? [] }))
   )
+
+  /** The layout without end labels; heights do not depend on the right margin. */
+  private readonly baseLayout = computed(() =>
+    layoutLine(this.lineInputs(), { width: this.width(), height: this.height() })
+  )
+
+  /**
+   * Each line's latest value in whole dollars, or none when two would sit
+   * closer than 16px (then the legend and the tooltip carry them).
+   */
+  private readonly endTexts = computed(() => {
+    if (!this.showEndLabels()) {
+      return []
+    }
+    const ends = this.baseLayout().series.flatMap((line) => {
+      const last = line.points.at(-1)
+      return last ? [{ id: line.id, y: last.y, value: last.value }] : []
+    })
+    if (labelsCollide(ends.map((end) => end.y))) {
+      return []
+    }
+    return ends.map((end) => ({
+      ...end,
+      text: formatMoney(end.value, this.locale(), { wholeDollars: true }),
+    }))
+  })
+
+  /** End labels get their own room on the right, so they never sit on a line. */
+  protected readonly layout = computed(() => {
+    const texts = this.endTexts().map((end) => end.text)
+    if (texts.length === 0) {
+      return this.baseLayout()
+    }
+    const right = Math.max(LINE_MARGIN.right, endLabelRoom(texts))
+    return layoutLine(this.lineInputs(), {
+      width: this.width(),
+      height: this.height(),
+      margin: { right },
+    })
+  })
 
   protected readonly crosshair = new Crosshair(() => this.layout().xs)
 
@@ -210,24 +254,21 @@ export class TrendLineComponent implements ChartTableSource {
   )
 
   protected readonly endLabels = computed(() => {
-    if (!this.showEndLabels()) {
-      return []
-    }
-    const ends = this.layout().series.flatMap((line) => {
-      const last = line.points.at(-1)
-      return last ? [{ id: line.id, last }] : []
+    const series = this.layout().series
+    return this.endTexts().flatMap((end) => {
+      const last = series.find((line) => line.id === end.id)?.points.at(-1)
+      // Beside the marker, vertically centred on it (13px text).
+      return last
+        ? [
+            {
+              id: end.id,
+              x: last.x + MARKER_OUTER_RADIUS + END_LABEL_GAP,
+              y: last.y + 4,
+              text: end.text,
+            },
+          ]
+        : []
     })
-    const ys = ends.map((end) => end.last.y).sort((a, b) => a - b)
-    const collide = ys.some((y, index) => index > 0 && y - (ys[index - 1] ?? y) < END_LABEL_GAP)
-    if (collide) {
-      return []
-    }
-    return ends.map(({ id, last }) => ({
-      id,
-      x: last.x + 4,
-      y: placeEndLabel(last.y).y,
-      text: formatMoney(last.value, this.locale(), { wholeDollars: true }),
-    }))
   })
 
   protected readonly crosshairX = computed(() => {

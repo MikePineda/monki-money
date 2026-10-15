@@ -2,7 +2,7 @@ import { Component, computed, forwardRef, inject, input } from '@angular/core'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
 import { chartColorVar } from '../../../domain/charts/colors'
 import { compactMoney, monthText } from '../../../domain/charts/format'
-import { xLabelIndices } from '../../../domain/charts/line'
+import { MARKER_RADIUS, xLabelIndices } from '../../../domain/charts/line'
 import { layoutProjection, type MonthValue } from '../../../domain/charts/projection'
 import { formatMoney } from '../../../domain/money'
 import { APP_LOCALE } from '../../ui/app-locale.token'
@@ -14,6 +14,9 @@ import { Crosshair } from '../crosshair'
 import { injectHostWidth } from '../host-width'
 
 type NoteKey = 'reaches' | 'reached' | 'beyond' | 'notReached'
+
+/** Vertical room the goal label needs from a tick label (12px text plus air). */
+const GOAL_LABEL_CLEARANCE = 16
 
 let nextProjectionId = 0
 
@@ -81,7 +84,9 @@ const KEYS = [
             [attr.y1]="tick.y"
             [attr.y2]="tick.y"
           />
-          <text class="tick-label" x="0" [attr.y]="tick.y - 4">{{ tick.text }}</text>
+          @if (tick.text) {
+            <text class="tick-label" x="0" [attr.y]="tick.y - 4">{{ tick.text }}</text>
+          }
         }
         @for (label of xLabels(); track label.index) {
           <text class="x-label" text-anchor="middle" [attr.x]="label.x" [attr.y]="height() - 8">
@@ -91,16 +96,12 @@ const KEYS = [
         @if (layout().threshold; as threshold) {
           <line
             class="threshold"
-            [attr.x1]="layout().line.plot.left"
+            x1="0"
             [attr.x2]="width()"
             [attr.y1]="threshold.y"
             [attr.y2]="threshold.y"
           />
-          <text
-            class="threshold-label"
-            [attr.x]="layout().line.plot.left"
-            [attr.y]="threshold.y - 4"
-          >
+          <text class="threshold-label" x="0" [attr.y]="threshold.y - 4">
             {{ 'charts.projection.goal' | transloco: { amount: goalAmount() } }}
           </text>
         }
@@ -134,7 +135,7 @@ const KEYS = [
               class="marker"
               [attr.cx]="point.x"
               [attr.cy]="point.y"
-              [attr.r]="point.index === crosshair.active() ? 5 : 4"
+              [attr.r]="point.index === crosshair.active() ? markerRadius + 1 : markerRadius"
               [style.fill]="color"
             />
           }
@@ -143,7 +144,7 @@ const KEYS = [
           <circle
             data-crossing
             class="marker"
-            r="5"
+            [attr.r]="markerRadius + 1"
             [attr.cx]="crossing.x"
             [attr.cy]="crossing.y"
             [style.fill]="color"
@@ -192,6 +193,7 @@ export class ProjectionChartComponent implements ChartTableSource {
 
   protected readonly width = injectHostWidth()
   protected readonly summaryId = `projection-summary-${nextProjectionId++}`
+  protected readonly markerRadius = MARKER_RADIUS
   /** One entity, so one neutral mark; the dash alone says "estimate". */
   protected readonly color = chartColorVar('neutral')
 
@@ -211,12 +213,20 @@ export class ProjectionChartComponent implements ChartTableSource {
   private readonly labels = translateSignal(KEYS)
   private readonly estimateTemplate = translateSignal(ESTIMATE_KEY, { value: '{value}' })
 
-  protected readonly ticks = computed(() =>
-    this.layout().line.ticks.map((tick) => ({
+  /**
+   * Tick labels near the goal line give way to the goal label, which sits in
+   * the same left column and states the exact amount.
+   */
+  protected readonly ticks = computed(() => {
+    const threshold = this.layout().threshold
+    return this.layout().line.ticks.map((tick) => ({
       ...tick,
-      text: compactMoney(tick.value, this.locale()),
+      text:
+        threshold && Math.abs(tick.y - threshold.y) < GOAL_LABEL_CLEARANCE
+          ? ''
+          : compactMoney(tick.value, this.locale()),
     }))
-  )
+  })
 
   protected readonly xLabels = computed(() => {
     const { line, months } = this.layout()

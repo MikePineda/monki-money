@@ -91,6 +91,25 @@ describe('TrendLineComponent', () => {
     expect(await chart.getEndLabels()).toEqual(['$3,285'])
   })
 
+  it('test_the_end_label_gets_its_own_room_right_of_the_last_marker', async () => {
+    const { chart, root } = await setup()
+    const xs = await chart.getMarkerXs('spend')
+    const label = root.querySelector('text.value-label')
+    const last = xs.at(-1) ?? 0
+
+    expect(Number(label?.getAttribute('x'))).toBeGreaterThan(last + 5)
+    expect(last).toBeLessThanOrEqual(320 - 6 * 7.5)
+  })
+
+  it('test_end_labels_that_would_collide_are_left_to_the_legend_and_tooltip', async () => {
+    const close = MONTHS.map(
+      datum({ you: [1, 2, 3, 4, 5, 150_000], partner: [1, 2, 3, 4, 5, 149_000] })
+    )
+    const { chart } = await setup(PEOPLE, close)
+
+    expect(await chart.getEndLabels()).toEqual([])
+  })
+
   it('test_the_crosshair_snaps_to_the_nearest_month_and_the_tooltip_lists_every_series', async () => {
     const { chart } = await setup(PEOPLE, PEOPLE_DATA)
     const xs = await chart.getMarkerXs('you')

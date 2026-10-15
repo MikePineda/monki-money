@@ -1,4 +1,12 @@
-import { LINE_MARGIN, layoutLine, nearestIndex, placeEndLabel, xLabelIndices } from './line'
+import {
+  LINE_MARGIN,
+  MARKER_OUTER_RADIUS,
+  endLabelRoom,
+  labelsCollide,
+  layoutLine,
+  nearestIndex,
+  xLabelIndices,
+} from './line'
 
 const SIX_MONTHS = [312_040, 298_550, 351_260, 287_400, 357_120, 328_450]
 
@@ -142,12 +150,23 @@ describe('xLabelIndices', () => {
   })
 })
 
-describe('placeEndLabel', () => {
-  it('test_the_end_label_sits_above_its_marker', () => {
-    expect(placeEndLabel(80)).toEqual({ y: 68, side: 'above' })
+describe('endLabelRoom', () => {
+  it('test_reserves_the_widest_label_plus_the_marker_and_a_gap', () => {
+    expect(endLabelRoom(['$3,285', '$980'])).toBe(Math.ceil(6 * 7.5) + MARKER_OUTER_RADIUS + 4)
   })
 
-  it('test_the_end_label_drops_below_a_marker_at_the_top_edge', () => {
-    expect(placeEndLabel(14)).toEqual({ y: 36, side: 'below' })
+  it('test_no_labels_need_no_room', () => {
+    expect(endLabelRoom([])).toBe(0)
+  })
+})
+
+describe('labelsCollide', () => {
+  it('test_labels_closer_than_16px_collide_in_any_order', () => {
+    expect(labelsCollide([80, 40, 95])).toBe(true)
+  })
+
+  it('test_separated_labels_do_not_collide', () => {
+    expect(labelsCollide([40, 80, 56])).toBe(false)
+    expect(labelsCollide([40])).toBe(false)
   })
 })

@@ -87,6 +87,12 @@ describe('ProjectionChartComponent', () => {
     expect(root.querySelector('circle[data-crossing]')).not.toBeNull()
   })
 
+  it('test_the_goal_label_replaces_a_tick_label_at_the_same_height', async () => {
+    const { chart } = await setup()
+
+    expect(await chart.getTickLabels()).toEqual(['$0', '$5k', '$15k'])
+  })
+
   it('test_the_footnote_says_when_the_goal_is_reached_as_an_estimate', async () => {
     const { root } = await setup()
 

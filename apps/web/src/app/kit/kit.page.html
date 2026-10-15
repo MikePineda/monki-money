@@ -9,6 +9,15 @@
       <h1 class="text-title">{{ 'kit.title' | transloco }}</h1>
       <span class="text-caption text-ink-3">{{ 'kit.devOnly' | transloco }}</span>
     </div>
+    <a
+      appButton
+      variant="link"
+      icon="chart-bar"
+      routerLink="/__kit/charts"
+      class="-ml-3 self-start"
+    >
+      {{ 'kit.charts.open' | transloco }}
+    </a>
     <app-segmented-control
       [label]="'kit.theme.label' | transloco"
       [options]="themeOptions()"

@@ -1,6 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core'
 import { TranslocoPipe } from '@jsverse/transloco'
 import { chartColorVar } from '../../../domain/charts/colors'
+import { MARKER_RADIUS } from '../../../domain/charts/line'
 import { layoutSparkline } from '../../../domain/charts/sparkline'
 import { formatMoney } from '../../../domain/money'
 import { APP_LOCALE } from '../../ui/app-locale.token'
@@ -35,7 +36,7 @@ let nextSparklineId = 0
         <circle
           data-current
           class="marker"
-          r="4"
+          [attr.r]="markerRadius"
           [attr.cx]="last.x"
           [attr.cy]="last.y"
           [style.fill]="dotColor"
@@ -58,6 +59,7 @@ export class StatTileSparklineComponent {
 
   protected readonly width = injectHostWidth(96)
   protected readonly summaryId = `sparkline-summary-${nextSparklineId++}`
+  protected readonly markerRadius = MARKER_RADIUS
   protected readonly lineColor = chartColorVar('muted')
   protected readonly dotColor = chartColorVar('neutral')
 

@@ -3,11 +3,11 @@
  * min and max (it shows shape, not magnitude; the tile states the value),
  * with the current period as the last known value. Pure.
  */
-import { linePath } from './line'
+import { MARKER_OUTER_RADIUS, linePath } from './line'
 import { linearScale } from './scales'
 
-/** Keeps the end marker (r 4, an 8px dot, plus its 2px surface ring) inside the box. */
-export const SPARKLINE_INSET = 6
+/** Keeps the end marker (an 8px dot plus its 2px surface ring) inside the box. */
+export const SPARKLINE_INSET = MARKER_OUTER_RADIUS
 
 export interface SparklinePoint {
   index: number

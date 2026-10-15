@@ -49,7 +49,8 @@ describe('StatTileSparklineComponent', () => {
     expect(line?.style.stroke).toBe('var(--mark-muted)')
     expect(line?.getAttribute('class')).toContain('series-line')
     expect(dot?.style.fill).toBe('var(--mark-neutral)')
-    expect(dot?.getAttribute('r')).toBe('4')
+    // r 5 with a 2px ring stroke leaves an 8px fill.
+    expect(dot?.getAttribute('r')).toBe('5')
     expect(dot?.getAttribute('class')).toContain('marker')
   })
 

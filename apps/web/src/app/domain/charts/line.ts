@@ -205,15 +205,38 @@ export function xLabelIndices(count: number, plotWidth: number, minSpacing = 36)
   return indices
 }
 
-export interface EndLabelPlacement {
-  /** Text baseline. */
-  y: number
-  side: 'above' | 'below'
+/**
+ * Marker geometry (dataviz, Marks): an 8px fill (r 4) inside a 2px ring in
+ * the surface colour, drawn as r 5 with a 2px stroke, so the ring sits
+ * outside the fill and the whole mark reaches 6px from its centre.
+ */
+export const MARKER_RADIUS = 5
+export const MARKER_OUTER_RADIUS = 6
+
+/** Approximate advance of a 13px tabular figure, to reserve room for end labels. */
+const END_LABEL_CHAR_WIDTH = 7.5
+/** Space between a marker's ring and its end label. */
+export const END_LABEL_GAP = 4
+
+/**
+ * Right margin that fits the widest end-of-line label beside its marker
+ * (dataviz: lines carry their value at the end), so the label never sits on
+ * the line it names. Zero when there is nothing to label.
+ */
+export function endLabelRoom(labels: readonly string[]): number {
+  if (labels.length === 0) {
+    return 0
+  }
+  const widest = Math.max(...labels.map((label) => label.length))
+  return Math.ceil(widest * END_LABEL_CHAR_WIDTH) + MARKER_OUTER_RADIUS + END_LABEL_GAP
 }
 
-/** The end-of-line value label sits above its marker, or below it at the top edge. */
-export function placeEndLabel(markerY: number): EndLabelPlacement {
-  return markerY - 12 >= 12
-    ? { y: markerY - 12, side: 'above' }
-    : { y: markerY + 22, side: 'below' }
+/**
+ * Whether any two end labels would sit closer than `minGap` px. Colliding
+ * labels are dropped, never nudged apart: the legend and the tooltip carry
+ * the values instead (dataviz, Labels).
+ */
+export function labelsCollide(ys: readonly number[], minGap = 16): boolean {
+  const sorted = [...ys].sort((a, b) => a - b)
+  return sorted.some((y, index) => index > 0 && y - (sorted[index - 1] ?? y) < minGap)
 }

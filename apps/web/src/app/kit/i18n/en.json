@@ -144,5 +144,54 @@
     "transactions": "Transactions",
     "more": "More",
     "add": "Add transaction"
+  },
+  "charts": {
+    "title": "Charts",
+    "open": "Charts gallery",
+    "back": "UI kit",
+    "state": {
+      "label": "Chart state",
+      "ready": "Ready",
+      "loading": "Loading",
+      "reloading": "Reloading",
+      "empty": "Empty",
+      "error": "Error"
+    },
+    "sections": {
+      "states": "Frame states",
+      "statesHint": "Table view, first load, refetch, empty and error.",
+      "tiles": "Stat tiles with trends"
+    },
+    "spend": {
+      "title": "Spending by category",
+      "subtitle": "{month} · {count, plural, one {# category} other {# categories}}",
+      "empty": "No spending in {month} yet.",
+      "header": "Category"
+    },
+    "merchants": {
+      "title": "Top merchants",
+      "header": "Merchant"
+    },
+    "trend": {
+      "title": "Trend · 6 months",
+      "series": "Spending"
+    },
+    "people": {
+      "title": "Spending by person"
+    },
+    "whoPaid": {
+      "title": "Who paid"
+    },
+    "goal": {
+      "title": "Emergency fund",
+      "subtitle": "Estimated from your last 3 months of saving"
+    },
+    "cat": {
+      "housing": "Housing",
+      "food": "Food",
+      "leisure": "Leisure",
+      "publicTransport": "Public transport",
+      "fuel": "Fuel"
+    }
   }
 }
