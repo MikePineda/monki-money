@@ -130,7 +130,7 @@ export default defineConfig({
       }),
       indexPolicies(),
       generateRegistry({
-        routes: { except: ['spa.fallback', 'e2e.reset'] },
+        routes: { except: ['spa.fallback', 'e2e.reset', 'e2e.outbox'] },
       }),
     ],
   },

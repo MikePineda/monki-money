@@ -8,9 +8,9 @@
 | `npm run codegen` and commit `apps/api/.adonisjs`.
 |
 | Middleware chains:
-| - authenticated: auth -> sessionVersion (revocation)
+| - authenticated: auth -> sessionVersion (revocation) -> per-user throttle
 | - household:     authenticated -> verified email -> household context
-|                  (ctx.household / ctx.membership) -> per-user throttle
+|                  (ctx.household / ctx.membership)
 |
 | Routes with `:id` must load rows through `findInHousehold` (404 across
 | households); tests/functional/tenant_isolation.spec.ts fails when a new
@@ -18,23 +18,17 @@
 |
 */
 
-import app from '@adonisjs/core/services/app'
-import env from '#start/env'
 import router from '@adonisjs/core/services/router'
 import { apiThrottle } from '#start/limiter'
 import { middleware } from '#start/kernel'
 import { controllers } from '#generated/controllers'
-import { registerE2eRoutes, shouldRegisterE2eRoutes } from '#start/routes/e2e'
+import { registerE2eRoutes } from '#start/routes/e2e'
+import { testSupportEnabled } from '#services/e2e/test_support'
 
 const id = router.matchers.number()
 
-const authenticated = () => [middleware.auth(), middleware.sessionVersion()]
-const inHousehold = () => [
-  ...authenticated(),
-  middleware.verified(),
-  middleware.household(),
-  apiThrottle,
-]
+const authenticated = () => [middleware.auth(), middleware.sessionVersion(), apiThrottle]
+const inHousehold = () => [...authenticated(), middleware.verified(), middleware.household()]
 
 router
   .group(() => {
@@ -127,6 +121,10 @@ router
                   .delete('invitations/:id', [controllers.HouseholdInvitations, 'destroy'])
                   .where('id', id)
                   .as('invitations.destroy')
+                router
+                  .post('invitations/:id/resend', [controllers.HouseholdInvitations, 'resend'])
+                  .where('id', id)
+                  .as('invitations.resend')
               })
               .prefix('household')
               .as('household')
@@ -193,10 +191,10 @@ router
   .prefix('/api')
 
 /**
- * Test-only routes (`POST /api/test/reset`), registered only under
- * NODE_ENV=test or E2E_MODE. Never in production.
+ * Test-only routes (`/api/test/reset`, `/api/test/outbox`), registered only
+ * under NODE_ENV=test or E2E_MODE. Never in production.
  */
-if (shouldRegisterE2eRoutes({ inTest: app.inTest, e2eMode: env.get('E2E_MODE') })) {
+if (testSupportEnabled()) {
   registerE2eRoutes(router)
 }
 

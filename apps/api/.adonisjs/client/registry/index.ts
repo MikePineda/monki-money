@@ -150,6 +150,12 @@ const routes = {
     tokens: [{"old":"/api/v1/household/invitations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/household/invitations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/household/invitations/:id","type":0,"val":"household","end":""},{"old":"/api/v1/household/invitations/:id","type":0,"val":"invitations","end":""},{"old":"/api/v1/household/invitations/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['household.invitations.destroy']['types'],
   },
+  'household.invitations.resend': {
+    methods: ["POST"],
+    pattern: '/api/v1/household/invitations/:id/resend',
+    tokens: [{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"api","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"v1","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"household","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"invitations","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":1,"val":"id","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"resend","end":""}],
+    types: placeholder as Registry['household.invitations.resend']['types'],
+  },
   'accounts.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/accounts',

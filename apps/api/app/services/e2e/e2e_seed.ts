@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
+import { capturedOutbox } from '#services/e2e/captured_outbox'
 import ProductionBootstrap from '#services/bootstrap/production_bootstrap'
 
 /** Synthetic credentials of the E2E household (test databases only). */
@@ -21,6 +22,7 @@ export default class E2eSeed {
   async reset() {
     await this.truncate()
     await limiter.clear()
+    capturedOutbox.clear()
     return this.seed()
   }
 

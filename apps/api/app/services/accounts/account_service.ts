@@ -3,7 +3,8 @@ import Account from '#models/account'
 import { inject } from '@adonisjs/core'
 import AccountCard from '#models/account_card'
 import type Household from '#models/household'
-import { AccountInUse } from '#exceptions/errors'
+import { entitlementsFor } from '#config/plans'
+import { AccountInUse, AccountLimitReached } from '#exceptions/errors'
 import { FieldError } from '#exceptions/field_error'
 import { findInHousehold } from '#repositories/scoped'
 import AccountUsage from '#services/accounts/account_usage'
@@ -41,6 +42,7 @@ export default class AccountService {
 
   async create(household: Household, creator: User, input: CreateAccountInput) {
     await this.assertValid(household, input)
+    await this.assertRoomForAnotherAccount(household)
 
     const account = await Account.create({
       householdId: household.id,
@@ -105,6 +107,17 @@ export default class AccountService {
       .where('id', cardId)
       .firstOrFail()
     await card.delete()
+  }
+
+  /** Plan limit (`config/plans.ts`): 402 when the household has no room left. */
+  protected async assertRoomForAnotherAccount(household: Household) {
+    const accounts = await Account.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .count('* as total')
+      .firstOrFail()
+    if (Number(accounts.$extras['total']) >= entitlementsFor(household.plan).maxAccounts) {
+      throw new AccountLimitReached()
+    }
   }
 
   protected async assertValid(household: Household, input: UpdateAccountInput, accountId?: number) {

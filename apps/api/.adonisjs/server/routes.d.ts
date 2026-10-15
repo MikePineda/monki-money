@@ -28,6 +28,7 @@ export type ScannedRoutes = {
     'household.invitations.index': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
     'household.invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'household.invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'accounts.index': { paramsTuple?: []; params?: {} }
     'accounts.store': { paramsTuple?: []; params?: {} }
     'accounts.reorder': { paramsTuple?: []; params?: {} }
@@ -93,6 +94,7 @@ export type ScannedRoutes = {
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
+    'household.invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'accounts.store': { paramsTuple?: []; params?: {} }
     'accounts.cards.store': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'category_groups.store': { paramsTuple?: []; params?: {} }

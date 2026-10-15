@@ -295,6 +295,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_invitations_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'household.invitations.resend': {
+    methods: ["POST"]
+    pattern: '/api/v1/household/invitations/:id/resend'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/household').invitationParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/household').invitationParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_invitations_controller').default['resend']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_invitations_controller').default['resend']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'accounts.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/accounts'
