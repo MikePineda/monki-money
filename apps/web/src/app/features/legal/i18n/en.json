@@ -1,0 +1,12 @@
+{
+  "back": "Back",
+  "placeholder": "Placeholder text. The final version will be published before sign-up opens to the public.",
+  "terms": {
+    "title": "Terms of use",
+    "body": "monkimoney is a private tool for one household to record and understand shared spending. You are responsible for the data you enter and for keeping your password safe. The service is provided as is while it is in development."
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "body": "monkimoney stores your name, email, household and the financial records you enter, only to run the app for your household. Nothing is sold or shared with advertisers. You can export your data or delete your household from Settings at any time."
+  }
+}

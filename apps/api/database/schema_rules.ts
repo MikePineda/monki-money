@@ -67,5 +67,11 @@ export default {
         },
       },
     },
+    llm_usage: {
+      columns: {
+        purpose: shared('LlmPurpose'),
+        status: shared('LlmUsageStatus'),
+      },
+    },
   },
 } satisfies SchemaRules

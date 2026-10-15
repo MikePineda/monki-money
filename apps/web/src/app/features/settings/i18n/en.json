@@ -1,0 +1,134 @@
+{
+  "title": "Settings",
+  "back": "Back",
+  "save": "Save",
+  "logout": "Log out",
+  "errors": {
+    "invalid": "{message}"
+  },
+  "profile": {
+    "editName": "Edit your name",
+    "language": "Language",
+    "password": "Password",
+    "languages": {
+      "en": "English",
+      "es": "Español"
+    },
+    "nameSheet": {
+      "title": "Your name",
+      "label": "Name"
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "household": {
+    "timezone": "Time zone",
+    "you": "you",
+    "roles": {
+      "owner": "Owner",
+      "member": "Member"
+    },
+    "nameSheet": {
+      "title": "Household name",
+      "label": "Name"
+    },
+    "invite": {
+      "action": "Invite partner",
+      "sheetTitle": "Invite your partner",
+      "email": "Their email",
+      "send": "Send invitation",
+      "sent": "Invitation sent to {email}.",
+      "pending": "Pending invitations",
+      "expires": "Expires {date}",
+      "resend": "Send the link again",
+      "revoke": "Cancel invitation",
+      "full": "Your household already has all its members."
+    }
+  },
+  "accounts": {
+    "title": "Accounts",
+    "add": "Add account",
+    "archive": "Archive account",
+    "restore": "Restore account",
+    "archived": "Archived",
+    "atLimit": "Your plan’s account limit is reached. Archive one to add another.",
+    "limit": "Your plan allows {max} accounts.",
+    "empty": {
+      "title": "No accounts yet.",
+      "body": "Add the accounts you and your partner use."
+    },
+    "kinds": {
+      "transaction": "Everyday",
+      "savings": "Savings",
+      "wallet": "Wallet",
+      "cash": "Cash",
+      "other": "Other"
+    },
+    "owners": {
+      "you": "You",
+      "joint": "Joint"
+    },
+    "sheet": {
+      "name": "Name",
+      "institution": "Bank or provider",
+      "optional": "Optional.",
+      "kind": "Kind",
+      "owner": "Owner"
+    },
+    "cards": {
+      "sheetTitle": "Add a card",
+      "suffix": "Last digits on the card",
+      "suffixHint": "2 to 8 letters or numbers, as printed on the card.",
+      "holder": "Who carries it",
+      "add": "Add card",
+      "remove": "Remove card"
+    }
+  },
+  "upgrade": {
+    "row": "Plans",
+    "title": "Plans",
+    "placeholderTitle": "Plans are on the way.",
+    "placeholderBody": "Your household keeps every feature it has today."
+  },
+  "app": {
+    "install": "Install app",
+    "installed": "Installed",
+    "iosHint": "In Safari, tap Share, then Add to Home Screen.",
+    "version": "Version",
+    "checkUpdate": "Check for updates",
+    "upToDate": "You have the latest version.",
+    "updateFailed": "Could not check for updates. Try again later.",
+    "updateUnsupported": "Updates are checked in the installed app."
+  },
+  "legal": {
+    "terms": "Terms of use",
+    "privacy": "Privacy policy"
+  },
+  "danger": {
+    "title": "Danger zone",
+    "body": "Export a copy of your household, or schedule it for deletion. A deleted household can be restored for 30 days.",
+    "export": "Export data (JSON)",
+    "delete": "Delete household",
+    "sheet": {
+      "title": "Delete household",
+      "body": "{name} and everything in it will be deleted after 30 days. Until then you can restore it.",
+      "typeName": "Type “{name}” to confirm",
+      "password": "Your password",
+      "confirm": "Delete household",
+      "wrongPassword": "That password is not correct."
+    }
+  },
+  "password": {
+    "title": "Change password",
+    "body": "Your other devices will be logged out. This one stays logged in.",
+    "current": "Current password",
+    "new": "New password",
+    "hint": "At least 10 characters.",
+    "submit": "Change password",
+    "changed": "Password changed. Other devices were logged out."
+  }
+}

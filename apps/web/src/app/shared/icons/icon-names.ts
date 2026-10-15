@@ -53,6 +53,15 @@ export const ICON_NAMES = [
   'user',
   'users',
   'log-out',
+  // Account, household and settings
+  'send',
+  'user-plus',
+  'pencil',
+  'archive',
+  'credit-card',
+  'landmark',
+  'lock',
+  'file-text',
   // Category glyphs used by demos and the first features
   'house',
   'shopping-cart',

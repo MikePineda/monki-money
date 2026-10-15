@@ -32,6 +32,14 @@ export type AccountKind = (typeof ACCOUNT_KINDS)[number]
 export const CATEGORY_GROUP_KINDS = ['expense', 'income'] as const
 export type CategoryGroupKind = (typeof CATEGORY_GROUP_KINDS)[number]
 
+/** What an LLM call was for (one row of `llm_usage` per call). */
+export const LLM_PURPOSES = ['classify', 'receipt', 'insight'] as const
+export type LlmPurpose = (typeof LLM_PURPOSES)[number]
+
+/** Outcome of one LLM call: answered, failed, or answered with unusable output. */
+export const LLM_USAGE_STATUSES = ['ok', 'error', 'invalid_output'] as const
+export type LlmUsageStatus = (typeof LLM_USAGE_STATUSES)[number]
+
 /**
  * What a ledger row is. Expenses are stored negative and income positive;
  * a transfer is two `transfer` rows (one per account, opposite signs) linked
@@ -67,4 +75,6 @@ export const POSTGRES_ENUMS = {
   transaction_kind: TRANSACTION_KINDS,
   transaction_status: TRANSACTION_STATUSES,
   transaction_source: TRANSACTION_SOURCES,
+  llm_purpose: LLM_PURPOSES,
+  llm_usage_status: LLM_USAGE_STATUSES,
 } as const satisfies Record<string, readonly string[]>

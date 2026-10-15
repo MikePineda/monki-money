@@ -8,6 +8,7 @@ import {
 import { provideRouter, withComponentInputBinding } from '@angular/router'
 import { provideServiceWorker } from '@angular/service-worker'
 import { routes } from './app.routes'
+import { provideAuth } from './core/auth/auth.providers'
 import { provideI18n } from './core/i18n/i18n.providers'
 import { InstallService } from './core/pwa/install.service'
 import { UpdateService } from './core/pwa/update.service'
@@ -18,6 +19,8 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
     provideI18n(),
+    // GET /auth/me before the first route resolves (guards read the session).
+    provideAuth(),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',

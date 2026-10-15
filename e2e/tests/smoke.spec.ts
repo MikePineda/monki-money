@@ -12,13 +12,14 @@ test.describe('smoke', () => {
     expect(body.checks.database.status).toBe('ok')
   })
 
-  test('the Angular shell renders from the API origin', async ({ page }) => {
+  test('the Angular app renders from the API origin and sends a guest to login', async ({
+    page,
+  }) => {
     await page.goto('/')
 
-    await expect(page).toHaveURL(/\/month$/)
-    await expect(page.getByTestId('app.shell')).toBeVisible()
-    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
-    await expect(page.getByTestId('month.empty')).toBeVisible()
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByTestId('auth.layout')).toBeVisible()
+    await expect(page.getByTestId('login.submit')).toBeVisible()
   })
 
   test('the theme is applied before the first paint', async ({ page }) => {
