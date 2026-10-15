@@ -14,6 +14,30 @@ ARM server). Fill the TODOs as the infrastructure work packages land.
 | GitHub provider    | App `dokploy-<server>` (TODO: githubId)                      |
 | Backup destination | R2, prefix `monkimoney/` (TODO: destinationId, backupId)        |
 
+## GitHub
+
+- Repo `MikePineda/monki-money` (private). Required checks on `main`: `ci`
+  and `commitlint`; merge methods: merge commit (atomic commits) or squash.
+- The protection lives as code in `.github/rulesets/main.json`. GitHub Free
+  does not allow rulesets or branch protection on private repos, so it is
+  **not applied yet**. After upgrading the account to GitHub Pro:
+
+  ```bash
+  gh auth switch --user MikePineda
+  gh api -X POST repos/MikePineda/monki-money/rulesets --input .github/rulesets/main.json
+  gh auth switch --user <work-account>
+  ```
+
+  Until then, the rule is social: no direct pushes to `main`, PRs only, and
+  only with `npm run verify` and CI green.
+
+- Secret `RELEASE_PLEASE_TOKEN`: fine-grained PAT of the owner scoped to this
+  repo, Contents + Pull requests read/write. Without it the release PR is
+  opened with `GITHUB_TOKEN`, which does not trigger CI, so its required
+  checks never report.
+- Actions setting: workflow permissions read-only by default, "Allow GitHub
+  Actions to create and approve pull requests" on (release-please fallback).
+
 ## Deploy and verification
 
 Merge to `main` -> Dokploy webhook -> ARM64 build on the server (target
