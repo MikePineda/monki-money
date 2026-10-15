@@ -60,6 +60,64 @@ export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number]
 export const TRANSACTION_SOURCES = ['manual', 'import', 'receipt', 'telegram'] as const
 export type TransactionSource = (typeof TRANSACTION_SOURCES)[number]
 
+/** Bank export formats the importer reads (one `BankCsvParser` each). */
+export const IMPORT_SOURCES = ['nab_csv'] as const
+export type ImportSource = (typeof IMPORT_SOURCES)[number]
+
+/**
+ * Lifecycle of an import batch (one per account and upload): `staged` while
+ * the rows wait for review (at most one per account), then `completed` by
+ * confirm or `cancelled`.
+ */
+export const IMPORT_BATCH_STATUSES = ['staged', 'completed', 'cancelled'] as const
+export type ImportBatchStatus = (typeof IMPORT_BATCH_STATUSES)[number]
+
+/**
+ * What an imported bank row is. `duplicate` rows are counted but never
+ * stored (their hash already is); `superseded` marks the row of a pending
+ * movement once its posted copy took over the transaction.
+ */
+export const IMPORT_RESOLUTIONS = [
+  'new',
+  'auto_matched',
+  'needs_confirmation',
+  'duplicate',
+  'transfer_leg',
+  'ignored',
+  'superseded',
+] as const
+export type ImportResolution = (typeof IMPORT_RESOLUTIONS)[number]
+
+/**
+ * What a person may decide for a row before confirming: create it (`new`),
+ * link it to an existing transaction (`auto_matched`), make it a transfer
+ * leg (`transfer_leg`) or skip it for good (`ignored`).
+ */
+export const IMPORT_DECISIONS = ['new', 'auto_matched', 'transfer_leg', 'ignored'] as const
+export type ImportDecision = (typeof IMPORT_DECISIONS)[number]
+
+/** Where a category suggestion came from. */
+export const SUGGESTION_SOURCES = ['rule', 'nab_map', 'llm', 'none'] as const
+export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number]
+
+/**
+ * How a merchant rule matches a bank row: the normalized merchant key
+ * (`merchant`), a whole-word text (`contains`) or a regular expression.
+ */
+export const RULE_MATCH_TYPES = ['merchant', 'contains', 'regex'] as const
+export type RuleMatchType = (typeof RULE_MATCH_TYPES)[number]
+
+/** Who wrote a merchant rule: the person, the importer (learned) or the app's defaults. */
+export const RULE_ORIGINS = ['user', 'learned', 'system'] as const
+export type RuleOrigin = (typeof RULE_ORIGINS)[number]
+
+/**
+ * Lifecycle of a savings goal: `reached` is set by a person (the API stamps
+ * `reachedAt`), `archived` hides it without deleting its history.
+ */
+export const GOAL_STATUSES = ['active', 'reached', 'archived'] as const
+export type GoalStatus = (typeof GOAL_STATUSES)[number]
+
 /**
  * Native Postgres enum types, by type name. Migrations hardcode the same
  * literals (migrations are immutable history); the API test
@@ -77,4 +135,11 @@ export const POSTGRES_ENUMS = {
   transaction_source: TRANSACTION_SOURCES,
   llm_purpose: LLM_PURPOSES,
   llm_usage_status: LLM_USAGE_STATUSES,
+  goal_status: GOAL_STATUSES,
+  import_source: IMPORT_SOURCES,
+  import_batch_status: IMPORT_BATCH_STATUSES,
+  import_resolution: IMPORT_RESOLUTIONS,
+  suggestion_source: SUGGESTION_SOURCES,
+  rule_match_type: RULE_MATCH_TYPES,
+  rule_origin: RULE_ORIGINS,
 } as const satisfies Record<string, readonly string[]>

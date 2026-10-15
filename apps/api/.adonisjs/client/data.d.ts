@@ -10,10 +10,16 @@ import type AccountTransformer from '#transformers/account_transformer'
 import type CategoryGroupTransformer from '#transformers/category_group_transformer'
 import type CategoryTransformer from '#transformers/category_transformer'
 import type CategoryTreeTransformer from '#transformers/category_tree_transformer'
+import type GoalTransformer from '#transformers/goal_transformer'
 import type HouseholdTransformer from '#transformers/household_transformer'
+import type ImportBatchDetailTransformer from '#transformers/import_batch_detail_transformer'
+import type ImportBatchTransformer from '#transformers/import_batch_transformer'
+import type ImportRowTransformer from '#transformers/import_row_transformer'
 import type InvitationTransformer from '#transformers/invitation_transformer'
 import type MemberTransformer from '#transformers/member_transformer'
 import type MembershipTransformer from '#transformers/membership_transformer'
+import type MerchantRuleTransformer from '#transformers/merchant_rule_transformer'
+import type MonthlyInsightTransformer from '#transformers/monthly_insight_transformer'
 import type TransactionSplitTransformer from '#transformers/transaction_split_transformer'
 import type TransactionTransformer from '#transformers/transaction_transformer'
 import type TransferTransformer from '#transformers/transfer_transformer'
@@ -40,9 +46,25 @@ export namespace Data {
   export namespace CategoryTree {
     export type Variants = InferVariants<CategoryTreeTransformer>
   }
+  export type Goal = InferData<GoalTransformer>
+  export namespace Goal {
+    export type Variants = InferVariants<GoalTransformer>
+  }
   export type Household = InferData<HouseholdTransformer>
   export namespace Household {
     export type Variants = InferVariants<HouseholdTransformer>
+  }
+  export type ImportBatchDetail = InferData<ImportBatchDetailTransformer>
+  export namespace ImportBatchDetail {
+    export type Variants = InferVariants<ImportBatchDetailTransformer>
+  }
+  export type ImportBatch = InferData<ImportBatchTransformer>
+  export namespace ImportBatch {
+    export type Variants = InferVariants<ImportBatchTransformer>
+  }
+  export type ImportRow = InferData<ImportRowTransformer>
+  export namespace ImportRow {
+    export type Variants = InferVariants<ImportRowTransformer>
   }
   export type Invitation = InferData<InvitationTransformer>
   export namespace Invitation {
@@ -55,6 +77,14 @@ export namespace Data {
   export type Membership = InferData<MembershipTransformer>
   export namespace Membership {
     export type Variants = InferVariants<MembershipTransformer>
+  }
+  export type MerchantRule = InferData<MerchantRuleTransformer>
+  export namespace MerchantRule {
+    export type Variants = InferVariants<MerchantRuleTransformer>
+  }
+  export type MonthlyInsight = InferData<MonthlyInsightTransformer>
+  export namespace MonthlyInsight {
+    export type Variants = InferVariants<MonthlyInsightTransformer>
   }
   export type TransactionSplit = InferData<TransactionSplitTransformer>
   export namespace TransactionSplit {

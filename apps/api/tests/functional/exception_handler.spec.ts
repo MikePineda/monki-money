@@ -1,7 +1,9 @@
 import { test } from '@japa/runner'
 import i18nManager from '@adonisjs/i18n/services/main'
 import testUtils from '@adonisjs/core/services/test_utils'
+import { LlmProviderError } from '#llm/errors'
 import HttpExceptionHandler from '#exceptions/handler'
+import { InsightsUnavailable } from '#exceptions/errors'
 
 async function render(error: unknown, options: { debug: boolean; locale?: string }) {
   const ctx = await testUtils.createHttpContext()
@@ -46,6 +48,28 @@ test.group('Exception handler', () => {
     })
   })
 
+  test('test_unavailable_dependencies_keep_their_localized_message_in_production', async ({
+    assert,
+  }) => {
+    const cases = [
+      [new InsightsUnavailable(), 'E_INSIGHTS_UNAVAILABLE'],
+      [new LlmProviderError('upstream 529: overloaded', 529), 'E_LLM_UNAVAILABLE'],
+    ] as const
+
+    for (const [error, code] of cases) {
+      for (const debug of [true, false]) {
+        const { status, body } = await render(error, { debug, locale: 'es' })
+
+        assert.equal(status, 503)
+        assert.deepEqual(body, {
+          code,
+          message: i18nManager.locale('es').t(`errors.${code}`),
+        })
+        assert.notInclude(body.message, 'upstream')
+      }
+    }
+  })
+
   test('test_server_error_message_is_localized', async ({ assert }) => {
     const { body } = await render(new Error('boom'), { debug: false, locale: 'es' })
 
@@ -76,6 +100,22 @@ test.group('Exception handler', () => {
       assert.equal(status, 409, statement)
       assert.equal(body.code, code, statement)
       assert.notInclude(JSON.stringify(body), 'transactions_category_id_foreign')
+    }
+  })
+
+  test('test_deadlock_or_serialization_failure_maps_to_409_retryable', async ({ assert }) => {
+    for (const code of ['40P01', '40001']) {
+      const error = Object.assign(new Error('deadlock detected on relation "import_rows"'), {
+        code,
+      })
+
+      const { status, body } = await render(error, { debug: false })
+
+      assert.equal(status, 409, code)
+      assert.deepEqual(body, {
+        message: 'This was being saved at the same time elsewhere. Try again',
+        code: 'E_CONCURRENT_UPDATE',
+      })
     }
   })
 })

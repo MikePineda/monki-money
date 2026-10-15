@@ -27,12 +27,21 @@ export function privateOwnerId(subject: PrivacySubject): number | null {
   return subject.paidByUserId ?? subject.createdByUserId
 }
 
-/** True when `viewer` must not see (nor change) the details of `subject`. */
-export function isHiddenFrom(subject: PrivacySubject, viewer: PrivacyViewer): boolean {
+/** True when `subject` is private and its owner still belongs to the household. */
+function hasPrivateOwner(subject: PrivacySubject, memberIds: ReadonlySet<number>): boolean {
   if (!subject.isPrivate) return false
   const owner = privateOwnerId(subject)
-  if (owner === null || !viewer.memberIds.has(owner)) return false
-  return owner !== viewer.userId
+  return owner !== null && memberIds.has(owner)
+}
+
+/** True when `viewer` must not see (nor change) the details of `subject`. */
+export function isHiddenFrom(subject: PrivacySubject, viewer: PrivacyViewer): boolean {
+  return hasPrivateOwner(subject, viewer.memberIds) && privateOwnerId(subject) !== viewer.userId
+}
+
+/** Private postings lose their category and group but keep amount, side and payer. */
+function hide(posting: Posting): Posting {
+  return { ...posting, categoryId: null, groupId: null, hidden: true }
 }
 
 /**
@@ -41,9 +50,17 @@ export function isHiddenFrom(subject: PrivacySubject, viewer: PrivacyViewer): bo
  * keep amount, side (income/expense) and payer.
  */
 export function postingsFor(postings: Posting[], viewer: PrivacyViewer): Posting[] {
-  return postings.map((posting) =>
-    isHiddenFrom(posting, viewer)
-      ? { ...posting, categoryId: null, groupId: null, hidden: true }
-      : posting
-  )
+  return postings.map((posting) => (isHiddenFrom(posting, viewer) ? hide(posting) : posting))
+}
+
+/**
+ * Postings as the whole household may see them, for content stored once
+ * and read by every member (monthly insights): every private posting whose
+ * owner is a member is hidden, including the reader's own.
+ */
+export function postingsForHousehold(
+  postings: Posting[],
+  memberIds: ReadonlySet<number>
+): Posting[] {
+  return postings.map((posting) => (hasPrivateOwner(posting, memberIds) ? hide(posting) : posting))
 }

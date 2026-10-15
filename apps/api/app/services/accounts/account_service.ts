@@ -85,7 +85,7 @@ export default class AccountService {
         .where('id', accountId)
         .forUpdate()
         .firstOrFail()
-      if ((await this.usage.transactionCount(account, trx)) > 0) throw new AccountInUse()
+      if ((await this.usage.referenceCount(account, trx)) > 0) throw new AccountInUse()
       await account.delete()
     })
   }

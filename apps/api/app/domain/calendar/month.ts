@@ -45,6 +45,13 @@ export function addMonths(month: Month, delta: number): Month {
   return format(Math.floor(index / 12), (index % 12) + 1)
 }
 
+/** Calendar months from `from` to `to`: 0 for the same month, negative when `to` is earlier. */
+export function monthsBetween(from: Month, to: Month): number {
+  const [fromYear, fromMonth] = parts(from)
+  const [toYear, toMonth] = parts(to)
+  return (toYear - fromYear) * 12 + (toMonth - fromMonth)
+}
+
 /** The `count` months that end at `month` (inclusive), oldest first. */
 export function previousMonths(month: Month, count: number): Month[] {
   return Array.from({ length: count }, (_, index) => addMonths(month, index - count + 1))

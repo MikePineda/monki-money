@@ -1,3 +1,4 @@
+import { isSafeRulePattern } from '#domain/importing/regex_safety'
 import type { MerchantRule, StagedRow } from '#domain/importing/types'
 
 export type RuleSubject = Pick<
@@ -11,7 +12,7 @@ export interface RuleMatch {
 }
 
 /** Pattern rules only look at this much text (bank details are short; bounds regex work). */
-const MAX_SUBJECT_LENGTH = 500
+const MAX_SUBJECT_LENGTH = 300
 
 const compiledPatterns = new WeakMap<MerchantRule, RegExp | null>()
 
@@ -21,7 +22,8 @@ function escapeRegExp(text: string): string {
 
 /**
  * `contains` matches whole words, case-insensitively (`ABC` never matches
- * `FABCO`); `regex` is case-insensitive and an invalid one never matches.
+ * `FABCO`); `regex` is case-insensitive, and an invalid or unsafe one
+ * (`isSafeRulePattern`) never matches.
  */
 function patternOf(rule: MerchantRule): RegExp | null {
   const cached = compiledPatterns.get(rule)
@@ -31,12 +33,9 @@ function patternOf(rule: MerchantRule): RegExp | null {
   const text = rule.pattern.trim()
   if (rule.matchType === 'contains' && text !== '') {
     pattern = new RegExp(`(?<![a-z0-9])${escapeRegExp(text)}(?![a-z0-9])`, 'i')
-  } else if (rule.matchType === 'regex' && text !== '') {
-    try {
-      pattern = new RegExp(text, 'i')
-    } catch {
-      pattern = null
-    }
+  } else if (rule.matchType === 'regex' && text !== '' && isSafeRulePattern(text)) {
+    // Unsafe patterns (catastrophic backtracking) never run, whatever stored them.
+    pattern = new RegExp(text, 'i')
   }
   compiledPatterns.set(rule, pattern)
   return pattern

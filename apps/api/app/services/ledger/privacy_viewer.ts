@@ -11,8 +11,13 @@ export async function privacyViewer(
   household: HouseholdRef,
   user: { id: number }
 ): Promise<PrivacyViewer> {
+  return { userId: user.id, memberIds: await householdMemberIds(household) }
+}
+
+/** Ids of the current members (for content every member reads, see postingsForHousehold). */
+export async function householdMemberIds(household: HouseholdRef): Promise<Set<number>> {
   const members = await HouseholdMember.query()
     .withScopes((scopes) => scopes.forHousehold(household))
     .select('user_id')
-  return { userId: user.id, memberIds: new Set(members.map((member) => member.userId)) }
+  return new Set(members.map((member) => member.userId))
 }
