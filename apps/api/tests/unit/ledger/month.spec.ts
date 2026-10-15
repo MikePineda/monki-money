@@ -6,6 +6,7 @@ import {
   isMonth,
   monthOf,
   monthRange,
+  monthsBetween,
   previousMonths,
   todayIn,
 } from '#domain/calendar/month'
@@ -42,6 +43,13 @@ test.group('Calendar: month', () => {
     assert.equal(addMonths('2026-01', -1), '2025-12')
     assert.equal(addMonths('2026-12', 1), '2027-01')
     assert.equal(addMonths('2026-05', -17), '2024-12')
+  })
+
+  test('test_months_between_counts_calendar_months_across_years', ({ assert }) => {
+    assert.equal(monthsBetween('2026-10', '2026-10'), 0)
+    assert.equal(monthsBetween('2026-10', '2027-06'), 8)
+    assert.equal(monthsBetween('2026-10', '2026-07'), -3)
+    assert.equal(monthsBetween('2025-12', '2026-01'), 1)
   })
 
   test('test_is_month_accepts_only_yyyy_mm', ({ assert }) => {

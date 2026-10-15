@@ -27,6 +27,7 @@
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
   "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
   "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
+  "E_INSIGHTS_UNAVAILABLE": "Los resúmenes del mes no están disponibles por ahora. Intenta más tarde",
   "E_CSV_TOO_LARGE": "El archivo pesa más de 2 MB. Exporta un periodo más corto",
   "E_CSV_TOO_MANY_ROWS": "El archivo tiene más de 20,000 movimientos. Exporta un periodo más corto",
   "E_CSV_ENCODING": "El archivo no es un CSV de texto (UTF-8). Descárgalo de nuevo de tu banco",

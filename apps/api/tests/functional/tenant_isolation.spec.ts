@@ -4,6 +4,8 @@ import type Account from '#models/account'
 import Category from '#models/category'
 import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
+import SavingsGoal from '#models/savings_goal'
+import MonthlyInsight from '#models/monthly_insight'
 import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
 import MerchantRule from '#models/merchant_rule'
@@ -31,6 +33,8 @@ interface Victim {
   invitation: Invitation
   transaction: Transaction
   transfer: Transfer
+  goal: SavingsGoal
+  insight: MonthlyInsight
   batch: ImportBatch
   row: ImportRow
   rule: MerchantRule
@@ -47,6 +51,8 @@ interface IsolationCase {
   method: 'get' | 'patch' | 'post' | 'put' | 'delete'
   url: (victim: Victim, attacker: Attacker) => string
   body?: Record<string, unknown>
+  /** 404 unless the param is not an id (see the case). */
+  status?: number
 }
 
 const cases: IsolationCase[] = [
@@ -144,6 +150,30 @@ const cases: IsolationCase[] = [
     route: 'reports.category',
     method: 'get',
     url: (v) => `/api/v1/reports/category/${v.category.id}`,
+  },
+  { route: 'goals.show', method: 'get', url: (v) => `/api/v1/goals/${v.goal.id}` },
+  {
+    route: 'goals.update',
+    method: 'patch',
+    url: (v) => `/api/v1/goals/${v.goal.id}`,
+    body: { name: 'Hijacked', status: 'reached' },
+  },
+  { route: 'goals.destroy', method: 'delete', url: (v) => `/api/v1/goals/${v.goal.id}` },
+  {
+    route: 'goals.projection',
+    method: 'get',
+    url: (v) => `/api/v1/goals/${v.goal.id}/projection`,
+  },
+  // A month is not an id: the attacker only ever reaches its own summaries.
+  { route: 'insights.show', method: 'get', url: (v) => `/api/v1/insights/${v.insight.month}` },
+  {
+    // Its own ledger has nothing that month: 422, and the victim's stored
+    // summary is neither returned nor replaced.
+    route: 'insights.generate',
+    method: 'post',
+    url: (v) => `/api/v1/insights/${v.insight.month}/generate`,
+    body: { force: true },
+    status: 422,
   },
   { route: 'imports.show', method: 'get', url: (v) => `/api/v1/imports/${v.batch.id}` },
   {
@@ -255,6 +285,29 @@ async function victimHousehold(): Promise<Victim> {
     toAccountId: household.accounts[1].id,
     memo: 'Victim memo',
   }).create()
+  const goal = await SavingsGoal.create({
+    householdId: household.household.id,
+    name: 'Victim goal',
+    targetCents: 100_000,
+    accountId: account.id,
+    sortOrder: 0,
+  })
+  const insight = await MonthlyInsight.create({
+    householdId: household.household.id,
+    month: transaction.date.slice(0, 7),
+    locale: 'en',
+    headline: 'Victim headline',
+    bodyMarkdown: 'Victim body',
+    highlights: [],
+    inputJson: {
+      month: transaction.date.slice(0, 7),
+      currencyCode: 'AUD',
+      totals: { incomeCents: 0, expenseCents: 0, netCents: 0 },
+      byCategory: [],
+    },
+    model: 'fake',
+    generatedAt: DateTime.now(),
+  })
   const { batch, row } = await stagedBatch(household.household.id, account.id)
   const rule = await MerchantRule.create({
     householdId: household.household.id,
@@ -272,6 +325,8 @@ async function victimHousehold(): Promise<Victim> {
     invitation,
     transaction,
     transfer,
+    goal,
+    insight,
     batch,
     row,
     rule,
@@ -301,7 +356,8 @@ test.group('Tenant isolation', () => {
       if (entry.body) request.json(entry.body)
       const response = await request.actingAs(attackerHousehold.owner)
 
-      response.assertStatus(404)
+      response.assertStatus(entry.status ?? 404)
+      assert.notInclude(JSON.stringify(response.body()), 'Victim')
 
       // Nothing of the victim changed.
       await victim.account.refresh()
@@ -321,6 +377,14 @@ test.group('Tenant isolation', () => {
       await victim.transfer.refresh()
       assert.equal(victim.transfer.memo, 'Victim memo')
       assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
+      await victim.goal.refresh()
+      assert.include(victim.goal.serialize(), { name: 'Victim goal', status: 'active' })
+      await victim.insight.refresh()
+      assert.equal(victim.insight.headline, 'Victim headline')
+      assert.lengthOf(
+        await MonthlyInsight.query().where('household_id', attackerHousehold.household.id),
+        0
+      )
       await victim.batch.refresh()
       assert.equal(victim.batch.status, 'staged')
       await victim.row.refresh()
@@ -389,6 +453,9 @@ test.group('Tenant isolation', () => {
       balances.body().data.accounts.map((row: any) => row.accountId),
       [attacker.accounts[0].id]
     )
+
+    const goals = await client.get('/api/v1/goals').actingAs(attacker.owner)
+    assert.deepEqual(goals.body().data, [])
   })
 
   test('test_foreign_ids_in_ledger_bodies_are_rejected_with_422', async ({ client, assert }) => {
@@ -552,5 +619,18 @@ test.group('Tenant isolation', () => {
       .actingAs(attacker.owner)
     move.assertStatus(422)
     move.assertBodyContains({ errors: [{ field: 'categoryGroupId', rule: 'database.exists' }] })
+
+    const goal = await client
+      .post('/api/v1/goals')
+      .json({ name: 'Mine', targetCents: 1_000, accountId: victim.account.id })
+      .actingAs(attacker.owner)
+    goal.assertStatus(422)
+    goal.assertBodyContains({ errors: [{ field: 'accountId', rule: 'database.exists' }] })
+
+    const goals = await client
+      .put('/api/v1/goals/reorder')
+      .json({ ids: [victim.goal.id] })
+      .actingAs(attacker.owner)
+    goals.assertStatus(422)
   })
 })

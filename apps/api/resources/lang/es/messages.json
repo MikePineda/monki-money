@@ -41,5 +41,8 @@
       "transactionId": "Id del movimiento",
       "transferId": "Id de la transferencia"
     }
+  },
+  "insights": {
+    "uncategorized": "Sin categoría"
   }
 }
