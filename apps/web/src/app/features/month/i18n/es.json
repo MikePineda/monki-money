@@ -3,9 +3,61 @@
   "picker": {
     "label": "Mes"
   },
+  "loading": "Cargando el mes",
+  "error": "No se cargó este mes.",
+  "hero": {
+    "eyebrow": "Gastado en {month}",
+    "less": "{percent}% menos que {month} ({amount})",
+    "more": "{percent}% más que {month} ({amount})",
+    "same": "Igual que {month} ({amount})"
+  },
+  "stats": {
+    "label": "Totales del mes",
+    "income": "Ingreso",
+    "spent": "Gasto",
+    "saved": "Ahorro neto"
+  },
+  "spend": {
+    "title": "Gasto por categoría",
+    "subtitle": "{count, plural, one {# categoría} other {# categorías}}",
+    "header": "Categoría",
+    "empty": "Aún no hay gastos en {month}.",
+    "uncategorized": "Sin categoría",
+    "private": "Privado",
+    "unknown": "Otros"
+  },
+  "trend": {
+    "title": "Tendencia · 6 meses",
+    "series": "Gasto"
+  },
+  "whoPaid": {
+    "title": "Quién pagó",
+    "you": "Tú",
+    "joint": "Compartido",
+    "empty": "Nadie ha gastado en {month} todavía."
+  },
+  "top": {
+    "title": "Movimientos principales",
+    "viewAll": "Ver todo",
+    "private": "Privado",
+    "noPayee": "Sin comercio",
+    "uncategorized": "Sin categoría"
+  },
+  "insights": {
+    "title": "Observaciones",
+    "eyebrow": "Observación",
+    "groupAboveAverage": "{group} está {percent}% arriba de tu promedio de 3 meses.",
+    "groupBelowAverage": "{group} está {percent}% abajo de tu promedio de 3 meses.",
+    "groupShare": "{group} es el {percent}% del gasto de este mes.",
+    "savedShare": "Ahorraste el {percent}% de tu ingreso este mes.",
+    "overspent": "Gastaste {percent}% más de lo que ganaste este mes.",
+    "spendAboveAverage": "El gasto está {percent}% arriba de tu promedio de 3 meses.",
+    "spendBelowAverage": "El gasto está {percent}% abajo de tu promedio de 3 meses."
+  },
   "empty": {
-    "title": "Aún no hay movimientos en {month}.",
-    "body": "Agrega el primero, o importa el CSV de tu banco cuando la importación esté lista.",
-    "action": "Agregar movimiento"
+    "title": "Aún no hay nada en {month}.",
+    "body": "Agrega el primer movimiento o importa el CSV de tu banco.",
+    "add": "Agregar movimiento",
+    "import": "Importar CSV"
   }
 }

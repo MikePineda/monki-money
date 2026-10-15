@@ -109,7 +109,9 @@ export function defaultAccountFor(
   accounts: readonly ActiveFlag[],
   stored: number | null
 ): number | null {
-  const active = new Set(accounts.filter((account) => account.isActive).map((account) => account.id))
+  const active = new Set(
+    accounts.filter((account) => account.isActive).map((account) => account.id)
+  )
   if (stored !== null && active.has(stored)) {
     return stored
   }
@@ -140,7 +142,9 @@ export function transferPresets(
   today: IsoDate,
   limit = 3
 ): TransferPair[] {
-  const active = new Set(accounts.filter((account) => account.isActive).map((account) => account.id))
+  const active = new Set(
+    accounts.filter((account) => account.isActive).map((account) => account.id)
+  )
   const byTransfer = new Map<number, RecentEntry[]>()
   for (const row of recent) {
     if (row.kind === 'transfer' && row.transferId !== null) {

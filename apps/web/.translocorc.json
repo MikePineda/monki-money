@@ -9,7 +9,7 @@
   "scopePathMap": {
     "month": "src/app/features/month/i18n",
     "transactions": "src/app/features/transactions/i18n",
-    "add": "src/app/features/add/i18n",
+    "quickAdd": "src/app/features/quick-add/i18n",
     "auth": "src/app/features/auth/i18n",
     "onboarding": "src/app/features/onboarding/i18n",
     "settings": "src/app/features/settings/i18n",

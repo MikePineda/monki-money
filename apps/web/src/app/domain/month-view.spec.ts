@@ -64,9 +64,7 @@ describe('spendByGroup', () => {
   })
 
   it('test_income_is_left_out', () => {
-    expect(spendByGroup(byGroup, byCategory, labels).map((datum) => datum.label)).not.toContain(
-      ''
-    )
+    expect(spendByGroup(byGroup, byCategory, labels).map((datum) => datum.label)).not.toContain('')
     expect(spendByGroup(byGroup, byCategory, labels)).toHaveLength(4)
   })
 

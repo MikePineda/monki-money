@@ -132,7 +132,12 @@ function largestGroupShare(input: InsightInput): Insight | null {
   let best: { groupId: number; amount: number } | null = null
   for (const group of input.groups) {
     const amount = group.points.at(-1) ?? 0
-    if (amount > 0 && (best === null || amount > best.amount || (amount === best.amount && group.groupId < best.groupId))) {
+    if (
+      amount > 0 &&
+      (best === null ||
+        amount > best.amount ||
+        (amount === best.amount && group.groupId < best.groupId))
+    ) {
       best = { groupId: group.groupId, amount }
     }
   }

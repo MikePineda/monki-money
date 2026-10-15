@@ -1,0 +1,73 @@
+{
+  "title": {
+    "expense": "Add expense",
+    "income": "Add income",
+    "transfer": "Add transfer"
+  },
+  "done": "Done",
+  "loading": "Loading your accounts and categories",
+  "loadError": "Your accounts and categories did not load.",
+  "kind": {
+    "label": "Transaction type",
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer"
+  },
+  "amount": {
+    "label": "Amount"
+  },
+  "account": {
+    "label": "Account",
+    "choose": "Choose account",
+    "sheet": "Account"
+  },
+  "who": {
+    "label": "Who paid",
+    "sheet": "Who paid",
+    "you": "You",
+    "joint": "Shared"
+  },
+  "category": {
+    "label": "Category",
+    "more": "More",
+    "sheet": "Category",
+    "none": "No category"
+  },
+  "transfer": {
+    "from": "From",
+    "to": "To",
+    "fromSheet": "From account",
+    "toSheet": "To account",
+    "sameAccount": "Choose two different accounts.",
+    "presets": "Frequent transfers",
+    "preset": "→ {to}",
+    "route": "{from} to {to}"
+  },
+  "details": {
+    "toggle": "Add note, merchant, date",
+    "payee": "Merchant",
+    "suggestions": "Recent merchants",
+    "note": "Note",
+    "date": "Date",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "pick": "Pick a date",
+    "private": "Private",
+    "privateHint": "Your partner sees the amount, not the details."
+  },
+  "dateChip": {
+    "today": "Today · {day}",
+    "yesterday": "Yesterday · {day}"
+  },
+  "save": "Save {amount}",
+  "toast": {
+    "saved": "Saved",
+    "undo": "Undo",
+    "undone": "Removed"
+  },
+  "noAccounts": {
+    "title": "Add an account first.",
+    "body": "Every expense, income or transfer goes into one of your accounts.",
+    "action": "Add account"
+  }
+}

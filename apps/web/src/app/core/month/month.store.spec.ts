@@ -43,7 +43,10 @@ describe('MonthStore', () => {
         { provide: ReportsApi, useValue: reports },
         { provide: TransactionsApi, useValue: transactions },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
-        { provide: SessionStore, useValue: { onClear: (hook: () => void) => clearHooks.push(hook) } },
+        {
+          provide: SessionStore,
+          useValue: { onClear: (hook: () => void) => clearHooks.push(hook) },
+        },
       ],
     })
     const store = TestBed.inject(MonthStore)

@@ -9,7 +9,12 @@ import { routes } from './app.routes'
 import { AuthApi } from './core/auth/auth.api'
 import { SessionStore } from './core/auth/session.store'
 import { AccountsApi } from './core/household/accounts.api'
+import { CategoriesApi } from './core/household/categories.api'
 import { HouseholdApi } from './core/household/household.api'
+import { ReportsApi } from './core/ledger/reports.api'
+import { TransactionsApi } from './core/ledger/transactions.api'
+import { aCategoryTree, aMonthReport, aTrendReport } from '../testing/ledger-fixtures'
+import type { YearMonth } from './domain/month'
 
 type State = SessionKind | 'guest'
 
@@ -48,6 +53,15 @@ describe('app routes', () => {
           provide: HouseholdApi,
           useValue: { members: async () => [aMember()], invitations: async () => [] },
         },
+        { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
+        {
+          provide: ReportsApi,
+          useValue: {
+            month: async (month: YearMonth) => aMonthReport(month),
+            trend: async (month: YearMonth) => aTrendReport(month),
+          },
+        },
+        { provide: TransactionsApi, useValue: { list: async () => [] } },
       ],
     })
     await TestBed.inject(SessionStore).load()
@@ -129,7 +143,7 @@ describe('app routes', () => {
   it('test_quick_add_is_full_screen_without_the_tab_bar', async () => {
     const page = await navigate('/add?type=income')
 
-    expect(page.querySelector('[data-testid="add.empty"]')).not.toBeNull()
+    expect(page.querySelector('[data-testid="quickAdd.page"]')).not.toBeNull()
     expect(page.querySelector('app-tab-bar')).toBeNull()
   })
 

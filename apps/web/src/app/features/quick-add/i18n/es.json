@@ -1,0 +1,73 @@
+{
+  "title": {
+    "expense": "Agregar gasto",
+    "income": "Agregar ingreso",
+    "transfer": "Agregar transferencia"
+  },
+  "done": "Listo",
+  "loading": "Cargando tus cuentas y categorías",
+  "loadError": "No se cargaron tus cuentas y categorías.",
+  "kind": {
+    "label": "Tipo de movimiento",
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "transfer": "Transferencia"
+  },
+  "amount": {
+    "label": "Monto"
+  },
+  "account": {
+    "label": "Cuenta",
+    "choose": "Elegir cuenta",
+    "sheet": "Cuenta"
+  },
+  "who": {
+    "label": "Quién pagó",
+    "sheet": "Quién pagó",
+    "you": "Tú",
+    "joint": "Compartido"
+  },
+  "category": {
+    "label": "Categoría",
+    "more": "Más",
+    "sheet": "Categoría",
+    "none": "Sin categoría"
+  },
+  "transfer": {
+    "from": "Desde",
+    "to": "Hacia",
+    "fromSheet": "Cuenta de origen",
+    "toSheet": "Cuenta de destino",
+    "sameAccount": "Elige dos cuentas distintas.",
+    "presets": "Transferencias frecuentes",
+    "preset": "→ {to}",
+    "route": "De {from} a {to}"
+  },
+  "details": {
+    "toggle": "Agregar nota, comercio, fecha",
+    "payee": "Comercio",
+    "suggestions": "Comercios recientes",
+    "note": "Nota",
+    "date": "Fecha",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "pick": "Elegir fecha",
+    "private": "Privado",
+    "privateHint": "Tu pareja ve el monto, no los detalles."
+  },
+  "dateChip": {
+    "today": "Hoy · {day}",
+    "yesterday": "Ayer · {day}"
+  },
+  "save": "Guardar {amount}",
+  "toast": {
+    "saved": "Guardado",
+    "undo": "Deshacer",
+    "undone": "Eliminado"
+  },
+  "noAccounts": {
+    "title": "Primero agrega una cuenta.",
+    "body": "Cada gasto, ingreso o transferencia va a una de tus cuentas.",
+    "action": "Agregar cuenta"
+  }
+}

@@ -37,6 +37,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'month' },
       { path: 'month', loadComponent: () => import('./features/month/month.page') },
+      { path: 'month/:ym', loadComponent: () => import('./features/month/month.page') },
       {
         path: 'transactions',
         loadComponent: () => import('./features/transactions/transactions.page'),
@@ -69,7 +70,7 @@ export const routes: Routes = [
   {
     path: 'add',
     canActivate: inTheApp,
-    loadComponent: () => import('./features/add/add.page'),
+    loadComponent: () => import('./features/quick-add/quick-add.page'),
   },
   {
     path: '',

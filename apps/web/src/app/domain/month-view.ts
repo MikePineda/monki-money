@@ -121,7 +121,9 @@ export function spendByPerson(
   if (you + partner + joint <= 0) {
     return []
   }
-  const shares: PersonShare[] = [{ id: 'you', label: labels.you, valueCents: you, color: 'person-a' }]
+  const shares: PersonShare[] = [
+    { id: 'you', label: labels.you, valueCents: you, color: 'person-a' },
+  ]
   if (people.partnerId !== null) {
     shares.push({ id: 'partner', label: labels.partner, valueCents: partner, color: 'person-b' })
   }

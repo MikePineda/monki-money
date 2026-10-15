@@ -68,7 +68,10 @@ describe('monthInsights', () => {
 
   it('test_a_group_below_its_average', () => {
     const insights = monthInsights(
-      input({ expenseCents: 7_500, groups: [{ groupId: 2, points: [10_000, 10_000, 10_000, 7_500] }] })
+      input({
+        expenseCents: 7_500,
+        groups: [{ groupId: 2, points: [10_000, 10_000, 10_000, 7_500] }],
+      })
     )
 
     expect(insights[0]).toEqual({ kind: 'groupBelowAverage', groupId: 2, percent: 25 })

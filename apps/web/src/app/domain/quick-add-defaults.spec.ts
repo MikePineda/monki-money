@@ -50,11 +50,7 @@ describe('rankCategories', () => {
   })
 
   it('test_frequency_moves_a_category_to_the_front', () => {
-    const recent = [
-      entry({ categoryId: 15 }),
-      entry({ categoryId: 15 }),
-      entry({ categoryId: 12 }),
-    ]
+    const recent = [entry({ categoryId: 15 }), entry({ categoryId: 15 }), entry({ categoryId: 12 })]
 
     expect(rankCategories(recent, 'expense', TODAY, EXPENSE_CATEGORIES).slice(0, 3)).toEqual([
       15, 12, 10,
