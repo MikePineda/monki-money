@@ -9,6 +9,7 @@ export type StatTrend = 'up' | 'down'
  * title size, and an optional delta. The delta arrow is status-good when the
  * change is favourable and status-serious when it is not; the words carry
  * the meaning ("8% less than Sep"). Adjacent tiles get a hairline between them.
+ * Projected content (a trend sparkline from the charts package) goes last.
  */
 @Component({
   selector: 'app-stat-tile',
@@ -28,6 +29,7 @@ export type StatTrend = 'up' | 'down'
         <span class="truncate">{{ deltaText() }}</span>
       </span>
     }
+    <ng-content />
   `,
   styleUrl: './stat-tile.component.scss',
   encapsulation: ViewEncapsulation.None,

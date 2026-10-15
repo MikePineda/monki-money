@@ -3,13 +3,20 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 
 /**
  * Layer rules for src/app (plan, "Convenciones para agentes"):
- * - domain/ is pure TypeScript: no Angular, no RxJS, nothing outside domain/;
+ * - domain/ is pure TypeScript: no Angular, no RxJS, nothing outside domain/
+ *   except the DOM-free math packages listed in DOMAIN_PACKAGES;
+ * - d3 stays behind domain/charts, so the charts chunk is the only one that
+ *   carries it, and the eager app (core, layouts, shared/ui) never pulls in
+ *   charts at all;
  * - only core/api/ talks to Tuyau (@tuyau/core and the API registry);
  * - features never import one another;
  * - shared/ never reaches into features/, layouts/ or core/;
  * - colours are tokens: no hex literal anywhere but src/styles.css.
  */
 const appRoot = join(process.cwd(), 'src/app')
+
+/** Pure, DOM-free packages domain/ may import (chart scales and paths). */
+const DOMAIN_PACKAGES = ['d3-scale', 'd3-shape']
 
 interface SourceFile {
   path: string
@@ -73,7 +80,30 @@ describe('architecture', () => {
       if (!file.rel.startsWith('domain/')) {
         return false
       }
-      return !specifier.startsWith('.') || !target(file, specifier).startsWith('domain/')
+      if (!specifier.startsWith('.')) {
+        return !DOMAIN_PACKAGES.includes(specifier)
+      }
+      return !target(file, specifier).startsWith('domain/')
+    })
+    expect(bad).toEqual([])
+  })
+
+  it('test_d3_is_only_imported_by_domain_charts', () => {
+    const bad = violations(
+      (file, specifier) => specifier.startsWith('d3') && !file.rel.startsWith('domain/charts/')
+    )
+    expect(bad).toEqual([])
+  })
+
+  it('test_the_eager_app_never_imports_charts', () => {
+    const bad = violations((file, specifier) => {
+      if (
+        !/^(core|layouts|shared\/ui|shared\/icons)\//.test(file.rel) &&
+        !/^app\./.test(file.rel)
+      ) {
+        return false
+      }
+      return /^(shared\/charts|domain\/charts)\//.test(target(file, specifier))
     })
     expect(bad).toEqual([])
   })

@@ -1,4 +1,5 @@
 import { Component, Injector, computed, inject, signal } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import {
   TranslocoPipe,
   TranslocoService,
@@ -169,6 +170,7 @@ const KIT_KEYS = {
     ListRowComponent,
     MonthPickerComponent,
     ProgressTrackComponent,
+    RouterLink,
     SectionHeaderComponent,
     SegmentedControlComponent,
     SkeletonComponent,

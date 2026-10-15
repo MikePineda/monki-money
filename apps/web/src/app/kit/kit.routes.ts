@@ -5,4 +5,7 @@ import type { Routes } from '@angular/router'
  * file with kit.routes.prod.ts (angular.json fileReplacements), so the
  * gallery is not even emitted as a lazy chunk there.
  */
-export const KIT_ROUTES: Routes = [{ path: '__kit', loadComponent: () => import('./kit.page') }]
+export const KIT_ROUTES: Routes = [
+  { path: '__kit', loadComponent: () => import('./kit.page') },
+  { path: '__kit/charts', loadComponent: () => import('./charts/kit-charts.page') },
+]

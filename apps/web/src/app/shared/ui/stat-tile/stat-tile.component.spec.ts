@@ -1,3 +1,4 @@
+import { Component } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { StatTileComponent } from './stat-tile.component'
@@ -49,4 +50,24 @@ describe('StatTileComponent', () => {
 
     expect(tile.querySelector('app-icon')).toBeNull()
   })
+
+  it('test_projects_a_trend_under_the_figures', async () => {
+    TestBed.configureTestingModule({
+      imports: [i18nTesting()],
+      providers: [i18nTestingProviders()],
+    })
+    const fixture = TestBed.createComponent(TileWithTrend)
+    await fixture.whenStable()
+    const tile = fixture.nativeElement.querySelector('app-stat-tile') as HTMLElement
+
+    expect(tile.lastElementChild?.getAttribute('data-testid')).toBe('trend')
+  })
 })
+
+@Component({
+  imports: [StatTileComponent],
+  template: `<app-stat-tile label="Spent" [valueCents]="100"
+    ><i data-testid="trend"></i
+  ></app-stat-tile>`,
+})
+class TileWithTrend {}
