@@ -30,7 +30,33 @@
       "isHidden": "hidden",
       "reassignToCategoryId": "replacement category",
       "tree": "tree",
-      "format": "format"
+      "format": "format",
+      "accountId": "account",
+      "date": "date",
+      "amountCents": "amount",
+      "categoryId": "category",
+      "splits": "split lines",
+      "payee": "payee",
+      "description": "notes",
+      "paidByUserId": "person who paid",
+      "status": "status",
+      "isPrivate": "private",
+      "tags": "tags",
+      "clientId": "request id",
+      "fromAccountId": "source account",
+      "toAccountId": "destination account",
+      "memo": "memo",
+      "month": "month",
+      "from": "start date",
+      "to": "end date",
+      "q": "search",
+      "page": "page",
+      "perPage": "page size",
+      "sort": "order",
+      "needsReview": "needs review",
+      "uncategorized": "uncategorized",
+      "months": "months",
+      "groupBy": "grouping"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -63,7 +89,15 @@
       "email.taken": "This email is already registered",
       "email.alreadyMember": "This person is already a member of the household",
       "externalAccountNumber.taken": "Another account already uses this account number",
-      "cardSuffix.taken": "This card is already linked to the account"
+      "cardSuffix.taken": "This card is already linked to the account",
+      "uuid": "The {field} must be a valid identifier",
+      "month": "The {field} must be a month (YYYY-MM)",
+      "splits.sumMismatch": "The split lines must add up to the total",
+      "splits.tooFewLines": "A split needs at least two lines",
+      "splits.zeroLine": "Every split line needs an amount",
+      "categoryId.split": "A split transaction takes its categories from its lines",
+      "amountCents.splitSum": "Change the split lines together with the amount",
+      "toAccountId.sameAccount": "Choose two different accounts"
     }
   }
 }

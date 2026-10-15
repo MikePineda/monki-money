@@ -41,6 +41,26 @@ export const LLM_USAGE_STATUSES = ['ok', 'error', 'invalid_output'] as const
 export type LlmUsageStatus = (typeof LLM_USAGE_STATUSES)[number]
 
 /**
+ * What a ledger row is. Expenses are stored negative and income positive;
+ * a transfer is two `transfer` rows (one per account, opposite signs) linked
+ * by a `transfers` row, and never counts as income or expense.
+ */
+export const TRANSACTION_KINDS = ['expense', 'income', 'transfer'] as const
+export type TransactionKind = (typeof TRANSACTION_KINDS)[number]
+
+/** Kinds a person enters directly; transfers have their own endpoint. */
+export const ENTRY_KINDS = ['expense', 'income'] as const
+export type EntryKind = (typeof ENTRY_KINDS)[number]
+
+/** `pending` counts toward the available balance only, `cleared` toward both. */
+export const TRANSACTION_STATUSES = ['pending', 'cleared'] as const
+export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number]
+
+/** Where a ledger row came from. */
+export const TRANSACTION_SOURCES = ['manual', 'import', 'receipt', 'telegram'] as const
+export type TransactionSource = (typeof TRANSACTION_SOURCES)[number]
+
+/**
  * Native Postgres enum types, by type name. Migrations hardcode the same
  * literals (migrations are immutable history); the API test
  * `test_native_enums_match_shared_enums` keeps both in sync.
@@ -52,6 +72,9 @@ export const POSTGRES_ENUMS = {
   user_theme: THEMES,
   account_kind: ACCOUNT_KINDS,
   category_group_kind: CATEGORY_GROUP_KINDS,
+  transaction_kind: TRANSACTION_KINDS,
+  transaction_status: TRANSACTION_STATUSES,
+  transaction_source: TRANSACTION_SOURCES,
   llm_purpose: LLM_PURPOSES,
   llm_usage_status: LLM_USAGE_STATUSES,
 } as const satisfies Record<string, readonly string[]>

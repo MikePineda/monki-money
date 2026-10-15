@@ -1,9 +1,10 @@
 import { test } from '@japa/runner'
 import Category from '#models/category'
-import app from '@adonisjs/core/services/app'
+import Transaction from '#models/transaction'
 import CategoryGroup from '#models/category_group'
-import CategoryUsage from '#services/categories/category_usage'
+import TransactionSplit from '#models/transaction_split'
 import { createHousehold } from '#tests/helpers/household'
+import { TransactionFactory } from '#database/factories/transaction_factory'
 
 async function categoryBySlug(householdId: number, slug: string) {
   return Category.query().where('household_id', householdId).where('slug', slug).firstOrFail()
@@ -140,16 +141,17 @@ test.group('Categories', () => {
     assert.isNull(await Category.find(snacks.id))
   })
 
-  test('test_category_with_transactions_cannot_be_deleted', async ({ client, assert, cleanup }) => {
-    class UsedCategory extends CategoryUsage {
-      override async referenceCount() {
-        return 4
-      }
-    }
-    app.container.swap(CategoryUsage, () => new UsedCategory())
-    cleanup(() => app.container.restore(CategoryUsage))
-    const { owner, household } = await createHousehold({ taxonomy: true })
+  test('test_category_with_transactions_cannot_be_deleted', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({
+      taxonomy: true,
+      accounts: [{}],
+    })
     const snacks = await categoryBySlug(household.id, 'snacks')
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      categoryId: snacks.id,
+    }).create()
 
     const response = await client.delete(`/api/v1/categories/${snacks.id}`).actingAs(owner)
 
@@ -158,25 +160,44 @@ test.group('Categories', () => {
     assert.isNotNull(await Category.find(snacks.id))
   })
 
-  test('test_delete_reassigns_references_to_the_replacement', async ({
+  test('test_category_used_only_by_a_split_line_cannot_be_deleted', async ({ client }) => {
+    const { owner, household, accounts } = await createHousehold({
+      taxonomy: true,
+      accounts: [{}],
+    })
+    const split = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+    })
+      .apply('split')
+      .create()
+    const line = await TransactionSplit.query().where('transaction_id', split.id).firstOrFail()
+
+    const response = await client.delete(`/api/v1/categories/${line.categoryId}`).actingAs(owner)
+
+    response.assertStatus(409)
+    response.assertBodyContains({ code: 'E_CATEGORY_IN_USE' })
+  })
+
+  test('test_delete_reassigns_transactions_and_split_lines_to_the_replacement', async ({
     client,
     assert,
-    cleanup,
   }) => {
-    const reassigned: Array<[number, number]> = []
-    class UsedCategory extends CategoryUsage {
-      override async referenceCount() {
-        return 4
-      }
-      override async reassign(from: Category, to: Category) {
-        reassigned.push([from.id, to.id])
-      }
-    }
-    app.container.swap(CategoryUsage, () => new UsedCategory())
-    cleanup(() => app.container.restore(CategoryUsage))
-    const { owner, household } = await createHousehold({ taxonomy: true })
+    const { owner, household, accounts } = await createHousehold({
+      taxonomy: true,
+      accounts: [{}],
+    })
     const snacks = await categoryBySlug(household.id, 'snacks')
     const groceries = await categoryBySlug(household.id, 'groceries')
+    const alcohol = await categoryBySlug(household.id, 'alcohol')
+    const base = { householdId: household.id, accountId: accounts[0].id }
+    const plain = await TransactionFactory.merge({ ...base, categoryId: snacks.id }).create()
+    const receipt = await TransactionFactory.merge({ ...base, amountCents: -1_000 }).create()
+    await receipt.related('splits').createMany([
+      { householdId: household.id, categoryId: snacks.id, amountCents: -400 },
+      { householdId: household.id, categoryId: alcohol.id, amountCents: -600, sortOrder: 1 },
+    ])
+    await receipt.merge({ isSplit: true }).save()
 
     const response = await client
       .delete(`/api/v1/categories/${snacks.id}`)
@@ -184,8 +205,16 @@ test.group('Categories', () => {
       .actingAs(owner)
 
     response.assertStatus(204)
-    assert.deepEqual(reassigned, [[snacks.id, groceries.id]])
     assert.isNull(await Category.find(snacks.id))
+    const moved = await Transaction.findOrFail(plain.id)
+    assert.equal(moved.categoryId, groceries.id)
+    const lines = await TransactionSplit.query()
+      .where('transaction_id', receipt.id)
+      .orderBy('sort_order')
+    assert.deepEqual(
+      lines.map((line) => line.categoryId),
+      [groceries.id, alcohol.id]
+    )
   })
 
   test('test_delete_rejects_a_replacement_from_another_household', async ({ client }) => {
