@@ -1,0 +1,9 @@
+// Tiles in a row are separated by a vertical hairline, never boxed.
+:host + :host {
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+}
+
+:host:has(+ :host) {
+  padding-right: 12px;
+}

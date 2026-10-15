@@ -37,6 +37,7 @@ export const ICON_NAMES = [
   'copy',
   'trash-2',
   'refresh-cw',
+  'loader-circle',
   'wifi-off',
   'inbox',
   // Keypad and forms

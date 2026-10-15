@@ -1,0 +1,11 @@
+// Hairline between consecutive rows, inset to the text column: 16px padding,
+// a 36px square and a 12px gap (DESIGN.md, List row).
+:host + :host::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 64px;
+  height: 1px;
+  background: var(--line);
+}
