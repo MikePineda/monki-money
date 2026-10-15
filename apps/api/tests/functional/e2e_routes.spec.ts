@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import User from '#models/user'
 import { promisify } from 'node:util'
 import Household from '#models/household'
+import SavingsGoal from '#models/savings_goal'
 import app from '@adonisjs/core/services/app'
 import { execFile } from 'node:child_process'
 import router from '@adonisjs/core/services/router'
@@ -52,6 +53,21 @@ test.group('Test-support routes', () => {
     })
     const owner = await User.findByOrFail('email', E2E_OWNER_EMAIL)
     assert.equal(owner.currentHouseholdId, household.id)
+  })
+
+  test('test_reset_seeds_a_sample_savings_goal', async ({ client, assert }) => {
+    await client.post('/api/test/reset')
+
+    const [household] = await Household.all()
+    const goals = await SavingsGoal.query().where('household_id', household.id)
+    assert.lengthOf(goals, 1)
+    assert.include(goals[0].serialize(), {
+      name: 'Emergency fund',
+      targetCents: 500_000,
+      accountId: null,
+      userId: null,
+      status: 'active',
+    })
   })
 
   test('test_e2e_users_can_log_in_after_a_reset', async ({ client }) => {
