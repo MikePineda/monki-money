@@ -61,7 +61,8 @@
       "targetDate": "target date",
       "startingCents": "amount already saved",
       "monthlyContributionCents": "monthly contribution",
-      "force": "regenerate"
+      "force": "regenerate",
+      "turnstileToken": "security check"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -104,7 +105,11 @@
       "amountCents.splitSum": "Change the split lines together with the amount",
       "toAccountId.sameAccount": "Choose two different accounts",
       "month.future": "This month has not started yet",
-      "month.noActivity": "There is no income or spending in this month yet"
+      "month.noActivity": "There is no income or spending in this month yet",
+      "turnstile": "Complete the security check and try again",
+      "verificationCode.invalid": "This code is not right. Check the email and try again",
+      "verificationCode.expired": "This code has expired. Ask for a new email to get another one",
+      "verificationCode.locked": "Too many wrong codes. Ask for a new email to get another one"
     }
   }
 }

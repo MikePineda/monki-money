@@ -61,7 +61,8 @@
       "targetDate": "fecha meta",
       "startingCents": "monto ya ahorrado",
       "monthlyContributionCents": "aportación mensual",
-      "force": "volver a generar"
+      "force": "volver a generar",
+      "turnstileToken": "verificación de seguridad"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -104,7 +105,11 @@
       "amountCents.splitSum": "Cambia las líneas de la división junto con el monto",
       "toAccountId.sameAccount": "Elige dos cuentas distintas",
       "month.future": "Este mes todavía no empieza",
-      "month.noActivity": "Todavía no hay ingresos ni gastos en este mes"
+      "month.noActivity": "Todavía no hay ingresos ni gastos en este mes",
+      "turnstile": "Completa la verificación de seguridad e inténtalo de nuevo",
+      "verificationCode.invalid": "Este código no es correcto. Revisa el correo e inténtalo de nuevo",
+      "verificationCode.expired": "Este código ya venció. Pide un correo nuevo para recibir otro",
+      "verificationCode.locked": "Demasiados códigos incorrectos. Pide un correo nuevo para recibir otro"
     }
   }
 }

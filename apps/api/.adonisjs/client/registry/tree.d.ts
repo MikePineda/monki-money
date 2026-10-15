@@ -15,6 +15,7 @@ export interface ApiDefinition {
     email: {
       verify: typeof routes['auth.email.verify']
       resend: typeof routes['auth.email.resend']
+      verifyCode: typeof routes['auth.email.verifyCode']
     }
     password: {
       forgot: typeof routes['auth.password.forgot']
@@ -31,6 +32,9 @@ export interface ApiDefinition {
   me: {
     update: typeof routes['me.update']
   }
+  households: {
+    store: typeof routes['households.store']
+  }
   household: {
     restore: typeof routes['household.restore']
     show: typeof routes['household.show']
@@ -38,6 +42,7 @@ export interface ApiDefinition {
     members: typeof routes['household.members']
     export: typeof routes['household.export']
     delete: typeof routes['household.delete']
+    leave: typeof routes['household.leave']
     invitations: {
       index: typeof routes['household.invitations.index']
       store: typeof routes['household.invitations.store']

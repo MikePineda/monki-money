@@ -6,7 +6,7 @@
     "signature": "— monkimoney",
     "verifyEmail": {
       "subject": "Confirm your email",
-      "body": "Hi {name},\n\nConfirm your email address to start using monkimoney:\n\n{url}\n\nThe link expires in 24 hours. If you did not create an account, ignore this email."
+      "body": "Hi {name},\n\nConfirm your email address to start using monkimoney. Type this code in the app:\n\n{code}\n\nOr open this link:\n\n{url}\n\nThe code expires in 15 minutes and the link in 24 hours. If you did not create an account, ignore this email."
     },
     "passwordReset": {
       "subject": "Reset your password",

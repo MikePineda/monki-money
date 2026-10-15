@@ -404,7 +404,7 @@ export class TransferSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'currentHouseholdId', 'email', 'emailVerifiedAt', 'fullName', 'id', 'lastLoginAt', 'locale', 'password', 'sessionVersion', 'theme', 'updatedAt'] as const
+  static $columns = ['createdAt', 'currentHouseholdId', 'email', 'emailVerificationCodeAttempts', 'emailVerificationCodeExpiresAt', 'emailVerificationCodeHash', 'emailVerifiedAt', 'fullName', 'id', 'lastLoginAt', 'locale', 'password', 'sessionVersion', 'theme', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -412,6 +412,12 @@ export class UserSchema extends BaseModel {
   declare currentHouseholdId: number | null
   @column()
   declare email: string
+  @column()
+  declare emailVerificationCodeAttempts: number
+  @column.dateTime()
+  declare emailVerificationCodeExpiresAt: DateTime | null
+  @column()
+  declare emailVerificationCodeHash: string | null
   @column.dateTime()
   declare emailVerifiedAt: DateTime | null
   @column()

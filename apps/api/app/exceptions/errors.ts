@@ -72,6 +72,12 @@ export const AlreadyInHousehold = domainError(
   'User already belongs to a household'
 )
 
+/** Owners cannot leave their household: they delete it (transfer comes later). */
+export const OwnerCannotLeave = domainError(
+  'E_OWNER_CANNOT_LEAVE',
+  422,
+  'Owners cannot leave their household'
+)
 /** The account still has transactions. */
 export const AccountInUse = domainError('E_ACCOUNT_IN_USE', 409, 'Account has transactions')
 

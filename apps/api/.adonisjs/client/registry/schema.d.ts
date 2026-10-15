@@ -175,6 +175,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verification_controller').default['resend']>>>
     }
   }
+  'auth.email.verifyCode': {
+    methods: ["POST"]
+    pattern: '/api/v1/auth/email/verify-code'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/auth').verifyEmailCodeValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/auth').verifyEmailCodeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/email_verification_controller').default['verifyCode']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verification_controller').default['verifyCode']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'me.update': {
     methods: ["PATCH"]
     pattern: '/api/v1/me'
@@ -185,6 +197,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/auth').updateProfileValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'households.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/households'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/household').createHouseholdValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/household').createHouseholdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/households_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/households_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'household.restore': {
@@ -257,6 +281,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/household').deleteHouseholdValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'household.leave': {
+    methods: ["POST"]
+    pattern: '/api/v1/household/leave'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
     }
   }
   'household.invitations.index': {
