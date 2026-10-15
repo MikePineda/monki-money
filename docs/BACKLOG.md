@@ -31,3 +31,9 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 `test_reset_wipes_the_database_and_seeds_the_e2e_household` fails when its file runs alone: `RESTART IDENTITY` gives the new E2E household the leftover's id 1 (passes in the full suite).
 - 2026-10-16 After a member leaves, `accounts.owner_user_id` and `account_cards.user_id` still point at them, so `defaultPayer` gives new rows on those accounts/cards to the ex-member: decide whether leaving makes their accounts joint or the default payer skips non-members.
 - 2026-10-16 Household ownership transfer (owners can only delete today, `household.leave` answers 422 for them), and letting a member leave while the household is pending deletion (today 403 like every household route).
+- 2026-10-16 Outbox: warn before an explicit logout when entries are still queued (logout deletes them from the device today).
+- 2026-10-16 Outbox across tabs: reload it on the `storage` event so two open windows do not overwrite each other's queue (both sync idempotently today, but a write can drop the other tab's newest entry).
+- 2026-10-16 Outbox: "Undo" on the "Saved offline" toast (remove the queued entry, or delete the row once synced); queued entries can only be discarded from the sync sheet today.
+- 2026-10-16 Outbox: say so when localStorage refuses the write (quota, private mode); the entry then lives in memory until the app closes.
+- 2026-10-16 Outbox: a queued expense does not feed quick add's category/payee ranking until it syncs and the next visit reloads the recent rows.
+- 2026-10-16 Offline cold start: opening the installed app with no network ends on login (`GET /auth/me` fails, the session is in memory only) and quick add needs the accounts loaded this session; keeping a last-known session and directory on the device would let the outbox work from a cold start.

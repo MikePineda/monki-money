@@ -1,0 +1,31 @@
+{
+  "pill": {
+    "pending": "{count, plural, one {# pending} other {# pending}}",
+    "failed": "{count, plural, one {# failed} other {# failed}}"
+  },
+  "sheet": {
+    "title": "Not synced yet",
+    "body": "Saved on this phone. They sync by themselves when there is a connection.",
+    "retryAll": "Retry all",
+    "status": {
+      "pending": "Waiting to sync",
+      "offline": "Waiting for a connection",
+      "syncing": "Syncing…",
+      "failed": "Not saved"
+    },
+    "refused": "The server refused this entry.",
+    "retry": "Retry",
+    "edit": "Edit",
+    "discard": "Discard",
+    "confirm": {
+      "question": "Discard this entry? It will not be saved.",
+      "keep": "Keep",
+      "discard": "Discard"
+    },
+    "kind": {
+      "expense": "Expense",
+      "income": "Income",
+      "transfer": "Transfer"
+    }
+  }
+}

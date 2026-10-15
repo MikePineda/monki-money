@@ -63,6 +63,22 @@ export class QuickAddPage {
       .click()
   }
 
+  /** The id of the n-th category tile (0 = the most used). */
+  async categoryId(index = 0): Promise<number> {
+    const tile = this.page
+      .getByTestId('transactions.form.categoryGrid')
+      .locator('[data-category]')
+      .nth(index)
+    return Number(await tile.getAttribute('data-category'))
+  }
+
+  /** Saves without a connection: the entry goes to the outbox and the form clears. */
+  async saveOffline(): Promise<void> {
+    await this.save.click()
+    await expect(this.toast).toContainText('Saved offline · will sync')
+    await expect(this.amount).toHaveText('$0.00')
+  }
+
   /** Saves and waits for the "Saved · Undo" toast and the cleared amount. */
   async saveAndConfirm(): Promise<void> {
     await this.save.click()

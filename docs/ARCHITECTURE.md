@@ -54,6 +54,32 @@ session, i18n, theme, PWA), `domain/` (pure, no Angular), `shared/ui`,
 Shared (`packages/shared`): wire types and pure helpers used by both sides,
 compiled to `dist/` because Node does not load `.ts` from `node_modules`.
 
+## Offline outbox (web)
+
+Quick add never loses an entry. Every create carries a `clientId` (uuid)
+that makes `POST /transactions/quick` and `POST /transfers` idempotent, so
+the web can resend freely. When the device is offline (`navigator.onLine`
+false) or the save fails for lack of network, a 5xx or a 429, quick add
+puts the API body in the **outbox** with the client id it already tried
+and clears the form ("Saved offline · will sync"); a 422 stays under the
+fields and queues nothing. The rules are pure (`domain/outbox.ts`: FIFO,
+`pending | syncing | failed`, retryable failures count attempts with a
+1 s → 60 s backoff, a 4xx becomes `failed` with the API's message, a
+versioned serialization that drops corrupt entries instead of throwing);
+`core/outbox/outbox.store.ts` owns the state. It is persisted per person
+in localStorage (`outbox:<userId>`, written synchronously before the toast)
+and synced one entry at a time on sign-in, on the `online` event, when the
+app returns to the foreground, after every successful quick-add save and on
+the backoff timer, never while signed out. A synced entry invalidates its
+month (`MonthStore`); a 409 counts as synced. An explicit logout deletes
+the outbox from the device (`SessionStore.onLogout`); an expired session
+keeps it for the next login of the same person. The sync pill above the
+tab bar is the only place that shows what is not on the server yet (lists
+and the Month view never merge queued entries): it opens a sheet to retry,
+edit (quick add with `?outbox=<id>`, which holds the entry and replaces it
+keeping its client id) or discard. The service worker never caches `/api`;
+the outbox, not the SW, is what makes writes survive offline.
+
 ## Runtime surface today
 
 | Route                                                                                        | Purpose                                                                                                                     |
