@@ -42,5 +42,6 @@
   "E_IMPORT_CLASSIFY_RUNNING": "La IA ya está revisando esta importación. Espera un momento",
   "E_CONCURRENT_UPDATE": "Esto se estaba guardando al mismo tiempo en otro lado. Inténtalo de nuevo",
   "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento",
-  "E_OWNER_CANNOT_LEAVE": "Quien administra el hogar no puede salir de él. Bórralo en su lugar"
+  "E_OWNER_CANNOT_LEAVE": "Quien administra el hogar no puede salir de él. Bórralo en su lugar",
+  "E_STORAGE_UNAVAILABLE": "La subida de fotos no está disponible ahora. Inténtalo más tarde"
 }

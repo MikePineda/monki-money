@@ -1,6 +1,23 @@
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig, services } from '@adonisjs/drive'
+import type { S3Settings } from '#services/storage/s3_object_storage'
+
+/**
+ * The bucket and its credentials, shared by the Drive `s3` disk below and
+ * by the direct-upload storage (`ObjectStorage`, providers/storage_provider.ts),
+ * so both always talk to the same bucket.
+ */
+export const s3Settings: S3Settings = {
+  credentials: {
+    accessKeyId: env.get('S3_KEY')?.release() ?? '',
+    secretAccessKey: env.get('S3_SECRET')?.release() ?? '',
+  },
+  region: env.get('S3_REGION') ?? 'auto',
+  bucket: env.get('S3_BUCKET') ?? '',
+  endpoint: env.get('S3_ENDPOINT'),
+  forcePathStyle: env.get('S3_FORCE_PATH_STYLE') ?? false,
+}
 
 /**
  * File storage. Production keeps files in Cloudflare R2 (S3 API) and local
@@ -8,7 +25,7 @@ import { defineConfig, services } from '@adonisjs/drive'
  * `fs` exists for tests (`drive.fake()`) and offline tinkering only.
  *
  * Empty `DRIVE_DISK` = nothing is persisted: bank CSVs are parsed in memory
- * and not archived (see `isDriveEnabled`).
+ * and not archived (see `isDriveEnabled`), and receipt uploads answer 503.
  */
 const driveConfig = defineConfig({
   default: env.get('DRIVE_DISK') ?? 'fs',
@@ -20,14 +37,7 @@ const driveConfig = defineConfig({
       visibility: 'private',
     }),
     s3: services.s3({
-      credentials: {
-        accessKeyId: env.get('S3_KEY')?.release() ?? '',
-        secretAccessKey: env.get('S3_SECRET')?.release() ?? '',
-      },
-      region: env.get('S3_REGION') ?? 'auto',
-      bucket: env.get('S3_BUCKET') ?? '',
-      endpoint: env.get('S3_ENDPOINT'),
-      forcePathStyle: env.get('S3_FORCE_PATH_STYLE') ?? false,
+      ...s3Settings,
       supportsACL: false,
       visibility: 'private',
     }),

@@ -6,6 +6,14 @@ import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 /** Self-rendering framework errors whose own rendering does not fit a JSON API. */
 const JSON_RENDERED_CODES = new Set(['E_BAD_CSRF_TOKEN'])
 
+/**
+ * Deliberate 503s: a dependency (the LLM vendor, object storage) is down or
+ * not configured. The client gets the translated `{ message, code }` in
+ * every environment so it can say "try again later"; the vendor's own
+ * message only goes to the logs.
+ */
+const UNAVAILABLE_CODES = new Set(['E_LLM_UNAVAILABLE', 'E_STORAGE_UNAVAILABLE'])
+
 /** Postgres unique_violation: a race lost against a concurrent insert. */
 const PG_UNIQUE_VIOLATION = '23505'
 
@@ -68,7 +76,9 @@ function detailsOf(error: unknown): Record<string, unknown> {
  *   when deleting the parent lost a race against an insert, else
  *   `E_CONFLICT`. Deadlocks and serialization failures answer 409
  *   `E_CONCURRENT_UPDATE` (retryable).
- * - 5xx: debug page in development; in production a generic translated
+ * - 503 `E_LLM_UNAVAILABLE` / `E_STORAGE_UNAVAILABLE` (see UNAVAILABLE_CODES):
+ *   translated `{ message, code }` everywhere.
+ * - Other 5xx: debug page in development; in production a generic translated
  *   `{ message, code: 'E_INTERNAL_SERVER_ERROR' }` (driver messages, table
  *   and constraint names never leave the server, they go to the logs).
  */
@@ -138,6 +148,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         .send({ ...detailsOf(error), message, code: httpError.code })
     }
 
+    if (httpError.status === 503 && UNAVAILABLE_CODES.has(httpError.code ?? '')) {
+      const code = httpError.code!
+      return ctx.response
+        .status(503)
+        .send({ message: translate(code, 'Service unavailable'), code })
+    }
+
     if (httpError.status >= 500 && !this.debug) {
       return ctx.response.status(httpError.status).send({
         message: translate('E_INTERNAL_SERVER_ERROR', 'Internal server error'),
@@ -149,6 +166,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
   }
 
   override async report(error: unknown, ctx: HttpContext) {
+    const code = (error as { code?: unknown } | null)?.code
+    if (typeof code === 'string' && UNAVAILABLE_CODES.has(code)) {
+      // An expected degradation (vendor down, storage off): the client got
+      // its 503; the detail (vendor message, S3 error) stays for operators.
+      ctx.logger.warn({ err: error }, (error as Error).message)
+      return
+    }
     return super.report(error, ctx)
   }
 }

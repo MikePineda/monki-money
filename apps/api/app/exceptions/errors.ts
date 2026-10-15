@@ -167,3 +167,20 @@ export const PrivateTransaction = domainError(
   403,
   'This transaction is private'
 )
+
+/**
+ * Object storage (R2/S3) is not configured (`DRIVE_DISK` is not `s3`) or
+ * did not answer: direct uploads and receipt scans cannot run right now.
+ */
+export const StorageUnavailable = domainError(
+  'E_STORAGE_UNAVAILABLE',
+  503,
+  'File storage is unavailable'
+)
+
+/**
+ * An uploaded object that is not there for this household: another
+ * household's key, a malformed one, or one already gone. Same answer as
+ * any other missing row (404, never 403).
+ */
+export const UploadNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')

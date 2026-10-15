@@ -1,7 +1,9 @@
 import { test } from '@japa/runner'
 import i18nManager from '@adonisjs/i18n/services/main'
 import testUtils from '@adonisjs/core/services/test_utils'
+import { LlmProviderError } from '#llm/errors'
 import HttpExceptionHandler from '#exceptions/handler'
+import { StorageUnavailable } from '#exceptions/errors'
 
 async function render(error: unknown, options: { debug: boolean; locale?: string }) {
   const ctx = await testUtils.createHttpContext()
@@ -92,6 +94,26 @@ test.group('Exception handler', () => {
         message: 'This was being saved at the same time elsewhere. Try again',
         code: 'E_CONCURRENT_UPDATE',
       })
+    }
+  })
+
+  test('test_unavailable_services_answer_503_with_a_translated_code', async ({ assert }) => {
+    const cases = [
+      [new StorageUnavailable(), 'E_STORAGE_UNAVAILABLE'],
+      [new LlmProviderError('LLM provider 401: vendor detail', 401), 'E_LLM_UNAVAILABLE'],
+    ] as const
+
+    for (const [error, code] of cases) {
+      for (const debug of [true, false]) {
+        const { status, body } = await render(error, { debug, locale: 'es' })
+
+        assert.equal(status, 503, code)
+        assert.deepEqual(body, {
+          message: i18nManager.locale('es').t(`errors.${code}`),
+          code,
+        })
+        assert.notInclude(JSON.stringify(body), 'vendor detail')
+      }
     }
   })
 })
