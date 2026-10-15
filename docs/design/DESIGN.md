@@ -586,4 +586,4 @@ Charts are drawn in SVG from the same tokens as the UI. The rules below are non-
 - No text in a series or person colour; no accent-coloured bars.
 - No motion beyond sheets, toasts and segment changes; no count-up numbers.
 - No free-text amount input; amounts come from the keypad.
-- No real names in mocks or copy; no "Hola, Miguel"-style greetings.
+- No real names in mocks or copy; no "Hola, Ana"-style greetings with a first name.

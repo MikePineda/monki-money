@@ -63,7 +63,7 @@ function sampleRows(): StagedRow[] {
 }
 
 const linkedTransfer = stagedRow({
-  amountCents: -80000,
+  amountCents: -75000,
   bankDate: '2026-07-31',
   date: '2026-07-31',
   details: 'ONLINE A1000000001 Linked Acc Trns SAMPLE HOUSEHO',
@@ -102,7 +102,7 @@ test.group('Importing / resolver', () => {
   })
 
   test('test_internal_transfer_with_a_known_other_leg_is_a_transfer_leg', async ({ assert }) => {
-    const leg = transferLeg({ accountId: SAVINGS, amountCents: 80000, date: '2026-08-01' })
+    const leg = transferLeg({ accountId: SAVINGS, amountCents: 75000, date: '2026-08-01' })
     const [resolved] = await resolve([linkedTransfer], context({ transferLegs: [leg] }))
     assert.equal(resolved.resolution, 'transfer_leg')
     assert.equal(resolved.transfer?.counterpartAccountId, SAVINGS)
@@ -112,7 +112,7 @@ test.group('Importing / resolver', () => {
   })
 
   test('test_two_rows_never_claim_the_same_opposite_leg', async ({ assert }) => {
-    const leg = transferLeg({ accountId: SAVINGS, amountCents: 80000, date: '2026-07-31' })
+    const leg = transferLeg({ accountId: SAVINGS, amountCents: 75000, date: '2026-07-31' })
     const twin = { ...linkedTransfer, externalHash: 'hash-2' }
     const [first, second] = await resolve([linkedTransfer, twin], context({ transferLegs: [leg] }))
     assert.equal(first.transfer?.oppositeLeg, leg)
@@ -128,7 +128,7 @@ test.group('Importing / resolver', () => {
   })
 
   test('test_transfer_already_entered_by_hand_is_offered_as_a_match', async ({ assert }) => {
-    const manualLeg = candidate({ id: 77, amountCents: -80000, date: '2026-07-31', payee: null })
+    const manualLeg = candidate({ id: 77, amountCents: -75000, date: '2026-07-31', payee: null })
     const [resolved] = await resolve([linkedTransfer], context({ candidates: [manualLeg] }))
     assert.equal(resolved.resolution, 'needs_confirmation')
     assert.equal(resolved.matchTransactionId, 77)

@@ -28,8 +28,8 @@ export function anImportBatch(overrides: Partial<ImportBatch> = {}): ImportBatch
     },
     reconciliation: {
       asOf: '2026-09-27',
-      expectedBalanceCents: 723731,
-      computedBalanceCents: 723731,
+      expectedBalanceCents: 764275,
+      computedBalanceCents: 764275,
       differenceCents: 0,
       balanced: true,
       openingBalanceCents: null,
@@ -48,8 +48,8 @@ export function anImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
     rowIndex: 1,
     bankDate: '2026-09-27',
     date: '2026-09-27',
-    amountCents: -2500,
-    balanceCents: 723731,
+    amountCents: -2800,
+    balanceCents: 764275,
     transactionType: 'EFTPOS DEBIT',
     description: 'V1111 27/09 TICKETS*SAMPLE FEST SYDNEY',
     descriptionNormalized: 'tickets sample fest sydney',
@@ -101,7 +101,7 @@ export function aTentativeSuggestion(categoryId: number, confidence = 0.55) {
 }
 
 /** A possible bank copy of an existing transaction. */
-export function aMatchCandidate(transactionId = 900, amountCents = -2500) {
+export function aMatchCandidate(transactionId = 900, amountCents = -2800) {
   return {
     transactionId,
     score: 65,

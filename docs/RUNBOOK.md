@@ -1,31 +1,41 @@
 # Runbook
 
-Operations for production (`https://app.example.com`, Dokploy on the Oracle
-ARM server). Fill the TODOs as the infrastructure work packages land.
+Operations for a production deployment: one ARM64 server running Dokploy
+(Docker Swarm + Traefik), Cloudflare in front, Postgres as a Dokploy service
+and an S3-compatible bucket (Cloudflare R2). Fill the TODOs as the
+infrastructure work packages land.
+
+Placeholders used below: `<app-domain>` is the app's public hostname,
+`<server>` the SSH host of the Dokploy server.
+
+## Local operator settings
+
+Commands and skills that reach production read these variables from the
+shell, or from `docs/internal/ops.env` (local only, never committed; load it
+with `set -a; . docs/internal/ops.env; set +a`):
+
+| Variable                     | What                                                               |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `MONKIMONEY_SSH_HOST`        | SSH host (or `~/.ssh/config` alias) of the server: `<server>`      |
+| `MONKIMONEY_GH_OWNER`        | GitHub account that owns the repository                            |
+| `MONKIMONEY_GH_WORK_ACCOUNT` | Optional: the `gh` account to switch back to after an owner action |
+| `SMOKE_BASE_URL`             | Production base URL, `https://<app-domain>`                        |
 
 ## Dokploy ids
 
-| What               | Value                                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Project            | `monkimoney` (projectId `<id>`, environmentId `<id>`)                                       |
-| Postgres service   | `monkimoney-db` (postgresId `<id>`, appName/host `monkimoney-db-xxxxxx`, volume `monkimoney-db-xxxxxx-data`) |
-| Application        | `monkimoney-web` (applicationId `<id>`, appName `monkimoney-web-xxxxxx`, domainId `<id>`)   |
-| Domain             | `app.example.com`, https, `certificateType: none`, port 3333                                                               |
-| GitHub provider    | App `dokploy-<server>` (githubId `<id>`)                                                                  |
-| Backup destination | R2 destination `<id>`, prefix `monkimoney/`, daily 16:15 UTC, keep 60 (backupId: see panel)                  |
+Service ids live in the hosting panel and in `docs/internal/RUNBOOK-ids.md` (local only).
 
 ## GitHub
 
-- Repo `MikePineda/monki-money` (private). Required checks on `main`: `ci`
-  and `commitlint`; merge methods: merge commit (atomic commits) or squash.
+- Repo `MikePineda/monki-money`. Required checks on `main`: `ci` and
+  `commitlint`; merge methods: merge commit (atomic commits) or squash.
 - The protection lives as code in `.github/rulesets/main.json`. GitHub Free
   does not allow rulesets or branch protection on private repos, so it is
-  **not applied yet**. After upgrading the account to GitHub Pro:
+  applied once the repository is public (or on a paid plan), as the owner:
 
   ```bash
-  gh auth switch --user MikePineda
-  gh api -X POST repos/MikePineda/monki-money/rulesets --input .github/rulesets/main.json
-  gh auth switch --user <work-account>
+  .claude/skills/ship/scripts/gh-as-owner.sh api -X POST \
+    repos/MikePineda/monki-money/rulesets --input .github/rulesets/main.json
   ```
 
   Until then, the rule is social: no direct pushes to `main`, PRs only, and
@@ -48,14 +58,14 @@ Merge to `main` -> Dokploy webhook -> ARM64 build on the server (target
 
 ```bash
 # 1. Wait until production reports the merge commit (polls /api/health, browser UA).
-.claude/skills/ship/scripts/wait-for-deploy.sh https://app.example.com "$(git rev-parse origin/main)"
+.claude/skills/ship/scripts/wait-for-deploy.sh "$SMOKE_BASE_URL" "$(git rev-parse origin/main)"
 
 # 2. Smoke as the smoke user: health, CSRF handshake, login, me, household,
 #    accounts, categories, logout (Bruno, read-only in prod).
 npm run smoke:prod
 
 # 3. PWA files are never cached.
-curl -sI https://app.example.com/ngsw-worker.js | grep -i 'cache-control\|cf-cache-status'
+curl -sI "$SMOKE_BASE_URL/ngsw-worker.js" | grep -i 'cache-control\|cf-cache-status'
 # expect: cache-control: no-cache, cf-cache-status: DYNAMIC or BYPASS
 ```
 
@@ -64,7 +74,7 @@ start period 60 s). Production still on the old sha after that means a
 failed build or an automatic rollback: see "The two Dokploy traps".
 
 Before the first push of Docker changes: `docker build --target runtime -t
-monkimoney:local .` on the Mac (see `CLAUDE.md` for running it).
+monkimoney:local .` on your machine (see `CLAUDE.md` for running it).
 
 ### Talking to production from scripts
 
@@ -108,9 +118,10 @@ delete the `SEED_*_PASSWORD` values after the first deploy. It logs ids only.
 
 ## Backups, restore and drill
 
-DONE 2026-10-15: Dokploy `backup-create` for `monkimoney-db` to the R2
-destination, prefix `monkimoney/`, cron `15 16 * * *` UTC (02:15 Brisbane),
-keep 60. Manual: `backup-manualBackupPostgres`. List:
+A Dokploy scheduled backup of the Postgres service (`backup-create`) to an
+S3-compatible destination (R2), prefix `monkimoney/`, at least daily, with
+a retention count (the schedule and destination of a given deployment live
+in the panel). Manual: `backup-manualBackupPostgres`. List:
 `backup-listBackupFiles`. Restore:
 
 ```bash
@@ -146,16 +157,19 @@ S3 prefix, audit line).
 
 `APP_KEY` (invalidates every session), `DB_PASSWORD` (`postgres-changePassword`),
 R2 token, `LLM_API_KEY`, `RESEND_API_KEY`, Dokploy API key, `SMOKE_PASSWORD`,
-origin certificate (expires 2041).
+the Cloudflare origin certificate (before it expires).
 
 ## Certificate and Cloudflare
 
-Origin certificate `example.com & *.example.com` uploaded in Dokploy
-Settings -> Certificates (pasted by the owner). Cloudflare: A `money` proxied,
-SSL Full (strict) via configuration rule, cache bypass for `/`,
-`/index.html`, `/ngsw-worker.js`, `/ngsw.json`, `/manifest.webmanifest`,
-`/i18n/*`, `/api/*`; Rocket Loader and Bot Fight Mode off; rate limit on
-`/api/v1/auth/`. TODO: confirm each item once applied.
+A Cloudflare origin certificate for `<app-domain>` is uploaded in Dokploy
+Settings -> Certificates. What Cloudflare needs for this app:
+
+- a proxied DNS record for `<app-domain>` and SSL **Full (strict)**;
+- a **cache bypass** for the PWA files and the API: `/`, `/index.html`,
+  `/ngsw-worker.js`, `/ngsw.json`, `/manifest.webmanifest`, `/i18n/*`,
+  `/api/*` (otherwise installed apps stay pinned to an old build);
+- Rocket Loader off (it rewrites the app's scripts);
+- optionally, a rate limit on `/api/v1/auth/` on top of the app's own.
 
 **Client IP trust depends on Traefik's Cloudflare allowlist (`cf-only@file`).**
 The API takes the client IP from `CF-Connecting-IP` only when the TCP peer
@@ -174,12 +188,13 @@ Collection: `apps/api/bruno` (how it works and how to add a request:
 
 ```bash
 npm run smoke:local      # against npm run dev (http://localhost:3333)
-npm run smoke:prod       # against production, after every deploy
+npm run smoke:prod       # against SMOKE_BASE_URL, after every deploy
 ```
 
 Credentials: `SMOKE_EMAIL` and `SMOKE_PASSWORD` exported in the shell or in
-`apps/api/bruno/.env` (gitignored); environments only reference
-`{{process.env.*}}`. Against `prod` the collection only reads (plus the
+`apps/api/bruno/.env` (gitignored); the production base URL is
+`SMOKE_BASE_URL` (same places, or `docs/internal/ops.env`). Environments only
+reference `{{process.env.*}}`. Against `prod` the collection only reads (plus the
 smoke user's login/logout): its pre-request script skips any other write,
 and `04-login` fails the run unless the user landed in the "Smoke"
 household. Five failed logins per minute block the IP + email for 20
@@ -209,8 +224,9 @@ rate limits and email verification active.
 Cloudflare Turnstile guards sign-up, login and forgot password. It is off
 while `TURNSTILE_SECRET` is empty (the API ignores `turnstileToken`).
 
-1. Cloudflare dashboard (Mike) -> Turnstile -> add a widget for the app's
-   hostname (managed mode) and copy the site key and the secret key.
+1. Cloudflare dashboard (the account that owns `<app-domain>`) -> Turnstile
+   -> add a widget for the app's hostname (managed mode) and copy the site
+   key and the secret key.
 2. Dokploy -> monkimoney-web -> Environment: set `TURNSTILE_SITE_KEY` and
    `TURNSTILE_SECRET`, then redeploy (start-first). `GET /api/v1/config`
    now returns `turnstileSiteKey`.
@@ -243,11 +259,11 @@ docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monki
   FROM llm_usage GROUP BY 1, 2, 3 ORDER BY 2 DESC, 1, 3;"
 ```
 
-The `pulse` skill runs this month's version from the Mac, read-only and
+The `pulse` skill runs this month's version from your machine, read-only and
 together with health, logs, deployments, backups and disk:
 
 ```bash
-ssh <server> 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
   psql -U monkimoney -d monkimoney -X -q -v ON_ERROR_STOP=1 -f -' < .claude/skills/pulse/pulse.sql
 ```
 
@@ -268,9 +284,9 @@ container (and again whenever `APP_URL` changes):
 
 ```bash
 # Print the merged configuration only:
-ssh <server> 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:configure --dry-run'
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:configure --dry-run'
 # Apply it:
-ssh <server> 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:configure'
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:configure'
 ```
 
 - **CORS**: the `APP_URL` origin may `PUT` with the `Content-Type` header
@@ -287,7 +303,7 @@ re-run changes nothing, and it prints the result, never credentials. Changing
 bucket settings needs an R2 token with **Admin Read & Write**; with an
 object-only token the command fails with `AccessDenied`. In that case set both
 by hand in the dashboard (R2 → bucket → Settings → CORS policy / Object
-lifecycle rules) or with wrangler from the Mac (`npx wrangler r2 bucket cors
+lifecycle rules) or with wrangler from your machine (`npx wrangler r2 bucket cors
 set <bucket> --file <rules.json>` and `npx wrangler r2 bucket lifecycle add
 <bucket> expire-receipts receipts/ --expire-days 1`; check the flags with
 `--help`, they change between wrangler versions).
@@ -307,5 +323,7 @@ the browser must reach that host (`http://127.0.0.1:9030` in development).
 
 ## Disk
 
-The server's `/` is small; Docker lives on `/mnt/data`. Watch the build cache
-(`dockerDiskUsage-getBuildCache`) and keep Dokploy's weekly Docker cleanup on.
+Keep Docker's data root (images, volumes, build cache) on a disk with room
+to grow; the system disk of small cloud instances fills up fast. Watch the
+build cache (`dockerDiskUsage-getBuildCache`) and keep Dokploy's weekly
+Docker cleanup on.

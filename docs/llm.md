@@ -24,11 +24,13 @@ errors do not count), per calendar month in the household's time zone.
 
 Real calls, synthetic data; prints the parsed answer and the usage, exits 1
 on invalid output, a vendor error or when the fake is selected. Never in CI.
+`MONKIMONEY_SSH_HOST` is the server's SSH host (`docs/RUNBOOK.md` → "Local
+operator settings").
 
 ```bash
-ssh <server> 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace llm:smoke'
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace llm:smoke'
 # with a receipt photo (jpg/png/gif/webp, never commit real ones):
-ssh <server> 'C=$(docker ps -q -f name=monkimoney-web | head -n1); docker cp /tmp/receipt.jpg $C:/tmp/receipt.jpg && docker exec $C node ace llm:smoke --receipt /tmp/receipt.jpg'
+ssh "$MONKIMONEY_SSH_HOST" 'C=$(docker ps -q -f name=monkimoney-web | head -n1); docker cp /tmp/receipt.jpg $C:/tmp/receipt.jpg && docker exec $C node ace llm:smoke --receipt /tmp/receipt.jpg'
 ```
 
 Locally (`--allow-fake` dry run): `cd apps/api && node ace llm:smoke --allow-fake`.

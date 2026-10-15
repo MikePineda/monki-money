@@ -20,7 +20,7 @@ files, versioned with the code. The contract itself is the Tuyau registry
 
 ```bash
 npm run smoke:local     # against http://localhost:3333 (npm run dev)
-npm run smoke:prod      # against production, after every deploy
+npm run smoke:prod      # against SMOKE_BASE_URL (production), after every deploy
 ```
 
 Both call `scripts/smoke.sh <env>`, which runs a pinned `@usebruno/cli` with
@@ -31,6 +31,13 @@ Credentials: `SMOKE_EMAIL` and `SMOKE_PASSWORD`, exported in the shell or
 written to `apps/api/bruno/.env` (gitignored; Bruno loads it as
 `process.env`). Environments only reference them
 (`{{process.env.SMOKE_EMAIL}}`); never type a secret into a `.bru` file.
+
+The `prod` environment's `baseUrl` is `{{process.env.SMOKE_BASE_URL}}`
+(`https://<app-domain>`, no trailing slash): the repository never names the
+production domain. Set it the same way (shell or `apps/api/bruno/.env`);
+`scripts/smoke.sh prod` also reads it from `docs/internal/ops.env` and stops
+with a clear message when it is missing. `local` stays on
+`http://localhost:3333`.
 Personal overrides go in `environments/*.local.bru` (gitignored).
 
 The smoke user is created by the production bootstrap seeder when

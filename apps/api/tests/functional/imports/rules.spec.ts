@@ -310,9 +310,9 @@ test.group('Merchant rules', (group) => {
     const next = nabCsv([
       nabLine({
         date: '10 Oct 26',
-        amount: '-4.10',
+        amount: '-6.30',
         details: 'V1111 08/10 SAMPLE SERVICES PTY LTD GLENHAVEN 70000000912',
-        balance: '7233.21',
+        balance: '7636.45',
         category: 'Services',
         merchant: 'Sample Services Pty Ltd',
       }),

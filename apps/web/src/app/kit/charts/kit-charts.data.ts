@@ -42,11 +42,11 @@ export const SPENDING_BY_CATEGORY: readonly SampleCategory[] = [
 
 /** Merchants are proper names, so they are data rather than catalogue copy. */
 export const TOP_MERCHANTS: readonly { label: string; valueCents: number }[] = [
-  { label: 'Woolworths Riverside', valueCents: 41_230 },
-  { label: 'Coles Hillcrest', valueCents: 20_010 },
+  { label: 'Riverside Grocer', valueCents: 41_230 },
+  { label: 'Hillcrest Market', valueCents: 20_010 },
   { label: 'Translink', valueCents: 14_820 },
   { label: 'Corner Fuel', valueCents: 6_640 },
-  { label: 'Kmart Riverside', valueCents: 6_490 },
+  { label: 'Kmart Eastbrook', valueCents: 6_490 },
   { label: 'Mobile Co', valueCents: 3_500 },
 ]
 

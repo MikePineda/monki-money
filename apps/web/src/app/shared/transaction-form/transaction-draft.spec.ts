@@ -60,7 +60,7 @@ describe('draftErrors', () => {
 
 describe('addTag', () => {
   it('test_tags_are_trimmed_and_never_repeated', () => {
-    expect(addTag(['trip'], '  trip ')).toEqual(['trip', 'trip'])
+    expect(addTag(['trip'], '  beach ')).toEqual(['trip', 'beach'])
     expect(addTag(['trip'], 'trip')).toEqual(['trip'])
     expect(addTag(['trip'], '   ')).toEqual(['trip'])
   })

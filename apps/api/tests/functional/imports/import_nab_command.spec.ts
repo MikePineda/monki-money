@@ -51,7 +51,7 @@ test.group('Imports: import:nab command', (group) => {
       householdId: home.household.id,
       accountId: home.everyday.id,
       date: '2026-09-19',
-      amountCents: -17_885,
+      amountCents: -16_340,
       payee: 'FreshCo Market Northvale',
       paidByUserId: home.member.id,
     }).createMany(2)

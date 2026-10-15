@@ -222,14 +222,14 @@ describe('defaultTransferPair', () => {
 describe('payeeSuggestions', () => {
   it('test_frequent_recent_payees_come_first_without_duplicates', () => {
     const recent = [
-      entry({ payee: 'Woolworths Riverside' }),
-      entry({ payee: 'woolworths riverside ' }),
+      entry({ payee: 'Riverside Grocer' }),
+      entry({ payee: 'riverside grocer ' }),
       entry({ payee: 'Kmart' }),
       entry({ payee: 'Translink', date: '2026-05-01' }),
     ]
 
     expect(payeeSuggestions(recent, 'expense', '', TODAY)).toEqual([
-      'Woolworths Riverside',
+      'Riverside Grocer',
       'Kmart',
       'Translink',
     ])

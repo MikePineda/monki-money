@@ -39,8 +39,8 @@ test.group('Importing / synthetic NAB fixture', () => {
       5
     )
     assert.sameMembers([...new Set(rows.map((row) => row.cardSuffix))], ['1111', '2222', null])
-    assert.isTrue(rows.some((row) => row.amountCents === -50))
-    assert.isTrue(rows.some((row) => row.amountCents === 91))
+    assert.isTrue(rows.some((row) => row.amountCents === -70))
+    assert.isTrue(rows.some((row) => row.amountCents === 64))
     assert.isTrue(rows.some((row) => row.details.includes('Us & Friends')))
     assert.isTrue(rows.some((row) => row.details.includes('Linked Acc Trns')))
     assert.isTrue(rows.some((row) => row.details.startsWith('Hnry - INV-')))
@@ -58,6 +58,6 @@ test.group('Importing / synthetic NAB fixture', () => {
   test('test_sample_fixture_balance_chain_is_consistent', ({ assert }) => {
     const rows = stagedSample()
     assert.deepEqual(balanceChainBreaks(rows), [])
-    assert.equal(openingBalanceCents(rows), 150000)
+    assert.equal(openingBalanceCents(rows), 138000)
   })
 })

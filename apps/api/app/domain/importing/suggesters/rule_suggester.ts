@@ -10,7 +10,7 @@ const CONFIDENCE: Readonly<Record<RuleMatch['level'], number>> = {
 
 /**
  * First link: the household's own rules (learned or typed), by precedence
- * full merchant key -> base merchant key -> contains/regex by priority.
+ * full merchant key -> base merchant key -> contains/regex by priority. // gitleaks:allow
  * Trusted (no review). A winning rule that only names a transfer account
  * has no category opinion.
  */

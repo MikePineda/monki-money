@@ -1,5 +1,5 @@
 vars {
-  baseUrl: https://app.example.com
+  baseUrl: {{process.env.SMOKE_BASE_URL}}
   smokeEmail: {{process.env.SMOKE_EMAIL}}
   smokePassword: {{process.env.SMOKE_PASSWORD}}
 }

@@ -63,17 +63,17 @@ test.group('Importing / review', () => {
       reconcile({
         asOf: '2026-09-27',
         dateFrom: '2025-12-22',
-        expectedBalanceCents: 723_731,
-        computedBalanceCents: 723_731,
-        openingBalanceCents: 150_000,
+        expectedBalanceCents: 764_275,
+        computedBalanceCents: 764_275,
+        openingBalanceCents: 138_000,
       }),
       {
         asOf: '2026-09-27',
-        expectedBalanceCents: 723_731,
-        computedBalanceCents: 723_731,
+        expectedBalanceCents: 764_275,
+        computedBalanceCents: 764_275,
         differenceCents: 0,
         balanced: true,
-        openingBalanceCents: 150_000,
+        openingBalanceCents: 138_000,
         missingBefore: null,
       }
     )
@@ -83,10 +83,10 @@ test.group('Importing / review', () => {
         asOf: '2026-10-10',
         dateFrom: '2026-10-10',
         expectedBalanceCents: 700_000,
-        computedBalanceCents: 722_731,
+        computedBalanceCents: 763_275,
         openingBalanceCents: null,
       }),
-      { differenceCents: -22_731, balanced: false, missingBefore: '2026-10-10' }
+      { differenceCents: -63_275, balanced: false, missingBefore: '2026-10-10' }
     )
 
     assert.include(

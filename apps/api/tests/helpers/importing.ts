@@ -110,7 +110,7 @@ export function merchantRule(overrides: Partial<MerchantRule> = {}): MerchantRul
 export function transferLeg(overrides: Partial<TransferLeg> = {}): TransferLeg {
   return {
     accountId: 2,
-    amountCents: 80000,
+    amountCents: 75000,
     date: '2026-07-31',
     transactionId: 500,
     externalHash: null,

@@ -129,7 +129,7 @@ test.group('Importing / rule suggester', () => {
   test('test_refund_takes_the_expense_category_of_its_merchant_rule', async ({ assert }) => {
     const refund = suggestionInputFor(
       stagedRow({
-        amountCents: 5980,
+        amountCents: 5490,
         details: 'REFUND-EFTPOS TH* SAMPLE TOURS',
         nabCategory: 'Refund',
         nabMerchant: 'TourHub',
@@ -167,7 +167,7 @@ test.group('Importing / NAB category suggester', () => {
       details: 'CASH',
       nabCategory: 'Other income',
       nabMerchant: null,
-      amountCents: 10000,
+      amountCents: 12000,
     })
     const [found] = await nabSuggester.suggest([cash])
     assert.include(found, { categoryId: 12, needsReview: true })
