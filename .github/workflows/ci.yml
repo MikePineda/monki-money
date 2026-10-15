@@ -1,0 +1,152 @@
+# CI guards merges; it never deploys. Dokploy builds and deploys on merge to
+# main (ARM64, on the server), so there is no `docker build` here: the
+# faithful rehearsal is `docker build --target runtime .` on an ARM Mac.
+# Required checks (ruleset on main): `ci` and `commitlint`. No path filters on
+# purpose: a required check that does not run blocks the PR forever.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NG_CLI_ANALYTICS: 'false'
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: monkimoney
+          POSTGRES_PASSWORD: monkimoney
+          POSTGRES_DB: monkimoney_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monkimoney -d monkimoney_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Same values as apps/api/.env.test; listed so the job is self-describing.
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: monkimoney
+      DB_PASSWORD: monkimoney
+      DB_DATABASE: monkimoney_test
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: monkimoney-test
+      S3_KEY: monkimoney
+      S3_SECRET: monkimoney-secret
+      S3_FORCE_PATH_STYLE: 'true'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Only used by the S3 integration tests (tests/integration/s3_storage.spec.ts,
+      # added with the storage work package). Bitnami's frozen MinIO build:
+      # upstream minio/minio images are no longer published.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=monkimoney -e MINIO_ROOT_PASSWORD=monkimoney-secret \
+            bitnamilegacy/minio:2025.7.23-debian-12-r5
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:9000/minio/health/live && break
+            sleep 1
+          done
+          docker run --rm --network host --entrypoint /bin/sh \
+            bitnamilegacy/minio-client:2025.7.21-debian-12-r3 -c \
+            'until mc alias set local http://127.0.0.1:9000 monkimoney monkimoney-secret >/dev/null; do sleep 1; done && mc mb --ignore-existing local/monkimoney-test'
+
+      - run: npm ci
+
+      - uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Tuyau contract is in sync (run `npm run codegen` and commit apps/api/.adonisjs)
+        run: npx turbo run codegen && git diff --exit-code -- apps/api/.adonisjs
+
+      - name: Lint, typecheck, test, build
+        run: npx turbo run lint typecheck test build --continue
+
+      - name: npm audit (non-blocking)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+  commitlint:
+    name: commitlint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.js
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Non-blocking until it proves stable; then add `e2e` to the ruleset.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (mobile-chromium)
+        run: npx turbo run e2e -- --project=mobile-chromium
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
