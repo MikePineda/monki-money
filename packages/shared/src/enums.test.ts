@@ -1,12 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  ENTRY_KINDS,
-  LOCALES,
-  POSTGRES_ENUMS,
-  TRANSACTION_KINDS,
-  isLocale,
-} from './enums.ts'
+import { ENTRY_KINDS, LOCALES, POSTGRES_ENUMS, TRANSACTION_KINDS, isLocale } from './enums.ts'
 
 test('every Postgres enum has unique snake_case literals', () => {
   for (const [name, values] of Object.entries(POSTGRES_ENUMS)) {
