@@ -131,15 +131,18 @@ describe('GoalDetailPage', () => {
   it('test_a_goal_behind_its_date_says_so_and_what_it_would_take', async () => {
     const { root } = await open({
       goal: aGoal({ targetDate: '2027-03-31' }),
-      projection: aProjection({ onTrack: false, requiredMonthlyForTargetDate: 76_000 }),
+      projection: aProjection({ onTrack: false, requiredMonthlyForTargetDate: 75_910 }),
     })
 
     expect(text(root, '[data-testid="goal.pace"]')).toBe('Behind for 31 Mar 2027')
     expect(root.querySelector('[data-testid="goal.pace"] app-icon')?.className).toContain(
       'text-status-warning'
     )
-    expect(text(root, '[data-testid="goal.required"]')).toBe(
-      'To reach it by 31 Mar 2027, save $760.00 a month.'
+    expect(text(root, '[data-testid="goal.stats.required"] [data-testid="goals.stat.value"]')).toBe(
+      '$760'
+    )
+    expect(text(root, '[data-testid="goal.stats.required"]')).toContain(
+      'To reach it by 31 Mar 2027'
     )
     await vi.waitFor(() => expect(root.querySelector('line[data-marker]')).not.toBeNull())
   })
@@ -151,7 +154,7 @@ describe('GoalDetailPage', () => {
     })
 
     expect(text(root, '[data-testid="goal.pace"]')).toBe('On track for 31 Dec 2027')
-    expect(root.querySelector('[data-testid="goal.required"]')).toBeNull()
+    expect(root.querySelector('[data-testid="goal.stats.required"]')).toBeNull()
   })
 
   it('test_an_open_ended_goal_explains_why_and_nudges_a_contribution', async () => {

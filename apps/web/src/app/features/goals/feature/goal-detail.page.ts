@@ -65,8 +65,8 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
  * One goal `/goals/:id`: the hero (saved of target, what is left, the
  * progress track, on track or behind its date and what it would take per
  * month), the projection chart (target as a goal line, the target date as
- * a marker), three stat tiles (months to go, projected date, monthly rate
- * and where it comes from), and the actions: edit, mark as reached (or
+ * a marker), stat tiles (months to go, projected date, monthly rate and
+ * where it comes from, and what it takes per month when behind), and the actions: edit, mark as reached (or
  * active again), archive or restore, delete with a confirmation. A goal
  * with no usable rate says why honestly and offers to set a contribution.
  */
@@ -224,13 +224,6 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                     {{ 'goals.detail.pace.' + paceNow | transloco: { date: targetDateText() } }}
                   </p>
                 }
-                @if (requiredText(); as amount) {
-                  <p data-testid="goal.required" class="text-body text-ink-2">
-                    {{
-                      'goals.detail.pace.required' | transloco: { date: targetDateText(), amount }
-                    }}
-                  </p>
-                }
               </section>
 
               @if (outlook() === 'openEnded') {
@@ -270,7 +263,7 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
 
               <section
                 data-testid="goal.stats"
-                class="grid grid-cols-3 divide-x divide-line border-b border-line pb-6"
+                class="grid grid-cols-2 gap-y-5 border-b border-line pb-6"
                 [attr.aria-label]="'goals.detail.stats.label' | transloco"
               >
                 <app-goal-stat
@@ -293,6 +286,16 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                   [value]="rateText()"
                   [detail]="'goals.detail.rateSource.' + current.projection.rateSource | transloco"
                 />
+                @if (requiredText(); as amount) {
+                  <app-goal-stat
+                    data-testid="goal.stats.required"
+                    [label]="'goals.detail.stats.required' | transloco"
+                    [value]="amount"
+                    [detail]="
+                      'goals.detail.stats.requiredBy' | transloco: { date: targetDateText() }
+                    "
+                  />
+                }
               </section>
 
               <section
@@ -428,10 +431,13 @@ export default class GoalDetailPage {
     const date = this.detail()?.goal.targetDate
     return date ? formatDay(`${date}T00:00:00.000Z`, this.locale(), 'UTC') : ''
   })
-  /** What it takes per month to make the date, shown only when behind. */
+  /** What it takes per month to make the date (whole dollars, rounded up), only when behind. */
   protected readonly requiredText = computed(() => {
     const required = this.projection()?.requiredMonthlyForTargetDate
-    return this.pace() === 'behind' && required ? this.money(required) : ''
+    if (this.pace() !== 'behind' || !required) {
+      return ''
+    }
+    return formatMoney(Math.ceil(required / 100) * 100, this.locale(), { wholeDollars: true })
   })
 
   /** Null while open-ended. */

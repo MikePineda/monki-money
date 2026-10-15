@@ -106,8 +106,7 @@
     },
     "pace": {
       "onTrack": "On track for {date}",
-      "behind": "Behind for {date}",
-      "required": "To reach it by {date}, save {amount} a month."
+      "behind": "Behind for {date}"
     },
     "chart": {
       "title": "Projection",
@@ -119,6 +118,8 @@
       "monthsValue": "{count, plural, one {# month} other {# months}}",
       "date": "Projected date",
       "rate": "Monthly rate",
+      "required": "Needed per month",
+      "requiredBy": "To reach it by {date}",
       "none": "Not yet"
     },
     "rateSource": {

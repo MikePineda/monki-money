@@ -17,8 +17,10 @@ type NoteKey = 'reaches' | 'reached' | 'beyond' | 'notReached'
 
 /** Vertical room the goal label needs from a tick label (12px text plus air). */
 const GOAL_LABEL_CLEARANCE = 16
-/** About half the width of "Target Mar 2027" at 12px: closer to an edge, the label hangs inward. */
-const MARKER_LABEL_HALF_WIDTH = 48
+/** About the width of "Target Mar 2027" at 12px: closer to the right edge, the label hangs left. */
+const MARKER_LABEL_WIDTH = 100
+/** Space between the marker line (and the baseline) and its label. */
+const MARKER_LABEL_GAP = 6
 
 let nextProjectionId = 0
 
@@ -120,9 +122,9 @@ const KEYS = [
           <text
             data-marker-label
             class="threshold-label"
-            [attr.x]="marker.x"
-            [attr.y]="layout().line.plot.top - 4"
-            [attr.text-anchor]="markerAnchor()"
+            [attr.x]="markerLabel().x"
+            [attr.y]="markerLabel().y"
+            [attr.text-anchor]="markerLabel().anchor"
           >
             {{ 'charts.projection.target' | transloco: { month: markerText() } }}
           </text>
@@ -271,17 +273,20 @@ export class ProjectionChartComponent implements ChartTableSource {
     return marker ? monthText(marker.month, this.locale(), { withYear: true }) : ''
   })
 
-  /** The label hangs left of a marker near the right edge so it stays inside the plot. */
-  protected readonly markerAnchor = computed(() => {
+  /**
+   * The marker's label sits inside the plot at the bottom, beside the line
+   * (the goal label owns the top-left), hanging left of it near the right edge.
+   */
+  protected readonly markerLabel = computed(() => {
     const marker = this.layout().marker
-    const { left, right } = this.layout().line.plot
-    if (!marker) {
-      return 'middle'
+    const { right, bottom } = this.layout().line.plot
+    const x = marker?.x ?? 0
+    const nearRight = right - x < MARKER_LABEL_WIDTH
+    return {
+      x: nearRight ? x - MARKER_LABEL_GAP : x + MARKER_LABEL_GAP,
+      y: bottom - MARKER_LABEL_GAP,
+      anchor: nearRight ? 'end' : 'start',
     }
-    if (right - marker.x < MARKER_LABEL_HALF_WIDTH) {
-      return 'end'
-    }
-    return marker.x - left < MARKER_LABEL_HALF_WIDTH ? 'start' : 'middle'
   })
 
   protected readonly goalAmount = computed(() => {

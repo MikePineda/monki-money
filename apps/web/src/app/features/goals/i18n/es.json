@@ -106,8 +106,7 @@
     },
     "pace": {
       "onTrack": "A tiempo para el {date}",
-      "behind": "Atrasada para el {date}",
-      "required": "Para lograrla antes del {date}, ahorra {amount} al mes."
+      "behind": "Atrasada para el {date}"
     },
     "chart": {
       "title": "Proyección",
@@ -119,6 +118,8 @@
       "monthsValue": "{count, plural, one {# mes} other {# meses}}",
       "date": "Fecha proyectada",
       "rate": "Ritmo mensual",
+      "required": "Necesario al mes",
+      "requiredBy": "Para lograrla antes del {date}",
       "none": "Aún no"
     },
     "rateSource": {
