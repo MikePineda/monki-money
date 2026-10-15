@@ -17,7 +17,8 @@ import { ReceiptsApi } from './data-access/receipts.api'
  * - `unavailable`: the model or the bucket is down (503);
  * - `unreadable`: the model could not read the receipt (422);
  * - `throttled`: too many scans in a minute (429);
- * - `upload`: the bucket refused the photo, even with a fresh URL;
+ * - `upload`: the bucket refused the photo (even with a fresh URL), or the
+ *   browser could not reach it while online (a bucket without the CORS rule);
  * - `failed`: anything else.
  */
 export type ScanProblem =
@@ -215,7 +216,9 @@ export class ScanStore {
       return { problem: 'unreadablePhoto' }
     }
     if (error instanceof UploadNetworkError) {
-      return { problem: 'offline' }
+      // A bucket that refuses the browser (no CORS rule) fails like a dropped
+      // connection; while the device is online, say the upload failed instead.
+      return { problem: this.window.navigator.onLine === false ? 'offline' : 'upload' }
     }
     if (error instanceof BucketRefusedError) {
       return { problem: 'upload' }

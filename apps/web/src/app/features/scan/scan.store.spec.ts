@@ -205,17 +205,31 @@ describe('ScanStore', () => {
 
   it('test_a_dropped_connection_is_offline_and_retry_uploads_a_fresh_key_without_reoptimising', async () => {
     const store = setup()
-    api.put.mockRejectedValueOnce(new UploadNetworkError())
+    api.put.mockImplementationOnce(async () => {
+      view.navigator.onLine = false
+      throw new UploadNetworkError()
+    })
 
     await store.pick(photo())
     expect(store.step()).toEqual({ step: 'error', problem: 'offline', retryable: true })
     expect(store.preview()).toBe('blob:preview-1')
 
+    view.navigator.onLine = true
     await store.retry()
 
     expect(optimizer.optimize).toHaveBeenCalledTimes(1)
     expect(api.presign).toHaveBeenCalledTimes(2)
     expect(api.scan).toHaveBeenCalledWith('receipts/1/key-2.webp', expect.any(AbortSignal))
+  })
+
+  it('test_a_put_the_browser_blocks_while_online_is_an_upload_problem_not_offline', async () => {
+    // A bucket without the CORS rule fails the PUT exactly like a dropped connection.
+    const store = setup()
+    api.put.mockRejectedValueOnce(new UploadNetworkError())
+
+    await store.pick(photo())
+
+    expect(store.step()).toEqual({ step: 'error', problem: 'upload', retryable: true })
   })
 
   it('test_402_reads_as_the_ai_limit', async () => {
