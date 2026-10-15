@@ -1,0 +1,46 @@
+{
+  "app": {
+    "name": "monkimoney"
+  },
+  "shell": {
+    "nav": {
+      "label": "Principal"
+    },
+    "tabs": {
+      "month": "Mes",
+      "transactions": "Movimientos",
+      "add": "Agregar movimiento",
+      "more": "Más"
+    }
+  },
+  "pwa": {
+    "update": {
+      "ready": "Hay una versión nueva de monkimoney.",
+      "action": "Actualizar"
+    },
+    "unrecoverable": {
+      "message": "Esta versión de la app ya no puede cargar. Recarga para obtener la más reciente.",
+      "action": "Recargar"
+    }
+  },
+  "ui": {
+    "amount": {
+      "transfer": "Transferencia"
+    },
+    "keypad": {
+      "label": "Teclado del monto",
+      "delete": "Borrar",
+      "clearHint": "Mantén presionado para borrar todo"
+    },
+    "sheet": {
+      "close": "Cerrar"
+    },
+    "select": {
+      "search": "Buscar",
+      "noResults": "Sin resultados."
+    },
+    "toast": {
+      "dismiss": "Cerrar aviso"
+    }
+  }
+}

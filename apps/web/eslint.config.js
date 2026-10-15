@@ -41,6 +41,9 @@ export default tseslint.config(
       // whose value is data-driven (a bar width, a progress value) are allowed.
       '@angular-eslint/template/no-inline-styles': ['error', { allowBindToStyle: 'dynamic' }],
       '@angular-eslint/template/prefer-control-flow': 'error',
+      // Icon buttons (`button[appIconButton]`) get their accessible name from
+      // the required `label` input, which the component sets as aria-label.
+      '@angular-eslint/template/elements-content': ['error', { allowList: ['label'] }],
     },
   }
 )
