@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>monkimoney - Activity</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-surface": "#2d3130",
+            "inverse-on-surface": "#eef1ef",
+            "line": "#dee2e0",
+            "error": "#c8393a",
+            "surface-variant": "#e0e3e1",
+            "on-secondary-container": "#131715",
+            "status-critical": "#c8393a",
+            "on-primary-container": "#08633d",
+            "on-tertiary-container": "#808582",
+            "on-error-container": "#93000a",
+            "mark-muted": "#b4b9b6",
+            "surface-dim": "#d7dbd9",
+            "on-secondary": "#ffffff",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed": "#e0e3df",
+            "outline-variant": "#c4c7c4",
+            "secondary-fixed": "#dfe4df",
+            "primary": "#000000",
+            "surface-container-low": "#f3f6f4",
+            "accent-soft": "#dff5e7",
+            "expense": "#131715",
+            "secondary-fixed-dim": "#c3c8c4",
+            "income": "#3b7b1f",
+            "surface-container-high": "#e7ebe9",
+            "surface-tint": "#5b5f5c",
+            "tertiary-container": "#181d1a",
+            "error-container": "#fbe9e8",
+            "primary-container": "#181c1a",
+            "on-primary-fixed": "#181c1a",
+            "person-a": "#2a78d6",
+            "on-tertiary": "#ffffff",
+            "tertiary": "#000000",
+            "status-serious": "#c0571e",
+            "secondary": "#5b5f5c",
+            "line-strong": "#7c827e",
+            "inverse-primary": "#ecefed",
+            "on-primary": "#f8fbf9",
+            "on-surface": "#181c1c",
+            "secondary-container": "#edf1ef",
+            "on-surface-variant": "#494e4b",
+            "tertiary-fixed": "#dfe4e0",
+            "status-good": "#0ca30c",
+            "on-error": "#ffffff",
+            "on-background": "#181c1c",
+            "mark-neutral": "#606562",
+            "primary-fixed-dim": "#c4c7c4",
+            "outline": "#7c827e",
+            "transfer": "#686d6a",
+            "surface-container-highest": "#e1e5e3",
+            "on-secondary-fixed-variant": "#434845",
+            "background": "#f8fbf9",
+            "person-b": "#eb6834",
+            "surface": "#f8fbf9",
+            "surface-container": "#ebefed",
+            "surface-bright": "#ffffff",
+            "on-secondary-fixed": "#181d1a",
+            "on-primary-fixed-variant": "#444845",
+            "accent": "#08633d",
+            "on-tertiary-fixed": "#181d1a",
+            "on-tertiary-fixed-variant": "#434845",
+            "status-warning": "#b37903",
+            "tertiary-fixed-dim": "#c3c8c4"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "1rem",
+            "space-xl": "2rem",
+            "space-lg": "1.5rem",
+            "margin": "1.5rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "label": ["Inter"],
+            "title": ["Inter"],
+            "display": ["Inter"],
+            "body": ["Inter"],
+            "heading": ["Inter"],
+            "display-mobile": ["Inter"],
+            "body-sm": ["Inter"]
+          },
+          "fontSize": {
+            "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }],
+            "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+            "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }],
+            "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }],
+            "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+            "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body antialiased min-h-screen flex flex-col pb-24 selection:bg-accent-soft selection:text-accent" style="background-color: #0c0f0d; color: #ecefed;">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface sticky top-0 z-40 flex justify-between items-center w-full px-gutter py-space-md max-w-7xl mx-auto" style="background-color: #151816; border-bottom: 1px solid #2b2f2c;">
+<div class="flex items-center gap-space-sm">
+<button class="p-space-xs hover:bg-surface-variant dark:hover:bg-inverse-surface rounded-full transition-all duration-200 active:scale-98" style="color: #ecefed;">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-heading text-heading" style="color: #ecefed;">Activity</h1>
+</div>
+<div>
+<button class="p-space-xs hover:bg-surface-variant dark:hover:bg-inverse-surface rounded-full transition-all duration-200 active:scale-98" style="color: #ecefed;">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+</header>
+<!-- Filter Chips Row -->
+<div class="w-full px-gutter py-space-sm flex items-center gap-space-sm overflow-x-auto no-scrollbar bg-surface border-b border-line" style="background-color: #151816; border-bottom: 1px solid #2b2f2c;">
+<!-- Selected November Chip -->
+<div class="h-[36px] px-space-md rounded-lg flex items-center gap-space-xs shrink-0 cursor-pointer active:scale-98 transition-all duration-200" style="background-color: #162f21; border: 1px solid #5abb88; color: #5abb88;"><span class="material-symbols-outlined text-sm" data-weight="fill" style="font-variation-settings: 'FILL' 1; color: #5abb88;">check</span><span class="font-label text-label" style="color: #5abb88;">November</span></div>
+<!-- All accounts Chip -->
+<div class="h-[36px] px-space-md rounded-lg flex items-center gap-space-xs shrink-0 cursor-pointer transition-all duration-200 active:scale-98" style="background-color: #151816; border: 1px solid #6b706d; color: #ecefed;">
+<span class="font-label text-label" style="color: #ecefed;">All accounts</span>
+<span class="material-symbols-outlined text-sm" style="color: #ecefed;">arrow_drop_down</span>
+</div>
+<!-- Everyone Chip -->
+<div class="h-[36px] px-space-md rounded-lg flex items-center gap-space-xs shrink-0 cursor-pointer transition-all duration-200 active:scale-98" style="background-color: #151816; border: 1px solid #6b706d; color: #ecefed;">
+<span class="font-label text-label" style="color: #ecefed;">Everyone</span>
+<span class="material-symbols-outlined text-sm" style="color: #ecefed;">arrow_drop_down</span>
+</div>
+<!-- Category Chip -->
+<div class="h-[36px] px-space-md rounded-lg flex items-center gap-space-xs shrink-0 cursor-pointer transition-all duration-200 active:scale-98" style="background-color: #151816; border: 1px solid #6b706d; color: #ecefed;">
+<span class="font-label text-label" style="color: #ecefed;">Category</span>
+<span class="material-symbols-outlined text-sm" style="color: #ecefed;">arrow_drop_down</span>
+</div>
+</div>
+<!-- Transaction List Content -->
+<main class="w-full max-w-7xl mx-auto px-gutter flex-1"><div class="flex flex-col items-center justify-center py-20 px-gutter text-center"><div class="w-[48px] h-[48px] rounded-xl flex items-center justify-center" style="background-color: #1e2320; color: #bbbfbc;"><span class="material-symbols-outlined text-xl">receipt_long</span></div><h2 class="font-heading text-heading font-semibold mt-4" style="color: #ecefed;">No activity in November yet</h2><p class="font-body text-body mt-1 text-center" style="color: #8e9490;">Add the first one or import your bank CSV.</p><button class="rounded-lg px-4 py-2 font-medium mt-6" style="background-color: #151816; border: 1px solid #6b706d; color: #ecefed;">Import CSV</button></div></main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-space-xs pt-space-xs" style="background-color: #151816; border-top: 1px solid #2b2f2c;">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center px-space-sm py-space-xs hover:bg-surface-container transition-all duration-200 active:scale-98 rounded-2xl" href="#" style="color: #8e9490;">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label text-label mt-0.5">Month</span>
+</a>
+<!-- Activity (Active) -->
+<a class="flex flex-col items-center justify-center rounded-2xl px-space-sm py-space-xs transition-all duration-200 active:scale-98" href="#" style="background-color: #1e2320; color: #5abb88;">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="font-label text-label mt-0.5">Activity</span>
+</a>
+<!-- Add (+) Button -->
+<button class="w-[48px] h-[48px] rounded-xl flex items-center justify-center shadow-md hover:opacity-90 transition-all duration-200 active:scale-98" style="background-color: #ecefed; color: #0c0f0d;">
+<span class="material-symbols-outlined" style="color: #0c0f0d;">add</span>
+</button>
+<!-- Profile (Inactive) -->
+<a class="flex flex-col items-center justify-center px-space-sm py-space-xs hover:bg-surface-container transition-all duration-200 active:scale-98 rounded-2xl" href="#" style="color: #8e9490;">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label text-label mt-0.5">More</span>
+</a>
+</nav>
+</body></html>

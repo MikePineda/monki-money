@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Categories - monkimoney</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface": "#0c0f0d",
+            "background": "#0c0f0d",
+            "surface-container": "#1e2320",
+            "surface-container-lowest": "#151816",
+            "surface-container-low": "#151816",
+            "surface-container-high": "#1e2320",
+            "surface-container-highest": "#1e2320",
+            "surface-variant": "#151816",
+            "on-surface": "#ecefed",
+            "on-surface-variant": "#bbbfbc",
+            "outline": "#8e9490",
+            "outline-variant": "#2b2f2c",
+            "border": "#6b706d",
+            "primary": "#ecefed",
+            "on-primary": "#0c0f0d",
+            "inverse-primary": "#0c0f0d",
+            "accent": "#5abb88",
+            "on-background": "#ecefed",
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-lg": "1.5rem",
+            "gutter": "1rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "margin": "1.5rem"
+          },
+          "fontFamily": {
+            "title": ["Inter"],
+            "display": ["Inter"],
+            "body-sm": ["Inter"],
+            "heading": ["Inter"],
+            "display-mobile": ["Inter"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          "fontSize": {
+            "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+            "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }],
+            "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+            "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+            "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }],
+            "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }]
+          }
+        },
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+      background-color: #0c0f0d;
+      color: #ecefed;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body antialiased selection:bg-accent selection:text-on-primary">
+<div class="max-w-[390px] mx-auto min-h-screen flex flex-col relative bg-surface pb-24">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-40 bg-surface flex justify-between items-center w-full px-gutter py-space-sm">
+<button class="text-primary p-space-xs rounded-lg transition-all duration-200">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="font-title text-title font-semibold text-primary">Categories</h1>
+<button class="text-primary p-space-xs rounded-lg transition-all duration-200">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+</header>
+<!-- Main Scrollable Content -->
+<main class="flex-1 px-gutter py-space-md flex flex-col gap-space-md">
+<!-- HOUSING GROUP -->
+<section class="flex flex-col">
+<div class="flex items-center justify-between py-space-sm text-on-surface-variant">
+<span class="text-label font-label tracking-wider font-semibold">HOUSING</span>
+<span class="material-symbols-outlined text-outline cursor-grab text-[18px]">drag_indicator</span>
+</div>
+<div class="flex flex-col">
+<!-- 1. Rent -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">home</span>
+</div>
+<span class="text-body font-body text-on-surface">Rent</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 2. Utilities -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">bolt</span>
+</div>
+<span class="text-body font-body text-on-surface">Utilities</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 3. Phone & internet -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">smartphone</span>
+</div>
+<span class="text-body font-body text-on-surface">Phone &amp; internet</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 4. Home goods -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">package</span>
+</div>
+<span class="text-body font-body text-on-surface">Home goods</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+</div>
+</section>
+<!-- FOOD GROUP -->
+<section class="flex flex-col mt-space-sm">
+<div class="flex items-center justify-between py-space-sm text-on-surface-variant">
+<span class="text-label font-label tracking-wider font-semibold">FOOD</span>
+<span class="material-symbols-outlined text-outline cursor-grab text-[18px]">drag_indicator</span>
+</div>
+<div class="flex flex-col">
+<!-- 5. Groceries -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">shopping_cart</span>
+</div>
+<span class="text-body font-body text-on-surface">Groceries</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 6. Restaurants & takeaway -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">restaurant</span>
+</div>
+<span class="text-body font-body text-on-surface">Restaurants &amp; takeaway</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 7. Cafe & coffee -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">coffee</span>
+</div>
+<span class="text-body font-body text-on-surface">Cafe &amp; coffee</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 8. Alcohol -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">wine_bar</span>
+</div>
+<span class="text-body font-body text-on-surface">Alcohol</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+</div>
+</section>
+<!-- TRANSPORT GROUP -->
+<section class="flex flex-col mt-space-sm">
+<div class="flex items-center justify-between py-space-sm text-on-surface-variant">
+<span class="text-label font-label tracking-wider font-semibold">TRANSPORT</span>
+<span class="material-symbols-outlined text-outline cursor-grab text-[18px]">drag_indicator</span>
+</div>
+<div class="flex flex-col">
+<!-- 9. Public transport -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">directions_bus</span>
+</div>
+<span class="text-body font-body text-on-surface">Public transport</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+<!-- 10. Rideshare & taxi -->
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant">
+<div class="flex items-center gap-space-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-grab text-[18px]">drag_indicator</span>
+<div class="w-[36px] h-[36px] bg-surface-container rounded-lg flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">local_taxi</span>
+</div>
+<span class="text-body font-body text-on-surface">Rideshare &amp; taxi</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Bottom Section: Archived -->
+<section class="mt-space-md mb-space-lg">
+<div class="h-[56px] flex items-center justify-between border-b border-outline-variant cursor-pointer hover:bg-surface-container transition-colors px-space-xs rounded-lg">
+<span class="text-body font-body text-on-surface-variant font-medium">Archived (2)</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">expand_more</span>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 right-0 max-w-[390px] mx-auto z-50 bg-surface border-t border-outline-variant flex justify-around items-center px-gutter py-space-sm">
+<!-- Month -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-space-xs transition-all duration-200">
+<span class="material-symbols-outlined text-[24px]">calendar_month</span>
+<span class="text-label font-label mt-space-xs">Month</span>
+</button>
+<!-- Activity -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-space-xs transition-all duration-200">
+<span class="material-symbols-outlined text-[24px]">list</span>
+<span class="text-label font-label mt-space-xs">Activity</span>
+</button>
+<!-- Center Plus Button -->
+<button class="w-[48px] h-[48px] bg-[#ecefed] rounded-[12px] flex items-center justify-center text-[#0c0f0d] transition-all duration-200">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+<!-- More (Active) -->
+<button class="flex flex-col items-center justify-center text-accent font-medium p-space-xs transition-all duration-200">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">menu</span>
+<span class="text-label font-label mt-space-xs">More</span>
+</button>
+</nav>
+</div>
+</body></html>

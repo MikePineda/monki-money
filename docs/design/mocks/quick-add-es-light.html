@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Monkimoney - Agregar Transacción</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "surface-tint": "#131715",
+              "inverse-primary": "#ecefed",
+              "on-tertiary-fixed": "#181d1a",
+              "status-serious": "#c0571e",
+              "surface-container-lowest": "#ffffff",
+              "on-primary": "#ffffff",
+              "on-tertiary-container": "#131715",
+              "accent": "#08633d",
+              "primary": "#000000",
+              "error-container": "#ffdad6",
+              "on-secondary-container": "#131715",
+              "income": "#3b7b1f",
+              "tertiary-fixed-dim": "#c3c8c4",
+              "surface-container-low": "#f1f4f2",
+              "error": "#c8393a",
+              "surface-bright": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "surface-container": "#ebefed",
+              "on-error": "#ffffff",
+              "surface-container-highest": "#e1e5e3",
+              "line": "#dee2e0",
+              "mark-neutral": "#606562",
+              "on-primary-fixed-variant": "#444845",
+              "line-strong": "#7c827e",
+              "on-error-container": "#93000a",
+              "primary-fixed-dim": "#c4c7c4",
+              "inverse-on-surface": "#eef1ef",
+              "primary-fixed": "#e0e3df",
+              "secondary": "#5b5f5c",
+              "on-surface-variant": "#444845",
+              "accent-soft": "#dff5e7",
+              "surface": "#f8fbf9",
+              "on-surface": "#181c1c",
+              "person-a": "#2a78d6",
+              "on-primary-container": "#08633d",
+              "tertiary-container": "#e7ebe9",
+              "on-secondary": "#ffffff",
+              "on-primary-fixed": "#181c1a",
+              "transfer": "#686d6a",
+              "person-b": "#eb6834",
+              "surface-variant": "#e0e3e1",
+              "surface-dim": "#d7dbd9",
+              "outline": "#7c827e",
+              "status-good": "#0ca30c",
+              "primary-container": "#dff5e7",
+              "on-background": "#131715",
+              "status-critical": "#c8393a",
+              "tertiary-fixed": "#dfe4e0",
+              "on-secondary-fixed": "#181d1a",
+              "secondary-fixed-dim": "#c3c8c4",
+              "secondary-container": "#dfe4df",
+              "secondary-fixed": "#dfe4df",
+              "status-warning": "#b37903",
+              "on-secondary-fixed-variant": "#434845",
+              "background": "#f8fbf9",
+              "on-tertiary-fixed-variant": "#434845",
+              "inverse-surface": "#2d3130",
+              "surface-container-high": "#e6e9e7",
+              "mark-muted": "#b4b9b6",
+              "outline-variant": "#c4c7c4",
+              "tertiary": "#000000",
+              "expense": "#131715"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+            "spacing": {
+              "space-sm": "0.5rem",
+              "gutter": "1rem",
+              "space-xs": "0.25rem",
+              "margin": "1.5rem",
+              "space-xl": "2rem",
+              "space-md": "1rem",
+              "space-lg": "1.5rem"
+            },
+            "fontFamily": {
+              "heading": ["Inter"],
+              "body-sm": ["Inter"],
+              "title": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"],
+              "display-mobile": ["Inter"],
+              "display": ["Inter"]
+            },
+            "fontSize": {
+              "heading": ["18px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "600" }],
+              "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0px", "fontWeight": "400" }],
+              "title": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.24px", "fontWeight": "600" }],
+              "body": ["16px", { "lineHeight": "24px", "letterSpacing": "0px", "fontWeight": "400" }],
+              "label": ["12px", { "lineHeight": "16px", "letterSpacing": "0.4px", "fontWeight": "500" }],
+              "display-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.64px", "fontWeight": "500" }],
+              "display": ["44px", { "lineHeight": "48px", "letterSpacing": "-0.88px", "fontWeight": "500" }]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body antialiased flex justify-center items-center min-h-screen">
+<!-- iPhone 390x844 Frame Container -->
+<div class="w-[390px] h-[844px] bg-surface flex flex-col justify-between relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-inverse-surface flex justify-between items-center w-full px-space-md py-space-sm max-w-full z-20">
+<!-- Leading Action: close -->
+<button class="flex items-center text-on-surface hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors p-space-xs rounded-full active:opacity-80 transition-opacity duration-150"><span class="font-heading text-heading text-on-surface">Listo</span></button>
+<!-- Trailing Action: Date Chip -->
+<div class="flex items-center gap-space-xs">
+<span class="bg-surface-container-high px-space-sm py-1 rounded-full font-label text-label text-on-surface-variant">Hoy · mié 15 oct</span>
+</div>
+</header>
+<div class="flex bg-surface-container p-1 rounded-xl mx-space-md mb-space-md">
+<button class="flex-1 py-1.5 bg-surface-container-lowest text-on-primary-container font-label text-label rounded-lg shadow-sm text-center">Gasto</button>
+<button class="flex-1 py-1.5 text-on-surface-variant font-label text-label rounded-lg text-center">Ingreso</button>
+<button class="flex-1 py-1.5 text-on-surface-variant font-label text-label rounded-lg text-center">Transferencia</button>
+</div>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col px-space-md overflow-y-auto pb-24">
+<!-- Hero Amount -->
+<div class="flex flex-col justify-center my-space-sm items-start">
+<div class="text-[44px] leading-[48px] font-display font-medium tracking-tight text-on-surface">$42.50</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center gap-1 bg-surface-container-high px-space-sm py-1 rounded-full font-label text-label text-on-surface-variant border border-line-strong">
+                        NAB Everyday <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</span>
+<span class="inline-flex items-center gap-1 bg-surface-container-high px-space-sm py-1 rounded-full font-label text-label text-on-surface-variant border border-line-strong">
+<span class="w-2 h-2 rounded-full bg-person-a inline-block"></span> Tú <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</span>
+</div>
+</div>
+<!-- Category Grid (4x2) -->
+<div class="grid grid-cols-4 gap-2 my-space-md">
+<!-- Groceries (Selected) -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-accent-soft border border-accent cursor-pointer">
+<span class="material-symbols-outlined text-accent text-xl">shopping_cart</span>
+<span class="font-label text-label text-on-primary-container mt-1">Súper</span>
+</div>
+<!-- Restaurants -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">restaurant</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Restaurantes</span>
+</div>
+<!-- Transport -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">directions_car</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Transporte</span>
+</div>
+<!-- Coffee -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">local_cafe</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Café</span>
+</div>
+<!-- Alcohol -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">wine_bar</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Alcohol</span>
+</div>
+<!-- Rent -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">home</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Renta</span>
+</div>
+<!-- Phone -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">smartphone</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Teléfono</span>
+</div>
+<!-- More -->
+<div class="flex flex-col items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-line">
+<span class="material-symbols-outlined text-on-surface-variant text-xl">grid_view</span>
+<span class="font-label text-label text-on-surface-variant mt-1">Más</span>
+</div>
+</div>
+<!-- Collapsed row: Note, merchant, date -->
+<div class="flex items-center justify-between px-space-md py-3 bg-surface-container-lowest rounded-xl border border-outline-variant text-on-surface-variant font-body-sm mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-base">edit_note</span>
+<span>Nota, comercio, fecha</span>
+</div>
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</div>
+<!-- Numeric Keypad -->
+<div class="grid grid-cols-3 divide-x divide-y divide-outline-variant mt-auto">
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">1</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">2</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">3</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">4</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">5</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">6</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">7</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">8</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">9</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">00</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">0</button>
+<button class="h-[56px] flex items-center justify-center font-heading text-heading text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">backspace</span>
+</button>
+</div>
+</main>
+<!-- Fixed full-width button -->
+<div class="absolute bottom-0 left-0 w-full p-space-md bg-surface border-t border-outline-variant z-30">
+<button class="w-full bg-surface-tint text-on-primary py-3.5 rounded-xl font-heading text-heading flex items-center justify-center gap-space-sm shadow-md active:opacity-90 transition-opacity">
+                Guardar −$42.50
+            </button>
+</div>
+</div>
+</body></html>

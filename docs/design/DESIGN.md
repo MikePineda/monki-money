@@ -341,7 +341,7 @@ Figures:
 - **Tap targets.** Minimum 44px, 48px for primary controls, 56px for keypad keys and the bottom primary button. A visual element smaller than its target (a 36px chip, an 8px dot) gets an invisible hit area that reaches the minimum.
 - **One-handed use.** Primary actions sit at the bottom: the full-width primary button is fixed 16px above the bottom safe area; the tab bar is 64px plus the safe area.
 - **Vertical rhythm.** 32px between sections on a scrolling screen, 16px between a section header and its content, 8px between related controls. Sections are separated by whitespace and, where needed, one hairline. No boxes around sections.
-- **Shell.** Top app bar 56px (title left, at most two 44px icon buttons right). Bottom tab bar: Mes · Movimientos · **+** · Importar · Ajustes.
+- **Shell.** Top app bar 56px (title left, at most two 44px icon buttons right). Bottom tab bar: Mes · Movimientos · **+** · Más (Más groups Importar, Categorías and Ajustes; four slots keep every tab thumb-reachable).
 
 Screen skeletons the system is tuned for:
 
@@ -495,7 +495,7 @@ A transaction row with a 44px leading checkbox, used by `ReviewList` / `RowTriag
 
 ### Tab bar
 
-- Fixed bottom, `surface-1`, 1px `line` top border, 64px plus the bottom safe area. Five equal slots: Mes (`calendar`), Movimientos (`list`), **+**, Importar (`file-up`), Ajustes (`settings`).
+- Fixed bottom, `surface-1`, 1px `line` top border, 64px plus the bottom safe area. Four equal slots: Mes (`calendar`), Movimientos (`list`), **+**, Más (`menu`). Importar, Categorías and Ajustes live under Más. The bar takes `tabs` and `addAfter` as configuration, so a fifth tab is a config change, not a redesign.
 - Each tab: 20px icon over a `caption` label. Inactive `ink-3`; active `accent` icon and label at weight 600.
 - Centre add button: 48 × 48, radius 12, `ink-1` fill, 24px `plus` in `surface-0` (it is a primary action, so it follows the primary button), sitting inside the bar (not floating, no notch). Accessible name "Agregar movimiento". Opens `/add`.
 
