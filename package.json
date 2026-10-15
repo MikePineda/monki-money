@@ -1,0 +1,48 @@
+{
+  "name": "monkimoney",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "monkimoney: a couples' finance PWA (AUD). AdonisJS 7 API + Angular 22 PWA monorepo.",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "e2e"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "codegen": "turbo run codegen",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "e2e": "turbo run e2e",
+    "verify": "turbo run lint typecheck test build && npm run e2e",
+    "verify:quick": "turbo run lint typecheck test build",
+    "prepare": "node scripts/install-git-hooks.mjs"
+  },
+  "devDependencies": {
+    "@adonisjs/prettier-config": "1.5.0",
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "lefthook": "2.2.2",
+    "prettier": "3.9.10",
+    "turbo": "2.11.8"
+  },
+  "packageManager": "npm@11.19.0",
+  "allowScripts": {
+    "@swc/core": true,
+    "esbuild": true,
+    "fsevents": true,
+    "lefthook": true,
+    "lmdb": true,
+    "msgpackr-extract": true
+  },
+  "prettier": "@adonisjs/prettier-config"
+}

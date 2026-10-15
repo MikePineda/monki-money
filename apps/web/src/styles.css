@@ -1,0 +1,7 @@
+/*
+ * Global stylesheet. Plain CSS on purpose: Tailwind 4 is a PostCSS plugin and
+ * does not support Sass preprocessing, so the Tailwind entry point cannot be a
+ * .scss file. Component styles may still use SCSS.
+ * Design tokens (light/dark) land here in a later work package.
+ */
+@import 'tailwindcss';

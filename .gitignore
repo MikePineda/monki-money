@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+
+# Build outputs
+build
+dist
+.turbo
+.angular
+out-tsc
+
+# Secrets (apps/api/.env.test is committed on purpose: test-only values)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Temp files
+tmp/*
+!tmp/.gitkeep
+apps/api/tmp
+
+# Test and E2E artifacts
+coverage
+playwright-report
+test-results
+e2e/.cache
+bruno/environments/*.local.bru
+apps/api/bruno/environments/*.local.bru
+
+# Logs
+npm-debug.log
+yarn-error.log
+*.log
+
+# Editors
+.fleet
+.idea
+.vscode
+
+# Platform specific
+.DS_Store
+Thumbs.db
+
+# Local-only scratch: owner Q&A, plan copies, notes. Never committed.
+docs/internal/
+
+# Real bank exports must never enter the repo (fixtures are synthetic).
+*.csv
+!**/tests/fixtures/**/*.csv

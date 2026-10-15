@@ -1,0 +1,19 @@
+# Generated or vendored output
+node_modules
+build
+dist
+coverage
+.turbo
+.angular
+.adonisjs
+tmp
+playwright-report
+test-results
+package-lock.json
+CHANGELOG.md
+# Local-only notes (gitignored)
+docs/internal
+# Copied verbatim from elsewhere; keep byte-identical to the source
+BRIEF.md
+.claude/skills/web-design-guidelines
+.claude/skills/writing-guidelines

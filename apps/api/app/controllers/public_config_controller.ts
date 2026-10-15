@@ -1,0 +1,22 @@
+import env from '#start/env'
+import type { PublicConfig } from '@monkimoney/shared'
+import { currentBuildInfo } from '#services/build_info'
+
+/**
+ * Runtime configuration the SPA needs before anyone logs in. Everything here
+ * is public by definition; never add a secret.
+ */
+export default class PublicConfigController {
+  async show(): Promise<{ data: PublicConfig }> {
+    const { version } = await currentBuildInfo()
+
+    return {
+      data: {
+        registrationOpen: env.get('REGISTRATION_OPEN'),
+        version,
+        turnstileSiteKey: env.get('TURNSTILE_SITE_KEY') ?? null,
+        sentryDsnWeb: env.get('SENTRY_DSN_WEB') ?? null,
+      },
+    }
+  }
+}
