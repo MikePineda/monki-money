@@ -3,9 +3,61 @@
   "picker": {
     "label": "Month"
   },
+  "loading": "Loading the month",
+  "error": "This month did not load.",
+  "hero": {
+    "eyebrow": "Spent in {month}",
+    "less": "{percent}% less than {month} ({amount})",
+    "more": "{percent}% more than {month} ({amount})",
+    "same": "Same as {month} ({amount})"
+  },
+  "stats": {
+    "label": "Month totals",
+    "income": "Income",
+    "spent": "Spent",
+    "saved": "Net saved"
+  },
+  "spend": {
+    "title": "Spending by category",
+    "subtitle": "{count, plural, one {# category} other {# categories}}",
+    "header": "Category",
+    "empty": "No spending in {month} yet.",
+    "uncategorized": "Uncategorised",
+    "private": "Private",
+    "unknown": "Other"
+  },
+  "trend": {
+    "title": "Trend · 6 months",
+    "series": "Spent"
+  },
+  "whoPaid": {
+    "title": "Who paid",
+    "you": "You",
+    "joint": "Shared",
+    "empty": "Nobody spent anything in {month} yet."
+  },
+  "top": {
+    "title": "Top transactions",
+    "viewAll": "View all",
+    "private": "Private",
+    "noPayee": "No merchant",
+    "uncategorized": "Uncategorised"
+  },
+  "insights": {
+    "title": "Observations",
+    "eyebrow": "Observation",
+    "groupAboveAverage": "{group} is {percent}% above your 3-month average.",
+    "groupBelowAverage": "{group} is {percent}% below your 3-month average.",
+    "groupShare": "{group} is {percent}% of this month’s spending.",
+    "savedShare": "You saved {percent}% of your income this month.",
+    "overspent": "You spent {percent}% more than you earned this month.",
+    "spendAboveAverage": "Spending is {percent}% above your 3-month average.",
+    "spendBelowAverage": "Spending is {percent}% below your 3-month average."
+  },
   "empty": {
-    "title": "No transactions in {month} yet.",
-    "body": "Add the first one, or import your bank's CSV once import is ready.",
-    "action": "Add transaction"
+    "title": "Nothing in {month} yet.",
+    "body": "Add the first transaction or import your bank’s CSV.",
+    "add": "Add transaction",
+    "import": "Import CSV"
   }
 }

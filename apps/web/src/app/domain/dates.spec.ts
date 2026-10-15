@@ -1,4 +1,4 @@
-import { formatDay, formatWeekdayDate } from './dates'
+import { formatDay, formatDayMonth, formatWeekdayDate } from './dates'
 
 describe('formatDay', () => {
   it('test_formats_day_first_with_a_short_month_in_both_locales', () => {
@@ -26,5 +26,12 @@ describe('formatWeekdayDate', () => {
 
   it('test_the_device_time_zone_never_shifts_the_day', () => {
     expect(formatWeekdayDate('2026-01-01', 'en-AU')).toBe('Thu 1 Jan')
+  })
+})
+
+describe('formatDayMonth', () => {
+  it('test_day_and_month_without_the_year', () => {
+    expect(formatDayMonth('2026-10-05', 'en-AU')).toBe('5 Oct')
+    expect(formatDayMonth('2026-10-05', 'es-MX')).toBe('5 oct')
   })
 })

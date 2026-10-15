@@ -1,0 +1,36 @@
+{
+  "title": {
+    "expense": "Agregar gasto",
+    "income": "Agregar ingreso",
+    "transfer": "Agregar transferencia"
+  },
+  "done": "Listo",
+  "loading": "Cargando tus cuentas y categorías",
+  "loadError": "No se cargaron tus cuentas y categorías.",
+  "kind": {
+    "label": "Tipo de movimiento",
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "transfer": "Transferencia"
+  },
+  "who": {
+    "you": "Tú",
+    "joint": "Compartido"
+  },
+  "dateChip": {
+    "label": "Fecha",
+    "today": "Hoy · {day}",
+    "yesterday": "Ayer · {day}"
+  },
+  "save": "Guardar {amount}",
+  "toast": {
+    "saved": "Guardado",
+    "undo": "Deshacer",
+    "undone": "Eliminado"
+  },
+  "noAccounts": {
+    "title": "Primero agrega una cuenta.",
+    "body": "Cada gasto, ingreso o transferencia va a una de tus cuentas.",
+    "action": "Agregar cuenta"
+  }
+}

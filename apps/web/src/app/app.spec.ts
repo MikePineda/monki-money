@@ -11,8 +11,11 @@ import { SessionStore } from './core/auth/session.store'
 import { AccountsApi } from './core/household/accounts.api'
 import { CategoriesApi } from './core/household/categories.api'
 import { HouseholdApi } from './core/household/household.api'
+import { ReportsApi } from './core/ledger/reports.api'
+import { TransactionsApi as LedgerTransactionsApi } from './core/ledger/transactions.api'
 import { TransactionsApi } from './features/transactions/data-access/transactions.api'
-import { aCategoryTree } from '../testing/ledger-fixtures'
+import { aCategoryTree, aMonthReport, aTrendReport } from '../testing/ledger-fixtures'
+import type { YearMonth } from './domain/month'
 
 type State = SessionKind | 'guest'
 
@@ -52,6 +55,14 @@ describe('app routes', () => {
           useValue: { members: async () => [aMember()], invitations: async () => [] },
         },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
+        {
+          provide: ReportsApi,
+          useValue: {
+            month: async (month: YearMonth) => aMonthReport(month),
+            trend: async (month: YearMonth) => aTrendReport(month),
+          },
+        },
+        { provide: LedgerTransactionsApi, useValue: { list: async () => [] } },
         {
           provide: TransactionsApi,
           useValue: { list: async () => ({ rows: [], page: 1, lastPage: 1, total: 0 }) },
@@ -129,6 +140,15 @@ describe('app routes', () => {
     }
   })
 
+  it('test_a_session_that_ended_sends_the_next_tab_to_login', async () => {
+    await navigate('/settings')
+    TestBed.inject(SessionStore).clear()
+
+    await TestBed.inject(Router).navigateByUrl('/transactions')
+
+    expect(TestBed.inject(Router).url).toBe('/login?returnUrl=%2Ftransactions')
+  })
+
   it('test_the_old_more_tab_url_opens_settings', async () => {
     await navigate('/more')
 
@@ -138,7 +158,7 @@ describe('app routes', () => {
   it('test_quick_add_is_full_screen_without_the_tab_bar', async () => {
     const page = await navigate('/add?type=income')
 
-    expect(page.querySelector('[data-testid="add.empty"]')).not.toBeNull()
+    expect(page.querySelector('[data-testid="quickAdd.page"]')).not.toBeNull()
     expect(page.querySelector('app-tab-bar')).toBeNull()
   })
 

@@ -1,5 +1,7 @@
 import type { Transaction } from '../app/core/api/api-types'
+import type { MonthReport, TrendReport } from '../app/core/ledger/reports.api'
 import type { CategoryTree } from '../app/domain/category-tree'
+import { addMonths, type YearMonth } from '../app/domain/month'
 
 let nextId = 1000
 
@@ -135,4 +137,44 @@ export function aCategoryTree(): CategoryTree {
       ],
     },
   ]
+}
+
+export function aMonthReport(month: YearMonth, overrides: Partial<MonthReport> = {}): MonthReport {
+  return {
+    month,
+    from: `${month}-01`,
+    to: `${month}-28`,
+    incomeCents: 0,
+    expenseCents: 0,
+    netCents: 0,
+    byGroup: [],
+    byCategory: [],
+    byPerson: [],
+    uncategorizedCents: 0,
+    pendingCents: 0,
+    transactionCount: 0,
+    topMovers: [],
+    ...overrides,
+  } as MonthReport
+}
+
+/** A six-month trend ending at `month`; `spent` lists the expense totals oldest first. */
+export function aTrendReport(
+  month: YearMonth,
+  spent: readonly number[] = [0, 0, 0, 0, 0, 0],
+  overrides: Partial<TrendReport> = {}
+): TrendReport {
+  const months = spent.map((_, index) => addMonths(month, index - spent.length + 1))
+  return {
+    months,
+    groupBy: 'group',
+    totals: months.map((ym, index) => ({
+      month: ym,
+      incomeCents: 0,
+      expenseCents: spent[index] ?? 0,
+      netCents: -(spent[index] ?? 0),
+    })),
+    series: [],
+    ...overrides,
+  } as TrendReport
 }

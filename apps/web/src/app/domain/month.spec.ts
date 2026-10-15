@@ -1,6 +1,9 @@
 import {
+  addDays,
   addMonths,
   compareYearMonth,
+  daysBetween,
+  isIsoDate,
   isYearMonth,
   label,
   monthOf,
@@ -97,5 +100,27 @@ describe('todayIn', () => {
 
   it('test_handles_the_new_year_in_brisbane', () => {
     expect(todayIn('Australia/Brisbane', new Date('2026-12-31T14:30:00Z'))).toBe('2027-01-01')
+  })
+})
+
+describe('calendar days', () => {
+  it('test_add_days_crosses_months_and_years', () => {
+    expect(addDays('2026-10-15', -1)).toBe('2026-10-14')
+    expect(addDays('2026-10-01', -1)).toBe('2026-09-30')
+    expect(addDays('2026-12-31', 1)).toBe('2027-01-01')
+    expect(addDays('2028-02-28', 1)).toBe('2028-02-29')
+  })
+
+  it('test_days_between_is_signed_and_ignores_time_zones', () => {
+    expect(daysBetween('2026-10-01', '2026-10-15')).toBe(14)
+    expect(daysBetween('2026-10-15', '2026-10-01')).toBe(-14)
+    expect(daysBetween('2026-03-31', '2026-04-06')).toBe(6)
+  })
+
+  it('test_iso_dates_are_validated', () => {
+    expect(isIsoDate('2026-10-15')).toBe(true)
+    expect(isIsoDate('2026-13-01')).toBe(false)
+    expect(isIsoDate('2026-02-30')).toBe(false)
+    expect(isIsoDate('15/10/2026')).toBe(false)
   })
 })

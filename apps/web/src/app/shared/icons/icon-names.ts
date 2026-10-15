@@ -78,6 +78,8 @@ export const ICON_NAMES = [
   'zap',
   'heart-pulse',
   'smartphone',
+  // Quick add and the Month view
+  'arrow-right',
   'sofa',
   'coffee',
   'wine',

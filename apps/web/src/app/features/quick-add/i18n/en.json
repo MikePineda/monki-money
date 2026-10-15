@@ -1,0 +1,36 @@
+{
+  "title": {
+    "expense": "Add expense",
+    "income": "Add income",
+    "transfer": "Add transfer"
+  },
+  "done": "Done",
+  "loading": "Loading your accounts and categories",
+  "loadError": "Your accounts and categories did not load.",
+  "kind": {
+    "label": "Transaction type",
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer"
+  },
+  "who": {
+    "you": "You",
+    "joint": "Shared"
+  },
+  "dateChip": {
+    "label": "Date",
+    "today": "Today · {day}",
+    "yesterday": "Yesterday · {day}"
+  },
+  "save": "Save {amount}",
+  "toast": {
+    "saved": "Saved",
+    "undo": "Undo",
+    "undone": "Removed"
+  },
+  "noAccounts": {
+    "title": "Add an account first.",
+    "body": "Every expense, income or transfer goes into one of your accounts.",
+    "action": "Add account"
+  }
+}
