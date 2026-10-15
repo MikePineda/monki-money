@@ -49,4 +49,4 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 Import review: "Undo" for bulk decisions (accept suggested, assign category, ignore), and a bulk "Restore"; today each row is restored from its sheet.
 - 2026-10-16 Rules screen: edit a rule (pattern, category, priority; `PATCH /rules/:id` exists) and create one by hand; today rules are only learned from imports and `applyToFuture`.
 - 2026-10-16 `MonthStore` has no "everything may have changed" hook: applying a rule to history invalidates only the month on screen.
-- 2026-10-16 Web initial bundle is ~0.5 kB over its 350 kB warning budget (error at 450 kB) after the import and rules routes; trim or raise the warning line.
+- 2026-10-16 Web initial bundle is 364 kB, over its 350 kB warning budget (error at 450 kB) since the outbox and product-gap merges; the import and rules routes add about 0.5 kB. Trim the eager code or raise the warning line.

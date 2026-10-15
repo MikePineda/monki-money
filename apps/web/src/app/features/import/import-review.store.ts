@@ -198,12 +198,15 @@ export class ImportReviewStore {
       this.bulkBusy.set(false)
     }
     this.selection.set(new Set())
-    /** t(import.toast.bulkDone) */
-    this.toasts.show({
-      messageKey: 'import.toast.bulkDone',
-      params: { count: accepted },
-      status: 'good',
-    })
+    // When none went through, the refusal's own toast stays on screen.
+    if (accepted > 0) {
+      /** t(import.toast.bulkDone) */
+      this.toasts.show({
+        messageKey: 'import.toast.bulkDone',
+        params: { count: accepted },
+        status: 'good',
+      })
+    }
     return accepted
   }
 

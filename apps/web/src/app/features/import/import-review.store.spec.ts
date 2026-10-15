@@ -176,6 +176,16 @@ describe('ImportReviewStore', () => {
     })
   })
 
+  it('test_a_bulk_action_the_api_refuses_entirely_keeps_the_refusal_on_screen', async () => {
+    const store = await setup()
+    api.decide.mockRejectedValue(httpError(500, {}))
+
+    await expect(store.acceptSuggested()).resolves.toBe(0)
+
+    expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('errors.server')
+    expect(store.rows()[1]?.decision).toBeNull()
+  })
+
   it('test_accept_suggested_with_a_selection_only_touches_the_selected_rows', async () => {
     const store = await setup([
       anImportRow({ id: 1, suggestion: aTentativeSuggestion(20) }),
