@@ -72,8 +72,15 @@ export class TransactionsPage {
     await this.page.getByRole('option', { name: new RegExp(`^${name}`) }).click()
   }
 
+  /** Saves the split and waits for the API's answer (`PUT /transactions/:id/splits`). */
   async saveSplit(): Promise<void> {
+    const saved = this.page.waitForResponse(
+      (response) =>
+        /\/api\/v1\/transactions\/\d+\/splits$/.test(response.url()) &&
+        response.request().method() === 'PUT'
+    )
     await this.page.getByTestId('transactions.split.save').click()
+    expect((await saved).status()).toBe(200)
   }
 
   async closeSheet(): Promise<void> {
