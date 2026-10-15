@@ -11,7 +11,7 @@ import { ListRowHarness } from './list-row.harness'
     <div role="list">
       <app-list-row
         icon="shopping-cart"
-        title="Woolworths Riverside"
+        title="Riverside Grocer"
         [meta]="['Groceries', 'NAB Everyday']"
         person="b"
         [amountCents]="14265"
@@ -45,7 +45,7 @@ describe('ListRowComponent', () => {
 
   it('test_shows_merchant_meta_person_and_signed_amount', async () => {
     const { loader, fixture } = await setup()
-    const row = await loader.getHarness(ListRowHarness.with({ title: 'Woolworths Riverside' }))
+    const row = await loader.getHarness(ListRowHarness.with({ title: 'Riverside Grocer' }))
 
     expect(await row.getMeta()).toBe('Groceries · NAB Everyday')
     expect(await row.getAmount()).toBe('−$142.65')
@@ -54,7 +54,7 @@ describe('ListRowComponent', () => {
 
   it('test_interactive_row_is_a_button_that_emits_pressed', async () => {
     const { loader, host } = await setup()
-    const row = await loader.getHarness(ListRowHarness.with({ title: 'Woolworths Riverside' }))
+    const row = await loader.getHarness(ListRowHarness.with({ title: 'Riverside Grocer' }))
 
     await row.click()
 

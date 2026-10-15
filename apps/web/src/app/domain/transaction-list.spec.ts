@@ -92,11 +92,11 @@ describe('relativeDay', () => {
 
 describe('recentPayees', () => {
   it('test_distinct_payees_most_recent_first_matching_the_typed_prefix', () => {
-    const payees = ['Woolworths Riverside', 'Translink', 'woolworths riverside', null, 'Coles']
+    const payees = ['Riverside Grocer', 'Translink', 'riverside grocer', null, 'Coles']
 
-    expect(recentPayees(payees, '')).toEqual(['Woolworths Riverside', 'Translink', 'Coles'])
-    expect(recentPayees(payees, 'wool')).toEqual(['Woolworths Riverside'])
+    expect(recentPayees(payees, '')).toEqual(['Riverside Grocer', 'Translink', 'Coles'])
+    expect(recentPayees(payees, 'river')).toEqual(['Riverside Grocer'])
     expect(recentPayees(payees, 'Translink')).toEqual([])
-    expect(recentPayees(payees, '', 2)).toEqual(['Woolworths Riverside', 'Translink'])
+    expect(recentPayees(payees, '', 2)).toEqual(['Riverside Grocer', 'Translink'])
   })
 })
