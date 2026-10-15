@@ -25,3 +25,7 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 `reports.month` could carry the previous month's totals and the top expenses, saving the Month view its `reports.trend` dependency for the delta and a `transactions.index` call.
 - 2026-10-15 Quick add ranks categories, payees and transfer routes from the last 100 rows on the client; a `GET /transactions/suggestions` (per person) would scale past that window and give the "last account used" without reading the ledger.
 - 2026-10-15 The members (and the partner's display name) could come with `GET /auth/me`, so screens that only need names skip `GET /household/members`.
+- 2026-10-15 `GET /transfers/:id` (both legs and the memo in one call): the transaction sheet finds the other leg through `GET /transactions?kind=transfer&from=&to=` today.
+- 2026-10-15 "Joint only" filter for `GET /transactions` (`paidByUserId` cannot ask for null); the person chip offers everyone, you and the partner.
+- 2026-10-15 Tab bar: mark "More" active on screens reached from it outside `/settings` (`/categories`); `TabItem` needs extra match prefixes.
+- 2026-10-15 Move `TransactionForm`/`TransferForm` to `shared/` (or host quick add under `features/transactions`) so the add page can reuse them without a cross-feature import.

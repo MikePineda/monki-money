@@ -1,5 +1,13 @@
-import { Injectable, computed, inject, resource, signal } from '@angular/core'
-import { addMonths, compareYearMonth, currentMonthIn, type YearMonth } from '../../domain/month'
+import { Injectable, computed, inject, resource, signal, type Signal } from '@angular/core'
+import {
+  addMonths,
+  compareYearMonth,
+  currentMonthIn,
+  monthOf,
+  monthRange,
+  type IsoDate,
+  type YearMonth,
+} from '../../domain/month'
 import type { Transaction } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
 import { ReportsApi, type MonthReport, type TrendReport } from '../ledger/reports.api'
@@ -38,11 +46,19 @@ export function coversMonth(month: YearMonth, changed: YearMonth): boolean {
 }
 
 /**
- * The Month view's data: the selected month, its snapshot as a `resource()`
- * and an in-memory cache of the last {@link MONTH_CACHE_SIZE} months.
- * Root-provided so quick add (or any other mutation) can `invalidate()` the
- * month it touched: the cached months whose numbers depend on it are
- * dropped and the selected one reloads, keeping the previous frame visible.
+ * The month the app is looking at, shared by the Month view and the
+ * transactions list, and the hook every mutation uses to say "this month
+ * changed".
+ *
+ * - `selectedMonth` is the month on screen (the transactions list filters
+ *   by it too); it starts on the current month of the household.
+ * - `invalidate(month)` bumps that month's revision: whatever reads
+ *   `revision(month)` / `revisionOf(month)` (a list resource) reloads, the
+ *   cached snapshots whose numbers include it are dropped, and the Month
+ *   view's snapshot reloads when its trend window covers it.
+ * - `summary` is the selected month's snapshot as a `resource()`, served
+ *   from an in-memory cache of the last {@link MONTH_CACHE_SIZE} months;
+ *   `frame` keeps the previous snapshot on screen while another loads.
  */
 @Injectable({ providedIn: 'root' })
 export class MonthStore {
@@ -51,19 +67,24 @@ export class MonthStore {
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
 
   private readonly cache = new Map<YearMonth, MonthSnapshot>()
-  /** Bumped to refetch the selected month even though it did not change. */
-  private readonly version = signal(0)
-  private readonly _selected = signal<YearMonth>(currentMonthIn(this.timeZone()))
-
-  readonly selectedMonth = this._selected.asReadonly()
-
-  readonly summary = resource({
-    params: () => ({ month: this._selected(), version: this.version() }),
-    loader: ({ params, abortSignal }) => this.fetch(params.month, abortSignal),
-  })
-
+  private readonly revisions = signal<ReadonlyMap<YearMonth, number>>(new Map())
+  /** Bumped by `retry()` to refetch the selected month although nothing changed. */
+  private readonly attempt = signal(0)
   /** The last snapshot any load delivered (cache hits included). */
   private readonly lastLoaded = signal<MonthSnapshot | undefined>(undefined)
+
+  /** This month in the household's time zone. */
+  readonly current = computed(() => currentMonthIn(this.timeZone()))
+  /** The month on screen; starts on the current one. */
+  readonly selectedMonth = signal<YearMonth>(this.current())
+
+  readonly summary = resource({
+    params: () => {
+      const month = this.selectedMonth()
+      return { month, revision: this.windowRevision(month), attempt: this.attempt() }
+    },
+    loader: ({ params, abortSignal }) => this.fetch(params.month, abortSignal),
+  })
 
   /** What the screen draws: the loaded month, or the previous one while another loads. */
   readonly frame = computed(() =>
@@ -86,41 +107,59 @@ export class MonthStore {
     inject(SessionStore).onClear(() => this.clear())
   }
 
-  /** The current month in the household's time zone. */
-  currentMonth(): YearMonth {
-    return currentMonthIn(this.timeZone())
-  }
-
   select(month: YearMonth): void {
-    this._selected.set(month)
+    this.selectedMonth.set(month)
   }
 
-  /** Fetches the selected month again (after an error, or on demand). */
-  retry(): void {
-    this.cache.delete(this._selected())
-    this.version.update((value) => value + 1)
+  /** How many times this month changed since the app started (a reload trigger). */
+  revision(month: YearMonth): Signal<number> {
+    return computed(() => this.revisionOf(month))
   }
 
-  /**
-   * After any mutation dated in `month`: forget every cached month whose
-   * numbers include it, and reload the selected one if it is among them.
-   */
+  /** The current revision, read inside a reactive context (a resource's params, a computed). */
+  revisionOf(month: YearMonth): number {
+    return this.revisions().get(month) ?? 0
+  }
+
+  /** Something dated in this month changed (a create, an edit, a delete, a split). */
   invalidate(month: YearMonth): void {
     for (const cached of [...this.cache.keys()]) {
       if (coversMonth(cached, month)) {
         this.cache.delete(cached)
       }
     }
-    if (coversMonth(this._selected(), month)) {
-      this.version.update((value) => value + 1)
-    }
+    this.revisions.update((current) => {
+      const next = new Map(current)
+      next.set(month, (current.get(month) ?? 0) + 1)
+      return next
+    })
+  }
+
+  /** Same as {@link invalidate} for the month a 'YYYY-MM-DD' date falls in. */
+  invalidateDate(date: IsoDate): void {
+    this.invalidate(monthOf(date))
+  }
+
+  /** Fetches the selected month again (after an error, or on demand). */
+  retry(): void {
+    this.cache.delete(this.selectedMonth())
+    this.attempt.update((value) => value + 1)
   }
 
   /** Logout: nothing of this household stays in memory. */
   clear(): void {
     this.cache.clear()
-    this._selected.set(this.currentMonth())
+    this.revisions.set(new Map())
     this.lastLoaded.set(undefined)
+    this.selectedMonth.set(this.current())
+  }
+
+  /** The revisions of every month the snapshot of `month` reads (its trend window). */
+  private windowRevision(month: YearMonth): number {
+    return monthRange(addMonths(month, -(TREND_MONTHS - 1)), month).reduce(
+      (total, covered) => total + this.revisionOf(covered),
+      0
+    )
   }
 
   private async fetch(month: YearMonth, abortSignal: AbortSignal): Promise<MonthSnapshot> {

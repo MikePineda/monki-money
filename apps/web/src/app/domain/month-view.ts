@@ -97,13 +97,22 @@ export interface PersonShare {
   color: ChartColor
 }
 
+/** Who is who in the household, and each person's mark colour (the same on every screen). */
+export interface PeopleInput {
+  youId: number
+  partnerId: number | null
+  youColor?: ChartColor
+  partnerColor?: ChartColor
+}
+
 /**
- * "Who paid" (DESIGN.md): you in person-a, the partner in person-b and the
- * joint bucket muted, in that order. Empty when nothing was spent.
+ * "Who paid" (DESIGN.md): you, the partner and the joint bucket (muted), in
+ * that order, each person in their own mark colour. Empty when nothing was
+ * spent.
  */
 export function spendByPerson(
   byPerson: readonly PersonLineInput[],
-  people: { youId: number; partnerId: number | null },
+  people: PeopleInput,
   labels: { you: string; partner: string; joint: string }
 ): PersonShare[] {
   let you = 0
@@ -122,10 +131,15 @@ export function spendByPerson(
     return []
   }
   const shares: PersonShare[] = [
-    { id: 'you', label: labels.you, valueCents: you, color: 'person-a' },
+    { id: 'you', label: labels.you, valueCents: you, color: people.youColor ?? 'person-a' },
   ]
   if (people.partnerId !== null) {
-    shares.push({ id: 'partner', label: labels.partner, valueCents: partner, color: 'person-b' })
+    shares.push({
+      id: 'partner',
+      label: labels.partner,
+      valueCents: partner,
+      color: people.partnerColor ?? 'person-b',
+    })
   }
   shares.push({ id: 'joint', label: labels.joint, valueCents: joint, color: 'muted' })
   return shares

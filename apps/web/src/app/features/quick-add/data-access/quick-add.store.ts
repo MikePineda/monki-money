@@ -6,7 +6,6 @@ import { SessionStore } from '../../../core/auth/session.store'
 import {
   HouseholdDirectory,
   type CategoryEntry,
-  type PersonKey,
 } from '../../../core/household/household-directory.store'
 import { TransactionsApi, type QuickEntryInput } from '../../../core/ledger/transactions.api'
 import { MonthStore } from '../../../core/month/month.store'
@@ -15,6 +14,7 @@ import { readPreference, writePreference } from '../../../core/platform/local-pr
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { WINDOW } from '../../../core/platform/window.token'
 import { ToastStore } from '../../../core/ui/toast.store'
+import type { Person } from '../../../shared/ui/person-dot/person-dot.component'
 import { monthOf, todayIn, type IsoDate } from '../../../domain/month'
 import {
   QUICK_CATEGORY_COUNT,
@@ -185,14 +185,15 @@ export class QuickAddStore {
       : payeeSuggestions(this.recent(), kind, this.payee(), this.today())
   })
 
-  readonly whoPerson = computed<PersonKey>(() => {
+  /** The mark next to "who paid": each member's own colour, the shared ring for joint. */
+  readonly whoPerson = computed<Person>(() => {
     switch (this.who()) {
       case 'partner':
-        return 'b'
+        return this.directory.personOf(this.directory.partner()?.userId ?? null)
       case 'joint':
         return 'joint'
       default:
-        return 'a'
+        return this.directory.personOf(this.youId())
     }
   })
 

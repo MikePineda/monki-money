@@ -4,6 +4,7 @@ import { TranslocoPipe, provideTranslocoScope, translateSignal } from '@jsverse/
 import { HouseholdDirectory } from '../../core/household/household-directory.store'
 import { MonthStore } from '../../core/month/month.store'
 import { formatDayMonth } from '../../domain/dates'
+import type { ChartColor } from '../../domain/charts/colors'
 import { groupHistories, monthInsights, type Insight } from '../../domain/insights'
 import { formatMoney } from '../../domain/money'
 import {
@@ -28,7 +29,7 @@ import {
 import { StackedBar100Component } from '../../shared/charts/stacked-bar-100/stacked-bar-100.component'
 import { StatTileSparklineComponent } from '../../shared/charts/stat-tile-sparkline/stat-tile-sparkline.component'
 import { TrendLineComponent } from '../../shared/charts/trend-line/trend-line.component'
-import { categoryIcon } from '../../shared/icons/category-icon'
+import { categoryIcon } from '../../shared/icons/category-icons'
 import type { IconName } from '../../shared/icons/icon-names'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { BannerComponent } from '../../shared/ui/banner/banner.component'
@@ -79,6 +80,18 @@ interface TopRow {
 interface InsightText {
   key: string
   params: Record<string, string | number>
+}
+
+/** The chart colour of a person mark (the shared ring is muted). */
+function markColor(person: Person): ChartColor {
+  switch (person) {
+    case 'a':
+      return 'person-a'
+    case 'b':
+      return 'person-b'
+    default:
+      return 'muted'
+  }
 }
 
 /** True when the router knows a top-level or shell route with this path (import lands later). */
@@ -316,7 +329,7 @@ export default class MonthPage {
   readonly ym = input<string | undefined>(undefined)
 
   protected readonly canImport = hasRoute(this.router.config, 'import')
-  protected readonly current = signal(this.store.currentMonth())
+  protected readonly current = this.store.current
   protected readonly expanded = signal<string[]>([])
 
   private readonly labels = translateSignal(LABEL_KEYS)
@@ -421,9 +434,15 @@ export default class MonthPage {
     if (!report || youId === null) {
       return []
     }
+    const partnerId = this.directory.partner()?.userId ?? null
     return spendByPerson(
       report.byPerson,
-      { youId, partnerId: this.directory.partner()?.userId ?? null },
+      {
+        youId,
+        partnerId,
+        youColor: markColor(this.directory.personOf(youId)),
+        partnerColor: markColor(this.directory.personOf(partnerId)),
+      },
       { you: this.text().you, partner: this.directory.partnerName(), joint: this.text().joint }
     )
   })

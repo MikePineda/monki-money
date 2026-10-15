@@ -8,12 +8,12 @@ import {
   translateSignal,
 } from '@jsverse/transloco'
 import { firstValueFrom } from 'rxjs'
-import { formatWeekday } from '../../domain/dates'
+import { formatWeekdayDate } from '../../domain/dates'
 import { formatTransactionAmount } from '../../domain/money'
 import { addDays } from '../../domain/month'
 import type { TransferPair } from '../../domain/quick-add-defaults'
 import { ToastOutletComponent } from '../../layouts/toast-outlet/toast-outlet.component'
-import { categoryIcon } from '../../shared/icons/category-icon'
+import { categoryIcon } from '../../shared/icons/category-icons'
 import { AmountKeypadComponent } from '../../shared/ui/amount-keypad/amount-keypad.component'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { BannerComponent } from '../../shared/ui/banner/banner.component'
@@ -256,7 +256,7 @@ export default class QuickAddPage {
     formatTransactionAmount(this.store.signedCents(), this.store.kind(), this.locale())
   )
 
-  protected readonly dayText = computed(() => formatWeekday(this.store.date(), this.locale()))
+  protected readonly dayText = computed(() => formatWeekdayDate(this.store.date(), this.locale()))
   protected readonly dateIs = computed<'today' | 'yesterday' | 'other'>(() => {
     const today = this.store.today()
     if (this.store.date() === today) {
@@ -310,7 +310,12 @@ export default class QuickAddPage {
     const people: Who[] = this.store.directory.partner()
       ? ['you', 'partner', 'joint']
       : ['you', 'joint']
-    const person = { you: 'a', partner: 'b', joint: 'joint' } as const
+    const directory = this.store.directory
+    const person = {
+      you: directory.personOf(this.store.youId()),
+      partner: directory.personOf(directory.partner()?.userId ?? null),
+      joint: 'joint',
+    } as const
     const options: SelectOption<Who>[] = people.map((who) => ({
       value: who,
       label: this.whoText(who),

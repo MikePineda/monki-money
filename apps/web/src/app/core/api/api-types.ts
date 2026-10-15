@@ -12,10 +12,7 @@ export type Member = Data.Member
 export type Invitation = Data.Invitation
 export type Account = Data.Account
 export type AccountCard = Data.AccountCard
-export type CategoryGroup = Data.CategoryGroup
-export type Category = Data.Category
-/** A category group with its categories nested (`GET /categories?tree=1`). */
-export type CategoryTree = Data.CategoryTree
 /** A ledger row as the reader may see it (`isMasked` for a partner's private one). */
 export type Transaction = Data.Transaction
+export type TransactionSplit = Data.TransactionSplit
 export type Transfer = Data.Transfer

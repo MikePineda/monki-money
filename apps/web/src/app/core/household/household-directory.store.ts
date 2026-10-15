@@ -1,67 +1,60 @@
 import { Injectable, computed, inject, signal } from '@angular/core'
-import { firstName } from '../../domain/people'
-import type { Account, Category, CategoryTree, Member } from '../api/api-types'
+import type { CategoryKind, TreeCategory, TreeGroup } from '../../domain/category-tree'
+import type { Person } from '../../shared/ui/person-dot/person-dot.component'
+import type { Account } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
 import { AccountsApi } from './accounts.api'
-import { CategoriesApi } from './categories.api'
-import { HouseholdApi } from './household.api'
+import { CategoriesStore } from './categories.store'
+import { MembersStore } from './members.store'
 
 export type DirectoryStatus = 'idle' | 'loading' | 'ready' | 'error'
 
-/** A visible category with the group it belongs to (for select sheets and labels). */
+/** A category with the group it belongs to (for select sheets and labels). */
 export interface CategoryEntry {
-  category: Category
-  group: CategoryTree
+  category: TreeCategory
+  group: TreeGroup
 }
-
-/** Who a row belongs to on screen: you (person A), the partner (person B) or both. */
-export type PersonKey = 'a' | 'b' | 'joint'
 
 /**
  * The household's reference data that quick add and the Month view label
- * everything with: accounts, the category tree and the members. Loaded once
- * per session (`load()` is idempotent and shares an in-flight request) and
- * dropped on logout. People are words in the UI ("You" and the partner's
- * own name); only `personOf` maps them to the person-a / person-b marks.
+ * everything with: the accounts, plus the shared category tree
+ * (CategoriesStore) and members (MembersStore). Loaded once per session
+ * (`load()` is idempotent and shares an in-flight request) and dropped on
+ * logout. People are words in the UI ("You" and the partner's own name);
+ * only `personOf` maps them to the person marks.
  */
 @Injectable({ providedIn: 'root' })
 export class HouseholdDirectory {
   private readonly accountsApi = inject(AccountsApi)
-  private readonly categoriesApi = inject(CategoriesApi)
-  private readonly householdApi = inject(HouseholdApi)
+  private readonly categories = inject(CategoriesStore)
+  private readonly members = inject(MembersStore)
   private readonly session = inject(SessionStore)
 
   private readonly _accounts = signal<Account[]>([])
-  private readonly _groups = signal<CategoryTree[]>([])
-  private readonly _members = signal<Member[]>([])
   private readonly _status = signal<DirectoryStatus>('idle')
   private pending: Promise<void> | null = null
 
   readonly accounts = this._accounts.asReadonly()
-  readonly groups = this._groups.asReadonly()
-  readonly members = this._members.asReadonly()
   readonly status = this._status.asReadonly()
+  /** The category tree in display order. */
+  readonly groups = this.categories.tree
 
   readonly activeAccounts = computed(() => this._accounts().filter((account) => account.isActive))
   readonly youId = computed(() => this.session.user()?.id ?? null)
-  readonly partner = computed(
-    () => this._members().find((member) => member.userId !== this.youId()) ?? null
-  )
-  /** The partner's own name as they set it (display name, else first name); '' without one. */
-  readonly partnerName = computed(() => {
-    const partner = this.partner()
-    return partner ? partner.displayName?.trim() || firstName(partner.fullName) : ''
-  })
+  /** The other member, or null in a household of one. */
+  readonly partner = this.members.partner
+  /** The partner's first name as they typed it; '' without a partner. */
+  readonly partnerName = computed(() => this.partner()?.name ?? '')
 
   private readonly accountById = computed(
     () => new Map(this._accounts().map((account) => [account.id, account]))
   )
   private readonly groupById = computed(
-    () => new Map(this._groups().map((group) => [group.id, group]))
+    () => new Map(this.groups().map((group) => [group.id, group]))
   )
   private readonly categoryById = computed(() => {
     const map = new Map<number, CategoryEntry>()
-    for (const group of this._groups()) {
+    for (const group of this.groups()) {
       for (const category of group.categories) {
         map.set(category.id, { category, group })
       }
@@ -73,7 +66,7 @@ export class HouseholdDirectory {
     this.session.onClear(() => this.clear())
   }
 
-  /** Loads everything once; `force` refetches (after a settings change). */
+  /** Loads everything once; `force` refetches the accounts and the category tree. */
   load(force = false): Promise<void> {
     if (this.pending) {
       return this.pending
@@ -84,13 +77,11 @@ export class HouseholdDirectory {
     this._status.set('loading')
     this.pending = Promise.all([
       this.accountsApi.list(),
-      this.categoriesApi.tree(),
-      this.householdApi.members(),
+      force ? this.categories.reload() : this.categories.load(),
+      this.members.load(),
     ])
-      .then(([accounts, groups, members]) => {
+      .then(([accounts]) => {
         this._accounts.set(accounts)
-        this._groups.set(groups)
-        this._members.set(members)
         this._status.set('ready')
       })
       .catch((error: unknown) => {
@@ -118,7 +109,7 @@ export class HouseholdDirectory {
     return id === null ? null : (this.accountById().get(id) ?? null)
   }
 
-  group(id: number | null): CategoryTree | null {
+  group(id: number | null): TreeGroup | null {
     return id === null ? null : (this.groupById().get(id) ?? null)
   }
 
@@ -127,8 +118,8 @@ export class HouseholdDirectory {
   }
 
   /** Visible categories of visible groups of one kind, in the household's order. */
-  categoriesOf(kind: 'expense' | 'income'): CategoryEntry[] {
-    return this._groups()
+  categoriesOf(kind: CategoryKind): CategoryEntry[] {
+    return this.groups()
       .filter((group) => group.kind === kind && !group.isHidden)
       .flatMap((group) =>
         group.categories
@@ -137,18 +128,14 @@ export class HouseholdDirectory {
       )
   }
 
-  /** The mark for a payer: you are person A, the other member person B, null is joint. */
-  personOf(userId: number | null): PersonKey {
-    if (userId === null) {
-      return 'joint'
-    }
-    return userId === this.youId() ? 'a' : 'b'
+  /** The mark of a payer (the same in every screen): a member's colour, or the shared ring for null. */
+  personOf(userId: number | null): Person {
+    return this.members.personOf(userId)
   }
 
   clear(): void {
     this._accounts.set([])
-    this._groups.set([])
-    this._members.set([])
     this._status.set('idle')
+    this.pending = null
   }
 }

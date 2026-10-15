@@ -1,8 +1,9 @@
 import { signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
-import { aCategory, aCategoryTree, aGroup } from '../../../testing/ledger-fixtures'
+import { aCategoryTree } from '../../../testing/ledger-fixtures'
 import { aMember, aUser, anAccount } from '../../../testing/session-fixtures'
-import type { CategoryTree, Member } from '../api/api-types'
+import type { CategoryTree } from '../../domain/category-tree'
+import type { Member } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
 import { AccountsApi } from './accounts.api'
 import { CategoriesApi } from './categories.api'
@@ -13,7 +14,7 @@ describe('HouseholdDirectory', () => {
   let accounts: { list: ReturnType<typeof vi.fn> }
   let clearHooks: (() => void)[]
 
-  function setup(members: Member[], groups: CategoryTree[] = aCategoryTree()) {
+  function setup(members: Member[], tree: CategoryTree = aCategoryTree()) {
     accounts = {
       list: vi.fn(async () => [
         anAccount({ id: 1 }),
@@ -24,7 +25,7 @@ describe('HouseholdDirectory', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: AccountsApi, useValue: accounts },
-        { provide: CategoriesApi, useValue: { tree: async () => groups } },
+        { provide: CategoriesApi, useValue: { tree: async () => tree } },
         { provide: HouseholdApi, useValue: { members: async () => members } },
         {
           provide: SessionStore,
@@ -57,13 +58,7 @@ describe('HouseholdDirectory', () => {
     await directory.load()
 
     expect(directory.partnerName()).toBe('Alex')
-  })
-
-  it('test_a_display_name_wins_over_the_first_name', async () => {
-    const directory = setup([you, { ...partner, displayName: 'Lex' }])
-    await directory.load()
-
-    expect(directory.partnerName()).toBe('Lex')
+    expect(directory.partner()?.userId).toBe(2)
   })
 
   it('test_a_household_of_one_has_no_partner', async () => {
@@ -74,7 +69,7 @@ describe('HouseholdDirectory', () => {
     expect(directory.partnerName()).toBe('')
   })
 
-  it('test_people_map_to_person_marks', async () => {
+  it('test_people_get_their_member_mark_and_joint_the_shared_ring', async () => {
     const directory = setup([you, partner])
     await directory.load()
 
@@ -84,22 +79,29 @@ describe('HouseholdDirectory', () => {
   })
 
   it('test_categories_of_a_kind_skip_hidden_ones_and_keep_the_order', async () => {
+    const [housing, food, income] = aCategoryTree()
+    if (!housing || !food || !income) {
+      throw new Error('fixture changed')
+    }
     const directory = setup(
       [you],
       [
-        aGroup({ id: 1 }, [
-          aCategory({ id: 10, name: 'Groceries' }),
-          aCategory({ id: 11, name: 'Old', isHidden: true }),
-        ]),
-        aGroup({ id: 3, isHidden: true }, [aCategory({ id: 30, categoryGroupId: 3 })]),
-        aGroup({ id: 9, kind: 'income' }, [aCategory({ id: 90, categoryGroupId: 9 })]),
+        {
+          ...housing,
+          categories: housing.categories.map((category, index) => ({
+            ...category,
+            isHidden: index > 0,
+          })),
+        },
+        { ...food, isHidden: true },
+        income,
       ]
     )
     await directory.load()
 
     expect(directory.categoriesOf('expense').map((entry) => entry.category.id)).toEqual([10])
-    expect(directory.categoriesOf('income').map((entry) => entry.category.id)).toEqual([90])
-    expect(directory.category(10)?.group.id).toBe(1)
+    expect(directory.categoriesOf('income').map((entry) => entry.category.id)).toEqual([30])
+    expect(directory.category(20)?.group.id).toBe(2)
   })
 
   it('test_a_background_refresh_refetches_and_keeps_data_on_failure', async () => {

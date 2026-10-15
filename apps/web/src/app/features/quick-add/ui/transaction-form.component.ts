@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, model, output } from '@angular/core'
 import { TranslocoPipe } from '@jsverse/transloco'
-import { formatWeekday } from '../../../domain/dates'
+import { formatWeekdayDate } from '../../../domain/dates'
 import type { TransactionKind } from '../../../domain/money'
 import { addDays } from '../../../domain/month'
 import { IconComponent } from '../../../shared/icons/icon.component'
@@ -317,7 +317,7 @@ export class TransactionFormComponent {
     () => this.date() !== this.today() && this.date() !== this.yesterday()
   )
   protected readonly dateText = computed(() =>
-    this.date() ? formatWeekday(this.date(), this.locale()) : ''
+    this.date() ? formatWeekdayDate(this.date(), this.locale()) : ''
   )
   /** What the collapsed row shows once something was typed: "Corner Grocer · milk". */
   protected readonly summary = computed(() =>

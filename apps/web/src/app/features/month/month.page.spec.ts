@@ -29,7 +29,7 @@ const TZ = 'Australia/Brisbane'
 const NOW = currentMonthIn(TZ)
 const PREVIOUS = addMonths(NOW, -1)
 
-/** A month like the design's: food, housing, an uncategorised and a private bucket. */
+/** A month like the design's: housing (1), food (2), an uncategorised and a private bucket. */
 function busyMonth(month: YearMonth): MonthReport {
   return aMonthReport(month, {
     incomeCents: 645_000,
@@ -37,25 +37,25 @@ function busyMonth(month: YearMonth): MonthReport {
     netCents: 316_550,
     transactionCount: 42,
     byGroup: [
-      { bucket: 'group', groupId: 2, kind: 'expense', amountCents: 162_000, count: 1 },
-      { bucket: 'group', groupId: 1, kind: 'expense', amountCents: 150_450, count: 30 },
+      { bucket: 'group', groupId: 1, kind: 'expense', amountCents: 162_000, count: 1 },
+      { bucket: 'group', groupId: 2, kind: 'expense', amountCents: 150_450, count: 30 },
       { bucket: 'uncategorized', groupId: null, kind: 'expense', amountCents: 10_000, count: 2 },
       { bucket: 'private', groupId: null, kind: 'expense', amountCents: 6_000, count: 1 },
-      { bucket: 'group', groupId: 9, kind: 'income', amountCents: 645_000, count: 2 },
+      { bucket: 'group', groupId: 3, kind: 'income', amountCents: 645_000, count: 2 },
     ],
     byCategory: [
       {
         bucket: 'category',
-        categoryId: 20,
-        groupId: 2,
+        categoryId: 10,
+        groupId: 1,
         kind: 'expense',
         amountCents: 162_000,
         count: 1,
       },
       {
         bucket: 'category',
-        categoryId: 10,
-        groupId: 1,
+        categoryId: 20,
+        groupId: 2,
         kind: 'expense',
         amountCents: 150_450,
         count: 30,
@@ -89,7 +89,7 @@ describe('MonthPage', () => {
           series: [
             {
               bucket: 'group',
-              id: 1,
+              id: 2,
               kind: 'expense',
               totalCents: 0,
               points: [0, 0, 100_000, 100_000, 100_000, 150_450].map((amountCents, index) => ({
@@ -120,7 +120,7 @@ describe('MonthPage', () => {
               aTransaction({
                 id: 1,
                 payee: 'Landlord Pty',
-                categoryId: 20,
+                categoryId: 10,
                 amountCents: -162_000,
                 date: `${NOW}-01`,
               }),

@@ -110,6 +110,19 @@ describe('spendByPerson', () => {
     ])
   })
 
+  it('test_each_person_keeps_the_colour_of_their_mark', () => {
+    const data = spendByPerson(
+      [
+        { bucket: 'member', userId: 1, expenseCents: 100 },
+        { bucket: 'member', userId: 2, expenseCents: 200 },
+      ],
+      { ...people, youColor: 'person-b', partnerColor: 'person-a' },
+      names
+    )
+
+    expect(data.map((datum) => datum.color)).toEqual(['person-b', 'person-a', 'muted'])
+  })
+
   it('test_without_a_partner_there_is_no_partner_bucket', () => {
     const data = spendByPerson(
       [{ bucket: 'member', userId: 1, expenseCents: 100 }],

@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
 import { aMonthReport, aTransaction, aTrendReport } from '../../../testing/ledger-fixtures'
 import { networkError } from '../../../testing/session-fixtures'
-import type { YearMonth } from '../../domain/month'
+import { currentMonthIn, type YearMonth } from '../../domain/month'
 import { SessionStore } from '../auth/session.store'
 import { ReportsApi } from '../ledger/reports.api'
 import { TransactionsApi } from '../ledger/transactions.api'
@@ -174,6 +174,43 @@ describe('MonthStore', () => {
 
     expect(MONTH_CACHE_SIZE).toBe(6)
     expect(reports.month).toHaveBeenCalledTimes(8)
+  })
+
+  it('test_starts_on_the_current_month_of_the_household', () => {
+    const store = setup()
+    const now = currentMonthIn('Australia/Brisbane')
+
+    expect(store.current()).toBe(now)
+    expect(store.selectedMonth()).toBe(OCT)
+  })
+
+  it('test_invalidating_a_month_bumps_only_that_month_revision', () => {
+    const store = setup()
+    const october = store.revision(OCT)
+    const september = store.revision(SEP)
+
+    store.invalidate(OCT)
+
+    expect(october()).toBe(1)
+    expect(september()).toBe(0)
+  })
+
+  it('test_invalidate_of_a_date_reaches_its_month', () => {
+    const store = setup()
+    const revision = store.revision(SEP)
+
+    store.invalidateDate('2026-09-30')
+
+    expect(revision()).toBe(1)
+  })
+
+  it('test_logout_returns_to_the_current_month', () => {
+    const store = setup()
+    store.selectedMonth.set(AUG)
+
+    for (const hook of clearHooks) hook()
+
+    expect(store.selectedMonth()).toBe(currentMonthIn('Australia/Brisbane'))
   })
 
   it('test_logout_forgets_every_month', async () => {
