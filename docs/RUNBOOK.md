@@ -98,7 +98,8 @@ The full, commented list is `apps/api/.env.example`. Production specifics:
 `SEED_USER1_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
 `SEED_USER2_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
 `SEED_JOINT_ACCOUNT_NUMBER`, `SMOKE_EMAIL`, `SMOKE_PASSWORD` (smoke user,
-see "Smoke test").
+see "Smoke test"), `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET` (empty = bot
+check off, see "Turnstile").
 
 The production bootstrap (`database/seeders/production_bootstrap_seeder`) is
 idempotent by email and account name and never resets a password, so a
@@ -202,6 +203,28 @@ then update `SMOKE_PASSWORD` wherever the smoke runs.
 
 `REGISTRATION_OPEN=true` + redeploy (start-first), with Turnstile, Sentry,
 rate limits and email verification active.
+
+## Turnstile
+
+Cloudflare Turnstile guards sign-up, login and forgot password. It is off
+while `TURNSTILE_SECRET` is empty (the API ignores `turnstileToken`).
+
+1. Cloudflare dashboard (Mike) -> Turnstile -> add a widget for the app's
+   hostname (managed mode) and copy the site key and the secret key.
+2. Dokploy -> monkimoney-web -> Environment: set `TURNSTILE_SITE_KEY` and
+   `TURNSTILE_SECRET`, then redeploy (start-first). `GET /api/v1/config`
+   now returns `turnstileSiteKey`.
+3. From then on the three endpoints answer 422 (`turnstileToken` /
+   `turnstile`) without a valid widget token. The web widget lands with the
+   next web package: do not set the secret in production before that
+   release is deployed, or nobody can log in. To roll back, empty
+   `TURNSTILE_SECRET` and redeploy.
+
+Cloudflare's test keys always pass (useful for staging and E2E): site key
+`1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.
+The API calls `challenges.cloudflare.com` (5 s timeout) and fails closed,
+so a Cloudflare outage blocks logins until the secret is emptied; the log
+line `turnstile siteverify failed` tells it apart from bots.
 
 ## LLM cost
 

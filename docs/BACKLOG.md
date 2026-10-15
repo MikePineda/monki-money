@@ -14,10 +14,10 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Siri / Apple Shortcuts quick add through a personal-token endpoint (P3).
 - 2026-10-15 SaaS in Australia: own domain, Privacy Act (APPs) policy and retention, data residency (APAC), full `audit_log`, private analytics only if needed.
 - 2026-10-15 Real data never in the repo or in agents' context: synthetic fixtures with the real structure; real CSVs only in Downloads and the private bucket.
-- 2026-10-15 Email verification by 6-digit code as well as the link (on iOS the link opens Safari, not the installed PWA); needs an API endpoint.
-- 2026-10-15 "Leave household" for members and "create a household" for a user left without one: no API route yet, the settings screen omits leave.
 - 2026-10-15 Show/hide toggle on password fields (the login mock has the eye icon); a ui-kit text-field option.
 - 2026-10-15 Type `GET /auth/me` with its `{ data }` wrapper in the registry (the web reads it through `unwrapData`).
 - 2026-10-15 Charts: opt-in texture fill (45/135 degrees) for forced-colors, print and full CVD (dataviz backup channel); today legends, direct labels and table views carry identity.
 - 2026-10-15 `applyToFuture` on `PATCH /transactions/:id` and `applyRuleToFuture` on bulk categorize (learn a merchant rule) land with `merchant_rules` in WP 3.3; the ledger endpoints do not accept them yet.
 - 2026-10-15 Tag filter for `GET /transactions` (`tag=`) and per-tag totals in reports (the column exists since WP 2.1).
+- 2026-10-16 After a member leaves, `accounts.owner_user_id` and `account_cards.user_id` still point at them, so `defaultPayer` gives new rows on those accounts/cards to the ex-member: decide whether leaving makes their accounts joint or the default payer skips non-members.
+- 2026-10-16 Household ownership transfer (owners can only delete today, `household.leave` answers 422 for them), and letting a member leave while the household is pending deletion (today 403 like every household route).
