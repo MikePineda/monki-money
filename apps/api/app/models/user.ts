@@ -22,6 +22,7 @@ export default class User extends compose(
   declare memberships: HasMany<typeof HouseholdMember>
 
   get isEmailVerified() {
-    return this.emailVerifiedAt !== null
+    // undefined on a freshly created instance means "not verified" too.
+    return Boolean(this.emailVerifiedAt)
   }
 }

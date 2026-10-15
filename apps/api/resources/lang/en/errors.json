@@ -1,7 +1,7 @@
 {
   "E_UNAUTHORIZED_ACCESS": "Please sign in to continue",
   "E_INVALID_CREDENTIALS": "The email or password is incorrect",
-  "E_TOO_MANY_REQUESTS": "Too many attempts. Try again in {availableIn} seconds",
+  "E_TOO_MANY_REQUESTS": "Too many attempts. Wait a few minutes and try again",
   "E_AUTHORIZATION_FAILURE": "You are not allowed to do this",
   "E_ROW_NOT_FOUND": "Not found",
   "E_ROUTE_NOT_FOUND": "Not found",

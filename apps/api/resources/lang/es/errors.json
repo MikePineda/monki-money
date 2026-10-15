@@ -1,7 +1,7 @@
 {
   "E_UNAUTHORIZED_ACCESS": "Inicia sesión para continuar",
   "E_INVALID_CREDENTIALS": "El correo o la contraseña son incorrectos",
-  "E_TOO_MANY_REQUESTS": "Demasiados intentos. Intenta de nuevo en {availableIn} segundos",
+  "E_TOO_MANY_REQUESTS": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo",
   "E_AUTHORIZATION_FAILURE": "No tienes permiso para hacer esto",
   "E_ROW_NOT_FOUND": "No encontrado",
   "E_ROUTE_NOT_FOUND": "No encontrado",

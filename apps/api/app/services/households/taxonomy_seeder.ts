@@ -33,11 +33,10 @@ export default class TaxonomySeeder {
     )
     for (const group of createdGroups) groupsBySlug.set(group.slug, group)
 
-    const existingSlugs = new Set(
-      (await Category.query(options).where('household_id', householdId).select('slug')).map(
-        (category) => category.slug
-      )
-    )
+    const existingCategories = await Category.query(options)
+      .where('household_id', householdId)
+      .select('slug')
+    const existingSlugs = new Set(existingCategories.map((category) => category.slug))
 
     const missingCategories = TAXONOMY.flatMap((group) =>
       group.categories

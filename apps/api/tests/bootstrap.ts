@@ -9,14 +9,15 @@ import { apiClient, ApiRequest } from '@japa/api-client'
 import { authApiClient } from '@adonisjs/auth/plugins/api_client'
 import { shieldApiClient } from '@adonisjs/shield/plugins/api_client'
 import { sessionApiClient } from '@adonisjs/session/plugins/api_client'
-import type { Registry } from '../.adonisjs/client/registry/schema.d.ts'
 
 /**
- * This file is imported by the "bin/test.ts" entrypoint file
+ * This file is imported by the "bin/test.ts" entrypoint file.
+ *
+ * The Tuyau registry is deliberately NOT plugged into Japa's RoutesRegistry:
+ * the typed client matches routes by URL pattern only, so GET and POST on
+ * the same path collapse into a union, and tests must be free to send
+ * invalid payloads. The web app's typecheck is what guards the contract.
  */
-declare module '@japa/api-client/types' {
-  interface RoutesRegistry extends Registry {}
-}
 
 declare module '@japa/api-client' {
   interface ApiRequest {

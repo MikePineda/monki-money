@@ -16,7 +16,10 @@ import type { AddMemberInput, CreateHouseholdInput } from '#services/households/
 export default class HouseholdCreator {
   constructor(protected taxonomy: TaxonomySeeder) {}
 
-  async create(input: CreateHouseholdInput, trx?: TransactionClientContract) {
+  async create(
+    input: CreateHouseholdInput,
+    trx?: TransactionClientContract
+  ): Promise<{ household: Household; membership: HouseholdMember }> {
     if (!trx) return db.transaction((own) => this.create(input, own))
 
     const household = await Household.create(

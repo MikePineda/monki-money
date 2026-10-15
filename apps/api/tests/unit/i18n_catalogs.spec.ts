@@ -23,7 +23,10 @@ async function catalog(locale: string, file: string) {
 test.group('Translation catalogs', () => {
   test('test_every_locale_has_the_same_catalog_files', async ({ assert }) => {
     const [reference, ...others] = await Promise.all(
-      LOCALES.map(async (locale) => (await readdir(join(app.languageFilesPath(), locale))).sort())
+      LOCALES.map(async (locale) => {
+        const files = await readdir(join(app.languageFilesPath(), locale))
+        return files.sort()
+      })
     )
     for (const files of others) assert.deepEqual(files, reference)
     assert.includeMembers(reference, [

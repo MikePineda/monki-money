@@ -57,7 +57,9 @@ test.group('Database schema', () => {
 
     assert.deepEqual(
       actual,
-      Object.fromEntries(Object.entries(POSTGRES_ENUMS).map(([name, values]) => [name, [...values]]))
+      Object.fromEntries(
+        Object.entries(POSTGRES_ENUMS).map(([name, values]) => [name, [...values]])
+      )
     )
   })
 
@@ -68,7 +70,9 @@ test.group('Database schema', () => {
     assert.notEqual(first.household.id, second.household.id)
 
     // Several accounts without a number are fine in the same household.
-    await createHousehold({ accounts: [{ externalAccountNumber: null }, { externalAccountNumber: null }] })
+    await createHousehold({
+      accounts: [{ externalAccountNumber: null }, { externalAccountNumber: null }],
+    })
 
     await assert.rejects(() =>
       db.transaction(async (trx) => {

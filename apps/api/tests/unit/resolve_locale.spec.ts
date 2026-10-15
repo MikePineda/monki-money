@@ -16,10 +16,7 @@ test.group('resolveLocale', () => {
   })
 
   test('test_guests_get_the_browser_locale', ({ assert }) => {
-    assert.equal(
-      resolveLocale({ browserLocale: 'es', defaultLocale: 'en', supported }),
-      'es'
-    )
+    assert.equal(resolveLocale({ browserLocale: 'es', defaultLocale: 'en', supported }), 'es')
   })
 
   test('test_household_locale_is_used_when_user_and_browser_have_none', ({ assert }) => {

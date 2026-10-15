@@ -44,7 +44,9 @@ export interface TestHousehold {
  * owner, rest = members), each with it as current household, and optional
  * accounts and taxonomy. Built through the same service sign-up uses.
  */
-export async function createHousehold(options: CreateHouseholdOptions = {}): Promise<TestHousehold> {
+export async function createHousehold(
+  options: CreateHouseholdOptions = {}
+): Promise<TestHousehold> {
   const locale = options.locale ?? 'en'
   const users = await UserFactory.merge({ locale }).createMany(options.users ?? 1)
   const creator = await app.container.make(HouseholdCreator)
