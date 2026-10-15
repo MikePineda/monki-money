@@ -21,6 +21,14 @@ export const verifyEmailValidator = vine.create({
   token: vine.string().trim().minLength(1).maxLength(2048),
 })
 
+/** The 6-digit code from the verification mail. */
+export const verifyEmailCodeValidator = vine.create({
+  code: vine
+    .string()
+    .trim()
+    .regex(/^\d{6}$/),
+})
+
 export const forgotPasswordValidator = vine.create({
   email: email(),
   turnstileToken: turnstileToken(),

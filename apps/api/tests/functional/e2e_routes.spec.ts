@@ -87,6 +87,8 @@ test.group('Test-support routes', () => {
     assert.deepInclude(entries[0], { to: ['outbox@example.test'], subject: 'Confirm your email' })
     assert.lengthOf(entries[0].links, 1)
     assert.match(entries[0].links[0], /^http:\/\/127\.0\.0\.1:3333\/verify-email\?token=/)
+    assert.lengthOf(entries[0].codes, 1)
+    assert.match(entries[0].codes[0], /^\d{6}$/)
     assert.isString(entries[0].sentAt)
   })
 

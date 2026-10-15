@@ -90,6 +90,12 @@ const routes = {
     tokens: [{"old":"/api/v1/auth/email/resend","type":0,"val":"api","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"email","end":""},{"old":"/api/v1/auth/email/resend","type":0,"val":"resend","end":""}],
     types: placeholder as Registry['auth.email.resend']['types'],
   },
+  'auth.email.verifyCode': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/email/verify-code',
+    tokens: [{"old":"/api/v1/auth/email/verify-code","type":0,"val":"api","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"email","end":""},{"old":"/api/v1/auth/email/verify-code","type":0,"val":"verify-code","end":""}],
+    types: placeholder as Registry['auth.email.verifyCode']['types'],
+  },
   'me.update': {
     methods: ["PATCH"],
     pattern: '/api/v1/me',

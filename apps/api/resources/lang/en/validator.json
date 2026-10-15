@@ -99,7 +99,10 @@
       "categoryId.split": "A split transaction takes its categories from its lines",
       "amountCents.splitSum": "Change the split lines together with the amount",
       "toAccountId.sameAccount": "Choose two different accounts",
-      "turnstile": "Complete the security check and try again"
+      "turnstile": "Complete the security check and try again",
+      "verificationCode.invalid": "This code is not right. Check the email and try again",
+      "verificationCode.expired": "This code has expired. Ask for a new email to get another one",
+      "verificationCode.locked": "Too many wrong codes. Ask for a new email to get another one"
     }
   }
 }

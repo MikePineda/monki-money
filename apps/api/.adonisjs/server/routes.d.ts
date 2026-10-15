@@ -18,6 +18,7 @@ export type ScannedRoutes = {
     'auth.logout': { paramsTuple?: []; params?: {} }
     'auth.logout_all': { paramsTuple?: []; params?: {} }
     'auth.email.resend': { paramsTuple?: []; params?: {} }
+    'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
     'me.update': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.show': { paramsTuple?: []; params?: {} }
@@ -118,6 +119,7 @@ export type ScannedRoutes = {
     'auth.logout': { paramsTuple?: []; params?: {} }
     'auth.logout_all': { paramsTuple?: []; params?: {} }
     'auth.email.resend': { paramsTuple?: []; params?: {} }
+    'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }

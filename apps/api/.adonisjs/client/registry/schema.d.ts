@@ -175,6 +175,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verification_controller').default['resend']>>>
     }
   }
+  'auth.email.verifyCode': {
+    methods: ["POST"]
+    pattern: '/api/v1/auth/email/verify-code'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/auth').verifyEmailCodeValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/auth').verifyEmailCodeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/email_verification_controller').default['verifyCode']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verification_controller').default['verifyCode']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'me.update': {
     methods: ["PATCH"]
     pattern: '/api/v1/me'

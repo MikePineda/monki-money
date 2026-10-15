@@ -15,6 +15,7 @@ export interface ApiDefinition {
     email: {
       verify: typeof routes['auth.email.verify']
       resend: typeof routes['auth.email.resend']
+      verifyCode: typeof routes['auth.email.verifyCode']
     }
     password: {
       forgot: typeof routes['auth.password.forgot']

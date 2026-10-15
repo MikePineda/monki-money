@@ -77,6 +77,9 @@ router
                 router
                   .post('email/resend', [controllers.EmailVerification, 'resend'])
                   .as('email.resend')
+                router
+                  .post('email/verify-code', [controllers.EmailVerification, 'verifyCode'])
+                  .as('email.verifyCode')
               })
               .prefix('auth')
               .as('auth')

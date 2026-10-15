@@ -99,7 +99,10 @@
       "categoryId.split": "Un movimiento dividido toma sus categorías de sus líneas",
       "amountCents.splitSum": "Cambia las líneas de la división junto con el monto",
       "toAccountId.sameAccount": "Elige dos cuentas distintas",
-      "turnstile": "Completa la verificación de seguridad e inténtalo de nuevo"
+      "turnstile": "Completa la verificación de seguridad e inténtalo de nuevo",
+      "verificationCode.invalid": "Este código no es correcto. Revisa el correo e inténtalo de nuevo",
+      "verificationCode.expired": "Este código ya venció. Pide un correo nuevo para recibir otro",
+      "verificationCode.locked": "Demasiados códigos incorrectos. Pide un correo nuevo para recibir otro"
     }
   }
 }
