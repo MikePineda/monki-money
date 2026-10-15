@@ -17,6 +17,7 @@ class FakeXhr {
   status = 0
   responseText = ''
   aborted = false
+  withCredentials = false
   upload: { onprogress: ((event: ProgressEvent) => void) | null } = { onprogress: null }
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
@@ -175,5 +176,84 @@ describe('UploadService', () => {
     await answer
 
     expect(xhr.headers).toEqual({ Accept: 'application/json' })
+  })
+
+  describe('putToUrl (direct upload to the bucket)', () => {
+    const URL = 'https://bucket.example.test/receipts/1/abc.webp?X-Amz-Signature=sig'
+
+    it('test_puts_the_blob_with_only_the_signed_headers_and_no_csrf_token', async () => {
+      const service = setup()
+      const blob = new Blob(['pixels'], { type: 'image/webp' })
+
+      const answer = service.putToUrl(URL, blob, { 'Content-Type': 'image/webp' })
+      xhr.respond(200, '')
+
+      expect(xhr.method).toBe('PUT')
+      expect(xhr.url).toBe(URL)
+      expect(xhr.headers).toEqual({ 'Content-Type': 'image/webp' })
+      expect(xhr.sent).toBe(blob)
+      await expect(answer).resolves.toEqual({ status: 200, body: null })
+    })
+
+    it('test_never_sends_cookies_to_the_bucket', async () => {
+      const service = setup()
+
+      const answer = service.putToUrl(URL, new Blob(['x']), {})
+      xhr.respond(200, '')
+      await answer
+
+      expect(xhr.withCredentials).toBe(false)
+    })
+
+    it('test_headers_the_browser_sets_itself_are_left_to_it', async () => {
+      const service = setup()
+
+      const answer = service.putToUrl(URL, new Blob(['x']), {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': '1',
+        'host': 'bucket.example.test',
+      })
+      xhr.respond(200, '')
+      await answer
+
+      expect(xhr.headers).toEqual({ 'Content-Type': 'image/jpeg' })
+    })
+
+    it('test_reports_progress_and_a_refusal_of_the_bucket_resolves_with_its_status', async () => {
+      const service = setup()
+      const progress: (number | null)[] = []
+
+      const answer = service.putToUrl(URL, new Blob(['x']), {}, {
+        onProgress: (value) => progress.push(value),
+      })
+      xhr.progress(1, 4)
+      xhr.respond(403, '<Error><Code>AccessDenied</Code></Error>')
+
+      expect(progress).toEqual([0.25])
+      await expect(answer).resolves.toEqual({ status: 403, body: null })
+    })
+
+    it('test_a_403_or_401_from_the_bucket_never_ends_the_session', async () => {
+      const service = setup()
+
+      const answer = service.putToUrl(URL, new Blob(['x']), {})
+      xhr.respond(401, '')
+      await answer
+
+      expect(expiry.notify).not.toHaveBeenCalled()
+    })
+
+    it('test_aborting_cancels_the_put_and_a_dropped_connection_rejects_as_offline', async () => {
+      const service = setup()
+      const controller = new AbortController()
+
+      const cancelled = service.putToUrl(URL, new Blob(['x']), {}, { signal: controller.signal })
+      controller.abort()
+      await expect(cancelled).rejects.toBeInstanceOf(UploadAbortedError)
+
+      const dropped = service.putToUrl(URL, new Blob(['x']), {})
+      xhr.fail()
+      await expect(dropped).rejects.toBeInstanceOf(UploadNetworkError)
+    })
   })
 })
