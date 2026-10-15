@@ -6,20 +6,218 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, Theme } from '@monkimoney/shared'
 
-export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'fullName', 'id', 'password', 'updatedAt'] as const
-  $columns = UserSchema.$columns
+export class AccountCardSchema extends BaseModel {
+  static $columns = ['accountId', 'cardSuffix', 'createdAt', 'id', 'label', 'updatedAt', 'userId'] as const
+  $columns = AccountCardSchema.$columns
+  @column()
+  declare accountId: number
+  @column()
+  declare cardSuffix: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare label: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number | null
+}
+
+export class AccountSchema extends BaseModel {
+  static $columns = ['createdAt', 'createdByUserId', 'currencyCode', 'externalAccountNumber', 'householdId', 'id', 'institution', 'isActive', 'kind', 'name', 'openingBalanceCents', 'openingBalanceDate', 'ownerUserId', 'sortOrder', 'updatedAt'] as const
+  $columns = AccountSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare currencyCode: string
+  @column()
+  declare externalAccountNumber: string | null
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare institution: string | null
+  @column()
+  declare isActive: boolean
+  @column()
+  declare kind: AccountKind
+  @column()
+  declare name: string
+  @column()
+  declare openingBalanceCents: number
+  @column()
+  declare openingBalanceDate: string | null
+  @column()
+  declare ownerUserId: number | null
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CategorySchema extends BaseModel {
+  static $columns = ['categoryGroupId', 'createdAt', 'createdByUserId', 'householdId', 'icon', 'id', 'isHidden', 'isSystem', 'name', 'slug', 'sortOrder', 'updatedAt'] as const
+  $columns = CategorySchema.$columns
+  @column()
+  declare categoryGroupId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare householdId: number
+  @column()
+  declare icon: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isHidden: boolean
+  @column()
+  declare isSystem: boolean
+  @column()
+  declare name: string
+  @column()
+  declare slug: string
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class CategoryGroupSchema extends BaseModel {
+  static $columns = ['createdAt', 'householdId', 'id', 'isHidden', 'isSystem', 'kind', 'name', 'slug', 'sortOrder', 'updatedAt'] as const
+  $columns = CategoryGroupSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isHidden: boolean
+  @column()
+  declare isSystem: boolean
+  @column()
+  declare kind: CategoryGroupKind
+  @column()
+  declare name: string
+  @column()
+  declare slug: string
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class HouseholdMemberSchema extends BaseModel {
+  static $columns = ['color', 'createdAt', 'displayName', 'householdId', 'id', 'joinedAt', 'role', 'updatedAt', 'userId'] as const
+  $columns = HouseholdMemberSchema.$columns
+  @column()
+  declare color: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare displayName: string | null
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare joinedAt: DateTime
+  @column()
+  declare role: MemberRole
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
+}
+
+export class HouseholdSchema extends BaseModel {
+  static $columns = ['createdAt', 'currencyCode', 'deletionScheduledAt', 'id', 'locale', 'name', 'plan', 'settings', 'status', 'stripeCustomerId', 'timezone', 'updatedAt'] as const
+  $columns = HouseholdSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currencyCode: string
+  @column.dateTime()
+  declare deletionScheduledAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare locale: Locale
+  @column()
+  declare name: string
+  @column()
+  declare plan: HouseholdPlan
+  @column()
+  declare settings: HouseholdSettings
+  @column()
+  declare status: HouseholdStatus
+  @column()
+  declare stripeCustomerId: string | null
+  @column()
+  declare timezone: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class InvitationSchema extends BaseModel {
+  static $columns = ['acceptedAt', 'createdAt', 'email', 'expiresAt', 'householdId', 'id', 'invitedByUserId', 'role', 'tokenHash', 'updatedAt'] as const
+  $columns = InvitationSchema.$columns
+  @column.dateTime()
+  declare acceptedAt: DateTime | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
   declare email: string
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
-  declare fullName: string | null
+  declare householdId: number
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare invitedByUserId: number | null
+  @column()
+  declare role: MemberRole
+  @column()
+  declare tokenHash: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class UserSchema extends BaseModel {
+  static $columns = ['createdAt', 'currentHouseholdId', 'email', 'emailVerifiedAt', 'fullName', 'id', 'lastLoginAt', 'locale', 'password', 'sessionVersion', 'theme', 'updatedAt'] as const
+  $columns = UserSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currentHouseholdId: number | null
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare emailVerifiedAt: DateTime | null
+  @column()
+  declare fullName: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastLoginAt: DateTime | null
+  @column()
+  declare locale: Locale
   @column({ serializeAs: null })
   declare password: string
+  @column()
+  declare sessionVersion: number
+  @column()
+  declare theme: Theme
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare updatedAt: DateTime
 }

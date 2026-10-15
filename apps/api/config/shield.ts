@@ -28,15 +28,17 @@ const shieldConfig = defineConfig({
    */
   csrf: {
     /**
-     * Enable CSRF token verification for state-changing requests.
+     * Enable CSRF token verification for state-changing requests. The SPA
+     * reads the XSRF-TOKEN cookie (set on any GET, e.g. /api/v1/auth/me)
+     * and Tuyau sends it back as the X-XSRF-TOKEN header.
      */
-    enabled: false,
+    enabled: true,
 
     /**
-     * Route patterns to exclude from CSRF checks.
-     * Useful for external webhooks or API endpoints.
+     * Route patterns to exclude from CSRF checks. The E2E reset route only
+     * exists in test/E2E mode (start/routes/e2e.ts).
      */
-    exceptRoutes: [],
+    exceptRoutes: ['/api/test/reset'],
 
     /**
      * Expose an encrypted XSRF-TOKEN cookie for frontend HTTP clients.

@@ -10,7 +10,7 @@
 | - Secrets use `Env.schema.secret()` so they never leak through logs.
 | - Booleans are booleans; numbers are numbers.
 | - NEVER type a variable as a list or an object. Values that carry
-|   structure (SEED_USERS_JSON, SEED_ACCOUNTS) stay raw strings here and are
+|   structure stay flat raw strings here (see the SEED_* block) and are
 |   parsed by the code that owns them, with a readable error.
 | - The documented list lives in `apps/api/.env.example`; keep both in sync.
 |
@@ -34,6 +34,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   GIT_SHA: Env.schema.string.optional(),
   REGISTRATION_OPEN: Env.schema.boolean(),
   E2E_MODE: Env.schema.boolean.optional(),
+  // Locale when neither the user nor the browser picks a supported one (default en)
+  APP_DEFAULT_LOCALE: Env.schema.enum.optional(['en', 'es'] as const),
 
   // Session and rate limiting
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory'] as const),
@@ -84,11 +86,21 @@ export default await Env.create(new URL('../', import.meta.url), {
   SENTRY_DSN: Env.schema.secret.optional(),
   SENTRY_DSN_WEB: Env.schema.string.optional(),
 
-  // Deploy-time bootstrap (read by docker/entrypoint.mjs and the seeders)
+  // Deploy-time bootstrap (read by docker/entrypoint.mjs and the
+  // production_bootstrap seeder). Real names and emails live ONLY in the
+  // Dokploy panel; the seeder validates the values it needs.
   MIGRATE_ON_START: Env.schema.boolean.optional(),
   SEED_USERS: Env.schema.boolean.optional(),
-  SEED_HOUSEHOLD: Env.schema.string.optional(),
-  SEED_USERS_JSON: Env.schema.secret.optional(),
-  SEED_ACCOUNTS: Env.schema.string.optional(),
+  SEED_HOUSEHOLD_NAME: Env.schema.string.optional(),
+  SEED_LOCALE: Env.schema.string.optional(),
+  SEED_USER1_EMAIL: Env.schema.string.optional(),
+  SEED_USER1_NAME: Env.schema.string.optional(),
+  SEED_USER1_PASSWORD: Env.schema.secret.optional(),
+  SEED_USER1_CARD_SUFFIX: Env.schema.string.optional(),
+  SEED_USER2_EMAIL: Env.schema.string.optional(),
+  SEED_USER2_NAME: Env.schema.string.optional(),
+  SEED_USER2_PASSWORD: Env.schema.secret.optional(),
+  SEED_USER2_CARD_SUFFIX: Env.schema.string.optional(),
+  SEED_JOINT_ACCOUNT_NUMBER: Env.schema.string.optional(),
   SMOKE_PASSWORD: Env.schema.secret.optional(),
 })

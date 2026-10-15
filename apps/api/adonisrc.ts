@@ -1,5 +1,6 @@
 import { indexEntities } from '@adonisjs/core/generators'
 import { defineConfig } from '@adonisjs/core/app'
+import { indexPolicies } from '@adonisjs/bouncer'
 import { generateRegistry } from '@tuyau/core/hooks'
 
 export default defineConfig({
@@ -28,6 +29,8 @@ export default defineConfig({
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/session/commands'),
+    () => import('@adonisjs/mail/commands'),
+    () => import('@adonisjs/bouncer/commands'),
   ],
 
   /*
@@ -46,6 +49,7 @@ export default defineConfig({
       file: () => import('@adonisjs/core/providers/repl_provider'),
       environment: ['repl', 'test'],
     },
+    () => import('#providers/pg_types_provider'),
     () => import('@adonisjs/core/providers/vinejs_provider'),
     () => import('@adonisjs/session/session_provider'),
     () => import('@adonisjs/shield/shield_provider'),
@@ -54,6 +58,10 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('#providers/api_provider'),
     () => import('@adonisjs/static/static_provider'),
+    () => import('@adonisjs/i18n/i18n_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
+    () => import('@adonisjs/limiter/limiter_provider'),
+    () => import('@adonisjs/bouncer/bouncer_provider'),
   ],
 
   /*
@@ -109,6 +117,10 @@ export default defineConfig({
       pattern: 'public/**',
       reloadServer: false,
     },
+    {
+      pattern: 'resources/lang/**/*.{json,yaml,yml}',
+      reloadServer: false,
+    },
   ],
 
   hooks: {
@@ -116,6 +128,7 @@ export default defineConfig({
       indexEntities({
         transformers: { enabled: true },
       }),
+      indexPolicies(),
       generateRegistry({
         routes: { except: ['spa.fallback'] },
       }),
