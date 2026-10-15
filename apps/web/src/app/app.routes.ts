@@ -57,6 +57,12 @@ export const routes: Routes = [
         path: 'categories',
         loadComponent: () => import('./features/categories/feature/categories.page'),
       },
+      { path: 'goals', loadComponent: () => import('./features/goals/feature/goals-list.page') },
+      { path: 'goals/new', loadComponent: () => import('./features/goals/feature/goal-new.page') },
+      {
+        path: 'goals/:id',
+        loadComponent: () => import('./features/goals/feature/goal-detail.page'),
+      },
       {
         path: 'settings',
         loadComponent: () => import('./features/settings/feature/settings.page'),

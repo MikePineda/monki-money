@@ -17,6 +17,10 @@ type NoteKey = 'reaches' | 'reached' | 'beyond' | 'notReached'
 
 /** Vertical room the goal label needs from a tick label (12px text plus air). */
 const GOAL_LABEL_CLEARANCE = 16
+/** About the width of "Target Mar 2027" at 12px: closer to the right edge, the label hangs left. */
+const MARKER_LABEL_WIDTH = 100
+/** Space between the marker line (and the baseline) and its label. */
+const MARKER_LABEL_GAP = 6
 
 let nextProjectionId = 0
 
@@ -41,7 +45,8 @@ const KEYS = [
  * line with ringed markers, the projected months as the one dashed segment
  * the charts allow, continuing from the last actual month, and the goal as
  * a solid labelled hairline with a marker on the month that reaches it. A
- * caption says when, always as an estimate. Same axis, crosshair, tooltip
+ * target month (the goal's date) is a solid labelled vertical reference.
+ * A caption says when, always as an estimate. Same axis, crosshair, tooltip
  * and keyboard behaviour as the trend line.
  */
 @Component({
@@ -103,6 +108,25 @@ const KEYS = [
           />
           <text class="threshold-label" x="0" [attr.y]="threshold.y - 4">
             {{ 'charts.projection.goal' | transloco: { amount: goalAmount() } }}
+          </text>
+        }
+        @if (layout().marker; as marker) {
+          <line
+            data-marker
+            class="marker-line"
+            [attr.x1]="marker.x"
+            [attr.x2]="marker.x"
+            [attr.y1]="layout().line.plot.top"
+            [attr.y2]="layout().line.plot.bottom"
+          />
+          <text
+            data-marker-label
+            class="threshold-label"
+            [attr.x]="markerLabel().x"
+            [attr.y]="markerLabel().y"
+            [attr.text-anchor]="markerLabel().anchor"
+          >
+            {{ 'charts.projection.target' | transloco: { month: markerText() } }}
           </text>
         }
         @if (crosshairX(); as x) {
@@ -189,6 +213,8 @@ export class ProjectionChartComponent implements ChartTableSource {
   readonly thresholdCents = input<number | null>(null)
   /** Last month to draw ('YYYY-MM'); later projected months are trimmed. */
   readonly horizon = input<string | null>(null)
+  /** A month to mark with a labelled vertical line (the target date), when on the axis. */
+  readonly markerMonth = input<string | null>(null)
   readonly height = input(180)
 
   protected readonly width = injectHostWidth()
@@ -204,6 +230,7 @@ export class ProjectionChartComponent implements ChartTableSource {
         projection: this.projection(),
         thresholdCents: this.thresholdCents(),
         horizon: this.horizon(),
+        markerMonth: this.markerMonth(),
       },
       { width: this.width(), height: this.height() }
     )
@@ -240,6 +267,27 @@ export class ProjectionChartComponent implements ChartTableSource {
   protected readonly actualPoints = computed(() =>
     this.layout().points.filter((point) => !point.projected)
   )
+
+  protected readonly markerText = computed(() => {
+    const marker = this.layout().marker
+    return marker ? monthText(marker.month, this.locale(), { withYear: true }) : ''
+  })
+
+  /**
+   * The marker's label sits inside the plot at the bottom, beside the line
+   * (the goal label owns the top-left), hanging left of it near the right edge.
+   */
+  protected readonly markerLabel = computed(() => {
+    const marker = this.layout().marker
+    const { right, bottom } = this.layout().line.plot
+    const x = marker?.x ?? 0
+    const nearRight = right - x < MARKER_LABEL_WIDTH
+    return {
+      x: nearRight ? x - MARKER_LABEL_GAP : x + MARKER_LABEL_GAP,
+      y: bottom - MARKER_LABEL_GAP,
+      anchor: nearRight ? 'end' : 'start',
+    }
+  })
 
   protected readonly goalAmount = computed(() => {
     const goal = this.thresholdCents()

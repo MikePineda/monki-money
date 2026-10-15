@@ -8,6 +8,8 @@
   },
   "scopePathMap": {
     "month": "src/app/features/month/i18n",
+    "insights": "src/app/features/month/ui/insight-summary/i18n",
+    "goals": "src/app/features/goals/i18n",
     "transactions": "src/app/features/transactions/i18n",
     "quickAdd": "src/app/features/quick-add/i18n",
     "categories": "src/app/features/categories/i18n",

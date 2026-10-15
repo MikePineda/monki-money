@@ -19,6 +19,19 @@ export class MonthPage {
   get addButton() {
     return this.page.getByRole('link', { name: 'Add transaction' }).first()
   }
+  /** The AI-written monthly summary card in the insights slot. */
+  get summary() {
+    return this.page.getByTestId('month.summary')
+  }
+  get summaryHeadline() {
+    return this.page.getByTestId('month.summary.headline')
+  }
+
+  /** "Regenerate summary" from the card's overflow menu. */
+  async regenerateSummary(): Promise<void> {
+    await this.page.getByTestId('month.summary.menu').click()
+    await this.page.getByRole('option', { name: 'Regenerate summary' }).click()
+  }
 
   async goto(month?: string): Promise<void> {
     await this.page.goto(month ? `/month/${month}` : '/month')

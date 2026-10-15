@@ -16,6 +16,10 @@ export type AccountCard = Data.AccountCard
 export type Transaction = Data.Transaction
 export type TransactionSplit = Data.TransactionSplit
 export type Transfer = Data.Transfer
+/** A savings goal (`userId` null = the household's). */
+export type Goal = Data.Goal
+/** The LLM-written summary of a month, in the reader's language. */
+export type MonthlyInsight = Data.MonthlyInsight
 /** A bank import batch (one account of one upload) with its counts and reconciliation. */
 export type ImportBatch = Data.ImportBatch
 /** `GET /imports/:id`: the batch plus its rows in file order. */

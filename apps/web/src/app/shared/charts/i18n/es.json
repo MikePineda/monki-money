@@ -26,6 +26,7 @@
     "actual": "Real",
     "projected": "Proyectado (estimado)",
     "goal": "Meta {amount}",
+    "target": "Objetivo {month}",
     "reaches": "Alcanza la meta en {month} (estimado).",
     "reached": "Meta alcanzada en {month}.",
     "beyond": "A este ritmo la meta se alcanza en {month}, después del final de la gráfica.",

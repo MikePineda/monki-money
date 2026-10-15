@@ -113,5 +113,19 @@ describe('layoutProjection', () => {
     expect(layout.months).toEqual([])
     expect(layout.historyPath).toBe('')
     expect(layout.projectionPath).toBe('')
+    expect(layout.marker).toBeNull()
+  })
+
+  it('test_a_target_month_on_the_axis_gets_a_vertical_marker', () => {
+    const layout = layoutProjection({ history, projection, markerMonth: '2026-09' }, SIZE)
+
+    expect(layout.marker).toEqual({ month: '2026-09', x: layout.line.xs[8] })
+  })
+
+  it('test_a_target_month_off_the_axis_draws_no_marker', () => {
+    expect(layoutProjection({ history, projection, markerMonth: '2027-03' }, SIZE).marker).toBe(
+      null
+    )
+    expect(layoutProjection({ history, projection }, SIZE).marker).toBeNull()
   })
 })

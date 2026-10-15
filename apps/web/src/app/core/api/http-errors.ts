@@ -3,14 +3,14 @@
  * so this module does not pull the client into the initial bundle (the
  * client itself is loaded lazily, see api.ts).
  */
-interface TuyauLikeError {
+export interface TuyauLikeError {
   kind: 'http' | 'network'
   status?: number
   response?: unknown
   rawResponse?: { headers?: { get(name: string): string | null } }
 }
 
-function isTuyauError(error: unknown): error is TuyauLikeError {
+export function isTuyauError(error: unknown): error is TuyauLikeError {
   if (!(error instanceof Error) || !('kind' in error)) {
     return false
   }
