@@ -4,15 +4,19 @@ import { configApp } from '@adonisjs/eslint-config'
 export default configApp(
   { ignores: ['database/schema.ts'] },
   {
-    // app/domain is pure business logic: no Lucid models, no database access.
+    // app/domain is pure: no models, no database, no HTTP. Repositories
+    // (app/repositories) turn rows into plain values before they get here.
     files: ['app/domain/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           patterns: [
-            { group: ['#models/*'], message: 'app/domain is pure: map models to DTOs first.' },
-            { group: ['@adonisjs/lucid', '@adonisjs/lucid/*'], message: 'app/domain is pure.' },
+            {
+              // A regex: in gitignore-style `group` patterns a leading `#` is a comment.
+              regex: '^(#(models|repositories|services|controllers|database)/|@adonisjs/lucid(/|$)|@adonisjs/core/services/)',
+              message: 'app/domain is pure: pass plain values in instead of importing I/O.',
+            },
           ],
         },
       ],

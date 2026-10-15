@@ -1,6 +1,7 @@
 import type User from '#models/user'
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
 import AccountCard from '#models/account_card'
 import type Household from '#models/household'
 import { entitlementsFor } from '#config/plans'
@@ -72,10 +73,21 @@ export default class AccountService {
     return this.find(household, account.id)
   }
 
+  /**
+   * Locks the account, counts what references it and deletes it in one DB
+   * transaction: a ledger row being saved at the same time either commits
+   * first (and is counted: 409) or waits and then fails its own FK check.
+   */
   async delete(household: Household, accountId: number) {
-    const account = await findInHousehold(Account, household, accountId)
-    if ((await this.usage.transactionCount(account)) > 0) throw new AccountInUse()
-    await account.delete()
+    await db.transaction(async (trx) => {
+      const account = await Account.query({ client: trx })
+        .where('household_id', household.id)
+        .where('id', accountId)
+        .forUpdate()
+        .firstOrFail()
+      if ((await this.usage.transactionCount(account, trx)) > 0) throw new AccountInUse()
+      await account.delete()
+    })
   }
 
   async reorder(household: Household, ids: number[]) {

@@ -2,12 +2,15 @@ import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import type Account from '#models/account'
 import Category from '#models/category'
+import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
+import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import router from '@adonisjs/core/services/router'
 import CategoryGroup from '#models/category_group'
 import { createHousehold, type TestHousehold } from '#tests/helpers/household'
 import { generateInvitationToken, hashInvitationToken } from '#domain/households/invitation_token'
+import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 
 /**
  * Cross-household access answers 404 (never 403, which would leak that the
@@ -23,6 +26,8 @@ interface Victim {
   group: CategoryGroup
   category: Category
   invitation: Invitation
+  transaction: Transaction
+  transfer: Transfer
 }
 
 interface Attacker {
@@ -95,6 +100,44 @@ const cases: IsolationCase[] = [
     method: 'post',
     url: (v) => `/api/v1/household/invitations/${v.invitation.id}/resend`,
   },
+  {
+    route: 'transactions.show',
+    method: 'get',
+    url: (v) => `/api/v1/transactions/${v.transaction.id}`,
+  },
+  {
+    route: 'transactions.update',
+    method: 'patch',
+    url: (v) => `/api/v1/transactions/${v.transaction.id}`,
+    body: { payee: 'Hijacked' },
+  },
+  {
+    route: 'transactions.destroy',
+    method: 'delete',
+    url: (v) => `/api/v1/transactions/${v.transaction.id}`,
+  },
+  {
+    route: 'transactions.splits.update',
+    method: 'put',
+    url: (v) => `/api/v1/transactions/${v.transaction.id}/splits`,
+    body: { splits: [] },
+  },
+  {
+    route: 'transfers.update',
+    method: 'patch',
+    url: (v) => `/api/v1/transfers/${v.transfer.id}`,
+    body: { memo: 'Hijacked' },
+  },
+  {
+    route: 'transfers.destroy',
+    method: 'delete',
+    url: (v) => `/api/v1/transfers/${v.transfer.id}`,
+  },
+  {
+    route: 'reports.category',
+    method: 'get',
+    url: (v) => `/api/v1/reports/category/${v.category.id}`,
+  },
 ]
 
 /**
@@ -106,7 +149,7 @@ const NOT_ID_SCOPED = new Set(['auth.invitations.show', 'auth.invitations.accept
 async function victimHousehold(): Promise<Victim> {
   const household = await createHousehold({
     taxonomy: true,
-    accounts: [{ name: 'Victim account' }],
+    accounts: [{ name: 'Victim account' }, { name: 'Victim savings' }],
   })
   const account = household.accounts[0]
   const card = await AccountCard.create({
@@ -129,7 +172,19 @@ async function victimHousehold(): Promise<Victim> {
     role: 'member',
     expiresAt: DateTime.now().plus({ days: 7 }),
   })
-  return { household, account, card, group, category, invitation }
+  const transaction = await TransactionFactory.merge({
+    householdId: household.household.id,
+    accountId: account.id,
+    categoryId: category.id,
+    payee: 'Victim payee',
+  }).create()
+  const transfer = await TransferFactory.merge({
+    householdId: household.household.id,
+    fromAccountId: account.id,
+    toAccountId: household.accounts[1].id,
+    memo: 'Victim memo',
+  }).create()
+  return { household, account, card, group, category, invitation, transaction, transfer }
 }
 
 test.group('Tenant isolation', () => {
@@ -161,6 +216,12 @@ test.group('Tenant isolation', () => {
       const invitation = await Invitation.find(victim.invitation.id)
       assert.equal(invitation?.tokenHash, victim.invitation.tokenHash)
       assert.lengthOf(await AccountCard.query().where('account_id', victim.account.id), 1)
+      await victim.transaction.refresh()
+      assert.equal(victim.transaction.payee, 'Victim payee')
+      assert.equal(victim.transaction.categoryId, victim.category.id)
+      await victim.transfer.refresh()
+      assert.equal(victim.transfer.memo, 'Victim memo')
+      assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
     })
 
   test('test_isolation_dataset_covers_every_route_with_an_id', ({ assert }) => {
@@ -201,6 +262,157 @@ test.group('Tenant isolation', () => {
       members.body().data.map((m: any) => m.userId),
       [attacker.owner.id]
     )
+
+    const transactions = await client
+      .get(`/api/v1/transactions?accountId=${victim.account.id}`)
+      .actingAs(attacker.owner)
+    assert.deepEqual(transactions.body().data, [])
+
+    const month = await client
+      .get(`/api/v1/reports/month?month=${victim.transaction.date.slice(0, 7)}`)
+      .actingAs(attacker.owner)
+    assert.equal(month.body().data.transactionCount, 0)
+
+    const balances = await client.get('/api/v1/reports/balances').actingAs(attacker.owner)
+    assert.deepEqual(
+      balances.body().data.accounts.map((row: any) => row.accountId),
+      [attacker.accounts[0].id]
+    )
+  })
+
+  test('test_foreign_ids_in_ledger_bodies_are_rejected_with_422', async ({ client, assert }) => {
+    const victim = await victimHousehold()
+    const attacker = await createHousehold({ taxonomy: true, accounts: [{}, {}] })
+    const ownCategory = await Category.query()
+      .where('household_id', attacker.household.id)
+      .firstOrFail()
+    const own = await TransactionFactory.merge({
+      householdId: attacker.household.id,
+      accountId: attacker.accounts[0].id,
+    }).create()
+    const ownTransfer = await TransferFactory.merge({
+      householdId: attacker.household.id,
+      fromAccountId: attacker.accounts[0].id,
+      toAccountId: attacker.accounts[1].id,
+    }).create()
+    const entry = { kind: 'expense', date: '2026-10-01', amountCents: 100 }
+
+    const requests: Array<[() => any, string]> = [
+      [
+        () => client.post('/api/v1/transactions').json({ ...entry, accountId: victim.account.id }),
+        'accountId',
+      ],
+      [
+        () =>
+          client
+            .post('/api/v1/transactions')
+            .json({ ...entry, accountId: attacker.accounts[0].id, categoryId: victim.category.id }),
+        'categoryId',
+      ],
+      [
+        () =>
+          client.post('/api/v1/transactions').json({
+            ...entry,
+            accountId: attacker.accounts[0].id,
+            splits: [
+              { categoryId: ownCategory.id, amountCents: 50 },
+              { categoryId: victim.category.id, amountCents: 50 },
+            ],
+          }),
+        'splits',
+      ],
+      [
+        () =>
+          client.post('/api/v1/transactions').json({
+            ...entry,
+            accountId: attacker.accounts[0].id,
+            paidByUserId: victim.household.owner.id,
+          }),
+        'paidByUserId',
+      ],
+      [
+        () =>
+          client.post('/api/v1/transactions/quick').json({
+            amountCents: 100,
+            accountId: victim.account.id,
+          }),
+        'accountId',
+      ],
+      [
+        () => client.patch(`/api/v1/transactions/${own.id}`).json({ accountId: victim.account.id }),
+        'accountId',
+      ],
+      [
+        () =>
+          client
+            .post('/api/v1/transactions/bulk-categorize')
+            .json({ ids: [own.id, victim.transaction.id], categoryId: ownCategory.id }),
+        'ids',
+      ],
+      [
+        () =>
+          client
+            .post('/api/v1/transactions/bulk-categorize')
+            .json({ ids: [own.id], categoryId: victim.category.id }),
+        'categoryId',
+      ],
+      [
+        () =>
+          client.post('/api/v1/transfers').json({
+            fromAccountId: attacker.accounts[0].id,
+            toAccountId: victim.account.id,
+            date: '2026-10-01',
+            amountCents: 100,
+          }),
+        'toAccountId',
+      ],
+      [
+        () =>
+          client.patch(`/api/v1/transactions/${own.id}`).json({ categoryId: victim.category.id }),
+        'categoryId',
+      ],
+      [
+        () =>
+          client
+            .patch(`/api/v1/transactions/${own.id}`)
+            .json({ paidByUserId: victim.household.owner.id }),
+        'paidByUserId',
+      ],
+      [
+        () =>
+          client.put(`/api/v1/transactions/${own.id}/splits`).json({
+            splits: [
+              { categoryId: ownCategory.id, amountCents: Math.abs(own.amountCents) - 1 },
+              { categoryId: victim.category.id, amountCents: 1 },
+            ],
+          }),
+        'splits',
+      ],
+      [
+        () =>
+          client
+            .patch(`/api/v1/transfers/${ownTransfer.id}`)
+            .json({ fromAccountId: victim.account.id }),
+        'fromAccountId',
+      ],
+      [
+        () =>
+          client
+            .patch(`/api/v1/transfers/${ownTransfer.id}`)
+            .json({ toAccountId: victim.account.id }),
+        'toAccountId',
+      ],
+    ]
+
+    for (const [request, field] of requests) {
+      const response = await request().actingAs(attacker.owner)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field, rule: 'database.exists' }] })
+    }
+
+    await victim.transaction.refresh()
+    assert.equal(victim.transaction.categoryId, victim.category.id)
+    assert.lengthOf(await Transaction.query().where('account_id', victim.account.id), 2)
   })
 
   test('test_foreign_ids_in_a_body_are_rejected_with_422', async ({ client }) => {

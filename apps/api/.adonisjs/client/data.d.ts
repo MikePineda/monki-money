@@ -14,6 +14,9 @@ import type HouseholdTransformer from '#transformers/household_transformer'
 import type InvitationTransformer from '#transformers/invitation_transformer'
 import type MemberTransformer from '#transformers/member_transformer'
 import type MembershipTransformer from '#transformers/membership_transformer'
+import type TransactionSplitTransformer from '#transformers/transaction_split_transformer'
+import type TransactionTransformer from '#transformers/transaction_transformer'
+import type TransferTransformer from '#transformers/transfer_transformer'
 import type UserTransformer from '#transformers/user_transformer'
 
 export namespace Data {
@@ -52,6 +55,18 @@ export namespace Data {
   export type Membership = InferData<MembershipTransformer>
   export namespace Membership {
     export type Variants = InferVariants<MembershipTransformer>
+  }
+  export type TransactionSplit = InferData<TransactionSplitTransformer>
+  export namespace TransactionSplit {
+    export type Variants = InferVariants<TransactionSplitTransformer>
+  }
+  export type Transaction = InferData<TransactionTransformer>
+  export namespace Transaction {
+    export type Variants = InferVariants<TransactionTransformer>
+  }
+  export type Transfer = InferData<TransferTransformer>
+  export namespace Transfer {
+    export type Variants = InferVariants<TransferTransformer>
   }
   export type User = InferData<UserTransformer>
   export namespace User {

@@ -523,4 +523,184 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/categories_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'transactions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/transactions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/transactions').listTransactionsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/transactions'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').createTransactionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').createTransactionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.quick': {
+    methods: ["POST"]
+    pattern: '/api/v1/transactions/quick'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').quickTransactionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').quickTransactionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['quick']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['quick']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.bulkCategorize': {
+    methods: ["POST"]
+    pattern: '/api/v1/transactions/bulk-categorize'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').bulkCategorizeValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').bulkCategorizeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkCategorize']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkCategorize']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/transactions/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/transactions').transactionParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/transactions/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').updateTransactionValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').updateTransactionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/transactions/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').transactionParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').transactionParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transactions.splits.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/transactions/:id/splits'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').updateSplitsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').updateSplitsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transaction_splits_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transaction_splits_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transfers.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/transfers'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transfers').createTransferValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transfers').createTransferValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transfers.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/transfers/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transfers').updateTransferValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/transfers').updateTransferValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transfers.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/transfers/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transfers').transferParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/transfers').transferParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'reports.month': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/reports/month'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/reports').monthReportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['month']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['month']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'reports.trend': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/reports/trend'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/reports').trendReportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['trend']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['trend']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'reports.category': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/reports/category/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/reports').categoryReportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['category']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['category']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'reports.balances': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/reports/balances'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['balances']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['balances']>>>
+    }
+  }
 }

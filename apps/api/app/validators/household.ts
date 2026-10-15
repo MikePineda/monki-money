@@ -13,8 +13,8 @@ export const deleteHouseholdValidator = vine.create({
 })
 
 export const exportHouseholdValidator = vine.create({
-  // CSV (with formula escaping) joins with the ledger tables.
-  format: vine.enum(['json'] as const).optional(),
+  /** json: everything; csv: the ledger, one row per posting (formula-escaped). */
+  format: vine.enum(['json', 'csv'] as const).optional(),
 })
 
 export const createInvitationValidator = vine.create({

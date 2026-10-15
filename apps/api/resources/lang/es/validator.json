@@ -30,7 +30,33 @@
       "isHidden": "oculta",
       "reassignToCategoryId": "categoría de reemplazo",
       "tree": "árbol",
-      "format": "formato"
+      "format": "formato",
+      "accountId": "cuenta",
+      "date": "fecha",
+      "amountCents": "monto",
+      "categoryId": "categoría",
+      "splits": "líneas de la división",
+      "payee": "comercio",
+      "description": "notas",
+      "paidByUserId": "persona que pagó",
+      "status": "estado",
+      "isPrivate": "privado",
+      "tags": "etiquetas",
+      "clientId": "id de la solicitud",
+      "fromAccountId": "cuenta de origen",
+      "toAccountId": "cuenta de destino",
+      "memo": "nota",
+      "month": "mes",
+      "from": "fecha inicial",
+      "to": "fecha final",
+      "q": "búsqueda",
+      "page": "página",
+      "perPage": "tamaño de página",
+      "sort": "orden",
+      "needsReview": "por revisar",
+      "uncategorized": "sin categoría",
+      "months": "meses",
+      "groupBy": "agrupación"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -63,7 +89,15 @@
       "email.taken": "Este correo ya está registrado",
       "email.alreadyMember": "Esta persona ya es miembro del hogar",
       "externalAccountNumber.taken": "Otra cuenta ya usa este número de cuenta",
-      "cardSuffix.taken": "Esta tarjeta ya está ligada a la cuenta"
+      "cardSuffix.taken": "Esta tarjeta ya está ligada a la cuenta",
+      "uuid": "El campo {field} debe ser un identificador válido",
+      "month": "El campo {field} debe ser un mes (AAAA-MM)",
+      "splits.sumMismatch": "Las líneas de la división deben sumar el total",
+      "splits.tooFewLines": "Una división necesita al menos dos líneas",
+      "splits.zeroLine": "Cada línea de la división necesita un monto",
+      "categoryId.split": "Un movimiento dividido toma sus categorías de sus líneas",
+      "amountCents.splitSum": "Cambia las líneas de la división junto con el monto",
+      "toAccountId.sameAccount": "Elige dos cuentas distintas"
     }
   }
 }

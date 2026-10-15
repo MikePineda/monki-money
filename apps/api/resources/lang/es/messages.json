@@ -16,5 +16,30 @@
       "subject": "{inviterName} te invitó a {householdName} en monkimoney",
       "body": "Hola:\n\n{inviterName} te invitó a compartir las finanzas de {householdName} en monkimoney.\n\nAcepta la invitación aquí:\n\n{url}\n\nLa invitación vence en 7 días."
     }
+  },
+  "export": {
+    "private": "Privado",
+    "joint": "Ambos",
+    "columns": {
+      "date": "Fecha",
+      "bankDate": "Fecha del banco",
+      "account": "Cuenta",
+      "kind": "Tipo",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "category": "Categoría",
+      "group": "Grupo",
+      "payee": "Comercio",
+      "description": "Notas",
+      "paidBy": "Pagó",
+      "status": "Estado",
+      "source": "Origen",
+      "needsReview": "Por revisar",
+      "isPrivate": "Privado",
+      "tags": "Etiquetas",
+      "memo": "Nota de la línea",
+      "transactionId": "Id del movimiento",
+      "transferId": "Id de la transferencia"
+    }
   }
 }
