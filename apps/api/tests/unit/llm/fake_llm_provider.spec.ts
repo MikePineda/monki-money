@@ -28,7 +28,9 @@ test.group('LLM fake provider', () => {
     const first = await fake.classifyTransactions(input, operator)
     const second = await fake.classifyTransactions(input, operator)
 
-    assert.deepEqual(first, second)
+    // Same answer and token counts every time (latency is wall clock).
+    assert.deepEqual(first.data, second.data)
+    assert.deepEqual({ ...first.usage, latencyMs: 0 }, { ...second.usage, latencyMs: 0 })
     assert.isFalse(first.degraded)
     assert.deepEqual(first.data.suggestions, [
       { id: 'a', categorySlug: 'groceries', confidence: 0.94, payee: 'Woolworths' },
