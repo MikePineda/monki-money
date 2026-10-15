@@ -1,0 +1,19 @@
+# Keep the build context small. Do NOT add `.git`: the `gitsha` stage reads it.
+**/node_modules
+**/dist
+**/build
+**/.angular
+**/.turbo
+**/coverage
+**/out-tsc
+**/tmp
+**/.env
+**/.env.*
+**/*.log
+**/.DS_Store
+playwright-report
+test-results
+e2e/.cache
+docs/internal
+# Real bank exports never enter an image either.
+*.csv

@@ -1,0 +1,73 @@
+# Local development stack. Usage:
+#   docker compose up -d                 # Postgres + MinIO (+ buckets)
+#   docker compose --profile tools up -d # also pgweb on http://127.0.0.1:8081
+# Everything binds to 127.0.0.1 only. Credentials are local-dev throwaways and
+# match apps/api/.env.example.
+#
+# MinIO: the upstream minio/minio images are no longer published, so this
+# uses Bitnami's frozen MinIO build. Host port 9030 (not 9000) because 9000-9020
+# are commonly taken by php-fpm and other local tools on macOS.
+name: monkimoney
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: monkimoney
+      POSTGRES_PASSWORD: monkimoney
+      POSTGRES_DB: monkimoney
+      POSTGRES_INITDB_ARGS: --data-checksums
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U monkimoney -d monkimoney']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    environment:
+      MINIO_ROOT_USER: monkimoney
+      MINIO_ROOT_PASSWORD: monkimoney-secret
+    ports:
+      - '127.0.0.1:9030:9000'
+      - '127.0.0.1:9031:9001'
+    volumes:
+      - minio-data:/bitnami/minio/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9000/minio/health/live']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio-init:
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >
+        until mc alias set local http://minio:9000 monkimoney monkimoney-secret >/dev/null; do sleep 1; done &&
+        mc mb --ignore-existing local/monkimoney &&
+        mc mb --ignore-existing local/monkimoney-e2e
+    restart: 'no'
+
+  pgweb:
+    image: sosedoff/pgweb:0.17.0
+    profiles: [tools]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGWEB_DATABASE_URL: postgres://monkimoney:monkimoney@db:5432/monkimoney?sslmode=disable
+    ports:
+      - '127.0.0.1:8081:8081'
+
+volumes:
+  db-data:
+  minio-data:
