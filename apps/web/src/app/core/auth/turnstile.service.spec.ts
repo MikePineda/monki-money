@@ -42,8 +42,9 @@ describe('TurnstileService', () => {
     const second = service.load()
 
     expect(scripts()).toHaveLength(1)
+    // Explicit render, and never proxied by the PWA service worker.
     expect(TURNSTILE_SCRIPT_URL).toBe(
-      'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+      'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&ngsw-bypass=true'
     )
     const api = fakeTurnstile()
     scripts()[0]?.dispatchEvent(new Event('load'))

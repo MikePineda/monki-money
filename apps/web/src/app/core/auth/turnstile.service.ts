@@ -7,10 +7,11 @@ import type { ResolvedTheme } from '../theme/theme.store'
  * Cloudflare's widget script, in explicit mode (the app decides where and
  * when to render). It is the only external script the app loads, and only
  * once a screen needs a widget because the API sent a site key: never from
- * index.html.
+ * index.html. `ngsw-bypass` keeps the PWA service worker from proxying it:
+ * the browser fetches it straight from Cloudflare.
  */
 export const TURNSTILE_SCRIPT_URL =
-  'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+  'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&ngsw-bypass=true'
 
 /** The render options this app passes (a subset of Cloudflare's). */
 export interface TurnstileRenderOptions {
