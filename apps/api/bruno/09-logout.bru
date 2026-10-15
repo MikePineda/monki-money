@@ -1,0 +1,25 @@
+meta {
+  name: Log out
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  X-XSRF-TOKEN: {{xsrfToken}}
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `auth.logout`: 204, ends this session only (other devices stay logged in).
+  Needs `X-XSRF-TOKEN` like every write. Always the last request, so a smoke
+  run never leaves a session behind.
+}

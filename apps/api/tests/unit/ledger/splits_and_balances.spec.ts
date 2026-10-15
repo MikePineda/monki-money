@@ -89,7 +89,7 @@ test.group('Ledger: balances', () => {
     assert.equal(balanceAt(1_000, entries, '2026-12-31'), 300)
   })
 
-  test('test_transfer_legs_sum_to_zero_across_accounts', ({ assert }) => {
+  test('test_moving_money_between_two_accounts_keeps_their_total', ({ assert }) => {
     const everyday = accountBalance(10_000, [{ amountCents: -3_000, status: 'cleared' }])
     const savings = accountBalance(0, [{ amountCents: 3_000, status: 'cleared' }])
 

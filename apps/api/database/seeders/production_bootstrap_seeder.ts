@@ -3,13 +3,15 @@ import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import ProductionBootstrap from '#services/bootstrap/production_bootstrap'
-import { readBootstrapInput } from '#services/bootstrap/bootstrap_env'
+import { readSeedPlan } from '#services/bootstrap/bootstrap_env'
 
 /**
- * First-deploy bootstrap, run by docker/entrypoint.mjs when SEED_USERS=true
+ * Deploy-time bootstrap, run by docker/entrypoint.mjs when SEED_USERS=true
  * (`node ace db:seed --files=./database/seeders/production_bootstrap_seeder.js`).
- * Driven only by the flat SEED_* env vars; idempotent, so leaving
- * SEED_USERS on for a redeploy is harmless. Logs ids, never emails.
+ * Driven only by env vars: the real household from the flat SEED_* block
+ * (first deploy) and/or the smoke-test user from SMOKE_EMAIL + SMOKE_PASSWORD
+ * (its own "Smoke" household, for the post-deploy Bruno run). Idempotent, so
+ * leaving SEED_USERS on for a redeploy is harmless. Logs ids, never emails.
  */
 export default class ProductionBootstrapSeeder extends BaseSeeder {
   async run() {
@@ -30,19 +32,31 @@ export default class ProductionBootstrapSeeder extends BaseSeeder {
       SEED_USER2_PASSWORD: env.get('SEED_USER2_PASSWORD')?.release(),
       SEED_USER2_CARD_SUFFIX: env.get('SEED_USER2_CARD_SUFFIX'),
       SEED_JOINT_ACCOUNT_NUMBER: env.get('SEED_JOINT_ACCOUNT_NUMBER'),
+      SMOKE_EMAIL: env.get('SMOKE_EMAIL'),
+      SMOKE_PASSWORD: env.get('SMOKE_PASSWORD')?.release(),
     }
-    const input = await readBootstrapInput((key) => values[key])
+    const plan = await readSeedPlan((key) => values[key])
 
     const bootstrap = await app.container.make(ProductionBootstrap)
-    const result = await bootstrap.run(input)
 
-    logger.info(
-      {
-        householdId: result.household.id,
-        users: result.member ? 2 : 1,
-        accounts: result.accounts.length,
-      },
-      'production bootstrap done'
-    )
+    if (plan.household) {
+      const result = await bootstrap.run(plan.household)
+      logger.info(
+        {
+          householdId: result.household.id,
+          users: result.member ? 2 : 1,
+          accounts: result.accounts.length,
+        },
+        'production bootstrap done'
+      )
+    }
+
+    if (plan.smoke) {
+      const smoke = await bootstrap.ensureSmokeUser(plan.smoke)
+      logger.info(
+        { userId: smoke.user.id, householdId: smoke.household?.id ?? null },
+        'production bootstrap: smoke user ready'
+      )
+    }
   }
 }

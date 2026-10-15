@@ -1,29 +1,29 @@
 import type Transaction from '#models/transaction'
-import { isHiddenFrom } from '#domain/ledger/privacy'
+import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import TransactionSplitTransformer from '#transformers/transaction_split_transformer'
 
 /**
- * A ledger row as `viewerUserId` may see it (needs `splits` preloaded).
+ * A ledger row as `viewer` may see it (needs `splits` preloaded).
  * `amountCents` is signed: negative = money out.
  *
  * Privacy: a partner's private transaction keeps its amount, date,
  * account, payer and kind, but its payee, notes, bank description, tags,
- * category and split lines are withheld (`isMasked: true`), so the app
- * shows it as "Private".
+ * category and split lines are withheld and it never shows as "needs
+ * review" (`isMasked: true`), so the app shows it as "Private".
  */
 export default class TransactionTransformer extends BaseTransformer<Transaction> {
   constructor(
     resource: Transaction,
-    protected viewerUserId: number
+    protected viewer: PrivacyViewer
   ) {
     super(resource)
   }
 
   toObject() {
     const transaction = this.resource
-    const masked = isHiddenFrom(transaction, this.viewerUserId)
+    const masked = isHiddenFrom(transaction, this.viewer)
 
     return {
       id: transaction.id,
@@ -43,7 +43,7 @@ export default class TransactionTransformer extends BaseTransformer<Transaction>
       paidByUserId: transaction.paidByUserId,
       status: transaction.status,
       source: transaction.source,
-      needsReview: transaction.needsReview,
+      needsReview: masked ? false : transaction.needsReview,
       cardSuffix: transaction.cardSuffix,
       clientId: transaction.clientId,
       isPrivate: transaction.isPrivate,

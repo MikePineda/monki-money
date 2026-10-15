@@ -1,0 +1,25 @@
+meta {
+  name: Household
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/household
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.name: eq Smoke
+  res.body.data.status: eq active
+  res.body.data.currencyCode: eq AUD
+}
+
+docs {
+  `household.show`: the current household (`id`, `name`, `plan`, `status`,
+  `currencyCode`, `locale`, `timezone`, `settings`, `deletionScheduledAt`).
+  Needs a verified email and a household (403 `E_EMAIL_NOT_VERIFIED` /
+  `E_NO_HOUSEHOLD` otherwise).
+}
