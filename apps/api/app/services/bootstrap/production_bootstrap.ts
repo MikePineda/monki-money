@@ -120,10 +120,11 @@ export default class ProductionBootstrap {
       }
 
       const [membership] = memberships
-      const members = await HouseholdMember.query({ client: trx })
+      const housemate = await HouseholdMember.query({ client: trx })
         .where('household_id', membership.householdId)
-        .count('* as total')
-      if (memberships.length === 1 && Number(members[0].$extras.total) === 1) {
+        .whereNot('user_id', user.id)
+        .first()
+      if (memberships.length === 1 && !housemate) {
         const household = await Household.findOrFail(membership.householdId, { client: trx })
         return { user, household }
       }
