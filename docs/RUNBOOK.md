@@ -146,7 +146,22 @@ rate limits and email verification active.
 
 ## LLM cost
 
-TODO (LLM package): query over `llm_usage` per household and month.
+One `llm_usage` row per model round trip (retries included); `cost_micros` is
+micro-dollars from the price table in `apps/api/config/llm.ts`. Spend and
+failure rate per household and month (NULL household = `llm:smoke`):
+
+```bash
+docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney -c "
+  SELECT household_id, date_trunc('month', created_at) AS month, purpose,
+         count(*) AS calls,
+         count(*) FILTER (WHERE status <> 'ok') AS failed,
+         sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens,
+         round(sum(cost_micros) / 1e6, 4) AS usd
+  FROM llm_usage GROUP BY 1, 2, 3 ORDER BY 2 DESC, 1, 3;"
+```
+
+Check the live endpoint with `node ace llm:smoke` inside the app container
+(see `docs/llm.md`).
 
 ## Disk
 
