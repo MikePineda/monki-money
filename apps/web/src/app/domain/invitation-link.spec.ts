@@ -1,6 +1,6 @@
 import { invitationToken } from './invitation-link'
 
-const TOKEN = 'q3J9xV_2b-Lm8pQ4rS6tU0wY1zA5cE7gH9jK2nP4sT6'
+const TOKEN = 'q3J9xV_2b-Lm8pQ4rS6tU0wY1zA5cE7gH9jK2nP4sT6' // gitleaks:allow
 
 describe('invitation link', () => {
   it('test_reads_the_token_from_the_emailed_link', () => {

@@ -24,7 +24,7 @@ import CreateHouseholdPage from './create-household.page'
 @Component({ template: '<p>landed</p>' })
 class Landing {}
 
-const TOKEN = 'q3J9xV_2b-Lm8pQ4rS6tU0wY1zA5cE7gH9jK2nP4sT6'
+const TOKEN = 'q3J9xV_2b-Lm8pQ4rS6tU0wY1zA5cE7gH9jK2nP4sT6' // gitleaks:allow
 
 describe('CreateHouseholdPage', () => {
   let households: { create: ReturnType<typeof vi.fn> }
