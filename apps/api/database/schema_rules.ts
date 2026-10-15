@@ -54,5 +54,11 @@ export default {
         kind: shared('CategoryGroupKind'),
       },
     },
+    llm_usage: {
+      columns: {
+        purpose: shared('LlmPurpose'),
+        status: shared('LlmUsageStatus'),
+      },
+    },
   },
 } satisfies SchemaRules

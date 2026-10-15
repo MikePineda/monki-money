@@ -60,7 +60,9 @@
     "noteHint": "Opcional. Solo tú y tu pareja la ven.",
     "email": "Correo",
     "emailError": "Escribe un correo válido.",
-    "disabled": "Cuenta"
+    "disabled": "Cuenta",
+    "checkbox": "Acepto los términos",
+    "checkboxDisabled": "Marcada y deshabilitada"
   },
   "kind": {
     "label": "Tipo de movimiento",

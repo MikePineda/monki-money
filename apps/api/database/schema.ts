@@ -6,7 +6,7 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, Theme } from '@monkimoney/shared'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, LlmPurpose, LlmUsageStatus, Theme } from '@monkimoney/shared'
 
 export class AccountCardSchema extends BaseModel {
   static $columns = ['accountId', 'cardSuffix', 'createdAt', 'id', 'label', 'updatedAt', 'userId'] as const
@@ -191,6 +191,39 @@ export class InvitationSchema extends BaseModel {
   declare tokenHash: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+export class LlmUsageSchema extends BaseModel {
+  static $columns = ['costMicros', 'createdAt', 'errorMessage', 'householdId', 'id', 'inputTokens', 'latencyMs', 'model', 'outputTokens', 'provider', 'purpose', 'status', 'updatedAt', 'userId'] as const
+  $columns = LlmUsageSchema.$columns
+  @column()
+  declare costMicros: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare errorMessage: string | null
+  @column()
+  declare householdId: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inputTokens: number
+  @column()
+  declare latencyMs: number
+  @column()
+  declare model: string
+  @column()
+  declare outputTokens: number
+  @column()
+  declare provider: string
+  @column()
+  declare purpose: LlmPurpose
+  @column()
+  declare status: LlmUsageStatus
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number | null
 }
 
 export class UserSchema extends BaseModel {

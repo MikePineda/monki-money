@@ -111,4 +111,21 @@ describe('UpdateService', () => {
     expect(sw.checkForUpdate).not.toHaveBeenCalled()
     expect(TestBed.inject(ToastStore).current()).toBeNull()
   })
+
+  it('test_check_now_reports_whether_a_new_version_was_found', async () => {
+    const service = start()
+
+    expect(await service.checkNow()).toBe('latest')
+    sw.checkForUpdate.mockResolvedValueOnce(true)
+    expect(await service.checkNow()).toBe('found')
+    sw.checkForUpdate.mockRejectedValueOnce(new Error('offline'))
+    expect(await service.checkNow()).toBe('failed')
+  })
+
+  it('test_check_now_without_a_service_worker_is_unsupported', async () => {
+    const service = start(false)
+
+    expect(await service.checkNow()).toBe('unsupported')
+    expect(sw.checkForUpdate).not.toHaveBeenCalled()
+  })
 })

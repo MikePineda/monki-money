@@ -146,6 +146,10 @@
         value="NAB Everyday"
         [disabled]="true"
       />
+      <app-checkbox [(checked)]="agreed">{{ 'kit.field.checkbox' | transloco }}</app-checkbox>
+      <app-checkbox [checked]="true" [disabled]="true"
+        >{{ 'kit.field.checkboxDisabled' | transloco }}</app-checkbox
+      >
     </section>
 
     <!-- Amounts and keypad -->
