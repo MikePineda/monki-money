@@ -195,19 +195,21 @@ test.group('Importing / LLM suggester', () => {
     )
     assert.lengthOf(suggestions, 120)
     assert.isTrue(suggestions.every((found) => found?.categoryId === 14 && found.source === 'llm'))
-    assert.deepEqual(Object.keys(batches[0][0]).sort(), [
-      'amountCents',
-      'description',
-      'index',
-      'merchant',
-      'nabCategory',
-    ])
+    // No account number, balance or raw cells ever reach the model.
+    assert.deepEqual(batches[0][0], {
+      index: 0,
+      date: '2026-09-19',
+      amountCents: -4520,
+      description: 'FRESHCO MARKET NORTHVALE',
+      merchant: 'FreshCo Market (Northvale Village)',
+      nabCategory: 'Groceries',
+    })
   })
 
   test('test_llm_suggester_trusts_only_known_slugs_and_high_confidence', async ({ assert }) => {
     const suggester = new LlmSuggester(
       async () => [
-        { index: 0, slug: 'alcohol', confidence: 0.79 },
+        { index: 0, slug: 'alcohol', confidence: 0.79, payee: ' FreshCo ' },
         { index: 1, slug: 'not-a-category', confidence: 0.99 },
         { index: 2, slug: null, confidence: 0.99 },
         { index: 3, slug: 'groceries', confidence: 7 },
@@ -218,7 +220,8 @@ test.group('Importing / LLM suggester', () => {
     const [low, unknown, none, clamped, missing] = await suggester.suggest(
       Array.from({ length: 5 }, () => groceryRow)
     )
-    assert.include(low, { categoryId: 14, needsReview: true, confidence: 0.79 })
+    assert.include(low, { categoryId: 14, needsReview: true, confidence: 0.79, payee: 'FreshCo' })
+    assert.isNull(clamped?.payee)
     assert.isNull(unknown)
     assert.isNull(none)
     assert.include(clamped, { categoryId: 10, confidence: 1, needsReview: false })

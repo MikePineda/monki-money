@@ -1,28 +1,36 @@
 import type { CategorySuggester } from '#domain/importing/suggesters/category_suggester'
 import type { Suggestion, SuggestionInput } from '#domain/importing/types'
 
-/** What the LLM sees of one row: no account numbers, balances or dates. */
+/**
+ * What the LLM sees of one row: no account numbers or balances. Maps 1:1 to
+ * `ClassifyRow` of `app/llm/types.ts` (`id: String(index)`, `bankCategory:
+ * nabCategory`).
+ */
 export interface LlmClassificationRequest {
   /** Position inside this call's batch. */
   index: number
+  date: string
+  amountCents: number
   description: string
   merchant: string | null
   nabCategory: string | null
-  amountCents: number
 }
 
+/** Maps from `ClassifySuggestion` (`index: Number(id)`, `slug: categorySlug`). */
 export interface LlmClassification {
   index: number
   /** A taxonomy slug from the list given to the model, or null when unsure. */
   slug: string | null
   /** 0..1 */
   confidence: number
+  /** Clean merchant name, when the model could tell. */
+  payee?: string | null
 }
 
 /**
- * Adapter over the LLM layer (`app/llm`), injected by the import service.
- * It should degrade on its own (return fewer or no classifications for an
- * invalid output) and throw only to abort the whole classify run (quota).
+ * Adapter over `LlmProvider.classifyTransactions`, injected by the import
+ * service. The provider already degrades an invalid answer to "no
+ * suggestion"; let errors that must abort the classify run (quota) throw.
  */
 export type ClassifyRows = (rows: LlmClassificationRequest[]) => Promise<LlmClassification[]>
 
@@ -58,10 +66,11 @@ export class LlmSuggester implements CategorySuggester {
       const answers = await this.classify(
         batch.map((row, index) => ({
           index,
+          date: row.date,
+          amountCents: row.amountCents,
           description: row.descriptionNormalized,
           merchant: row.nabMerchant,
           nabCategory: row.nabCategory,
-          amountCents: row.amountCents,
         }))
       )
 
@@ -78,7 +87,7 @@ export class LlmSuggester implements CategorySuggester {
           confidence,
           needsReview: confidence < this.options.minConfidence,
           ruleId: null,
-          payee: null,
+          payee: answer.payee?.trim() || null,
           paidByUserId: null,
         }
       }

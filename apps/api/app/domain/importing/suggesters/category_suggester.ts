@@ -12,6 +12,7 @@ export interface CategorySuggester {
 /** The part of a staged row suggesters may look at. */
 export function suggestionInputFor(row: StagedRow): SuggestionInput {
   return {
+    date: row.date,
     merchantKey: row.merchantKey,
     merchantFullKey: row.merchantFullKey,
     details: row.details,

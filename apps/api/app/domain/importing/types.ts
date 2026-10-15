@@ -124,6 +124,8 @@ export interface MerchantRule {
 
 /** What a category suggester looks at (no account numbers, no balances). */
 export interface SuggestionInput {
+  /** Effective date of the row. */
+  date: string
   merchantKey: string
   merchantFullKey: string
   details: string
