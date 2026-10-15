@@ -1,0 +1,43 @@
+{
+  "title": "Merchant rules",
+  "back": "Back to settings",
+  "intro": "Rules sort imported movements by merchant. They are learned when you confirm an import or change a category for the future.",
+  "loading": "Loading the rules",
+  "error": {
+    "title": "The rules could not be loaded.",
+    "body": "Check your connection and try again."
+  },
+  "empty": {
+    "title": "No rules yet.",
+    "body": "They appear as you confirm imports.",
+    "action": "Import a bank CSV"
+  },
+  "hits": "{count, plural, =0 {No matches yet} one {# match} other {# matches}}",
+  "transferTo": "Transfer to {account}",
+  "noTarget": "No category",
+  "matchType": {
+    "merchant": "Merchant",
+    "contains": "Contains",
+    "regex": "Pattern"
+  },
+  "origin": {
+    "user": "Yours",
+    "learned": "Learned",
+    "system": "Bank default"
+  },
+  "actions": {
+    "title": "Rule “{pattern}”",
+    "apply": "Apply to movements in review",
+    "delete": "Delete rule"
+  },
+  "deleteSheet": {
+    "title": "Delete this rule?",
+    "body": "Movements already sorted keep their category. Next imports stop matching “{pattern}” this way.",
+    "confirm": "Delete rule",
+    "keep": "Keep it"
+  },
+  "toast": {
+    "deleted": "Rule deleted.",
+    "applied": "{count, plural, =0 {No movement in review matched this rule.} one {# movement categorised.} other {# movements categorised.}}"
+  }
+}

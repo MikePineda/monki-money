@@ -1,0 +1,225 @@
+{
+  "upload": {
+    "title": "Importar CSV del banco",
+    "back": "Atrás",
+    "intro": "Exporta los movimientos de una cuenta desde la banca en línea de NAB en formato CSV y elige el archivo aquí. Nada llega a tu mes hasta que lo revises y confirmes.",
+    "account": "Cuenta",
+    "accountAuto": "Leerla del archivo",
+    "accountTitle": "¿De qué cuenta es este archivo?",
+    "choose": "Elegir archivo CSV",
+    "hint": "Un archivo CSV de hasta 2 MB.",
+    "uploading": "Subiendo {name}",
+    "progressLabel": "Progreso de la subida",
+    "progress": "{percent} % de {size}",
+    "size": {
+      "kb": "{value} KB",
+      "mb": "{value} MB"
+    },
+    "cancel": "Cancelar subida",
+    "another": "Elegir otro archivo",
+    "waiting": "Pendientes de revisar",
+    "continue": "Continuar",
+    "several": {
+      "title": "Este archivo tiene {count, plural, one {# cuenta} other {# cuentas}}",
+      "body": "Revisa los movimientos de cada cuenta por separado."
+    },
+    "nothingNew": {
+      "title": "No hay nada nuevo en este archivo",
+      "body": "Todos sus movimientos ya se habían importado."
+    },
+    "problem": {
+      "notCsv": "Este archivo no es CSV. Exporta los movimientos en CSV desde tu banco.",
+      "empty": "Este archivo está vacío.",
+      "tooLarge": "Este archivo pesa más de 2 MB. Exporta un periodo más corto.",
+      "limit": "Ya usaste las importaciones de tu plan este mes.",
+      "batchOpen": "Esta cuenta ya tiene una importación pendiente de revisar. Confírmala o cancélala primero.",
+      "openAction": "Continuar esa revisión"
+    },
+    "csv": {
+      "E_CSV_TOO_LARGE": "Este archivo pesa más de 2 MB. Exporta un periodo más corto.",
+      "E_CSV_TOO_MANY_ROWS": "Este archivo tiene demasiadas filas. Exporta un periodo más corto.",
+      "E_CSV_ENCODING": "No se puede leer la codificación del texto. Expórtalo otra vez en CSV.",
+      "E_CSV_UNKNOWN_FORMAT": "Esto no parece una exportación de NAB. Exporta los movimientos en CSV desde la banca en línea de NAB.",
+      "E_CSV_MALFORMED": "Este archivo está dañado y no se puede leer.",
+      "E_CSV_INVALID_VALUE": "Un valor de este archivo no se puede leer.",
+      "E_CSV_EMPTY": "Este archivo no tiene movimientos.",
+      "where": "Línea {line}, columna {column}.",
+      "whereLine": "Línea {line}."
+    }
+  },
+  "mapping": {
+    "title": "¿De qué cuenta es cada número?",
+    "body": "Estos números de cuenta son nuevos aquí. Elige la cuenta a la que pertenece cada uno; se recordará para la próxima vez.",
+    "number": "Cuenta {number}",
+    "choose": "Elegir cuenta",
+    "newAccount": "Cuenta nueva",
+    "newAccountName": "Cuenta NAB {number}",
+    "continue": "Continuar importación"
+  },
+  "review": {
+    "title": "Revisar importación",
+    "back": "Volver a importar",
+    "cancel": "Cancelar",
+    "rows": "{count, plural, one {# fila} other {# filas}}",
+    "loading": "Cargando la importación",
+    "listLabel": "Movimientos importados",
+    "selectAll": "Seleccionar todo",
+    "more": "Mostrar más",
+    "summary": {
+      "auto": "{count, plural, one {# automática} other {# automáticas}}",
+      "doubtful": "{count} por revisar",
+      "new": "{count, plural, one {# nueva} other {# nuevas}}",
+      "duplicate": "{count, plural, one {# duplicada} other {# duplicadas}}",
+      "transfer": "{count, plural, one {# transferencia} other {# transferencias}}",
+      "ignored": "{count, plural, one {# ignorada} other {# ignoradas}}"
+    },
+    "summaryLabel": "Filas por estado",
+    "filter": {
+      "label": "Mostrar",
+      "all": "Todas",
+      "doubtful": "Por revisar",
+      "new": "Nuevas",
+      "ignored": "Ignoradas"
+    },
+    "classify": "Clasificar con IA ({count})",
+    "classifying": "Clasificando {count, plural, one {# movimiento} other {# movimientos}}",
+    "error": {
+      "title": "No se pudo cargar la importación."
+    },
+    "closed": {
+      "title": "Esta importación está cerrada.",
+      "body": "Ya se confirmó o se canceló. Importa un archivo nuevo para seguir.",
+      "action": "Importar un archivo"
+    },
+    "empty": {
+      "title": "No hay nada que mostrar aquí.",
+      "body": "Ningún movimiento de esta importación coincide con este filtro.",
+      "action": "Mostrar todas"
+    },
+    "selected": "{count, plural, one {# seleccionada} other {# seleccionadas}}",
+    "categoryTitle": "Categoría para las filas seleccionadas",
+    "bulk": {
+      "label": "Movimientos seleccionados",
+      "clear": "Quitar selección",
+      "ignore": "Ignorar",
+      "category": "Categoría",
+      "accept": "Aceptar ({count})"
+    },
+    "blocking": "{count, plural, one {# movimiento necesita una decisión antes de confirmar.} other {# movimientos necesitan una decisión antes de confirmar.}}",
+    "showBlocking": "Ver",
+    "acceptAll": "Aceptar sugeridas ({count})",
+    "confirm": "Confirmar importación",
+    "cancelSheet": {
+      "title": "¿Cancelar esta importación?",
+      "body": "Se descartan los movimientos pendientes de revisar. Tu mes no cambia y puedes volver a importar el mismo archivo.",
+      "confirm": "Cancelar importación",
+      "keep": "Seguir revisando"
+    }
+  },
+  "status": {
+    "auto": "Auto",
+    "ready": "Lista",
+    "review": "Revisar",
+    "new": "Nueva",
+    "transfer": "Transferencia",
+    "ignored": "Ignorada",
+    "duplicate": "Duplicada"
+  },
+  "source": {
+    "rule": "Regla",
+    "bank": "Banco",
+    "ai": "IA",
+    "aiConfidence": "IA {percent} %"
+  },
+  "people": {
+    "you": "Tú",
+    "joint": "Compartido"
+  },
+  "row": {
+    "private": "Privado",
+    "uncategorized": "Sin categoría",
+    "transferUnknown": "Transferencia a una cuenta desconocida",
+    "split": "Dividido en {count}",
+    "transferTo": "Transferencia a {account}",
+    "matches": "Coincide con {payee}",
+    "possibleMatch": "¿{payee}?",
+    "suggestion": "{category} ?",
+    "select": "Seleccionar {title}, {amount}",
+    "change": "Cambiar",
+    "accept": "Aceptar"
+  },
+  "triage": {
+    "title": "Revisar movimiento",
+    "card": "Tarjeta {suffix}",
+    "pending": "Pendiente",
+    "accept": "Aceptar {category}",
+    "link": "Es un movimiento que ya existe",
+    "category": "Categoría",
+    "categoryTitle": "Categoría",
+    "split": "Dividir",
+    "splitLines": "{count} líneas",
+    "transfer": "Transferencia",
+    "transferTitle": "¿Transferencia a qué cuenta?",
+    "notTransfer": "No es transferencia",
+    "payer": "Pagó",
+    "payerTitle": "¿Quién pagó?",
+    "create": "Agregarlo como movimiento nuevo",
+    "learn": "Recordar este comercio",
+    "learnHint": "Las próximas importaciones lo ordenan igual.",
+    "ignore": "Ignorar este movimiento",
+    "restore": "Restaurar",
+    "private": "Es un movimiento privado de tu pareja.",
+    "nothing": "No hay nada que decidir en este movimiento.",
+    "done": "Listo"
+  },
+  "reason": {
+    "possible_match": "Puede ser un movimiento que ya agregaste.",
+    "transfer_destination_unknown": "Parece una transferencia, pero no se conoce la otra cuenta.",
+    "category_needs_review": "La categoría es una suposición.",
+    "future_date": "Tiene fecha futura.",
+    "zero_amount": "Su monto es $0.00.",
+    "duplicate_hash": "Ya se había importado."
+  },
+  "split": {
+    "title": "Dividir {amount}",
+    "rest": "Resto",
+    "amount": "Monto de la línea {number}",
+    "remove": "Quitar la línea {number}",
+    "add": "Agregar línea",
+    "save": "Guardar división",
+    "unsplit": "Quitar división",
+    "over": "Las líneas se pasan por {amount}.",
+    "missingCategory": "Elige una categoría para cada línea.",
+    "zeroLine": "Ponle un monto a cada línea.",
+    "balanced": "Las líneas suman {amount}.",
+    "chooseCategory": "Elegir categoría",
+    "categoryTitle": "Categoría"
+  },
+  "result": {
+    "title": "Importación confirmada",
+    "close": "Cerrar",
+    "loading": "Cargando el resultado",
+    "headline": "{count, plural, one {movimiento nuevo agregado} other {movimientos nuevos agregados}}",
+    "created": "Agregados",
+    "matched": "Vinculados",
+    "transfers": "Transferencias",
+    "ignored": "Ignorados",
+    "balanced": "Cuadra con el banco: {amount} al {date}.",
+    "missing": "A {amount} del saldo del banco. Faltan movimientos anteriores al {date}: importa una exportación más antigua para completarlos.",
+    "differs": "A {amount} del saldo del banco.",
+    "unknown": "No había saldo del banco para comparar.",
+    "error": "No se pudo cargar el resultado.",
+    "viewMonth": "Ver el mes",
+    "another": "Importar otro archivo"
+  },
+  "toast": {
+    "bulkDone": "{count, plural, one {# movimiento actualizado.} other {# movimientos actualizados.}}",
+    "classifyRunning": "La IA ya está clasificando esta importación.",
+    "classified": "Ya están las sugerencias de la IA.",
+    "undecided": "Algunos movimientos todavía necesitan una decisión.",
+    "cancelled": "Importación cancelada.",
+    "closed": "Esta importación ya estaba cerrada.",
+    "quota": "Ya se acabó el uso de IA de tu plan este mes.",
+    "refused": "No se guardó: {reason}"
+  }
+}

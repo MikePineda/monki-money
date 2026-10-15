@@ -55,6 +55,12 @@
   "goals": {
     "title": "Savings goals"
   },
+  "import": {
+    "title": "Import bank CSV"
+  },
+  "rules": {
+    "title": "Merchant rules"
+  },
   "accounts": {
     "title": "Accounts",
     "add": "Add account",

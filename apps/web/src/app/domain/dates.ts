@@ -52,3 +52,21 @@ export function formatDayMonth(isoDate: string, locale: string): string {
     (parts.find((item) => item.type === type)?.value ?? '').replace(/\.$/, '')
   return `${part('day')} ${part('month')}`
 }
+
+/**
+ * A span of calendar dates, compact: "1–27 Oct", "22 Aug–5 Oct", and with
+ * both years when it crosses one ("22 Dec 2025–5 Oct 2026").
+ */
+export function formatDateRange(from: string, to: string, locale: string): string {
+  const year = (date: string) => date.slice(0, 4)
+  if (from === to) {
+    return formatDayMonth(from, locale)
+  }
+  if (year(from) !== year(to)) {
+    return `${formatDayMonth(from, locale)} ${year(from)}–${formatDayMonth(to, locale)} ${year(to)}`
+  }
+  if (from.slice(0, 7) === to.slice(0, 7)) {
+    return `${Number(from.slice(8, 10))}–${formatDayMonth(to, locale)}`
+  }
+  return `${formatDayMonth(from, locale)}–${formatDayMonth(to, locale)}`
+}

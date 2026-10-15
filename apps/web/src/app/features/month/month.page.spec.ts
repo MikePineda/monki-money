@@ -242,6 +242,9 @@ describe('MonthPage', () => {
     expect(text(root, '[data-testid="month.hero"]')).toBe('$0.00')
     expect(text(root, '[data-testid="month.empty"] h2')).toMatch(/^Nothing in [A-Z][a-z]+ yet\.$/)
     expect(root.querySelector('[data-testid="month.empty"] a[href="/add"]')).not.toBeNull()
+    expect(root.querySelector('[data-testid="month.empty.import"]')?.getAttribute('href')).toBe(
+      '/import'
+    )
     expect(root.querySelector('[data-testid="month.spend"]')).toBeNull()
   })
 

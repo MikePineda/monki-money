@@ -40,6 +40,9 @@ export const ICON_NAMES = [
   'loader-circle',
   'wifi-off',
   'inbox',
+  // Bank import review
+  'ban',
+  'link',
   // Keypad and forms
   'delete',
   // PWA and preferences

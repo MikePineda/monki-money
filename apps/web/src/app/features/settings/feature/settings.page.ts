@@ -249,6 +249,12 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
         <a appSettingsRow data-testid="settings.goals" routerLink="/goals">
           {{ 'settings.goals.title' | transloco }}
         </a>
+        <a appSettingsRow data-testid="settings.import" routerLink="/import">
+          {{ 'settings.import.title' | transloco }}
+        </a>
+        <a appSettingsRow data-testid="settings.rules" routerLink="/settings/rules">
+          {{ 'settings.rules.title' | transloco }}
+        </a>
         @if (showUpgrade()) {
           <a appSettingsRow data-testid="settings.upgrade" routerLink="/upgrade">
             {{ 'settings.upgrade.row' | transloco }}

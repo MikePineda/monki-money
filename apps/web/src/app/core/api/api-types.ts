@@ -20,3 +20,11 @@ export type Transfer = Data.Transfer
 export type Goal = Data.Goal
 /** The LLM-written summary of a month, in the reader's language. */
 export type MonthlyInsight = Data.MonthlyInsight
+/** A bank import batch (one account of one upload) with its counts and reconciliation. */
+export type ImportBatch = Data.ImportBatch
+/** `GET /imports/:id`: the batch plus its rows in file order. */
+export type ImportBatchDetail = Data.ImportBatchDetail
+/** One staged bank row: the importer's proposal and the person's decision. */
+export type ImportRow = Data.ImportRow
+/** A merchant rule (`origin`: user, learned or system). */
+export type MerchantRule = Data.MerchantRule
