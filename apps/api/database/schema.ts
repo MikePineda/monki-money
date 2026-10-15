@@ -6,7 +6,8 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, LlmPurpose, LlmUsageStatus, Theme } from '@monkimoney/shared'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, LlmPurpose, LlmUsageStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
+import { jsonColumn } from '#database/json_column'
 
 export class AccountCardSchema extends BaseModel {
   static $columns = ['accountId', 'cardSuffix', 'createdAt', 'id', 'label', 'updatedAt', 'userId'] as const
@@ -224,6 +225,115 @@ export class LlmUsageSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare userId: number | null
+}
+
+export class TransactionSplitSchema extends BaseModel {
+  static $columns = ['amountCents', 'categoryId', 'createdAt', 'householdId', 'id', 'memo', 'sortOrder', 'transactionId', 'updatedAt'] as const
+  $columns = TransactionSplitSchema.$columns
+  @column()
+  declare amountCents: number
+  @column()
+  declare categoryId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare memo: string | null
+  @column()
+  declare sortOrder: number
+  @column()
+  declare transactionId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class TransactionSchema extends BaseModel {
+  static $columns = ['accountId', 'amountCents', 'bankDate', 'cardSuffix', 'categoryId', 'clientId', 'createdAt', 'createdByUserId', 'currencyCode', 'date', 'description', 'householdId', 'id', 'isPrivate', 'isSplit', 'kind', 'needsReview', 'paidByUserId', 'payee', 'rawDescription', 'source', 'status', 'tags', 'transferId', 'updatedAt', 'updatedByUserId'] as const
+  $columns = TransactionSchema.$columns
+  @column()
+  declare accountId: number
+  @column()
+  declare amountCents: number
+  @column()
+  declare bankDate: string | null
+  @column()
+  declare cardSuffix: string | null
+  @column()
+  declare categoryId: number | null
+  @column()
+  declare clientId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare currencyCode: string
+  @column()
+  declare date: string
+  @column()
+  declare description: string | null
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isPrivate: boolean
+  @column()
+  declare isSplit: boolean
+  @column()
+  declare kind: TransactionKind
+  @column()
+  declare needsReview: boolean
+  @column()
+  declare paidByUserId: number | null
+  @column()
+  declare payee: string | null
+  @column()
+  declare rawDescription: string | null
+  @column()
+  declare source: TransactionSource
+  @column()
+  declare status: TransactionStatus
+  @jsonColumn()
+  declare tags: string[]
+  @column()
+  declare transferId: number | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare updatedByUserId: number | null
+}
+
+export class TransferSchema extends BaseModel {
+  static $columns = ['amountCents', 'clientId', 'createdAt', 'createdByUserId', 'date', 'fromAccountId', 'householdId', 'id', 'memo', 'toAccountId', 'updatedAt', 'updatedByUserId'] as const
+  $columns = TransferSchema.$columns
+  @column()
+  declare amountCents: number
+  @column()
+  declare clientId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare date: string
+  @column()
+  declare fromAccountId: number
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare memo: string | null
+  @column()
+  declare toAccountId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare updatedByUserId: number | null
 }
 
 export class UserSchema extends BaseModel {

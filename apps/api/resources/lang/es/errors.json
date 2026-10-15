@@ -25,5 +25,7 @@
   "E_LLM_OUTPUT_INVALID": "La IA no pudo leer esto. Inténtalo de nuevo o captúralo a mano",
   "E_LLM_UNAVAILABLE": "Las sugerencias de IA no están disponibles ahora. Inténtalo más tarde",
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
+  "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
+  "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
   "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento"
 }

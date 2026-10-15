@@ -1,0 +1,33 @@
+meta {
+  name: Public config (CSRF handshake)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/config
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.version: isString
+  res.body.data.registrationOpen: isBoolean
+}
+
+tests {
+  test('hands out the XSRF-TOKEN cookie needed by every write', () => {
+    // Captured into `xsrfToken` by the collection's post-response script.
+    expect(bru.getVar('xsrfToken'), 'XSRF-TOKEN cookie').to.be.a('string').and.not.be.empty
+  })
+}
+
+docs {
+  `config.show`: public runtime config for the SPA (`registrationOpen`,
+  `version`, `turnstileSiteKey`, `sentryDsnWeb`, `defaultLocale`).
+
+  It is also the CSRF handshake: like any GET, the response sets the
+  `XSRF-TOKEN` cookie, which the collection script stores in `xsrfToken`.
+  Requests that write (login and logout included) must run after it.
+}

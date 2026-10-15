@@ -69,24 +69,34 @@ export default class CategoryService {
     return category
   }
 
+  /**
+   * Locks the category, counts its references and deletes it (moving them
+   * to the replacement first) in one DB transaction: a transaction being
+   * saved with this category at the same time either commits first (and is
+   * counted) or waits and then fails its own FK check.
+   */
   async delete(household: Household, categoryId: number, reassignToCategoryId?: number) {
-    const category = await findInHousehold(Category, household, categoryId)
-
-    let replacement: Category | null = null
-    if (reassignToCategoryId !== undefined) {
-      const owned = await idsInHousehold(Category, household, [reassignToCategoryId])
-      if (!owned.has(reassignToCategoryId) || reassignToCategoryId === category.id) {
-        throw new FieldError('reassignToCategoryId', 'database.exists')
-      }
-      replacement = await Category.findOrFail(reassignToCategoryId)
-    }
-
-    const references = await this.usage.referenceCount(category)
-    if (references > 0 && !replacement) throw new CategoryInUse()
-
     await db.transaction(async (trx) => {
+      const category = await Category.query({ client: trx })
+        .where('household_id', household.id)
+        .where('id', categoryId)
+        .forUpdate()
+        .firstOrFail()
+
+      let replacement: Category | null = null
+      if (reassignToCategoryId !== undefined) {
+        replacement = await Category.query({ client: trx })
+          .where('household_id', household.id)
+          .where('id', reassignToCategoryId)
+          .whereNot('id', category.id)
+          .first()
+        if (!replacement) throw new FieldError('reassignToCategoryId', 'database.exists')
+      }
+
+      const references = await this.usage.referenceCount(category, trx)
+      if (references > 0 && !replacement) throw new CategoryInUse()
+
       if (replacement) await this.usage.reassign(category, replacement, trx)
-      category.useTransaction(trx)
       await category.delete()
     })
   }

@@ -1,30 +1,70 @@
 import { test } from '@japa/runner'
 import Account from '#models/account'
-import app from '@adonisjs/core/services/app'
 import AccountCard from '#models/account_card'
-import AccountUsage from '#services/accounts/account_usage'
 import { createHousehold } from '#tests/helpers/household'
+import { TransactionFactory } from '#database/factories/transaction_factory'
 
 test.group('Accounts', () => {
   test('test_account_list_includes_cleared_and_available_balance', async ({ client, assert }) => {
-    const { owner } = await createHousehold({
+    const { owner, household, accounts } = await createHousehold({
       accounts: [
         { name: 'Everyday', openingBalanceCents: 0 },
         { name: 'Savings', kind: 'savings', openingBalanceCents: 1250 },
       ],
     })
+    const everydayRows = { householdId: household.id, accountId: accounts[0].id }
+    await TransactionFactory.merge({ ...everydayRows, amountCents: 10_000 })
+      .apply('income')
+      .create()
+    await TransactionFactory.merge({ ...everydayRows, amountCents: -2_500 }).create()
+    await TransactionFactory.merge({ ...everydayRows, amountCents: -1_000 })
+      .apply('pending')
+      .create()
 
     const response = await client.get('/api/v1/accounts').actingAs(owner)
 
     response.assertStatus(200)
     const [everyday, savings] = response.body().data
     assert.equal(everyday.name, 'Everyday')
-    assert.equal(everyday.clearedBalanceCents, 0)
-    assert.equal(everyday.availableBalanceCents, 0)
-    // No ledger yet: the balance is the opening balance.
+    // Opening balance + ledger; the pending purchase only lowers "available".
+    assert.equal(everyday.clearedBalanceCents, 7_500)
+    assert.equal(everyday.availableBalanceCents, 6_500)
+    // No movements: the opening balance.
     assert.equal(savings.clearedBalanceCents, 1250)
     assert.equal(savings.availableBalanceCents, 1250)
     assert.deepEqual(everyday.cards, [])
+  })
+
+  test('test_balance_counts_only_rows_after_the_opening_balance_date', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, household, accounts } = await createHousehold({
+      accounts: [
+        { name: 'Everyday', openingBalanceCents: 10_000, openingBalanceDate: '2026-10-05' },
+        { name: 'Cash', openingBalanceCents: 500 },
+      ],
+    })
+    const rows = { householdId: household.id, accountId: accounts[0].id }
+    // The opening balance is the balance at the end of its date: rows dated
+    // on or before it are already inside it.
+    await TransactionFactory.merge({ ...rows, date: '2026-10-04', amountCents: -1_000 }).create()
+    await TransactionFactory.merge({ ...rows, date: '2026-10-05', amountCents: -2_000 }).create()
+    await TransactionFactory.merge({ ...rows, date: '2026-10-06', amountCents: -300 }).create()
+    // Without a date, every row counts.
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[1].id,
+      date: '2020-01-01',
+      amountCents: -100,
+    }).create()
+
+    const response = await client.get('/api/v1/accounts').actingAs(owner)
+
+    const [everyday, cash] = response.body().data
+    assert.equal(everyday.clearedBalanceCents, 9_700)
+    assert.equal(everyday.availableBalanceCents, 9_700)
+    assert.equal(cash.clearedBalanceCents, 400)
   })
 
   test('test_create_a_personal_account_with_an_opening_balance', async ({ client, assert }) => {
@@ -197,22 +237,37 @@ test.group('Accounts', () => {
     assert.isNull(await Account.find(accounts[0].id))
   })
 
-  test('test_account_with_transactions_cannot_be_deleted', async ({ client, assert, cleanup }) => {
-    // The ledger arrives later; the guard is wired through AccountUsage.
-    class AccountWithTransactions extends AccountUsage {
-      override async transactionCount() {
-        return 3
-      }
-    }
-    app.container.swap(AccountUsage, () => new AccountWithTransactions())
-    cleanup(() => app.container.restore(AccountUsage))
-    const { owner, accounts } = await createHousehold({ accounts: [{ name: 'Busy' }] })
+  test('test_account_with_transactions_cannot_be_deleted', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{ name: 'Busy' }] })
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+    }).create()
 
     const response = await client.delete(`/api/v1/accounts/${accounts[0].id}`).actingAs(owner)
 
     response.assertStatus(409)
     response.assertBodyContains({ code: 'E_ACCOUNT_IN_USE' })
     assert.isNotNull(await Account.find(accounts[0].id))
+  })
+
+  test('test_account_with_only_a_transfer_cannot_be_deleted', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({
+      accounts: [{ name: 'Everyday' }, { name: 'Savings' }],
+    })
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      amountCents: -100,
+    })
+      .apply('transfer')
+      .create()
+
+    const response = await client.delete(`/api/v1/accounts/${accounts[1].id}`).actingAs(owner)
+
+    response.assertStatus(409)
+    response.assertBodyContains({ code: 'E_ACCOUNT_IN_USE' })
+    assert.isNotNull(await Account.find(accounts[1].id))
   })
 
   test('test_remove_a_card', async ({ client, assert }) => {

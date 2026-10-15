@@ -1,0 +1,30 @@
+meta {
+  name: Health (readiness)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/health
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+  res.body.checks.database.status: eq ok
+}
+
+tests {
+  test('reports the deployed version and git sha', () => {
+    expect(res.body.version).to.be.a('string').and.not.be.empty
+    expect(res.body.sha).to.be.a('string').and.not.be.empty
+  })
+}
+
+docs {
+  `health.ready`: readiness probe (database + heap). 200 `HealthReport`
+  (`status`, `version`, `sha`, `checks`) or 503 when a check fails.
+  `/ship` polls `sha` until it equals the merge commit on `main`.
+}

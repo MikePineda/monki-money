@@ -16,8 +16,12 @@ export const controllers = {
   PasswordReset: () => import('#controllers/password_reset_controller'),
   Profile: () => import('#controllers/profile_controller'),
   PublicConfig: () => import('#controllers/public_config_controller'),
+  Reports: () => import('#controllers/reports_controller'),
   Sessions: () => import('#controllers/sessions_controller'),
   Signup: () => import('#controllers/signup_controller'),
   Spa: () => import('#controllers/spa_controller'),
   TestSupport: () => import('#controllers/test_support_controller'),
+  TransactionSplits: () => import('#controllers/transaction_splits_controller'),
+  Transactions: () => import('#controllers/transactions_controller'),
+  Transfers: () => import('#controllers/transfers_controller'),
 }
