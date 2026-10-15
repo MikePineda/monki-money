@@ -26,6 +26,7 @@ export type ScannedRoutes = {
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
+    'household.leave': { paramsTuple?: []; params?: {} }
     'household.invitations.index': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
     'household.invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -122,6 +123,7 @@ export type ScannedRoutes = {
     'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
+    'household.leave': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
     'household.invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'accounts.store': { paramsTuple?: []; params?: {} }

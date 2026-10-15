@@ -39,6 +39,7 @@ export interface ApiDefinition {
     members: typeof routes['household.members']
     export: typeof routes['household.export']
     delete: typeof routes['household.delete']
+    leave: typeof routes['household.leave']
     invitations: {
       index: typeof routes['household.invitations.index']
       store: typeof routes['household.invitations.store']

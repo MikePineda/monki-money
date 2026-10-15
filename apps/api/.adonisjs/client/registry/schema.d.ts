@@ -271,6 +271,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'household.leave': {
+    methods: ["POST"]
+    pattern: '/api/v1/household/leave'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
+    }
+  }
   'household.invitations.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/household/invitations'

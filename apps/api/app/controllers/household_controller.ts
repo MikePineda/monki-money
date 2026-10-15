@@ -75,6 +75,16 @@ export default class HouseholdController {
   }
 
   /**
+   * POST /household/leave (members only; owners get 422
+   * E_OWNER_CANNOT_LEAVE): drops the caller's membership and keeps their
+   * session and ledger rows.
+   */
+  async leave(ctx: HttpContext) {
+    await this.households.leave(ctx.membership, ctx.auth.getUserOrFail())
+    return ctx.response.noContent()
+  }
+
+  /**
    * POST /household/delete (owner, password): schedules the deletion. Wrong
    * passwords count toward the same per-user limit as PATCH /me.
    */

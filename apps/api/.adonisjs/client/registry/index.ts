@@ -138,6 +138,12 @@ const routes = {
     tokens: [{"old":"/api/v1/household/delete","type":0,"val":"api","end":""},{"old":"/api/v1/household/delete","type":0,"val":"v1","end":""},{"old":"/api/v1/household/delete","type":0,"val":"household","end":""},{"old":"/api/v1/household/delete","type":0,"val":"delete","end":""}],
     types: placeholder as Registry['household.delete']['types'],
   },
+  'household.leave': {
+    methods: ["POST"],
+    pattern: '/api/v1/household/leave',
+    tokens: [{"old":"/api/v1/household/leave","type":0,"val":"api","end":""},{"old":"/api/v1/household/leave","type":0,"val":"v1","end":""},{"old":"/api/v1/household/leave","type":0,"val":"household","end":""},{"old":"/api/v1/household/leave","type":0,"val":"leave","end":""}],
+    types: placeholder as Registry['household.leave']['types'],
+  },
   'household.invitations.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/household/invitations',

@@ -1,11 +1,16 @@
 import { DateTime } from 'luxon'
 import type User from '#models/user'
+import db from '@adonisjs/lucid/services/db'
 import type Household from '#models/household'
 import HouseholdMember from '#models/household_member'
 import { FieldError } from '#exceptions/field_error'
 import type { UpdateHouseholdInput } from '#services/households/dto'
 import { canRestore, deletionDate } from '#domain/households/deletion_window'
-import { HouseholdNotPendingDeletion, RestoreWindowExpired } from '#exceptions/errors'
+import {
+  HouseholdNotPendingDeletion,
+  OwnerCannotLeave,
+  RestoreWindowExpired,
+} from '#exceptions/errors'
 
 /**
  * Household settings and lifecycle. Deleting only schedules the deletion
@@ -27,6 +32,26 @@ export default class HouseholdService {
       .preload('user')
       .orderBy('joined_at', 'asc')
       .orderBy('id', 'asc')
+  }
+
+  /**
+   * A member leaves the household; owners cannot (they delete it). Only the
+   * membership goes: the leaver's ledger rows stay as they are (payer,
+   * creator, account owner and card ids keep pointing at them, and their
+   * private rows become ordinary rows, app/domain/ledger/privacy.ts). The
+   * session stays valid; with no current household the next household
+   * request answers E_NO_HOUSEHOLD.
+   */
+  async leave(membership: HouseholdMember, user: User) {
+    if (membership.isOwner) throw new OwnerCannotLeave()
+
+    await db.transaction(async (trx) => {
+      membership.useTransaction(trx)
+      await membership.delete()
+      user.useTransaction(trx)
+      user.currentHouseholdId = null
+      await user.save()
+    })
   }
 
   /** Needs the owner's password: deleting is irreversible after the window. */
