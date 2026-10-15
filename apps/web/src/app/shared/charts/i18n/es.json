@@ -1,0 +1,38 @@
+{
+  "frame": {
+    "table": "Vista de tabla",
+    "loading": "Cargando gráfica",
+    "empty": "Aún no hay nada que graficar en este periodo.",
+    "error": "No se pudo cargar esta gráfica.",
+    "retry": "Reintentar"
+  },
+  "table": {
+    "name": "Nombre",
+    "month": "Mes",
+    "amount": "Monto",
+    "share": "Porcentaje",
+    "total": "Total",
+    "goal": "Meta"
+  },
+  "estimate": "{value} (estimado)",
+  "barList": {
+    "summary": "{count, plural, one {# elemento} other {# elementos}}, {total} en total. El mayor: {label}, {amount}."
+  },
+  "trend": {
+    "explore": "Valores de la gráfica. Usa las flechas izquierda y derecha para leer cada mes.",
+    "series": "{label}: {first} en {firstMonth}, {last} en {lastMonth}, máximo {max} en {maxMonth}."
+  },
+  "projection": {
+    "actual": "Real",
+    "projected": "Proyectado (estimado)",
+    "goal": "Meta {amount}",
+    "reaches": "Alcanza la meta en {month} (estimado).",
+    "reached": "Meta alcanzada en {month}.",
+    "beyond": "A este ritmo la meta se alcanza en {month}, después del final de la gráfica.",
+    "notReached": "A este ritmo la meta no se alcanza antes de {month}.",
+    "summary": "{last} en {lastMonth}, proyectado {projected} para {endMonth}."
+  },
+  "sparkline": {
+    "summary": "{count, plural, one {# mes} other {# meses}}: de {first} a {last}."
+  }
+}

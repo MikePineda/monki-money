@@ -1,0 +1,21 @@
+// The toggle's hit area is the whole row (at least 44px tall), not just the
+// label; the focus ring and the pressed wash follow the row too.
+.bar-toggle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.bar-toggle:focus-visible {
+  outline: none;
+}
+
+.bar-row:has(.bar-toggle:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.bar-row:has(.bar-toggle:active) {
+  background-color: var(--surface-2);
+}
