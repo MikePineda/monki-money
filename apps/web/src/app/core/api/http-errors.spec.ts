@@ -1,5 +1,5 @@
 import { TuyauHTTPError, TuyauNetworkError } from '@tuyau/core/client'
-import { toApiError, validationRules } from './http-errors'
+import { toApiError } from './http-errors'
 
 /** Builds the error Tuyau throws for a non-2xx response (it wraps a Ky HTTPError). */
 function httpError(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -96,25 +96,5 @@ describe('toApiError', () => {
   it('test_anything_else_maps_to_server', () => {
     expect(toApiError(new Error('boom'))).toEqual({ kind: 'server' })
     expect(toApiError('weird')).toEqual({ kind: 'server' })
-  })
-})
-
-describe('validationRules', () => {
-  it('test_a_422_gives_the_first_rule_per_field', () => {
-    const error = httpError(422, {
-      errors: [
-        { field: 'month', rule: 'noActivity', message: 'Nothing happened this month' },
-        { field: 'month', rule: 'future', message: 'Second' },
-      ],
-    })
-
-    expect(validationRules(error)).toEqual({ month: 'noActivity' })
-  })
-
-  it('test_anything_but_a_422_with_rules_gives_no_rules', () => {
-    expect(validationRules(httpError(422, { message: 'Bad output', code: 'E_LLM' }))).toEqual({})
-    expect(validationRules(httpError(402, { code: 'E_LLM_QUOTA_EXCEEDED' }))).toEqual({})
-    expect(validationRules(new TuyauNetworkError(new TypeError('Failed to fetch')))).toEqual({})
-    expect(validationRules('weird')).toEqual({})
   })
 })

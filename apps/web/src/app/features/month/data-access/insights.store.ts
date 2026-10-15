@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, resource, signal } from '@angular/core'
 import type { MonthlyInsight } from '../../../core/api/api-types'
-import { hasStatus, toApiError, validationRules } from '../../../core/api/http-errors'
+import { hasStatus, toApiError } from '../../../core/api/http-errors'
+import { validationRules } from '../../../core/api/validation-rules'
 import { SessionStore } from '../../../core/auth/session.store'
 import { LangStore } from '../../../core/i18n/lang.store'
 import { MonthStore } from '../../../core/month/month.store'
