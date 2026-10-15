@@ -6,7 +6,7 @@ import { resolveLlmSettings } from '#llm/llm_settings'
 import { AnthropicCompatibleProvider } from '#llm/providers/anthropic_compatible_provider'
 import { TAXONOMY_CATEGORIES, memoryUsageSink, receiptPhoto } from '#tests/helpers/llm'
 
-const API_KEY = 'sk-test-0123456789'
+const API_KEY = 'test-key-not-real' // gitleaks:allow
 const operator = { householdId: null, userId: null }
 
 /** Parameters this layer must never send (MiniMax ignores or rejects them). */
