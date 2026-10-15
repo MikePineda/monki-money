@@ -19,7 +19,7 @@
 */
 
 import router from '@adonisjs/core/services/router'
-import { apiThrottle } from '#start/limiter'
+import { apiThrottle, uploadsThrottle } from '#start/limiter'
 import { middleware } from '#start/kernel'
 import { controllers } from '#generated/controllers'
 import { registerE2eRoutes } from '#start/routes/e2e'
@@ -286,6 +286,15 @@ router
               })
               .prefix('rules')
               .as('rules')
+
+            /*
+             * Direct uploads: the browser PUTs the file to the bucket with a
+             * presigned URL; the API never receives the bytes.
+             */
+            router
+              .post('uploads/presign', [controllers.Uploads, 'presign'])
+              .as('uploads.presign')
+              .use(uploadsThrottle)
           })
           .use(inHousehold())
       })

@@ -444,6 +444,12 @@ const routes = {
     tokens: [{"old":"/api/v1/rules/:id/apply","type":0,"val":"api","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"v1","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"rules","end":""},{"old":"/api/v1/rules/:id/apply","type":1,"val":"id","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"apply","end":""}],
     types: placeholder as Registry['rules.apply']['types'],
   },
+  'uploads.presign': {
+    methods: ["POST"],
+    pattern: '/api/v1/uploads/presign',
+    tokens: [{"old":"/api/v1/uploads/presign","type":0,"val":"api","end":""},{"old":"/api/v1/uploads/presign","type":0,"val":"v1","end":""},{"old":"/api/v1/uploads/presign","type":0,"val":"uploads","end":""},{"old":"/api/v1/uploads/presign","type":0,"val":"presign","end":""}],
+    types: placeholder as Registry['uploads.presign']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

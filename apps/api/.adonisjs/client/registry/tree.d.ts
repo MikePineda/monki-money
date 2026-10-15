@@ -117,4 +117,7 @@ export interface ApiDefinition {
     destroy: typeof routes['rules.destroy']
     apply: typeof routes['rules.apply']
   }
+  uploads: {
+    presign: typeof routes['uploads.presign']
+  }
 }

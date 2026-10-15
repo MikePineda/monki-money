@@ -28,4 +28,5 @@ export const controllers = {
   TransactionSplits: () => import('#controllers/transaction_splits_controller'),
   Transactions: () => import('#controllers/transactions_controller'),
   Transfers: () => import('#controllers/transfers_controller'),
+  Uploads: () => import('#controllers/uploads_controller'),
 }

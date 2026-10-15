@@ -77,6 +77,7 @@ export type ScannedRoutes = {
     'rules.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'uploads.presign': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
@@ -160,6 +161,7 @@ export type ScannedRoutes = {
     'imports.cancel': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.store': { paramsTuple?: []; params?: {} }
     'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'uploads.presign': { paramsTuple?: []; params?: {} }
   }
   PATCH: {
     'me.update': { paramsTuple?: []; params?: {} }
