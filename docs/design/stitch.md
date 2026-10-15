@@ -4,29 +4,25 @@ Visual references per screen and theme, generated in Google Stitch from `DESIGN.
 
 ## Stitch ids
 
-| Thing                                  | Id                                        |
-| -------------------------------------- | ----------------------------------------- |
-| Project "monkimoney mobile"            | `projects/<stitch-project>`           |
-| Design system (from DESIGN.md, MOBILE) | `assets/8816224cdf084dff8c62c67baf22d5db` |
-| Uploaded DESIGN.md screen              | `14828859174626799956`                    |
+One Stitch project ("monkimoney mobile") holds a design system generated from `DESIGN.md` (device MOBILE), the uploaded `DESIGN.md` screen and every screen below. The project, design-system and screen ids live in `docs/internal/design-ids.md` (local only).
 
-## Files and screen ids
+## Files and screens
 
 Every file pair in `mocks/` is `<screen>-<theme>.html` (Stitch HTML) + `<screen>-<theme>.png` (Stitch screenshot, 780 px wide = 390 pt at 2x). The month, transactions and import-review PNGs were later re-rendered from their HTML with Playwright (390×884 at 2x) after the demo merchants were renamed to fictional ones.
 
-| Screen                 | Light screen id                    | Dark screen id                     | How the light one was chosen                                                                                                                                                                        |
-| ---------------------- | ---------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| quick-add              | `6df5ba1506d74742b7661205da5cc53a` | `cffce7ba9bcd4eff815e0849d2cbb9a7` | Base `e3f7e4b1…`; 3 REFINE/LAYOUT variants `74b36480…`, `013db18f…`, `df7d16c9…`; picked `013db18f…` ("Done" text button, outlined chips, hairline keypad), then one fix pass (flat page, no title) |
-| quick-add (es-MX copy) | `5a3d909e7b514306a63f235e9d95c2be` | (none)                             | Copy-only edit of the chosen light screen → `quick-add-es-light.*`                                                                                                                                  |
-| month                  | `3d3c4e6947c144288e59d7d1428e4eb8` | `a190704e0f4d4d79b4bfca2ead8808da` | Base `b73fdd00…`; 3 REFINE/LAYOUT variants `d310a36c…`, `3b5fdf55…`, `e30a82e2…`; picked `3b5fdf55…` (DESIGN.md section order, 4-slot tab bar), then one colour fix pass                            |
-| transactions           | `5573140643c04a98bcaf747589f96b7b` | `d9edce27c62f4987afa9fa0d52889ba7` | Base `674aca01…` + one fix pass (rows, tab bar)                                                                                                                                                     |
-| import-review          | `391cbc74761848ae9fbb6c517ba9e745` | `e266d5e2cc8342babd774501d204bc43` | Single generation                                                                                                                                                                                   |
-| onboarding-accounts    | `e0d460082b5a4ea29fd96f547c4dd17a` | `c766064d13fe4acdbe942ecafffe10d2` | Base `7641bd17…` + one fix pass (real name → `{partner}`, flat rows)                                                                                                                                |
-| login                  | `45a40e9bbfac4f06b94744fe121014bf` | `38348a31ee204e9d9163c316a3baefb9` | Single generation (an earlier attempt `492b51e0…` came out as a desktop layout and was discarded)                                                                                                   |
-| categories             | `0c65d41215834d39b0a775366d3e3adc` | `943ea48fc80f4472bf19698dbeb25730` | Single generation                                                                                                                                                                                   |
-| settings               | `b2fd4b331fe24c6ea41adec7294dddcd` | `5084d37adfde455f8fe6a62554152911` | Base `f9d21ab3…` + one fix pass (real name → `{partner}`, ink "Danger zone" heading)                                                                                                                |
-| month-empty            | `fa31dc209fbb40f4bd6b303ba1641316` | `095c4954d22a4922890ef50dad72956e` | `edit_screens` of the chosen month                                                                                                                                                                  |
-| transactions-empty     | `bd5a20de8d1c475b8799c1176aae15ad` | `9de6cb86394f46cfbd9c859e0bb9fd04` | `edit_screens` of the chosen transactions; dark needed one fix pass (first dark render `45a2a7a7…` had a faded top bar and chips)                                                                   |
+| Screen                 | Dark render | How the light one was chosen                                                                                                                            |
+| ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| quick-add              | yes         | Base screen; 3 REFINE/LAYOUT variants; picked the second ("Done" text button, outlined chips, hairline keypad), then one fix pass (flat page, no title) |
+| quick-add (es-MX copy) | no          | Copy-only edit of the chosen light screen → `quick-add-es-light.*`                                                                                      |
+| month                  | yes         | Base screen; 3 REFINE/LAYOUT variants; picked the second (DESIGN.md section order, 4-slot tab bar), then one colour fix pass                            |
+| transactions           | yes         | Base screen + one fix pass (rows, tab bar)                                                                                                              |
+| import-review          | yes         | Single generation                                                                                                                                       |
+| onboarding-accounts    | yes         | Base screen + one fix pass (real name → `{partner}`, flat rows)                                                                                         |
+| login                  | yes         | Single generation (an earlier attempt came out as a desktop layout and was discarded)                                                                   |
+| categories             | yes         | Single generation                                                                                                                                       |
+| settings               | yes         | Base screen + one fix pass (real name → `{partner}`, ink "Danger zone" heading)                                                                         |
+| month-empty            | yes         | `edit_screens` of the chosen month                                                                                                                      |
+| transactions-empty     | yes         | `edit_screens` of the chosen transactions; dark needed one fix pass (the first dark render had a faded top bar and chips)                               |
 
 ## How it was run (and what to know before re-running)
 
@@ -37,7 +33,7 @@ Every file pair in `mocks/` is `<screen>-<theme>.html` (Stitch HTML) + `<screen>
 
 ## Prompts
 
-Generation prompts, verbatim (all used design system `assets/8816224cdf084dff8c62c67baf22d5db`, device MOBILE, model Flash Lite):
+Generation prompts, verbatim (all used the project's design system, device MOBILE, model Flash Lite):
 
 - **quick-add**: Mobile app screen, iPhone portrait 390×844: Quick add expense for monkimoney (couples' finance, AUD). Top bar: "Done" left, date chip "Today · Wed 15 Oct" right. Segmented control Expense / Income / Transfer, Expense selected (green label on white thumb). Hero amount "$42.50" 44px. Chips "NAB Everyday ▾" and "● You ▾" (blue dot). 4×2 grid of category tiles with Lucide icons: Groceries (selected, pale green fill, green border), Restaurants, Transport, Coffee, Alcohol, Rent, Phone, More. Collapsed row "Note, merchant, date". Numeric keypad 1–9, 00, 0, delete, 56px keys divided by hairlines, no key boxes. Fixed full-width near-black button "Save −$42.50". No tab bar.
   - Variant prompts (REFINE, LAYOUT): (1) "Refine the layout for one-handed use: keep every element and the copy, hero amount as the one large number, keypad and the near-black "Save −$42.50" button at the bottom, flat style with hairlines." (2) "Refine the layout: "Done" text button instead of the close icon, segmented control directly under the top bar, hero amount left-aligned, value chips outlined with a 1px border, category tiles with 1px hairline borders, keypad without outer border. Keep all copy." (3) "Refine the layout: compact top area so the 4×2 category grid and keypad both fit above the fold, "Note, merchant, date" as a single hairline row, keypad keys with no fills, flat page with no frame shadow. Keep all copy."

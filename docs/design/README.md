@@ -4,13 +4,7 @@ Deliverables for work package 0.2. `DESIGN.md` is in the Stitch format (YAML fro
 
 ## Artifacts (Claude Design, private)
 
-| Artifact | Type | URL |
-|---|---|---|
-| monkimoney design system | Design System | https://claude.ai/artifact/<artifact> |
-| monkimoney — Month view (light + dark artboards) | Design | https://claude.ai/artifact/<artifact> |
-| monkimoney — Quick add (light + dark artboards) | Design | https://claude.ai/artifact/<artifact> |
-
-All three are private until shared from each page's Share menu. Both Design canvases have the design system installed (`project/ds/monkimoney/`: tokens.json, tokens.css, components/bundle.css), so their Theme menu offers the real tokens. Their source files are in `claude-design/` next to this README (`system/`, `month/`, `quickadd/`); they are the published content, not app code.
+Three private Claude Design artifacts: the monkimoney design system, a Month view canvas (light + dark artboards) and a Quick add canvas (light + dark artboards). Their links live in `docs/internal/design-ids.md` (local only). Both Design canvases have the design system installed (`project/ds/monkimoney/`: tokens.json, tokens.css, components/bundle.css), so their Theme menu offers the real tokens. Their source files are in `claude-design/` next to this README (`system/`, `month/`, `quickadd/`); they are the published content, not app code.
 
 ## Files here
 
