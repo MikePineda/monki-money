@@ -1,6 +1,11 @@
 import { test } from '@japa/runner'
 import { posting } from '#tests/helpers/postings'
-import { isHiddenFrom, postingsFor, privateOwnerId } from '#domain/ledger/privacy'
+import {
+  isHiddenFrom,
+  postingsFor,
+  postingsForHousehold,
+  privateOwnerId,
+} from '#domain/ledger/privacy'
 
 const couple = (userId: number) => ({ userId, memberIds: new Set([1, 2]) })
 
@@ -37,5 +42,25 @@ test.group('Ledger: privacy', () => {
 
     assert.include(maskedGift, { hidden: true, categoryId: null, groupId: null })
     assert.include(visibleOrphan, { hidden: false, categoryId: orphan.categoryId })
+  })
+
+  test('test_household_wide_postings_hide_every_private_row_of_a_member', ({ assert }) => {
+    // Content every member reads (a stored summary): nobody's private
+    // details may shape it, not even the person who asked for it.
+    const mine = posting({ isPrivate: true, paidByUserId: 1 })
+    const partners = posting({ isPrivate: true, paidByUserId: null, createdByUserId: 2 })
+    const orphan = posting({ isPrivate: true, paidByUserId: 9, createdByUserId: 9 })
+    const ordinary = posting()
+
+    const [maskedMine, maskedPartners, visibleOrphan, visible] = postingsForHousehold(
+      [mine, partners, orphan, ordinary],
+      new Set([1, 2])
+    )
+
+    assert.include(maskedMine, { hidden: true, categoryId: null, groupId: null })
+    assert.include(maskedPartners, { hidden: true, categoryId: null, groupId: null })
+    assert.include(maskedMine, { amountCents: mine.amountCents, paidByUserId: 1 })
+    assert.include(visibleOrphan, { hidden: false, categoryId: orphan.categoryId })
+    assert.deepEqual(visible, ordinary)
   })
 })

@@ -15,6 +15,7 @@ import TransactionSplit from '#models/transaction_split'
 import { findInHousehold, idsInHousehold } from '#repositories/scoped'
 import { signedAmount, signedLines } from '#domain/ledger/amounts'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
+import RuleLearner from '#services/rules/rule_learner'
 import LedgerReferences from '#services/ledger/ledger_references'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import TransactionListing from '#services/ledger/transaction_listing'
@@ -52,7 +53,8 @@ export default class TransactionService {
   constructor(
     protected references: LedgerReferences,
     protected listing: TransactionListing,
-    protected clock: Clock
+    protected clock: Clock,
+    protected learner: RuleLearner = new RuleLearner()
   ) {}
 
   list(household: Household, viewer: PrivacyViewer, filters: TransactionFilters) {
@@ -224,14 +226,27 @@ export default class TransactionService {
           trx
         )
       }
+      if (input.applyToFuture && input.categoryId) {
+        await this.learner.learnFromEdit(household, actor, transaction, trx)
+      }
     })
 
     return this.find(household, transactionId)
   }
 
+  /**
+   * Hard delete. The bank row it came from stays, marked `ignored`, so
+   * re-importing the export never brings it back.
+   */
   async destroy(household: Household, actor: User, transactionId: number) {
     await db.transaction(async (trx) => {
       const transaction = await this.lockForWrite(household, actor, transactionId, trx)
+      await trx
+        .from('import_rows')
+        .where('household_id', transaction.householdId)
+        .where('transaction_id', transaction.id)
+        .whereNot('resolution', 'superseded')
+        .update({ resolution: 'ignored', updated_at: new Date() })
       await transaction.delete()
     })
   }

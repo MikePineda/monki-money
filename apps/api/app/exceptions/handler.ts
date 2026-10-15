@@ -6,11 +6,25 @@ import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 /** Self-rendering framework errors whose own rendering does not fit a JSON API. */
 const JSON_RENDERED_CODES = new Set(['E_BAD_CSRF_TOKEN'])
 
+/**
+ * Server errors whose translated message is meant for people: a dependency
+ * is down or not configured, not a bug. They keep `{ message, code }` in
+ * production too.
+ */
+const PUBLIC_SERVER_ERROR_CODES = new Set(['E_INSIGHTS_UNAVAILABLE', 'E_LLM_UNAVAILABLE'])
+
 /** Postgres unique_violation: a race lost against a concurrent insert. */
 const PG_UNIQUE_VIOLATION = '23505'
 
 /** Postgres foreign_key_violation: a delete raced an insert (or the reverse). */
 const PG_FOREIGN_KEY_VIOLATION = '23503'
+
+/**
+ * Postgres deadlock_detected / serialization_failure: two writers locked
+ * the same rows in opposite order (e.g. the two batches of one upload
+ * confirmed at once). Nothing was written; the client may simply retry.
+ */
+const PG_RETRYABLE = ['40P01', '40001']
 
 /** Deleted parent (the statement Knex prefixes to the message) -> its "in use" code. */
 const IN_USE_ON_DELETE: Array<[RegExp, string]> = [
@@ -35,6 +49,14 @@ function foreignKeyConflictCode(error: Error) {
   return match ? match[1] : 'E_CONFLICT'
 }
 
+/** Extra client fields a domain error carries (`details`, see app/exceptions/errors.ts). */
+function detailsOf(error: unknown): Record<string, unknown> {
+  const details = (error as { details?: unknown } | null)?.details
+  return typeof details === 'object' && details !== null && !Array.isArray(details)
+    ? (details as Record<string, unknown>)
+    : {}
+}
+
 /**
  * JSON-only API error rendering:
  *
@@ -44,19 +66,26 @@ function foreignKeyConflictCode(error: Error) {
  *   JSON_RENDERED_CODES) answers 403 `{ message, code }`.
  * - `FieldError` (service-level validation) renders like a VineJS error.
  * - Any other 4xx answers `{ message, code }` with the message translated
- *   from `errors.<code>` (E_ROW_NOT_FOUND -> 404 "Not found", domain errors).
+ *   from `errors.<code>` (E_ROW_NOT_FOUND -> 404 "Not found", domain errors),
+ *   plus the error's `details` when it has them (`accountNumbers`, `line`...).
  *   Never the debug page: 4xx bodies are part of the contract.
  * - Postgres unique violations (a lost race the services could not
  *   pre-check) answer 409 `E_CONFLICT`, never the constraint name. Foreign
  *   key violations answer 409 too: `E_CATEGORY_IN_USE` / `E_ACCOUNT_IN_USE`
  *   when deleting the parent lost a race against an insert, else
- *   `E_CONFLICT`.
- * - 5xx: debug page in development; in production a generic translated
+ *   `E_CONFLICT`. Deadlocks and serialization failures answer 409
+ *   `E_CONCURRENT_UPDATE` (retryable).
+ * - 5xx: `E_INSIGHTS_UNAVAILABLE` / `E_LLM_UNAVAILABLE` (503) answer their
+ *   translated `{ message, code }` everywhere; any other one shows the
+ *   debug page in development and, in production, a generic translated
  *   `{ message, code: 'E_INTERNAL_SERVER_ERROR' }` (driver messages, table
  *   and constraint names never leave the server, they go to the logs).
  */
 export default class HttpExceptionHandler extends ExceptionHandler {
   protected override debug = !app.inProduction
+
+  /** No LLM configured: already warned once at boot (providers/llm_provider.ts). */
+  protected override ignoreCodes = ['E_INSIGHTS_UNAVAILABLE']
 
   override async handle(error: unknown, ctx: HttpContext) {
     const i18n = 'i18n' in ctx ? (ctx.i18n as I18n | undefined) : undefined
@@ -68,6 +97,14 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return ctx.response
         .status(409)
         .send({ message: translate('E_CONFLICT', 'Conflict'), code: 'E_CONFLICT' })
+    }
+
+    if (PG_RETRYABLE.some((code) => hasPgCode(error, code))) {
+      ;(error as Error & { status?: number }).status = 409
+      return ctx.response.status(409).send({
+        message: translate('E_CONCURRENT_UPDATE', 'Concurrent update'),
+        code: 'E_CONCURRENT_UPDATE',
+      })
     }
 
     if (hasPgCode(error, PG_FOREIGN_KEY_VIOLATION)) {
@@ -108,7 +145,15 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       const message = httpError.code
         ? translate(httpError.code, httpError.message)
         : httpError.message
-      return ctx.response.status(httpError.status).send({ message, code: httpError.code })
+      return ctx.response
+        .status(httpError.status)
+        .send({ ...detailsOf(error), message, code: httpError.code })
+    }
+
+    if (httpError.status >= 500 && PUBLIC_SERVER_ERROR_CODES.has(httpError.code ?? '')) {
+      return ctx.response
+        .status(httpError.status)
+        .send({ message: translate(httpError.code!, httpError.message), code: httpError.code })
     }
 
     if (httpError.status >= 500 && !this.debug) {

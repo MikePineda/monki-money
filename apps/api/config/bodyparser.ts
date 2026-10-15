@@ -59,9 +59,10 @@ const bodyParserConfig = defineConfig({
     convertEmptyStringsToNull: true,
 
     /**
-     * Routes where multipart processing is handled manually.
+     * Routes where multipart processing is handled manually: bank CSVs are
+     * read into memory with their own size cap (no temporary files).
      */
-    processManually: [],
+    processManually: ['/api/v1/imports'],
 
     /**
      * Maximum accepted payload size for multipart requests.
