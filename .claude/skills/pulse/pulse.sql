@@ -1,7 +1,7 @@
 -- Read-only production numbers for the /pulse skill. Aggregates and ids only:
 -- never select emails, names, payees or amounts per person.
 --
--- ssh <server> 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
+-- ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
 --   psql -U monkimoney -d monkimoney -X -q -v ON_ERROR_STOP=1 -f -' < .claude/skills/pulse/pulse.sql
 --
 -- Tables that later work packages create (transactions, llm_usage) are

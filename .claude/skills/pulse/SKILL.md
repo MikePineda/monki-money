@@ -11,16 +11,21 @@ anything while running this skill. If something needs action, report it
 with the evidence and let the owner decide (the `ship` skill has the
 rollback path).
 
-Ids come from `docs/RUNBOOK.md` → "Dokploy ids": `applicationId` of
-`monkimoney-web`, the R2 backup `destinationId`. The server is
-`ssh <server>`. Every HTTP request to production needs a browser
-User-Agent: Cloudflare's Browser Integrity Check answers 403 otherwise.
+Ids come from `docs/internal/RUNBOOK-ids.md` (local only; otherwise the
+Dokploy panel): `applicationId` of `monkimoney-web`, the R2 backup
+`destinationId`. The server and the production URL come from
+`MONKIMONEY_SSH_HOST` and `SMOKE_BASE_URL` (load them first with
+`set -a; . docs/internal/ops.env; set +a`; `docs/RUNBOOK.md` → "Local
+operator settings"). The server-specific details (data disk, backup
+schedule) are in `docs/internal/OPS.md`. Every HTTP request to production
+needs a browser User-Agent: Cloudflare's Browser Integrity Check answers
+403 otherwise.
 
 ## 1. Deployed version
 
 ```bash
 UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
-curl -s -A "$UA" https://app.example.com/api/health
+curl -s -A "$UA" "$SMOKE_BASE_URL/api/health"
 git fetch origin && git rev-parse origin/main
 ```
 
@@ -32,7 +37,7 @@ ahead for long means a failed build or an automatic rollback (step 3).
 ## 2. Services
 
 ```bash
-ssh <server> 'docker service ls --filter name=monkimoney'
+ssh "$MONKIMONEY_SSH_HOST" 'docker service ls --filter name=monkimoney'
 ```
 
 `monkimoney-web-*` and `monkimoney-db-*` must both be `1/1`. `0/1` on the
@@ -49,7 +54,7 @@ is the `--target` trap (the Dockerfile's final stage must stay `runtime`).
 Logs are pino JSON on stdout: level 50 = error, 60 = fatal (40 = warn).
 
 ```bash
-ssh <server> 'docker service logs $(docker service ls -q --filter name=monkimoney-web) \
+ssh "$MONKIMONEY_SSH_HOST" 'docker service logs $(docker service ls -q --filter name=monkimoney-web) \
   --since 24h --raw --no-color 2>&1 | grep -E "\"level\":(50|60)" | tail -40'
 ```
 
@@ -63,26 +68,28 @@ do not query it.
 ## 5. Backups (R2)
 
 Dokploy MCP `backup-listBackupFiles {destinationId, search: "monkimoney/"}`.
-The schedule is daily at 16:15 UTC (02:15 Brisbane), keeping 60. Flag a
-newest file older than about 25 hours, a file much smaller than its
+The schedule is daily (time and retention in `docs/internal/OPS.md`).
+Flag a newest file older than about 25 hours, a file much smaller than its
 neighbours, or no files at all. Note the date of the last restore drill
 (RUNBOOK "Backups, restore and drill"); flag it if it was never done.
 
 ## 6. Disk
 
 ```bash
-ssh <server> 'df -h / /mnt/data'
+ssh "$MONKIMONEY_SSH_HOST" 'df -h / "$(docker info -f "{{.DockerRootDir}}")"'
 ```
 
-Docker and the database volume live on `/mnt/data`; `/` is small and always
-tight, so flag growth there, not the baseline. Flag either above about 80%.
-If `/mnt/data` grows, `dockerDiskUsage-getBuildCache` shows whether the
-build cache is the culprit (Dokploy's weekly cleanup should keep it down).
+Docker and the database volume live on Docker's data root (on a separate
+data disk when the server has one, see `docs/internal/OPS.md`); `/` is
+small and always tight, so flag growth there, not the baseline. Flag
+either above about 80%. If the data disk grows,
+`dockerDiskUsage-getBuildCache` shows whether the build cache is the
+culprit (Dokploy's weekly cleanup should keep it down).
 
 ## 7. Activity and LLM usage (database, read-only)
 
 ```bash
-ssh <server> 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
   psql -U monkimoney -d monkimoney -X -q -v ON_ERROR_STOP=1 -f -' < .claude/skills/pulse/pulse.sql
 ```
 
@@ -112,12 +119,12 @@ monkimoney: healthy (v0.1.0, sha 980b2f0 = origin/main)
 - deploys: last 3 done, newest 2026-10-15 22:40 UTC
 - errors 24h: none (or: 3x E_... in import, first at ...)
 - backups: 12 in R2, newest 2026-10-15 16:15 UTC (6 h old)
-- disk: / 71%, /mnt/data 38%
+- disk: / 71%, data disk 38%
 - activity: 1 household, 2 users, 4 accounts; 37 transactions in 7 d
 - LLM this month: 120 calls, 2 failed, $0.41
 - action: none (or the one thing the owner should look at)
 ```
 
 Rules: emails and names never go into repo files, commits or the backlog;
-if `ssh <server>` fails, report the error and keep going with the
+if `ssh "$MONKIMONEY_SSH_HOST"` fails, report the error and keep going with the
 sections that do not need it (health, Dokploy MCP); no workarounds.
