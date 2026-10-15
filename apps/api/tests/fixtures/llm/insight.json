@@ -1,0 +1,20 @@
+{
+  "en": {
+    "headline": "You kept more than a third of your income this month",
+    "body": "Spending stayed **below income**. Groceries were the biggest category, and dining out was lower than last month.",
+    "highlights": [
+      { "tone": "positive", "text": "Net savings were positive" },
+      { "tone": "neutral", "text": "Groceries were the largest expense" },
+      { "tone": "warning", "text": "Transport spending went up" }
+    ]
+  },
+  "es": {
+    "headline": "Este mes ahorraron más de un tercio de sus ingresos",
+    "body": "El gasto quedó **por debajo de los ingresos**. El súper fue la categoría más grande y comer fuera bajó respecto al mes pasado.",
+    "highlights": [
+      { "tone": "positive", "text": "El ahorro neto fue positivo" },
+      { "tone": "neutral", "text": "El súper fue el gasto más grande" },
+      { "tone": "warning", "text": "El gasto en transporte subió" }
+    ]
+  }
+}

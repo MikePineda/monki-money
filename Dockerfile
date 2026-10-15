@@ -77,6 +77,10 @@ ENV NODE_ENV=production \
     NODE_OPTIONS=--max-old-space-size=384
 WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
+# sharp's prebuilt libvips binaries (@img/sharp-<platform>) are optional
+# dependencies, so --omit=optional above drops them. The full install in
+# `deps` ran on this same platform: take exactly the ones it resolved.
+COPY --from=deps /app/node_modules/@img ./node_modules/@img
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/apps/api/build ./apps/api/build

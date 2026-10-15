@@ -1,0 +1,13 @@
+{
+  "merchant": "Corner Grocer",
+  "date": "2026-09-14",
+  "total": 23.45,
+  "currencyCode": "AUD",
+  "categorySlug": "groceries",
+  "items": [
+    { "description": "Bananas 1kg", "amount": 3.9, "quantity": 1 },
+    { "description": "Coffee beans 500g", "amount": 16.55, "quantity": 1 },
+    { "description": "Sourdough loaf", "amount": 3, "quantity": null }
+  ],
+  "confidence": 0.9
+}

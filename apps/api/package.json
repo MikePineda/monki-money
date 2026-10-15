@@ -27,6 +27,7 @@
     "#services/*": "./app/services/*.js",
     "#repositories/*": "./app/repositories/*.js",
     "#domain/*": "./app/domain/*.js",
+    "#llm/*": "./app/llm/*.js",
     "#listeners/*": "./app/listeners/*.js",
     "#events/*": "./app/events/*.js",
     "#generated/*": "./.adonisjs/server/*.js",
@@ -74,13 +75,15 @@
     "@adonisjs/session": "8.1.0",
     "@adonisjs/shield": "9.0.0",
     "@adonisjs/static": "2.0.1",
+    "@anthropic-ai/sdk": "0.132.1",
     "@monkimoney/shared": "*",
     "@tuyau/core": "1.2.2",
     "@vinejs/vine": "4.4.0",
     "luxon": "^3.7.2",
     "pg": "8.23.1",
     "proxy-addr": "2.0.8",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "sharp": "0.35.5"
   },
   "hotHook": {
     "boundaries": [
