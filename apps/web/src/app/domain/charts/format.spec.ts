@@ -1,4 +1,4 @@
-import { compactMoney, formatPercent, percentShares } from './format'
+import { compactMoney, formatPercent, monthText, percentShares } from './format'
 
 const MINUS = '−'
 
@@ -51,6 +51,17 @@ describe('percentShares', () => {
   it('test_nothing_to_share_is_all_zero', () => {
     expect(percentShares([0, 0])).toEqual([0, 0])
     expect(percentShares([])).toEqual([])
+  })
+})
+
+describe('monthText', () => {
+  it('test_formats_a_year_month_like_the_month_strip', () => {
+    expect(monthText('2026-10', 'en-AU')).toBe('Oct')
+    expect(monthText('2026-10', 'es-MX', { long: true, withYear: true })).toBe('octubre de 2026')
+  })
+
+  it('test_an_unexpected_x_is_shown_as_given', () => {
+    expect(monthText('Q3', 'en-AU')).toBe('Q3')
   })
 })
 

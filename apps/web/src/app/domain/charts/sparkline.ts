@@ -6,8 +6,8 @@
 import { linePath } from './line'
 import { linearScale } from './scales'
 
-/** Keeps the end marker (r 3 + 2px surface ring) inside the box. */
-export const SPARKLINE_INSET = 5
+/** Keeps the end marker (r 4, an 8px dot, plus its 2px surface ring) inside the box. */
+export const SPARKLINE_INSET = 6
 
 export interface SparklinePoint {
   index: number

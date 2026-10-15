@@ -1,4 +1,14 @@
-import { STACK_GAP, layoutStacked100 } from './stacked'
+import { STACK_GAP, dataEndPath, layoutStacked100 } from './stacked'
+
+describe('dataEndPath', () => {
+  it('test_square_at_the_baseline_and_rounded_4px_at_the_data_end', () => {
+    expect(dataEndPath(10, 0, 100, 24)).toBe('M10,0H106A4,4 0 0 1 110,4V20A4,4 0 0 1 106,24H10Z')
+  })
+
+  it('test_the_radius_shrinks_for_a_sliver_so_the_shape_never_inverts', () => {
+    expect(dataEndPath(0, 0, 2, 24)).toBe('M0,0H0A2,2 0 0 1 2,2V22A2,2 0 0 1 0,24H0Z')
+  })
+})
 
 const WHO_PAID = [
   { id: 'you', valueCents: 151_040 },

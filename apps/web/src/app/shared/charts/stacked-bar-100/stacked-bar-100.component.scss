@@ -1,0 +1,6 @@
+@use '../chart-svg';
+
+// Invisible hit areas: the whole 44px band of each segment, gap included.
+.hit {
+  fill: transparent;
+}

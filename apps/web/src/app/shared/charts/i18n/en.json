@@ -1,0 +1,38 @@
+{
+  "frame": {
+    "table": "Table view",
+    "loading": "Loading chart",
+    "empty": "Nothing to chart for this period yet.",
+    "error": "This chart couldn't load.",
+    "retry": "Try again"
+  },
+  "table": {
+    "name": "Name",
+    "month": "Month",
+    "amount": "Amount",
+    "share": "Share",
+    "total": "Total",
+    "goal": "Goal"
+  },
+  "estimate": "{value} (estimate)",
+  "barList": {
+    "summary": "{count, plural, one {# item} other {# items}}, {total} in total. Largest: {label}, {amount}."
+  },
+  "trend": {
+    "explore": "Chart values. Use the left and right arrow keys to read each month.",
+    "series": "{label}: {first} in {firstMonth}, {last} in {lastMonth}, highest {max} in {maxMonth}."
+  },
+  "projection": {
+    "actual": "Actual",
+    "projected": "Projected (estimate)",
+    "goal": "Goal {amount}",
+    "reaches": "Reaches the goal in {month} (estimate).",
+    "reached": "Goal reached in {month}.",
+    "beyond": "At this pace the goal is reached in {month}, after this chart ends.",
+    "notReached": "At this pace the goal is not reached by {month}.",
+    "summary": "{last} in {lastMonth}, projected {projected} by {endMonth}."
+  },
+  "sparkline": {
+    "summary": "{count, plural, one {# month} other {# months}}: from {first} to {last}."
+  }
+}

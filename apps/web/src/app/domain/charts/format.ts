@@ -4,6 +4,15 @@
  * form and whole percentages.
  */
 import { DEFAULT_CURRENCY, MINUS_SIGN, formatMoney, type Cents } from '../money'
+import { isYearMonth, label, type MonthLabelOptions } from '../month'
+
+/**
+ * A chart x value ('YYYY-MM') as month text ("Oct", "October 2026"); any
+ * other value is shown as given rather than failing the chart.
+ */
+export function monthText(x: string, locale: string, options: MonthLabelOptions = {}): string {
+  return isYearMonth(x) ? label(x, locale, options) : x
+}
 
 const COMPACT_UNITS = [
   { size: 1_000_000, suffix: 'M' },

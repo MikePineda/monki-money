@@ -1,0 +1,6 @@
+@use '../chart-svg';
+
+// Vertical scrolling stays native; a horizontal drag scrubs the crosshair.
+.plot {
+  touch-action: pan-y;
+}

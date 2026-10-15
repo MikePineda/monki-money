@@ -37,6 +37,22 @@ export interface StackedLayout {
   totalCents: number
 }
 
+/** The data-end radius for bars and columns (dataviz: 4px). */
+export const DATA_END_RADIUS = 4
+
+/**
+ * A horizontal bar growing to the right: square at the baseline (left) and
+ * rounded at the data end (right). The radius shrinks for slivers.
+ */
+export function dataEndPath(x: number, y: number, width: number, height: number): string {
+  const r = Math.max(0, Math.min(DATA_END_RADIUS, width, height / 2))
+  const end = x + width
+  return (
+    `M${x},${y}H${end - r}A${r},${r} 0 0 1 ${end},${y + r}` +
+    `V${y + height - r}A${r},${r} 0 0 1 ${end - r},${y + height}H${x}Z`
+  )
+}
+
 export function layoutStacked100(
   data: readonly StackedInput[],
   width: number,
