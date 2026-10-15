@@ -1,0 +1,389 @@
+<div
+  data-testid="kit.page"
+  class="mx-auto flex min-h-dvh w-full max-w-app flex-col bg-surface-0 pt-safe pb-24 text-ink-1"
+>
+  <header
+    class="sticky top-0 z-30 flex flex-col gap-2 border-b border-line bg-surface-0 px-4 pt-2 pb-3"
+  >
+    <div class="flex h-10 items-center justify-between">
+      <h1 class="text-title">{{ 'kit.title' | transloco }}</h1>
+      <span class="text-caption text-ink-3">{{ 'kit.devOnly' | transloco }}</span>
+    </div>
+    <app-segmented-control
+      [label]="'kit.theme.label' | transloco"
+      [options]="themeOptions()"
+      [value]="theme.preference()"
+      (valueChange)="theme.setPreference($event)"
+    />
+    <app-segmented-control
+      [label]="'kit.lang.label' | transloco"
+      [options]="langOptions()"
+      [value]="lang.lang()"
+      (valueChange)="lang.setLang($event)"
+    />
+  </header>
+
+  <main class="flex flex-col gap-8 px-4 pt-6">
+    <!-- Tokens -->
+    <section class="flex flex-col gap-4">
+      <app-section-header
+        [title]="'kit.sections.tokens' | transloco"
+        [subtitle]="'kit.sections.tokensHint' | transloco"
+      />
+      @for (group of swatches; track group.group) {
+      <div class="grid grid-cols-4 gap-2">
+        @for (swatch of group.swatches; track swatch.token) {
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="h-10 rounded-md border border-line" [class]="swatch.className"></span>
+          <code class="truncate text-caption text-ink-3">{{ swatch.token }}</code>
+        </div>
+        }
+      </div>
+      }
+    </section>
+
+    <!-- Type -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.type' | transloco" />
+      <div class="flex flex-col gap-3">
+        <p class="text-display pnum">$2,263<span class="text-ink-2">.40</span></p>
+        <p class="text-title">{{ 'kit.type.title' | transloco }}</p>
+        <p class="text-heading">{{ 'kit.type.heading' | transloco }}</p>
+        <p class="text-body">{{ 'kit.type.body' | transloco }}</p>
+        <p class="text-body-strong">{{ 'kit.type.bodyStrong' | transloco }}</p>
+        <p class="text-amount tnum">$1,284.50 · $84.20 · $3,200.00</p>
+        <p class="text-label text-ink-2">{{ 'kit.type.label' | transloco }}</p>
+        <p class="text-eyebrow uppercase text-ink-2">{{ 'kit.type.eyebrow' | transloco }}</p>
+        <p class="text-caption text-ink-3">{{ 'kit.type.caption' | transloco }}</p>
+        <ul class="flex flex-col text-caption text-ink-3">
+          @for (line of pluralSample(); track $index) {
+          <li>{{ line }}</li>
+          }
+        </ul>
+      </div>
+    </section>
+
+    <!-- Buttons -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.buttons' | transloco" />
+      <div class="flex flex-wrap items-center gap-2">
+        <button appButton type="button">{{ 'kit.button.primary' | transloco }}</button>
+        <button appButton type="button" variant="secondary">
+          {{ 'kit.button.secondary' | transloco }}
+        </button>
+        <button appButton type="button" variant="ghost">
+          {{ 'kit.button.ghost' | transloco }}
+        </button>
+        <button appButton type="button" variant="link">{{ 'kit.button.link' | transloco }}</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button appButton type="button" variant="destructive">
+          {{ 'kit.button.destructive' | transloco }}
+        </button>
+        <button appButton type="button" disabled>{{ 'kit.button.disabled' | transloco }}</button>
+        <button
+          appButton
+          type="button"
+          variant="secondary"
+          icon="plus"
+          [loading]="loading()"
+          (click)="toggleLoading()"
+        >
+          {{ 'kit.button.loading' | transloco }}
+        </button>
+      </div>
+      <button appButton type="button" size="block">{{ 'kit.button.block' | transloco }}</button>
+      <div class="flex items-center gap-2">
+        <button
+          appIconButton
+          type="button"
+          icon="search"
+          [label]="'kit.button.search' | transloco"
+        ></button>
+        <button
+          appIconButton
+          type="button"
+          icon="table-2"
+          [label]="'kit.button.table' | transloco"
+          [pressed]="tablePressed()"
+          (click)="tablePressed.set(!tablePressed())"
+        ></button>
+        <button
+          appIconButton
+          type="button"
+          icon="calendar"
+          [label]="'kit.button.pickMonth' | transloco"
+          disabled
+        ></button>
+      </div>
+    </section>
+
+    <!-- Fields -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.fields' | transloco" />
+      <app-text-field
+        [label]="'kit.field.note' | transloco"
+        [hint]="'kit.field.noteHint' | transloco"
+        [(value)]="note"
+      />
+      <app-text-field
+        [label]="'kit.field.email' | transloco"
+        type="email"
+        value="sam@example"
+        [error]="'kit.field.emailError' | transloco"
+      />
+      <app-text-field
+        [label]="'kit.field.disabled' | transloco"
+        value="NAB Everyday"
+        [disabled]="true"
+      />
+    </section>
+
+    <!-- Amounts and keypad -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.amounts' | transloco" />
+      <app-segmented-control
+        [label]="'kit.kind.label' | transloco"
+        [options]="kindOptions()"
+        [(value)]="kind"
+      />
+      <div class="flex flex-col items-center gap-1 py-2">
+        <app-amount-display variant="hero" [cents]="amountCents()" />
+        <span class="text-caption text-ink-3">{{ 'kit.amount.heroHint' | transloco }}</span>
+      </div>
+      <app-amount-keypad class="-mx-4" [(value)]="amountCents" />
+      <div class="flex flex-col gap-1">
+        <app-amount-display class="self-end" [cents]="8420" kind="expense" />
+        <app-amount-display class="self-end" [cents]="320000" kind="income" />
+        <app-amount-display class="self-end" [cents]="50000" kind="transfer" />
+      </div>
+    </section>
+
+    <!-- Chips -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.chips' | transloco" />
+      <div class="flex flex-wrap gap-2">
+        <button appChip toggle [(selected)]="groceriesSelected">
+          {{ 'kit.data.groceries' | transloco }}
+        </button>
+        <button appChip toggle [(selected)]="rentSelected">
+          {{ 'kit.data.rent' | transloco }}
+        </button>
+        <button appChip trailing="chevron-down" (click)="openAccountSheet()">
+          {{ accountLabel() }}
+        </button>
+        <button appChip person="a">{{ 'kit.data.you' | transloco }}</button>
+        <button appChip person="b">{{ 'kit.data.partner' | transloco }}</button>
+        <button appChip person="joint">{{ 'kit.data.shared' | transloco }}</button>
+      </div>
+    </section>
+
+    <!-- List rows -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.rows' | transloco" />
+      <div role="list" class="-mx-4">
+        <app-list-row
+          icon="shopping-cart"
+          title="Woolworths Riverside"
+          [meta]="[('kit.data.groceries' | transloco), 'NAB Everyday']"
+          person="b"
+          [amountCents]="14265"
+          kind="expense"
+          interactive
+        />
+        <app-list-row
+          icon="wallet"
+          title="Hnry"
+          [meta]="[('kit.data.income' | transloco), 'Hnry']"
+          person="a"
+          [amountCents]="320000"
+          kind="income"
+          interactive
+        />
+        <app-list-row
+          icon="arrow-left-right"
+          [title]="'kit.data.toSavings' | transloco"
+          [meta]="['NAB Everyday → NAB Savings']"
+          person="joint"
+          [amountCents]="50000"
+          kind="transfer"
+          interactive
+        />
+      </div>
+    </section>
+
+    <!-- Month picker and stats -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.month' | transloco" />
+      <app-month-picker
+        [label]="'kit.month.label' | transloco"
+        [current]="currentMonth"
+        [(selected)]="month"
+      />
+      <div class="grid grid-cols-3">
+        <app-stat-tile
+          [label]="'kit.stats.income' | transloco"
+          [valueCents]="514000"
+          trend="down"
+          [favourable]="false"
+          [deltaText]="'kit.stats.incomeDelta' | transloco"
+        />
+        <app-stat-tile
+          [label]="'kit.stats.spending' | transloco"
+          [valueCents]="226340"
+          trend="down"
+          [favourable]="true"
+          [deltaText]="'kit.stats.spendingDelta' | transloco"
+        />
+        <app-stat-tile
+          [label]="'kit.stats.saved' | transloco"
+          [valueCents]="287660"
+          trend="up"
+          [favourable]="true"
+          [deltaText]="'kit.stats.savedDelta' | transloco"
+        />
+      </div>
+    </section>
+
+    <!-- Card -->
+    <section class="flex flex-col gap-4">
+      <app-section-header
+        [eyebrow]="'kit.sections.cardEyebrow' | transloco"
+        [title]="'kit.sections.card' | transloco"
+      >
+        <button sectionAction appButton type="button" variant="link">
+          {{ 'kit.card.seeAll' | transloco }}
+        </button>
+      </app-section-header>
+      <app-card [eyebrow]="'kit.card.eyebrow' | transloco">
+        <p class="text-body">{{ 'kit.card.body' | transloco }}</p>
+      </app-card>
+    </section>
+
+    <!-- Sheets -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.sheets' | transloco" />
+      <div class="flex flex-wrap gap-2">
+        <button appButton type="button" variant="secondary" (click)="openDemoSheet()">
+          {{ 'kit.sheet.open' | transloco }}
+        </button>
+        <button appButton type="button" variant="secondary" (click)="openAccountSheet()">
+          {{ 'kit.sheet.openAccount' | transloco }}
+        </button>
+        <button appButton type="button" variant="secondary" (click)="openCategorySheet()">
+          {{ 'kit.sheet.openCategory' | transloco }}
+        </button>
+      </div>
+      <p class="text-caption text-ink-3">
+        {{ 'kit.sheet.current' | transloco: { account: accountLabel(), category: (category() |
+        transloco) } }}
+      </p>
+    </section>
+
+    <!-- Feedback -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.feedback' | transloco" />
+      <app-toast
+        [message]="'kit.toast.saved' | transloco"
+        status="good"
+        [actionLabel]="'kit.toast.undo' | transloco"
+      />
+      <app-toast
+        [message]="'pwa.update.ready' | transloco"
+        [actionLabel]="'pwa.update.action' | transloco"
+        [dismissLabel]="'ui.toast.dismiss' | transloco"
+      />
+      <div class="flex flex-wrap gap-2">
+        <button appButton type="button" variant="secondary" (click)="showToast()">
+          {{ 'kit.toast.show' | transloco }}
+        </button>
+        <button appButton type="button" variant="secondary" (click)="showPersistentToast()">
+          {{ 'kit.toast.showPersistent' | transloco }}
+        </button>
+      </div>
+      @if (bannerVisible()) {
+      <app-banner
+        [message]="'kit.banner.update' | transloco"
+        icon="refresh-cw"
+        [actionLabel]="'pwa.update.action' | transloco"
+        [dismissLabel]="'ui.toast.dismiss' | transloco"
+        (dismissed)="bannerVisible.set(false)"
+      />
+      }
+      <app-banner [message]="'kit.banner.offline' | transloco" icon="wifi-off" />
+      <app-banner [message]="'kit.banner.warning' | transloco" status="warning" />
+      <app-banner [message]="'kit.banner.serious' | transloco" status="serious" />
+    </section>
+
+    <!-- Progress -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.progress' | transloco" />
+      <div class="flex flex-col gap-1">
+        <app-progress-track [label]="'kit.progress.upload' | transloco" [value]="0.35" />
+        <span class="text-caption tnum text-ink-2"
+          >{{ 'kit.progress.uploadDetail' | transloco }}</span
+        >
+      </div>
+      <app-progress-track [label]="'kit.progress.indeterminate' | transloco" [value]="null" />
+      <app-progress-track
+        [label]="'kit.progress.meter' | transloco"
+        variant="meter"
+        [value]="0.5"
+      />
+      <app-progress-track
+        [label]="'kit.progress.meter' | transloco"
+        variant="meter"
+        [value]="0.92"
+      />
+      <app-progress-track
+        [label]="'kit.progress.meter' | transloco"
+        variant="meter"
+        [value]="1.2"
+      />
+      <div class="flex flex-col gap-1">
+        <span class="text-caption text-ink-2">{{ 'kit.progress.steps' | transloco }}</span>
+        <app-progress-track [label]="'kit.progress.steps' | transloco" [steps]="4" [current]="2" />
+      </div>
+    </section>
+
+    <!-- Empty state and skeleton -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.empty' | transloco" />
+      <app-empty-state
+        icon="inbox"
+        [title]="'kit.empty.title' | transloco"
+        [body]="'kit.empty.body' | transloco"
+      >
+        <button appButton type="button" variant="secondary" icon="plus">
+          {{ 'kit.empty.action' | transloco }}
+        </button>
+      </app-empty-state>
+      <div class="flex flex-col gap-3">
+        <app-skeleton width="60%" height="16px" />
+        <app-skeleton width="40%" height="48px" />
+        <div class="flex items-center gap-3">
+          <app-skeleton width="36px" height="36px" />
+          <div class="flex flex-1 flex-col gap-2">
+            <app-skeleton width="70%" height="14px" />
+            <app-skeleton width="45%" height="12px" />
+          </div>
+          <app-skeleton width="64px" height="16px" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab bar -->
+    <section class="flex flex-col gap-4">
+      <app-section-header [title]="'kit.sections.tabBar' | transloco" />
+      <app-tab-bar
+        class="-mx-4"
+        [tabs]="tabs()"
+        [label]="'kit.tabs.label' | transloco"
+        [addLabel]="'kit.tabs.add' | transloco"
+        addPath="/__kit"
+      />
+    </section>
+  </main>
+
+  <app-toast-outlet class="fixed inset-x-0 bottom-[calc(var(--safe-bottom)+16px)] z-40" />
+</div>

@@ -1,0 +1,12 @@
+{
+  "title": {
+    "expense": "Add expense",
+    "income": "Add income",
+    "transfer": "Add transfer"
+  },
+  "done": "Done",
+  "empty": {
+    "title": "Quick add is next.",
+    "body": "You will record an expense, an income or a transfer here in about three taps."
+  }
+}

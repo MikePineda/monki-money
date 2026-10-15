@@ -1,0 +1,11 @@
+{
+  "title": "Mes",
+  "picker": {
+    "label": "Mes"
+  },
+  "empty": {
+    "title": "Aún no hay movimientos en {month}.",
+    "body": "Agrega el primero, o importa el CSV de tu banco cuando la importación esté lista.",
+    "action": "Agregar movimiento"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Transactions",
+  "empty": {
+    "title": "No transactions yet.",
+    "body": "Everything you and your partner record shows up here, grouped by day.",
+    "action": "Add transaction"
+  }
+}
