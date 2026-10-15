@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import HouseholdMember from '#models/household_member'
 import { categoryBySlug } from '#tests/helpers/ledger'
 import { createHousehold } from '#tests/helpers/household'
 import { TransactionFactory } from '#database/factories/transaction_factory'
@@ -77,16 +78,12 @@ test.group('Private transactions', () => {
   })
 
   test('test_partner_cannot_change_a_private_transaction', async ({ client, assert }) => {
-    const { member, household, gift, gifts } = await surpriseGift()
-    const books = await categoryBySlug(household.id, 'books-courses')
+    const { member, gift, gifts } = await surpriseGift()
 
     for (const request of [
       client.patch(`/api/v1/transactions/${gift.id}`).json({ isPrivate: false }),
       client.delete(`/api/v1/transactions/${gift.id}`),
       client.put(`/api/v1/transactions/${gift.id}/splits`).json({ splits: [] }),
-      client
-        .post('/api/v1/transactions/bulk-categorize')
-        .json({ ids: [gift.id], categoryId: books.id }),
     ]) {
       const response = await request.actingAs(member)
       response.assertStatus(403)
@@ -122,5 +119,86 @@ test.group('Private transactions', () => {
       .get(`/api/v1/reports/category/${gifts.id}?month=2026-10&months=1`)
       .actingAs(member)
     assert.equal(trend.body().data.totalCents, 0)
+  })
+
+  test('test_bulk_categorize_skips_the_partners_private_rows', async ({ client, assert }) => {
+    const { member, household, accounts, gift, gifts } = await surpriseGift()
+    const books = await categoryBySlug(household.id, 'books-courses')
+    const mine = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      paidByUserId: member.id,
+    }).create()
+
+    const response = await client
+      .post('/api/v1/transactions/bulk-categorize')
+      .json({ ids: [gift.id, mine.id], categoryId: books.id })
+      .actingAs(member)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ data: { updated: 1, skipped: 1 } })
+    await gift.refresh()
+    assert.equal(gift.categoryId, gifts.id)
+    await mine.refresh()
+    assert.equal(mine.categoryId, books.id)
+  })
+
+  test('test_partner_review_queue_excludes_private_rows', async ({ client, assert }) => {
+    const { owner, member, gift } = await surpriseGift()
+    await gift.merge({ needsReview: true }).save()
+
+    const partner = await client.get('/api/v1/transactions?needsReview=1').actingAs(member)
+    const payer = await client.get('/api/v1/transactions?needsReview=1').actingAs(owner)
+
+    assert.lengthOf(partner.body().data, 0)
+    assert.lengthOf(payer.body().data, 1)
+  })
+
+  test('test_private_row_of_a_former_member_is_visible_and_editable', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household, accounts } = await surpriseGift()
+    const left = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      payee: 'Old secret',
+      paidByUserId: member.id,
+      createdByUserId: member.id,
+    })
+      .apply('private')
+      .create()
+    await HouseholdMember.query()
+      .where('household_id', household.id)
+      .where('user_id', member.id)
+      .delete()
+
+    const show = await client.get(`/api/v1/transactions/${left.id}`).actingAs(owner)
+    show.assertBodyContains({ data: { isMasked: false, payee: 'Old secret' } })
+
+    const update = await client
+      .patch(`/api/v1/transactions/${left.id}`)
+      .json({ isPrivate: false })
+      .actingAs(owner)
+    update.assertStatus(200)
+    await left.refresh()
+    assert.isFalse(left.isPrivate)
+  })
+
+  test('test_private_row_without_an_owner_is_visible_to_the_household', async ({ client }) => {
+    const { member, household, accounts } = await surpriseGift()
+    const orphan = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      payee: 'Nobody owns me',
+      paidByUserId: null,
+      createdByUserId: null,
+    })
+      .apply('private')
+      .create()
+
+    const response = await client.get(`/api/v1/transactions/${orphan.id}`).actingAs(member)
+
+    response.assertBodyContains({ data: { isMasked: false, payee: 'Nobody owns me' } })
   })
 })

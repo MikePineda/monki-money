@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { readBootstrapInput } from '#services/bootstrap/bootstrap_env'
+import { readBootstrapInput, readSeedPlan } from '#services/bootstrap/bootstrap_env'
 
 const complete: Record<string, string> = {
   SEED_HOUSEHOLD_NAME: 'Synthetic Home',
@@ -78,5 +78,79 @@ test.group('Production bootstrap env', () => {
       assert.match((error as Error).message, /SEED_USER1_PASSWORD/)
       assert.notInclude((error as Error).message, 'short')
     }
+  })
+})
+
+const smoke: Record<string, string> = {
+  SMOKE_EMAIL: 'Smoke@Example.test',
+  SMOKE_PASSWORD: 'smoke-password-123',
+}
+
+test.group('Production bootstrap env: seed plan', () => {
+  test('test_the_plan_has_the_household_and_the_smoke_user_when_both_are_set', async ({
+    assert,
+  }) => {
+    const plan = await readSeedPlan(from({ ...complete, ...smoke }))
+
+    assert.equal(plan.household?.owner.email, 'owner@example.test')
+    assert.deepEqual(plan.smoke, { email: 'smoke@example.test', password: 'smoke-password-123' })
+  })
+
+  test('test_the_smoke_user_can_be_seeded_without_the_household', async ({ assert }) => {
+    // SEED_LOCALE alone does not count: .env.example ships it with a default.
+    const plan = await readSeedPlan(from({ ...smoke, SEED_LOCALE: 'en' }))
+
+    assert.isNull(plan.household)
+    assert.equal(plan.smoke?.email, 'smoke@example.test')
+  })
+
+  test('test_the_household_can_be_seeded_without_the_smoke_user', async ({ assert }) => {
+    const plan = await readSeedPlan(from(complete))
+
+    assert.equal(plan.household?.householdName, 'Synthetic Home')
+    assert.isNull(plan.smoke)
+  })
+
+  test('test_any_household_variable_makes_the_whole_household_block_required', async ({
+    assert,
+  }) => {
+    await assert.rejects(
+      () => readSeedPlan(from({ ...smoke, SEED_USER1_CARD_SUFFIX: '1111' })),
+      /SEED_HOUSEHOLD_NAME[\s\S]*SEED_USER1_PASSWORD/
+    )
+  })
+
+  test('test_a_partial_smoke_user_is_rejected', async ({ assert }) => {
+    await assert.rejects(
+      () => readSeedPlan(from({ ...complete, SMOKE_EMAIL: 'smoke@example.test' })),
+      /SMOKE_PASSWORD/
+    )
+    await assert.rejects(
+      () => readSeedPlan(from({ ...complete, SMOKE_PASSWORD: 'smoke-password-123' })),
+      /SMOKE_EMAIL/
+    )
+  })
+
+  test('test_invalid_smoke_values_fail_without_echoing_the_password', async ({ assert }) => {
+    try {
+      await readSeedPlan(from({ SMOKE_EMAIL: 'not-an-email', SMOKE_PASSWORD: 'short' }))
+      assert.fail('should have thrown')
+    } catch (error) {
+      assert.match((error as Error).message, /SMOKE_EMAIL[\s\S]*SMOKE_PASSWORD/)
+      assert.notInclude((error as Error).message, 'short')
+    }
+  })
+
+  test('test_the_smoke_user_can_never_be_one_of_the_household_users', async ({ assert }) => {
+    for (const email of ['OWNER@example.test', 'member@example.test']) {
+      await assert.rejects(
+        () => readSeedPlan(from({ ...complete, ...smoke, SMOKE_EMAIL: email })),
+        /SMOKE_EMAIL/
+      )
+    }
+  })
+
+  test('test_an_empty_plan_is_an_error', async ({ assert }) => {
+    await assert.rejects(() => readSeedPlan(from({ SEED_LOCALE: 'en' })), /nothing to seed/)
   })
 })

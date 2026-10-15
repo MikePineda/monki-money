@@ -1,0 +1,21 @@
+meta {
+  name: Health (liveness)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/health/live
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+}
+
+docs {
+  `health.live`: liveness probe, `{ status: 'ok' }` while the process
+  answers. No database check.
+}

@@ -11,7 +11,12 @@ import type { AccountKind, Locale } from '@monkimoney/shared'
 import TaxonomySeeder from '#services/households/taxonomy_seeder'
 import HouseholdCreator from '#services/households/household_creator'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import type { BootstrapInput, BootstrapUserInput } from '#services/bootstrap/dto'
+import type { BootstrapInput, BootstrapUserInput, SmokeUserInput } from '#services/bootstrap/dto'
+
+/** The smoke user's own household (see ensureSmokeUser). */
+const SMOKE_HOUSEHOLD_NAME = 'Smoke'
+const SMOKE_USER_NAME = 'Smoke Test'
+const SMOKE_LOCALE: Locale = 'en'
 
 interface AccountSpec {
   name: string
@@ -37,7 +42,8 @@ const ACCOUNTS: AccountSpec[] = [
  * First-deploy bootstrap (also the E2E seed): the household, its two
  * verified users and the starting accounts. Idempotent by email (users),
  * by the owner's current household, by account name and by card suffix:
- * re-running never duplicates rows nor resets a password.
+ * re-running never duplicates rows nor resets a password. Also creates the
+ * post-deploy smoke user in a household of its own (ensureSmokeUser).
  */
 @inject()
 export default class ProductionBootstrap {
@@ -81,6 +87,53 @@ export default class ProductionBootstrap {
       }
 
       return { household, owner, member, accounts }
+    })
+  }
+
+  /**
+   * The post-deploy smoke user: verified, owner of its own "Smoke" household
+   * (taxonomy, no accounts), so the Bruno run never touches the real
+   * household. Idempotent by email and never resets the password. A user with
+   * that email who shares a household with anyone is left alone (warning
+   * logged, by id only) and `household` comes back null.
+   */
+  async ensureSmokeUser(input: SmokeUserInput) {
+    return db.transaction(async (trx) => {
+      const user = await this.ensureUser(
+        {
+          email: input.email,
+          fullName: SMOKE_USER_NAME,
+          password: input.password,
+          cardSuffix: null,
+        },
+        SMOKE_LOCALE,
+        trx
+      )
+
+      const memberships = await HouseholdMember.query({ client: trx }).where('user_id', user.id)
+      if (memberships.length === 0) {
+        const { household } = await this.households.create(
+          { owner: user, name: SMOKE_HOUSEHOLD_NAME, locale: SMOKE_LOCALE },
+          trx
+        )
+        return { user, household }
+      }
+
+      const [membership] = memberships
+      const housemate = await HouseholdMember.query({ client: trx })
+        .where('household_id', membership.householdId)
+        .whereNot('user_id', user.id)
+        .first()
+      if (memberships.length === 1 && !housemate) {
+        const household = await Household.findOrFail(membership.householdId, { client: trx })
+        return { user, household }
+      }
+
+      logger.warn(
+        { userId: user.id },
+        'production bootstrap: the smoke user shares a household with other users; left alone'
+      )
+      return { user, household: null }
     })
   }
 

@@ -1,4 +1,5 @@
 import type Transfer from '#models/transfer'
+import type { PrivacyViewer } from '#domain/ledger/privacy'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import TransactionTransformer from '#transformers/transaction_transformer'
@@ -11,7 +12,7 @@ import TransactionTransformer from '#transformers/transaction_transformer'
 export default class TransferTransformer extends BaseTransformer<Transfer> {
   constructor(
     resource: Transfer,
-    protected viewerUserId: number
+    protected viewer: PrivacyViewer
   ) {
     super(resource)
   }
@@ -26,7 +27,7 @@ export default class TransferTransformer extends BaseTransformer<Transfer> {
       toAccountId: transfer.toAccountId,
       memo: transfer.memo,
       clientId: transfer.clientId,
-      legs: TransactionTransformer.transform(transfer.legs ?? [], this.viewerUserId),
+      legs: TransactionTransformer.transform(transfer.legs ?? [], this.viewer),
       createdByUserId: transfer.createdByUserId,
       createdAt: isoTimestamp(transfer.createdAt)!,
       updatedAt: isoTimestamp(transfer.updatedAt)!,

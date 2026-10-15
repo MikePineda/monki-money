@@ -91,7 +91,7 @@ async function seededLedger() {
 
 test.group('Reports', () => {
   test('test_month_report_matches_domain_summary_for_seeded_ledger', async ({ client, assert }) => {
-    const { owner, household, categories } = await seededLedger()
+    const { owner, member, household, categories } = await seededLedger()
 
     const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
 
@@ -117,7 +117,13 @@ test.group('Reports', () => {
     assert.equal(groceries.amountCents, 13_000)
     // And exactly what the pure domain function says over the same postings.
     const postings = await new PostingsRepository().between(household, '2026-09-01', '2026-10-31')
-    assert.deepEqual(summary, summarizeMonth(postingsFor(postings, owner.id), '2026-10'))
+    assert.deepEqual(
+      summary,
+      summarizeMonth(
+        postingsFor(postings, { userId: owner.id, memberIds: new Set([owner.id, member.id]) }),
+        '2026-10'
+      )
+    )
     assert.deepEqual(
       topMovers.find((mover: any) => mover.categoryId === categories.groceries.id),
       {
@@ -248,9 +254,8 @@ test.group('Reports', () => {
       availableBalanceCents: 215_001,
     })
     assert.include(savings, { clearedBalanceCents: 50_000, availableBalanceCents: 50_000 })
-    assert.include(response.body().data, {
-      clearedBalanceCents: 322_501,
-      availableBalanceCents: 265_001,
+    assert.deepEqual(response.body().data.totals, {
+      AUD: { clearedBalanceCents: 322_501, availableBalanceCents: 265_001 },
     })
 
     const list = await client.get('/api/v1/accounts').actingAs(owner)
@@ -258,5 +263,30 @@ test.group('Reports', () => {
       clearedBalanceCents: 272_501,
       availableBalanceCents: 215_001,
     })
+  })
+
+  test('test_balance_totals_are_grouped_by_currency', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({
+      accounts: [{ name: 'Everyday', openingBalanceCents: 1_000 }],
+    })
+    const wise = await household
+      .related('accounts')
+      .create({ name: 'Wise USD', kind: 'wallet', currencyCode: 'USD', openingBalanceCents: 700 })
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      amountCents: -100,
+    }).create()
+
+    const response = await client.get('/api/v1/reports/balances').actingAs(owner)
+
+    assert.deepEqual(response.body().data.totals, {
+      AUD: { clearedBalanceCents: 900, availableBalanceCents: 900 },
+      USD: { clearedBalanceCents: 700, availableBalanceCents: 700 },
+    })
+    assert.include(
+      response.body().data.accounts.find((row: any) => row.accountId === wise.id),
+      { currencyCode: 'USD', clearedBalanceCents: 700 }
+    )
   })
 })
