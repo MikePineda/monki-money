@@ -11,9 +11,11 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
  * A person who logs in. Emails are stored lowercased. `sessionVersion` is
  * the revocation counter compared by the verify_session_version middleware.
  */
+// The hasher is resolved lazily: commands and seeders may import this model
+// before the app has booted the hash service.
 export default class User extends compose(
   UserSchema,
-  withAuthFinder(hash, { uids: ['email'], passwordColumnName: 'password' })
+  withAuthFinder(() => hash.use(), { uids: ['email'], passwordColumnName: 'password' })
 ) {
   @belongsTo(() => Household, { foreignKey: 'currentHouseholdId' })
   declare currentHousehold: BelongsTo<typeof Household>

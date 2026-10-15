@@ -128,7 +128,14 @@ curl -s localhost:3333/api/health
   pinned to an old build. Hashed bundles are `immutable`.
 - **Client IP is `CF-Connecting-IP`.** Behind Cloudflare and Traefik,
   `request.ip()` is a proxy. Rate limits and audit logs must use the single
-  `clientIp(ctx)` helper (arrives with the auth package).
+  `clientIp(ctx)` helper (`app/services/http/client_ip.ts`).
+- **Native Postgres enums survive `migration:fresh`.** Use
+  `node ace migration:fresh --drop-types` locally (the test suite rolls back
+  with the migrations' `down`, which drop their types).
+- **Every household-scoped read goes through the scope.** Lists use
+  `Model.query().withScopes((s) => s.forHousehold(ctx.household))`, single
+  rows `findInHousehold(Model, ctx.household, id)` (404 across households).
+  A new route with `:id` fails `tenant_isolation.spec.ts` until it gets a case.
 - **`.adonisjs/` is generated and committed.** After touching routes or
   controllers run `npm run codegen`; CI fails on any diff.
 - **The web compiler type-checks API sources** reached through the Tuyau

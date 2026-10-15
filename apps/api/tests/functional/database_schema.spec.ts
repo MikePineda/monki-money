@@ -3,6 +3,7 @@ import Account from '#models/account'
 import db from '@adonisjs/lucid/services/db'
 import { POSTGRES_ENUMS } from '@monkimoney/shared'
 import { createHousehold } from '#tests/helpers/household'
+import { HouseholdFactory } from '#database/factories/household_factory'
 
 test.group('Database schema', () => {
   test('test_date_columns_round_trip_without_timezone_shift', async ({ assert, cleanup }) => {
@@ -86,5 +87,15 @@ test.group('Database schema', () => {
         })
       })
     )
+  })
+
+  test('test_household_factory_builds_members_with_users', async ({ assert }) => {
+    const household = await HouseholdFactory.with('members', 2, (member) =>
+      member.with('user')
+    ).create()
+
+    await household.load('members', (members) => members.preload('user'))
+    assert.lengthOf(household.members, 2)
+    assert.isTrue(household.members.every((member) => member.user.email.endsWith('@example.test')))
   })
 })

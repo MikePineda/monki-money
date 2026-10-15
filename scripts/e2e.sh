@@ -2,7 +2,7 @@
 # End-to-end run against the real stack, from a clean slate every time:
 #   1. ephemeral Postgres + MinIO (docker-compose.test.yml, torn down with -v)
 #   2. the Angular build copied into the API build (same layout as the image)
-#   3. migrations against the E2E database
+#   3. migrations + `seed:e2e` (household "E2E", two users) on the E2E database
 #   4. Playwright (its webServer starts the API on :3334)
 # Prefer `npm run e2e` from the repo root: turbo builds api/web/shared first.
 # Extra arguments go to Playwright, e.g. `npm run e2e -- --project=mobile-chromium`.
@@ -42,6 +42,9 @@ set +a
 
 echo "e2e: migrating ${DB_DATABASE}"
 (cd "$API_BUILD" && node ace migration:run --force)
+
+echo "e2e: seeding the E2E household"
+(cd "$API_BUILD" && node ace seed:e2e)
 
 echo "e2e: running Playwright"
 (cd e2e && npx playwright test "$@")

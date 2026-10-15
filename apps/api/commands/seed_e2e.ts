@@ -1,5 +1,4 @@
 import env from '#start/env'
-import E2eSeed from '#services/e2e/e2e_seed'
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { shouldRegisterE2eRoutes } from '#start/routes/e2e'
@@ -20,6 +19,8 @@ export default class SeedE2e extends BaseCommand {
       return
     }
 
+    // App code is imported lazily, after the app (and its services) booted.
+    const { default: E2eSeed } = await import('#services/e2e/e2e_seed')
     const seed = await this.app.container.make(E2eSeed)
     const { householdId, users } = await seed.reset()
     this.logger.success(`E2E household ${householdId} seeded with ${users.length} users`)
