@@ -227,6 +227,7 @@ export class QuickAddStore {
       this.kind.set(requestedKind)
     }
     this.loadState.set('loading')
+    const loadedBefore = this.directory.status() === 'ready'
     try {
       const [, rows] = await Promise.all([
         this.directory.load(),
@@ -235,6 +236,10 @@ export class QuickAddStore {
       this.recent.set(rows.map(toRecentEntry))
       this.applyDefaults()
       this.loadState.set('ready')
+      if (loadedBefore) {
+        // Loaded earlier in the session: pick up accounts or categories added since.
+        this.directory.refreshInBackground()
+      }
     } catch {
       this.loadState.set('error')
     }

@@ -103,6 +103,17 @@ export class HouseholdDirectory {
     return this.pending
   }
 
+  /**
+   * Screens that write with this data (quick add) open with what is loaded
+   * and refresh it behind the scenes, so an account or category added in
+   * settings shows up without a reload. Failures keep the loaded data.
+   */
+  refreshInBackground(): void {
+    if (this._status() === 'ready') {
+      this.load(true).catch(() => this._status.set('ready'))
+    }
+  }
+
   account(id: number | null): Account | null {
     return id === null ? null : (this.accountById().get(id) ?? null)
   }

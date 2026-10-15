@@ -102,6 +102,18 @@ describe('HouseholdDirectory', () => {
     expect(directory.category(10)?.group.id).toBe(1)
   })
 
+  it('test_a_background_refresh_refetches_and_keeps_data_on_failure', async () => {
+    const directory = setup([you, partner])
+    await directory.load()
+    accounts.list.mockRejectedValueOnce(new Error('offline'))
+
+    directory.refreshInBackground()
+    await vi.waitFor(() => expect(accounts.list).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(directory.status()).toBe('ready'))
+
+    expect(directory.activeAccounts().map((account) => account.id)).toEqual([1])
+  })
+
   it('test_logout_forgets_the_household', async () => {
     const directory = setup([you, partner])
     await directory.load()
