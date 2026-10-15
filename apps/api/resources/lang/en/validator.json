@@ -56,7 +56,11 @@
       "needsReview": "needs review",
       "uncategorized": "uncategorized",
       "months": "months",
-      "groupBy": "grouping"
+      "groupBy": "grouping",
+      "targetCents": "target amount",
+      "targetDate": "target date",
+      "startingCents": "amount already saved",
+      "monthlyContributionCents": "monthly contribution"
     },
     "messages": {
       "required": "Enter the {field}",

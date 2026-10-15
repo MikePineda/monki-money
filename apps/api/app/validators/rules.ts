@@ -67,6 +67,9 @@ export const cents = () => vine.number().withoutDecimals().min(-2_000_000_000).m
 /** Integer amount in cents typed by a person: positive, the sign comes from the kind. */
 export const amount = () => vine.number().withoutDecimals().positive().max(2_000_000_000)
 
+/** Integer amount in cents that cannot be negative (savings, contributions). */
+export const nonNegativeCents = () => vine.number().withoutDecimals().min(0).max(2_000_000_000)
+
 /** Integer amount in cents that may go either way (split lines). */
 export const signedCents = () => cents()
 

@@ -233,6 +233,22 @@ router
               })
               .prefix('reports')
               .as('reports')
+
+            router
+              .group(() => {
+                router.get('/', [controllers.Goals, 'index']).as('index')
+                router.post('/', [controllers.Goals, 'store']).as('store')
+                router.put('reorder', [controllers.Goals, 'reorder']).as('reorder')
+                router.get(':id', [controllers.Goals, 'show']).where('id', id).as('show')
+                router.patch(':id', [controllers.Goals, 'update']).where('id', id).as('update')
+                router.delete(':id', [controllers.Goals, 'destroy']).where('id', id).as('destroy')
+                router
+                  .get(':id/projection', [controllers.Goals, 'projection'])
+                  .where('id', id)
+                  .as('projection')
+              })
+              .prefix('goals')
+              .as('goals')
           })
           .use(inHousehold())
       })

@@ -94,4 +94,13 @@ export interface ApiDefinition {
     category: typeof routes['reports.category']
     balances: typeof routes['reports.balances']
   }
+  goals: {
+    index: typeof routes['goals.index']
+    store: typeof routes['goals.store']
+    reorder: typeof routes['goals.reorder']
+    show: typeof routes['goals.show']
+    update: typeof routes['goals.update']
+    destroy: typeof routes['goals.destroy']
+    projection: typeof routes['goals.projection']
+  }
 }

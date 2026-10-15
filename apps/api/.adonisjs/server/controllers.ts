@@ -9,6 +9,7 @@ export const controllers = {
   Categories: () => import('#controllers/categories_controller'),
   CategoryGroups: () => import('#controllers/category_groups_controller'),
   EmailVerification: () => import('#controllers/email_verification_controller'),
+  Goals: () => import('#controllers/goals_controller'),
   HealthChecks: () => import('#controllers/health_checks_controller'),
   Household: () => import('#controllers/household_controller'),
   HouseholdInvitations: () => import('#controllers/household_invitations_controller'),

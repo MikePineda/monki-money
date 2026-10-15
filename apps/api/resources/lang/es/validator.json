@@ -56,7 +56,11 @@
       "needsReview": "por revisar",
       "uncategorized": "sin categoría",
       "months": "meses",
-      "groupBy": "agrupación"
+      "groupBy": "agrupación",
+      "targetCents": "monto meta",
+      "targetDate": "fecha meta",
+      "startingCents": "monto ya ahorrado",
+      "monthlyContributionCents": "aportación mensual"
     },
     "messages": {
       "required": "Escribe el campo {field}",

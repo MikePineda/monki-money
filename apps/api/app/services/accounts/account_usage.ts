@@ -4,13 +4,13 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**
  * What references an account (deletion guard): ledger rows (transfer legs
- * included) and transfers. Import batches join here when they exist.
- * Resolved through the container, so tests can swap it.
+ * included), transfers and savings goals. Import batches join here when
+ * they exist. Resolved through the container, so tests can swap it.
  */
 export default class AccountUsage {
-  async transactionCount(account: Account, trx?: TransactionClientContract): Promise<number> {
+  async referenceCount(account: Account, trx?: TransactionClientContract): Promise<number> {
     const client = trx ?? db
-    const [transactions, transfers] = await Promise.all([
+    const counts = await Promise.all([
       client.from('transactions').where('account_id', account.id).count('* as total').first(),
       client
         .from('transfers')
@@ -19,7 +19,8 @@ export default class AccountUsage {
         )
         .count('* as total')
         .first(),
+      client.from('savings_goals').where('account_id', account.id).count('* as total').first(),
     ])
-    return Number(transactions?.total ?? 0) + Number(transfers?.total ?? 0)
+    return counts.reduce((total, row) => total + Number(row?.total ?? 0), 0)
   }
 }

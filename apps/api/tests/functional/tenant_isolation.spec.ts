@@ -4,6 +4,7 @@ import type Account from '#models/account'
 import Category from '#models/category'
 import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
+import SavingsGoal from '#models/savings_goal'
 import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import router from '@adonisjs/core/services/router'
@@ -28,6 +29,7 @@ interface Victim {
   invitation: Invitation
   transaction: Transaction
   transfer: Transfer
+  goal: SavingsGoal
 }
 
 interface Attacker {
@@ -138,6 +140,19 @@ const cases: IsolationCase[] = [
     method: 'get',
     url: (v) => `/api/v1/reports/category/${v.category.id}`,
   },
+  { route: 'goals.show', method: 'get', url: (v) => `/api/v1/goals/${v.goal.id}` },
+  {
+    route: 'goals.update',
+    method: 'patch',
+    url: (v) => `/api/v1/goals/${v.goal.id}`,
+    body: { name: 'Hijacked', status: 'reached' },
+  },
+  { route: 'goals.destroy', method: 'delete', url: (v) => `/api/v1/goals/${v.goal.id}` },
+  {
+    route: 'goals.projection',
+    method: 'get',
+    url: (v) => `/api/v1/goals/${v.goal.id}/projection`,
+  },
 ]
 
 /**
@@ -184,7 +199,14 @@ async function victimHousehold(): Promise<Victim> {
     toAccountId: household.accounts[1].id,
     memo: 'Victim memo',
   }).create()
-  return { household, account, card, group, category, invitation, transaction, transfer }
+  const goal = await SavingsGoal.create({
+    householdId: household.household.id,
+    name: 'Victim goal',
+    targetCents: 100_000,
+    accountId: account.id,
+    sortOrder: 0,
+  })
+  return { household, account, card, group, category, invitation, transaction, transfer, goal }
 }
 
 test.group('Tenant isolation', () => {
@@ -222,6 +244,8 @@ test.group('Tenant isolation', () => {
       await victim.transfer.refresh()
       assert.equal(victim.transfer.memo, 'Victim memo')
       assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
+      await victim.goal.refresh()
+      assert.include(victim.goal.serialize(), { name: 'Victim goal', status: 'active' })
     })
 
   test('test_isolation_dataset_covers_every_route_with_an_id', ({ assert }) => {
@@ -278,6 +302,9 @@ test.group('Tenant isolation', () => {
       balances.body().data.accounts.map((row: any) => row.accountId),
       [attacker.accounts[0].id]
     )
+
+    const goals = await client.get('/api/v1/goals').actingAs(attacker.owner)
+    assert.deepEqual(goals.body().data, [])
   })
 
   test('test_foreign_ids_in_ledger_bodies_are_rejected_with_422', async ({ client, assert }) => {
@@ -441,5 +468,18 @@ test.group('Tenant isolation', () => {
       .actingAs(attacker.owner)
     move.assertStatus(422)
     move.assertBodyContains({ errors: [{ field: 'categoryGroupId', rule: 'database.exists' }] })
+
+    const goal = await client
+      .post('/api/v1/goals')
+      .json({ name: 'Mine', targetCents: 1_000, accountId: victim.account.id })
+      .actingAs(attacker.owner)
+    goal.assertStatus(422)
+    goal.assertBodyContains({ errors: [{ field: 'accountId', rule: 'database.exists' }] })
+
+    const goals = await client
+      .put('/api/v1/goals/reorder')
+      .json({ ids: [victim.goal.id] })
+      .actingAs(attacker.owner)
+    goals.assertStatus(422)
   })
 })
