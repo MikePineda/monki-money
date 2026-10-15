@@ -1,0 +1,65 @@
+// SVG chart chrome shared by the line charts (DESIGN.md, Charts; dataviz,
+// Marks). Tokens only: dark mode comes from styles.css. Lives in the charts
+// chunk, not in the global stylesheet.
+//
+// `--chart-surface` is what sits behind the plot (the page by default); a
+// chart placed on a card sets it to var(--surface-1) so marker rings match.
+
+svg {
+  overflow: visible;
+}
+
+.gridline,
+.baseline,
+.crosshair,
+.threshold {
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.gridline {
+  stroke: var(--gridline);
+}
+
+.baseline {
+  stroke: var(--baseline);
+}
+
+.crosshair {
+  stroke: var(--line-strong);
+}
+
+.tick-label,
+.x-label {
+  fill: var(--ink-3);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-label {
+  fill: var(--ink-1);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.series-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+// Markers are at least 8px across with a 2px ring in the surface colour.
+.marker {
+  stroke: var(--chart-surface, var(--surface-0));
+  stroke-width: 2;
+}
+
+.plot:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}

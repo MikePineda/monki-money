@@ -146,5 +146,54 @@
     "transactions": "Movimientos",
     "more": "Más",
     "add": "Agregar movimiento"
+  },
+  "charts": {
+    "title": "Gráficas",
+    "open": "Galería de gráficas",
+    "back": "Kit de UI",
+    "state": {
+      "label": "Estado de la gráfica",
+      "ready": "Lista",
+      "loading": "Cargando",
+      "reloading": "Recargando",
+      "empty": "Vacía",
+      "error": "Error"
+    },
+    "sections": {
+      "states": "Estados del marco",
+      "statesHint": "Vista de tabla, primera carga, recarga, vacío y error.",
+      "tiles": "Indicadores con tendencia"
+    },
+    "spend": {
+      "title": "Gasto por categoría",
+      "subtitle": "{month} · {count, plural, one {# categoría} other {# categorías}}",
+      "empty": "Aún no hay gastos en {month}.",
+      "header": "Categoría"
+    },
+    "merchants": {
+      "title": "Comercios principales",
+      "header": "Comercio"
+    },
+    "trend": {
+      "title": "Tendencia · 6 meses",
+      "series": "Gasto"
+    },
+    "people": {
+      "title": "Gasto por persona"
+    },
+    "whoPaid": {
+      "title": "Quién pagó"
+    },
+    "goal": {
+      "title": "Fondo de emergencia",
+      "subtitle": "Estimado con tus últimos 3 meses de ahorro"
+    },
+    "cat": {
+      "housing": "Vivienda",
+      "food": "Comida",
+      "leisure": "Ocio",
+      "publicTransport": "Transporte público",
+      "fuel": "Gasolina"
+    }
   }
 }

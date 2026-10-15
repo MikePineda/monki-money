@@ -47,3 +47,6 @@ docs/internal/
 # Real bank exports must never enter the repo (fixtures are synthetic).
 *.csv
 !**/tests/fixtures/**/*.csv
+
+# Agent worktrees (local only)
+.claude/worktrees/
