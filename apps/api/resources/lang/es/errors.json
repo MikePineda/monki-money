@@ -39,5 +39,7 @@
   "E_IMPORT_ROWS_UNDECIDED": "Algunos movimientos todavía necesitan tu decisión",
   "E_IMPORT_BATCH_CLOSED": "Esta importación ya terminó",
   "E_IMPORT_LIMIT_REACHED": "Tu plan no permite más importaciones este mes",
+  "E_IMPORT_CLASSIFY_RUNNING": "La IA ya está revisando esta importación. Espera un momento",
+  "E_CONCURRENT_UPDATE": "Esto se estaba guardando al mismo tiempo en otro lado. Inténtalo de nuevo",
   "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento"
 }

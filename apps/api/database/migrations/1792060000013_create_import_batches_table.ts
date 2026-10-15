@@ -82,6 +82,8 @@ export default class extends BaseSchema {
       table.integer('computed_balance_cents').nullable()
       table.integer('opening_balance_cents').nullable()
 
+      // A classify run holds the batch while it lasts (stale after 10 minutes).
+      table.timestamp('classify_started_at', { useTz: true }).nullable()
       table.timestamp('completed_at', { useTz: true }).nullable()
       table.timestamp('created_at', { useTz: true }).notNullable()
       table.timestamp('updated_at', { useTz: true }).notNullable()

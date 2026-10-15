@@ -10,6 +10,9 @@ import Transaction from '#models/transaction'
 import db from '@adonisjs/lucid/services/db'
 import TransactionSplit from '#models/transaction_split'
 import { findInHousehold } from '#repositories/scoped'
+import { FieldError } from '#exceptions/field_error'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
+import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import RuleLearner from '#services/rules/rule_learner'
 import { decodeHtmlEntities } from '#importers/html_entities'
 import type { LearningDecision } from '#domain/importing/learning'
@@ -76,12 +79,9 @@ export default class ImportConfirmer {
     await findInHousehold(ImportBatch, household, batchId)
 
     return db.transaction(async (trx) => {
-      const batch = await ImportBatch.query({ client: trx })
-        .where('household_id', household.id)
-        .where('id', batchId)
-        .forUpdate()
-        .firstOrFail()
+      const batch = await this.lockBatch(household, batchId, trx)
       if (!batch.isStaged) throw new ImportBatchClosed()
+      const viewer = await privacyViewer(household, actor)
 
       for (const decision of input.decisions ?? []) {
         const row = await this.decisions.rowOf(batch, decision.rowId, trx)
@@ -112,10 +112,13 @@ export default class ImportConfirmer {
         mode === 'all' ? entry.action !== null : isAutoConfirmable(entry.review)
       ) as Applied[]
 
+      assertOneRowPerMatch(selected)
       const tally: Tally = { created: 0, matched: 0, ignored: 0, transfers: 0 }
       for (const entry of selected) {
-        if (entry.row.decidedAt !== null) await this.decisions.validate(household, entry.row)
-        await this.apply(household, actor, account, entry, tally, trx)
+        if (entry.row.decidedAt !== null) {
+          await this.decisions.validate(household, entry.row, trx)
+        }
+        await this.apply(household, actor, account, entry, tally, viewer, trx)
       }
 
       await this.learn(household, actor, selected, trx)
@@ -151,12 +154,35 @@ export default class ImportConfirmer {
     })
   }
 
+  /**
+   * Locks the batch, and with it the other staged batches of the same
+   * upload in id order: their rows link to each other's transfer legs, so
+   * two confirms of one upload always queue instead of deadlocking.
+   */
+  protected async lockBatch(household: Household, batchId: number, trx: TransactionClientContract) {
+    const target = await ImportBatch.query({ client: trx })
+      .where('household_id', household.id)
+      .where('id', batchId)
+      .firstOrFail()
+    const locked = await ImportBatch.query({ client: trx })
+      .where('household_id', household.id)
+      .where((query) =>
+        query
+          .where('id', batchId)
+          .orWhere((upload) => upload.where('file_hash', target.fileHash).where('status', 'staged'))
+      )
+      .orderBy('id')
+      .forUpdate()
+    return locked.find((batch) => batch.id === batchId)!
+  }
+
   protected async apply(
     household: Household,
     actor: User,
     account: Account,
     entry: Applied,
     tally: Tally,
+    viewer: PrivacyViewer,
     trx: TransactionClientContract
   ) {
     switch (entry.action) {
@@ -173,7 +199,7 @@ export default class ImportConfirmer {
         return
       }
       case 'transfer': {
-        const leg = await this.transfer(household, actor, account, entry, trx)
+        const leg = await this.transfer(household, actor, account, entry, viewer, trx)
         await this.link(entry.row, leg.id)
         tally.transfers++
         return
@@ -231,10 +257,21 @@ export default class ImportConfirmer {
     return transaction
   }
 
-  /** Stamps the bank's data on the existing transaction; upgrades a pending import. */
+  /**
+   * Stamps the bank's data on the existing transaction, whose status now
+   * mirrors the bank (pending while the bank row is). When the transaction
+   * was matched before to a row that was still pending (an import, or a
+   * hand entry), this posted copy upgrades it and that row is `superseded`.
+   */
   protected async match({ row, effective }: Applied, trx: TransactionClientContract) {
     const target = await this.decisions.matchTarget(row, effective.matchTransactionId!, trx)
-    const upgrade = target.source === 'import' && target.status === 'pending'
+    const pendingRows = await ImportRow.query({ client: trx })
+      .where('transaction_id', target.id)
+      .where('account_id', row.accountId)
+      .whereNot('id', row.id)
+      .whereNot('resolution', 'superseded')
+      .where('is_pending', true)
+    const upgrade = pendingRows.length > 0 || target.source === 'import'
 
     target.useTransaction(trx)
     target.merge({
@@ -243,16 +280,17 @@ export default class ImportConfirmer {
       cardSuffix: upgrade
         ? (row.cardSuffix ?? target.cardSuffix)
         : (target.cardSuffix ?? row.cardSuffix),
-      status: row.isPending ? target.status : 'cleared',
+      status: row.isPending ? 'pending' : 'cleared',
       ...(upgrade && target.paidByUserId === null ? { paidByUserId: effective.paidByUserId } : {}),
     })
     await target.save()
 
-    if (upgrade) {
+    if (pendingRows.length > 0) {
       await ImportRow.query({ client: trx })
-        .where('transaction_id', target.id)
-        .whereNot('id', row.id)
-        .whereNot('resolution', 'superseded')
+        .whereIn(
+          'id',
+          pendingRows.map((pending) => pending.id)
+        )
         .update({ resolution: 'superseded', updated_at: new Date() })
     }
     return target
@@ -268,6 +306,7 @@ export default class ImportConfirmer {
     actor: User,
     account: Account,
     { row, effective }: Applied,
+    viewer: PrivacyViewer,
     trx: TransactionClientContract
   ) {
     const other = await this.decisions.transferAccount(household, row, effective.transferAccountId!)
@@ -298,7 +337,9 @@ export default class ImportConfirmer {
       { client: trx }
     )
 
-    const existing = await this.existingLeg(row, other.id, trx)
+    // Another member's private row is never turned into a leg (it would be rewritten).
+    const found = await this.existingLeg(row, other.id, trx)
+    const existing = found && !isHiddenFrom(found, viewer) ? found : null
     if (existing) {
       await TransactionSplit.query({ client: trx }).where('transaction_id', existing.id).delete()
       existing.useTransaction(trx)
@@ -431,6 +472,16 @@ export default class ImportConfirmer {
     decisions.sort((a, b) => Number(a.explicit) - Number(b.explicit))
     await this.learner.learnFromImport(household, actor, decisions, trx)
     await this.learner.recordHits(hits, trx)
+  }
+}
+
+/** Two rows linked to one transaction would count the bank twice (422 `claimed`). */
+function assertOneRowPerMatch(selected: Applied[]) {
+  const targets = selected
+    .filter((entry) => entry.action === 'match')
+    .map((entry) => entry.effective.matchTransactionId)
+  if (new Set(targets).size !== targets.length) {
+    throw new FieldError('matchTransactionId', 'claimed')
   }
 }
 

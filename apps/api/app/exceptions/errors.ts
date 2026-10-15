@@ -137,6 +137,13 @@ export const ImportBatchClosed = domainError(
   'This import is already closed'
 )
 
+/** A classify run of the batch is still going (or crashed less than 10 minutes ago). */
+export const ImportClassifyRunning = domainError(
+  'E_IMPORT_CLASSIFY_RUNNING',
+  409,
+  'This import is already being classified'
+)
+
 /** The household's plan does not allow another import this month. */
 export const ImportLimitReached = domainError(
   'E_IMPORT_LIMIT_REACHED',

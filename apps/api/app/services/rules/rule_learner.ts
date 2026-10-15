@@ -22,20 +22,16 @@ export default class RuleLearner {
     trx: TransactionClientContract
   ): Promise<number> {
     if (decisions.length === 0) return 0
-    const existing = await MerchantRule.query({ client: trx })
-      .where('household_id', householdIdOf(household))
-      .where('match_type', 'merchant')
+    const existing = await this.existingRules(household, trx)
     const upserts = learnRules(
       decisions,
       existing.map((rule) => rule.toRule())
     )
 
     for (const upsert of upserts) {
-      const rule = existing.find((candidate) => candidate.id === upsert.existingRuleId)
       await this.save(
         household,
         actor,
-        rule ?? null,
         {
           pattern: upsert.pattern,
           categoryId: upsert.categoryId,
@@ -46,6 +42,16 @@ export default class RuleLearner {
       )
     }
     return upserts.length
+  }
+
+  /** The household's `merchant` rules (what `learnRules` compares against). */
+  protected async existingRules(
+    household: HouseholdRef,
+    trx: TransactionClientContract
+  ): Promise<MerchantRule[]> {
+    return MerchantRule.query({ client: trx })
+      .where('household_id', householdIdOf(household))
+      .where('match_type', 'merchant')
   }
 
   /**
@@ -76,7 +82,6 @@ export default class RuleLearner {
     return this.save(
       household,
       actor,
-      existing,
       {
         pattern: source.merchantFullKey,
         categoryId: transaction.categoryId,
@@ -104,10 +109,14 @@ export default class RuleLearner {
     }
   }
 
+  /**
+   * Insert or update on `(household_id, match_type, pattern)` in one
+   * statement, so two confirms learning the same merchant at once never
+   * collide on the unique index. A rule a person typed stays theirs.
+   */
   protected async save(
     household: HouseholdRef,
     actor: User,
-    rule: MerchantRule | null,
     values: {
       pattern: string
       categoryId: number | null
@@ -115,30 +124,34 @@ export default class RuleLearner {
       paidByUserId: number | null
     },
     trx: TransactionClientContract
-  ) {
-    if (rule) {
-      rule.useTransaction(trx)
-      rule.merge({
-        categoryId: values.categoryId,
-        transferAccountId: values.transferAccountId,
-        paidByUserId: values.paidByUserId,
-        origin: rule.origin === 'user' ? 'user' : 'learned',
-      })
-      await rule.save()
-      return rule
-    }
-    return MerchantRule.create(
-      {
-        householdId: householdIdOf(household),
-        matchType: 'merchant',
+  ): Promise<MerchantRule> {
+    const now = new Date()
+    const [saved] = await trx
+      .knexQuery()
+      .table('merchant_rules')
+      .insert({
+        household_id: householdIdOf(household),
+        match_type: 'merchant',
         pattern: values.pattern,
-        categoryId: values.categoryId,
-        transferAccountId: values.transferAccountId,
-        paidByUserId: values.paidByUserId,
+        category_id: values.categoryId,
+        transfer_account_id: values.transferAccountId,
+        paid_by_user_id: values.paidByUserId,
         origin: 'learned',
-        createdByUserId: actor.id,
-      },
-      { client: trx }
-    )
+        created_by_user_id: actor.id,
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflict(['household_id', 'match_type', 'pattern'])
+      .merge({
+        category_id: values.categoryId,
+        transfer_account_id: values.transferAccountId,
+        paid_by_user_id: values.paidByUserId,
+        origin: trx.knexRawQuery(
+          `CASE WHEN merchant_rules.origin = 'user' THEN merchant_rules.origin ELSE 'learned'::rule_origin END`
+        ),
+        updated_at: now,
+      })
+      .returning('id')
+    return MerchantRule.findOrFail(saved.id, { client: trx })
   }
 }

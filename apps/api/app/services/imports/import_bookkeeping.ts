@@ -79,14 +79,21 @@ export default class ImportBookkeeping {
   /**
    * The opening balance a first import derives: the balance before the
    * oldest bank row, as of the day before the earliest date of the batch
-   * (purchase or posting), so every imported row counts after it.
+   * (purchase or posting) or of the ledger rows its rows were linked to on
+   * confirm (a hand entry dated before its bank copy), so every one of them
+   * counts after it. Call it after the rows were applied.
    */
   async derivedOpening(batch: ImportBatch, trx?: TransactionClientContract): Promise<Opening> {
     const client = trx ?? db
     const row = await client
       .from('import_rows')
-      .where('import_batch_id', batch.id)
-      .select(client.raw('MIN(LEAST(date, bank_date)) AS earliest'))
+      .leftJoin('transactions', 'transactions.id', 'import_rows.transaction_id')
+      .where('import_rows.import_batch_id', batch.id)
+      .select(
+        client.raw(
+          `LEAST(MIN(LEAST(import_rows.date, import_rows.bank_date)), MIN(transactions.date)) AS earliest`
+        )
+      )
       .first()
     const earliest: string = row?.earliest ?? batch.dateFrom!
     return { cents: batch.openingBalanceCents ?? 0, date: addDays(earliest, -1) }

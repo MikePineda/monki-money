@@ -20,6 +20,7 @@ export default class ImportRowsController {
 
     const row = await this.imports.decide(ctx.household, user, params.id, params.rowId, decision)
     await row.load('matchTransaction')
+    await row.load('transaction')
 
     return ctx.serialize(
       ImportRowTransformer.transform(row, await privacyViewer(ctx.household, user))

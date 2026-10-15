@@ -170,10 +170,12 @@ export class HouseholdSchema extends BaseModel {
 }
 
 export class ImportBatchSchema extends BaseModel {
-  static $columns = ['accountId', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
+  static $columns = ['accountId', 'classifyStartedAt', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
   $columns = ImportBatchSchema.$columns
   @column()
   declare accountId: number
+  @column.dateTime()
+  declare classifyStartedAt: DateTime | null
   @column.dateTime()
   declare completedAt: DateTime | null
   @column()

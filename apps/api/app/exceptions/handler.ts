@@ -12,6 +12,13 @@ const PG_UNIQUE_VIOLATION = '23505'
 /** Postgres foreign_key_violation: a delete raced an insert (or the reverse). */
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
+/**
+ * Postgres deadlock_detected / serialization_failure: two writers locked
+ * the same rows in opposite order (e.g. the two batches of one upload
+ * confirmed at once). Nothing was written; the client may simply retry.
+ */
+const PG_RETRYABLE = ['40P01', '40001']
+
 /** Deleted parent (the statement Knex prefixes to the message) -> its "in use" code. */
 const IN_USE_ON_DELETE: Array<[RegExp, string]> = [
   [/^delete from "categories"/, 'E_CATEGORY_IN_USE'],
@@ -59,7 +66,8 @@ function detailsOf(error: unknown): Record<string, unknown> {
  *   pre-check) answer 409 `E_CONFLICT`, never the constraint name. Foreign
  *   key violations answer 409 too: `E_CATEGORY_IN_USE` / `E_ACCOUNT_IN_USE`
  *   when deleting the parent lost a race against an insert, else
- *   `E_CONFLICT`.
+ *   `E_CONFLICT`. Deadlocks and serialization failures answer 409
+ *   `E_CONCURRENT_UPDATE` (retryable).
  * - 5xx: debug page in development; in production a generic translated
  *   `{ message, code: 'E_INTERNAL_SERVER_ERROR' }` (driver messages, table
  *   and constraint names never leave the server, they go to the logs).
@@ -77,6 +85,14 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return ctx.response
         .status(409)
         .send({ message: translate('E_CONFLICT', 'Conflict'), code: 'E_CONFLICT' })
+    }
+
+    if (PG_RETRYABLE.some((code) => hasPgCode(error, code))) {
+      ;(error as Error & { status?: number }).status = 409
+      return ctx.response.status(409).send({
+        message: translate('E_CONCURRENT_UPDATE', 'Concurrent update'),
+        code: 'E_CONCURRENT_UPDATE',
+      })
     }
 
     if (hasPgCode(error, PG_FOREIGN_KEY_VIOLATION)) {

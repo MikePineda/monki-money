@@ -7,6 +7,7 @@ import Transaction from '#models/transaction'
 import MerchantRule from '#models/merchant_rule'
 import drive from '@adonisjs/drive/services/main'
 import { categoryBySlug, freezeClock } from '#tests/helpers/ledger'
+import { TransactionFactory } from '#database/factories/transaction_factory'
 import { NAB_HEADER, nabCsv, nabFixture } from '#tests/helpers/importing'
 import { countOf, nabHousehold, nabLine, rowsStartingWith, uploadCsv } from '#tests/helpers/imports'
 
@@ -242,7 +243,10 @@ test.group('Imports: confirm', (group) => {
 
     const first = await uploadCsv(client, home.owner, nabCsv([pendingLine]))
     const firstBatch = first.body().data[0]
-    await client.post(`/api/v1/imports/${firstBatch.id}/confirm`).actingAs(home.owner)
+    const firstConfirm = await client
+      .post(`/api/v1/imports/${firstBatch.id}/confirm`)
+      .actingAs(home.owner)
+    assert.isTrue(firstConfirm.body().data.reconciliation.balanced)
     const pending = await Transaction.query().where('account_id', home.everyday.id).firstOrFail()
     assert.equal(pending.status, 'pending')
     const pendingRow = await ImportRow.query().where('import_batch_id', firstBatch.id).firstOrFail()
@@ -253,12 +257,19 @@ test.group('Imports: confirm', (group) => {
     const [posted] = detail.body().data.rows
     assert.equal(posted.resolution, 'auto_matched')
     assert.include(posted.match, { transactionId: pending.id, upgradesPending: true })
+    await pending.refresh()
+    assert.isFalse(pending.needsReview, 'its posted copy is right here: not stale')
 
     const confirm = await client
       .post(`/api/v1/imports/${secondBatch.id}/confirm`)
       .actingAs(home.owner)
 
     confirm.assertStatus(200)
+    assert.deepInclude(confirm.body().data.reconciliation, {
+      expectedBalanceCents: 49_400,
+      computedBalanceCents: 49_400,
+      balanced: true,
+    })
     const ledger = await Transaction.query().where('account_id', home.everyday.id)
     assert.lengthOf(ledger, 1, 'the posted row replaced the pending one, it did not add one')
     assert.include(ledger[0].serialize(), {
@@ -272,6 +283,313 @@ test.group('Imports: confirm', (group) => {
     assert.equal(pendingRow.resolution, 'superseded')
     const postedRow = await ImportRow.findOrFail(posted.id)
     assert.equal(postedRow.transactionId, pending.id)
+  })
+
+  test('test_pending_import_missing_from_a_later_export_is_flagged_for_review', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const [pendingLine] = fixtureLines('pending-then-posted.csv')
+    const first = await uploadCsv(client, home.owner, nabCsv([pendingLine]))
+    await client.post(`/api/v1/imports/${first.body().data[0].id}/confirm`).actingAs(home.owner)
+    const pending = await Transaction.query().where('account_id', home.everyday.id).firstOrFail()
+    assert.isFalse(pending.needsReview)
+
+    // The hold vanished: the next export covers its date without it or a posted copy.
+    const later = nabCsv([
+      nabLine({
+        date: '28 Sept 26',
+        amount: '-3.00',
+        details: 'V1111 27/09 CORNER BAKERY SAMPLEVILLE 70000000940',
+        balance: '497.00',
+        category: 'Restaurants & takeaway',
+      }),
+      nabLine({
+        date: '25 Sept 26',
+        amount: '-1.00',
+        details: 'V1111 24/09 CORNER BAKERY SAMPLEVILLE 70000000941',
+        balance: '500.00',
+        category: 'Restaurants & takeaway',
+      }),
+    ])
+    await uploadCsv(client, home.owner, later)
+
+    await pending.refresh()
+    assert.isTrue(pending.needsReview, 'surfaced for review: it may never post')
+    assert.equal(pending.status, 'pending')
+  })
+
+  test('test_hand_entry_matched_while_pending_is_upgraded_by_the_posted_copy', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const [pendingLine, postedLine] = fixtureLines('pending-then-posted.csv')
+    const manual = await client
+      .post('/api/v1/transactions')
+      .json({
+        accountId: home.everyday.id,
+        kind: 'expense',
+        date: '2026-09-26',
+        amountCents: 600,
+        payee: 'Kmart',
+      })
+      .actingAs(home.owner)
+    const manualId = manual.body().data.id
+
+    const first = await uploadCsv(client, home.owner, nabCsv([pendingLine]))
+    const firstConfirm = await client
+      .post(`/api/v1/imports/${first.body().data[0].id}/confirm`)
+      .actingAs(home.owner)
+    assert.equal(firstConfirm.body().data.matched, 1)
+    const whilePending = await Transaction.findOrFail(manualId)
+    assert.equal(whilePending.status, 'pending', 'the ledger mirrors the bank: still pending')
+
+    const second = await uploadCsv(client, home.owner, nabCsv([postedLine]))
+    const detail = await client
+      .get(`/api/v1/imports/${second.body().data[0].id}`)
+      .actingAs(home.owner)
+    const [posted] = detail.body().data.rows
+    assert.equal(posted.resolution, 'auto_matched')
+    assert.include(posted.match, { transactionId: manualId, upgradesPending: true })
+
+    const confirm = await client
+      .post(`/api/v1/imports/${second.body().data[0].id}/confirm`)
+      .actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    assert.isTrue(confirm.body().data.reconciliation.balanced)
+    const ledger = await Transaction.query().where('account_id', home.everyday.id)
+    assert.lengthOf(ledger, 1, 'still the one hand entry')
+    assert.include(ledger[0].serialize(), { id: manualId, status: 'cleared', source: 'manual' })
+    const rows = await ImportRow.query().where('household_id', home.household.id).orderBy('id')
+    assert.deepEqual(
+      rows.map((row) => row.resolution),
+      ['superseded', 'auto_matched']
+    )
+  })
+
+  test('test_opening_balance_counts_a_match_dated_before_the_oldest_row', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const manual = await client
+      .post('/api/v1/transactions')
+      .json({
+        accountId: home.everyday.id,
+        kind: 'expense',
+        date: '2026-09-27',
+        amountCents: 1_200,
+        payee: 'Corner Bakery',
+      })
+      .actingAs(home.owner)
+    const csv = nabCsv([
+      nabLine({
+        date: '30 Sept 26',
+        amount: '-10.00',
+        details: 'V1111 30/09 FRESHCO MARKET NORTHVALE 70000000920',
+        balance: '978.00',
+        category: 'Groceries',
+        merchant: 'FreshCo Market',
+      }),
+      nabLine({
+        date: '29 Sept 26',
+        amount: '-12.00',
+        details: 'V1111 29/09 CORNER BAKERY SAMPLEVILLE 70000000921',
+        balance: '988.00',
+        category: 'Restaurants & takeaway',
+        merchant: 'Corner Bakery',
+      }),
+    ])
+    const upload = await uploadCsv(client, home.owner, csv)
+    const batch = upload.body().data[0]
+    assert.equal(batch.counts.autoMatched, 1)
+    assert.isTrue(batch.reconciliation.balanced, 'the staging projection already balances')
+
+    const confirm = await client.post(`/api/v1/imports/${batch.id}/confirm`).actingAs(home.owner)
+
+    assert.isTrue(confirm.body().data.reconciliation.balanced)
+    const everyday = await Account.findOrFail(home.everyday.id)
+    assert.equal(everyday.openingBalanceDate, '2026-09-26')
+    const balances = await client.get('/api/v1/reports/balances').actingAs(home.owner)
+    const row = balances
+      .body()
+      .data.accounts.find((account: any) => account.accountId === home.everyday.id)
+    assert.equal(row.availableBalanceCents, 97_800)
+    const matched = await Transaction.findOrFail(manual.body().data.id)
+    assert.equal(matched.bankDate, '2026-09-29')
+  })
+
+  test('test_zero_amount_rows_can_only_be_ignored', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batch = upload.body().data[0]
+    const detail = await client.get(`/api/v1/imports/${batch.id}`).actingAs(home.owner)
+    const [zero] = rowsStartingWith(detail.body().data.rows, 'POS 27/09 TRANSLINK')
+    assert.equal(zero.resolution, 'ignored')
+
+    for (const body of [
+      { resolution: 'new' },
+      { resolution: 'transfer_leg', transferAccountId: home.savings.id },
+    ]) {
+      const response = await client
+        .patch(`/api/v1/imports/${batch.id}/rows/${zero.id}`)
+        .json(body)
+        .actingAs(home.owner)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field: 'resolution', rule: 'zeroAmount' }] })
+    }
+    const confirm = await client
+      .post(`/api/v1/imports/${batch.id}/confirm`)
+      .json({ decisions: [{ rowId: zero.id, resolution: 'new' }] })
+      .actingAs(home.owner)
+    confirm.assertStatus(422)
+    assert.equal(await countOf(Transaction.query().where('amount_cents', 0)), 0)
+  })
+
+  test('test_match_decisions_need_the_same_amount_and_a_free_transaction', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const other = await nabHousehold()
+    const entry = (amountCents: number, date: string) =>
+      TransactionFactory.merge({
+        householdId: home.household.id,
+        accountId: home.everyday.id,
+        amountCents,
+        date,
+        kind: amountCents < 0 ? 'expense' : 'income',
+      }).create()
+    const otherAmount = await entry(-999, '2026-08-01')
+    const deli = await entry(-3_254, '2026-08-01')
+    const alreadyLinked = await entry(-3_254, '2026-07-01')
+    const cash = await entry(10_000, '2025-12-01')
+    const cashToo = await entry(10_000, '2025-12-02')
+    const foreign = await TransactionFactory.merge({
+      householdId: other.household.id,
+      accountId: other.everyday.id,
+      amountCents: -3_254,
+    }).create()
+    // `alreadyLinked` is the bank copy of an earlier export.
+    const earlier = await ImportBatch.create({
+      householdId: home.household.id,
+      accountId: home.everyday.id,
+      source: 'nab_csv',
+      status: 'completed',
+      fileHash: 'e'.repeat(64),
+    })
+    await ImportRow.create({
+      importBatchId: earlier.id,
+      householdId: home.household.id,
+      accountId: home.everyday.id,
+      rowIndex: 0,
+      externalHash: 'f'.repeat(64),
+      raw: {},
+      bankDate: '2026-07-01',
+      date: '2026-07-01',
+      amountCents: -3_254,
+      descriptionRaw: 'EARLIER',
+      descriptionNormalized: 'EARLIER',
+      resolution: 'new',
+      reasons: [],
+      transactionId: alreadyLinked.id,
+    })
+
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batch = upload.body().data[0]
+    const detail = await client.get(`/api/v1/imports/${batch.id}`).actingAs(home.owner)
+    const [riverside] = rowsStartingWith(detail.body().data.rows, 'V1111 29/08 RIVERSIDE')
+    const [cashOne, cashTwo] = rowsStartingWith(detail.body().data.rows, 'CASH')
+    const decide = (rowId: number, body: Record<string, unknown>) =>
+      client.patch(`/api/v1/imports/${batch.id}/rows/${rowId}`).json(body).actingAs(home.owner)
+    const rejects = async (
+      rowId: number,
+      body: Record<string, unknown>,
+      field: string,
+      rule: string
+    ) => {
+      const response = await decide(rowId, body)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field, rule }] })
+    }
+
+    await rejects(
+      riverside.id,
+      { resolution: 'auto_matched', matchTransactionId: otherAmount.id },
+      'matchTransactionId',
+      'amountMismatch'
+    )
+    await rejects(
+      riverside.id,
+      { resolution: 'auto_matched', matchTransactionId: alreadyLinked.id },
+      'matchTransactionId',
+      'claimed'
+    )
+    await rejects(
+      riverside.id,
+      { resolution: 'auto_matched', matchTransactionId: foreign.id },
+      'matchTransactionId',
+      'database.exists'
+    )
+    await rejects(
+      riverside.id,
+      { resolution: 'transfer_leg', transferAccountId: other.savings.id },
+      'transferAccountId',
+      'database.exists'
+    )
+    await rejects(riverside.id, { paidByUserId: other.owner.id }, 'paidByUserId', 'database.exists')
+    const linkedDeli = await decide(riverside.id, {
+      resolution: 'auto_matched',
+      matchTransactionId: deli.id,
+    })
+    linkedDeli.assertStatus(200)
+
+    // One bank row per transaction: a second row cannot claim it...
+    const linkedCash = await decide(cashOne.id, {
+      resolution: 'auto_matched',
+      matchTransactionId: cash.id,
+    })
+    linkedCash.assertStatus(200)
+    await rejects(
+      cashTwo.id,
+      { resolution: 'auto_matched', matchTransactionId: cash.id },
+      'matchTransactionId',
+      'claimed'
+    )
+    // ...not even within one confirm payload.
+    const payload = await client
+      .post(`/api/v1/imports/${batch.id}/confirm`)
+      .json({
+        decisions: [
+          { rowId: cashOne.id, resolution: 'auto_matched', matchTransactionId: cashToo.id },
+          { rowId: cashTwo.id, resolution: 'auto_matched', matchTransactionId: cashToo.id },
+        ],
+      })
+      .actingAs(home.owner)
+    payload.assertStatus(422)
+    payload.assertBodyContains({ errors: [{ field: 'matchTransactionId', rule: 'claimed' }] })
+    assert.equal(
+      await countOf(
+        ImportRow.query().whereNotNull('confirmed_at').where('import_batch_id', batch.id)
+      ),
+      0
+    )
+  })
+
+  test('test_second_confirm_of_a_batch_is_a_conflict', async ({ client }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batchId = upload.body().data[0].id
+    const first = await client.post(`/api/v1/imports/${batchId}/confirm`).actingAs(home.owner)
+    first.assertStatus(200)
+
+    const second = await client.post(`/api/v1/imports/${batchId}/confirm`).actingAs(home.member)
+
+    second.assertStatus(409)
+    second.assertBodyContains({ code: 'E_IMPORT_BATCH_CLOSED' })
   })
 
   test('test_deleted_imported_transaction_is_not_resurrected_by_reimport', async ({

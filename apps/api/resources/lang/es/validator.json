@@ -114,6 +114,10 @@
       "categoryId.required": "Elige una categoría o una cuenta de transferencia",
       "pattern.taken": "Otra regla ya usa este patrón",
       "pattern.regex": "Esta no es una expresión regular válida",
+      "pattern.unsafeRegex": "Esta expresión podría tardar demasiado. Evita repeticiones anidadas como (a+)+",
+      "resolution.zeroAmount": "Un movimiento de 0.00 solo se puede ignorar",
+      "matchTransactionId.amountMismatch": "Elige un movimiento con el mismo importe",
+      "matchTransactionId.claimed": "Otro movimiento del banco ya está ligado a este",
       "accountId.accountNumberMismatch": "Esta cuenta está ligada a otro número de cuenta bancaria",
       "accountId.oneAccountOnly": "Este archivo trae movimientos de varias cuentas. Impórtalo sin elegir una"
     }

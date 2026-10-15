@@ -6,7 +6,9 @@ import ImportBatch from '#models/import_batch'
 import type Household from '#models/household'
 import db from '@adonisjs/lucid/services/db'
 import { findInHousehold } from '#repositories/scoped'
-import { ImportBatchClosed } from '#exceptions/errors'
+import { DateTime } from 'luxon'
+import { ImportBatchClosed, ImportClassifyRunning } from '#exceptions/errors'
+import { CLASSIFY_CLAIM_MINUTES } from '#services/imports/import_classifier'
 import type { ImportResolution } from '@monkimoney/shared'
 import ImportStager from '#services/imports/import_stager'
 import ClassifyImportRowsJob from '#jobs/classify_import_rows_job'
@@ -59,6 +61,7 @@ export default class ImportService {
       .where('import_batch_id', batch.id)
       .if(filters.resolution, (query) => query.where('resolution', filters.resolution!))
       .preload('matchTransaction')
+      .preload('transaction')
       .orderBy('row_index')
   }
 
@@ -79,16 +82,43 @@ export default class ImportService {
     const batch = await this.find(household, batchId)
     if (!batch.isStaged) throw new ImportBatchClosed()
     await this.entitlements.assertLlmQuota(household)
+    await this.claimForClassify(batch)
 
     // Registered here too: console commands do not autoload app/jobs.
     Locator.register(ClassifyImportRowsJob.options.name!, ClassifyImportRowsJob as never)
-    await ClassifyImportRowsJob.dispatch({
-      householdId: household.id,
-      userId: actor.id,
-      batchId: batch.id,
-    })
+    try {
+      await ClassifyImportRowsJob.dispatch({
+        householdId: household.id,
+        userId: actor.id,
+        batchId: batch.id,
+      })
+    } catch (error) {
+      // Never queued: release the claim (the job releases it once it ran).
+      await ImportBatch.query().where('id', batch.id).update({ classify_started_at: null })
+      throw error
+    }
     await batch.refresh()
     return batch
+  }
+
+  /**
+   * One classify run per batch at a time (409 otherwise): an atomic claim
+   * on `classify_started_at`, taken over when older than
+   * `CLASSIFY_CLAIM_MINUTES` (a run that crashed).
+   */
+  protected async claimForClassify(batch: ImportBatch) {
+    const staleBefore = DateTime.now().minus({ minutes: CLASSIFY_CLAIM_MINUTES })
+    const claimed = await db
+      .from('import_batches')
+      .where('id', batch.id)
+      .where('status', 'staged')
+      .where((query) =>
+        query
+          .whereNull('classify_started_at')
+          .orWhere('classify_started_at', '<', staleBefore.toJSDate())
+      )
+      .update({ classify_started_at: new Date() }, ['id'])
+    if (claimed.length === 0) throw new ImportClassifyRunning()
   }
 
   confirm(

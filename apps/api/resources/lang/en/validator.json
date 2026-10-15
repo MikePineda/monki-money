@@ -114,6 +114,10 @@
       "categoryId.required": "Choose a category or a transfer account",
       "pattern.taken": "Another rule already uses this pattern",
       "pattern.regex": "This is not a valid regular expression",
+      "pattern.unsafeRegex": "This expression could take too long to run. Avoid nested repetitions like (a+)+",
+      "resolution.zeroAmount": "A movement of 0.00 can only be ignored",
+      "matchTransactionId.amountMismatch": "Choose a transaction with the same amount",
+      "matchTransactionId.claimed": "Another bank movement is already linked to this transaction",
       "accountId.accountNumberMismatch": "This account is linked to another bank account number",
       "accountId.oneAccountOnly": "This file has movements of several accounts. Import it without choosing one"
     }

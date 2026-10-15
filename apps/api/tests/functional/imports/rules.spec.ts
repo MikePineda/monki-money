@@ -4,7 +4,9 @@ import Transaction from '#models/transaction'
 import { createHousehold } from '#tests/helpers/household'
 import ProductionBootstrap from '#services/bootstrap/production_bootstrap'
 import MerchantRule from '#models/merchant_rule'
+import db from '@adonisjs/lucid/services/db'
 import drive from '@adonisjs/drive/services/main'
+import RuleLearner from '#services/rules/rule_learner'
 import { nabCsv, nabFixture } from '#tests/helpers/importing'
 import { categoryBySlug, freezeClock } from '#tests/helpers/ledger'
 import { TransactionFactory } from '#database/factories/transaction_factory'
@@ -29,6 +31,99 @@ test.group('Merchant rules', (group) => {
       drive.restore()
       restoreClock()
     }
+  })
+
+  test('test_regex_rules_with_catastrophic_backtracking_are_rejected', async ({ client }) => {
+    const home = await nabHousehold()
+    const gym = await categoryBySlug(home.household.id, 'gym')
+
+    for (const pattern of ['([a-z0-9 ]+)+#', '(a|aa)+$', '(x+x+)+y', '(a)\\1+b']) {
+      const response = await client
+        .post('/api/v1/rules')
+        .json({ matchType: 'regex', pattern, categoryId: gym.id })
+        .actingAs(home.owner)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field: 'pattern', rule: 'unsafeRegex' }] })
+    }
+
+    const tooLong = await client
+      .post('/api/v1/rules')
+      .json({ matchType: 'contains', pattern: 'A'.repeat(201), categoryId: gym.id })
+      .actingAs(home.owner)
+    tooLong.assertStatus(422)
+    tooLong.assertBodyContains({ errors: [{ field: 'pattern', rule: 'maxLength' }] })
+
+    const safe = await client
+      .post('/api/v1/rules')
+      .json({ matchType: 'regex', pattern: '^FIT(BOX|NESS) [A-Z]+$', categoryId: gym.id })
+      .actingAs(home.owner)
+    safe.assertStatus(201)
+  })
+
+  test('test_a_stored_unsafe_regex_is_never_run', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const gym = await categoryBySlug(home.household.id, 'gym')
+    // Written before the check existed (or straight into the database).
+    await MerchantRule.create({
+      householdId: home.household.id,
+      matchType: 'regex',
+      pattern: '(a+)+',
+      categoryId: gym.id,
+      origin: 'user',
+    })
+    const csv = nabCsv([
+      nabLine({
+        date: '01 Oct 26',
+        amount: '-5.00',
+        details: 'V1111 30/09 AAAA SAMPLEVILLE 70000000930',
+        balance: '995.00',
+        category: 'Uncategorised',
+      }),
+    ])
+
+    const upload = await uploadCsv(client, home.owner, csv)
+
+    upload.assertStatus(201)
+    const detail = await client
+      .get(`/api/v1/imports/${upload.body().data[0].id}`)
+      .actingAs(home.owner)
+    assert.notEqual(detail.body().data.rows[0].suggestion.source, 'rule')
+  })
+
+  test('test_learning_the_same_merchant_twice_updates_the_rule', async ({ assert }) => {
+    const home = await nabHousehold()
+    const groceries = await categoryBySlug(home.household.id, 'groceries')
+    const restaurants = await categoryBySlug(home.household.id, 'restaurants-takeaway')
+    const pattern = 'freshco market northvale village'
+    await MerchantRule.create({
+      householdId: home.household.id,
+      matchType: 'merchant',
+      pattern,
+      categoryId: groceries.id,
+      origin: 'learned',
+    })
+    // A concurrent confirm read the rules before this one was written.
+    class StaleLearner extends RuleLearner {
+      protected override async existingRules() {
+        return []
+      }
+    }
+    const decision = {
+      action: 'create' as const,
+      merchantFullKey: pattern,
+      suggested: { categoryId: null, transferAccountId: null, paidByUserId: null, fromRule: false },
+      final: { categoryId: restaurants.id, transferAccountId: null, paidByUserId: null },
+    }
+
+    await db.transaction((trx) =>
+      new StaleLearner().learnFromImport(home.household, home.owner, [decision], trx)
+    )
+
+    const rules = await MerchantRule.query()
+      .where('household_id', home.household.id)
+      .where('pattern', pattern)
+    assert.lengthOf(rules, 1)
+    assert.include(rules[0].serialize(), { categoryId: restaurants.id, origin: 'learned' })
   })
 
   test('test_new_household_gets_the_bank_category_rules', async ({ assert }) => {

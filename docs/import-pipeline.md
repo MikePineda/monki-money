@@ -116,20 +116,33 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
   the controller reads the `file` part into memory and aborts past 2 MB
   (`E_CSV_TOO_LARGE`). Nothing touches the container's disk.
 - **Candidates**: the account's ledger rows in the date window that no
-  import row of this account is linked to yet, plus pending imports. A
-  transfer leg created while importing another account (source `import`,
-  cleared, unlinked here) is offered to the matcher as a hand entry, so the
-  other account's own export later matches it instead of duplicating it.
+  posted bank row of this account claims: unlinked rows, and rows linked
+  only to pending bank rows (a pending import, or a hand entry matched while
+  pending), which the matcher sees as pending imports so the posted copy
+  upgrades them. A transfer leg created while importing another account
+  (source `import`, unlinked here) is offered as a hand entry, so the other
+  account's own export later matches it instead of duplicating it.
 - **Transfer legs**: standalone expenses/income of the other accounts
-  (never rows already in a transfer) and the new rows of the other accounts
-  of the same upload.
+  (never rows already in a transfer, never another member's private row)
+  and the new rows of the other accounts of the same upload.
+- **Stale holds**: at staging, a ledger row still pending from an earlier
+  export whose bank row is missing from this one (its dates covered, no
+  row of this export claiming it) is flagged `needs_review`: the bank
+  dropped or changed the hold.
+- **Decisions**: a picked `matchTransactionId` must have the row's amount
+  and account and not be the copy of a posted bank row nor picked by
+  another row of the batch (or of the same confirm); a 0.00 row can only be
+  `ignored`. `PATCH` locks the batch like confirm does.
+- **Privacy**: rows linked to the partner's private transaction are
+  masked in `GET /imports/:id` (`isMasked`), like the ledger.
 - **Payer**: personal account -> its owner; joint account -> the card
   holder; a joint row without a card (BPAY, transfers, salary) is joint
   (`null`), unless a rule says otherwise.
 - **Confirm**: `new` -> expense/income (`source: import`, `pending` while
   NAB shows no `Processed On`); `auto_matched` -> stamps bank date, bank
-  text, card and `cleared` on the existing row (a pending import is
-  upgraded and its old row `superseded`; a proposed match deleted meanwhile
+  text, card and the bank's status (pending or cleared) on the existing
+  row (a row linked to a pending bank row is upgraded and that row
+  `superseded`; a proposed match deleted meanwhile
   becomes a new row); `transfer_leg` -> a `transfers` row with this
   account's leg plus the other leg: the standalone movement found at
   staging (turned into a leg), the other account's row of the same upload
@@ -140,7 +153,18 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
 - **Opening balance**: on the account's first import (no opening date, zero
   opening, no earlier batch) the batch keeps `openingBalanceCents(rows)`;
   confirm stores it with `opening_balance_date` = the day before the
-  earliest date of the batch, so every imported row counts after it.
+  earliest date of the batch or of the ledger rows it linked (a hand entry
+  dated before its bank copy), so every one of them counts after it.
+- **Concurrency**: confirm locks its batch and the other staged batches of
+  the same upload in id order; a deadlock still answers 409
+  `E_CONCURRENT_UPDATE`. Learned rules are upserted (`ON CONFLICT`), so two
+  confirms learning one merchant never collide.
+- **Regex rules** must pass `isSafeRulePattern` (no nested or alternated
+  repetition, no backreferences, at most 200 characters); an unsafe stored
+  one never runs, and rules only read the first 300 characters of a row.
+- **Classify** claims the batch (`classify_started_at`, 409 while another
+  run holds it, taken over after 10 minutes), handles at most 500 rows per
+  run and saves every 40-row model call as it returns.
 - **Reconciliation**: bank balance on the newest row vs opening + ledger
   rows with `COALESCE(bank_date, date) <= dateTo` (pending included).
 - **System rules** (`SystemRulesSeeder`, insert-only): category rules when

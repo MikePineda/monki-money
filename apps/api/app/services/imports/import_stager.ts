@@ -37,6 +37,8 @@ interface AccountPlan {
   staged: StagedRow[]
   existing: ReadonlySet<string>
   resolved: ResolvedRow[]
+  /** Dates of the ledger rows the matcher may link (for the opening date). */
+  candidateDates: ReadonlyMap<number, string>
 }
 
 /**
@@ -72,7 +74,7 @@ export default class ImportStager {
       .first())
     if (firstImport) await this.systemRules.seed(household.id)
 
-    const plans = await this.resolve(household, groups, accounts)
+    const plans = await this.resolve(household, actor, groups, accounts)
     const fileHash = createHash('sha256').update(input.buffer).digest('hex')
 
     const batchIds = await db.transaction(async (trx) => {
@@ -168,6 +170,7 @@ export default class ImportStager {
   /** Stages every account first: a row of one may be the other leg of another's transfer. */
   protected async resolve(
     household: Household,
+    actor: User,
     groups: Map<string, ParsedRow[]>,
     accounts: Map<string, Account>
   ): Promise<AccountPlan[]> {
@@ -188,7 +191,7 @@ export default class ImportStager {
         payers: this.loader.payers(account),
       })
       const existing = await this.loader.existingHashes(household, account.id, staged)
-      plans.push({ account, rows, staged, existing, resolved: [] })
+      plans.push({ account, rows, staged, existing, resolved: [], candidateDates: new Map() })
     }
 
     for (const plan of plans) {
@@ -199,7 +202,11 @@ export default class ImportStager {
         existingHashes: plan.existing,
         rules,
         otherStaged,
+        actorId: actor.id,
       })
+      plan.candidateDates = new Map(
+        context.candidates.map((candidate) => [candidate.id, candidate.date])
+      )
       plan.resolved = await resolveRows(plan.staged, context, defaultResolverSteps(suggester))
     }
     return plans
@@ -224,8 +231,13 @@ export default class ImportStager {
     const firstImport =
       previous === null && account.openingBalanceDate === null && account.openingBalanceCents === 0
     const opening = firstImport ? openingBalanceCents(rows) : null
-    const earliest = plan.staged
-      .flatMap((row) => [row.date, row.bankDate])
+    // Matched ledger rows dated before the oldest bank row must count after the opening.
+    const matchedDates = stored.flatMap((resolved) =>
+      resolved.matchTransactionId === null
+        ? []
+        : [plan.candidateDates.get(resolved.matchTransactionId) ?? resolved.row.date]
+    )
+    const earliest = [...plan.staged.flatMap((row) => [row.date, row.bankDate]), ...matchedDates]
       .sort()
       .at(0)!
 
@@ -270,6 +282,7 @@ export default class ImportStager {
         )
     }
 
+    await staleFlagged(plan, batch, trx)
     await this.bookkeeping.refreshCounts(batch, trx)
     if (stored.length === 0) {
       // Nothing to review (a re-upload of rows already imported).
@@ -278,6 +291,46 @@ export default class ImportStager {
     }
     return batch
   }
+}
+
+/**
+ * Ledger rows still pending from an earlier export of this account whose
+ * bank row is gone from this one although its dates are covered, and that
+ * no row of this export claims (its posted copy would): a hold the bank
+ * dropped or changed. They go to review (`needs_review`) so nobody keeps
+ * counting money that will never leave.
+ */
+async function staleFlagged(
+  plan: AccountPlan,
+  batch: ImportBatch,
+  trx: TransactionClientContract
+): Promise<void> {
+  const hashes = plan.staged.map((row) => row.externalHash)
+  const claimed = plan.resolved.flatMap((resolved) =>
+    resolved.matchTransactionId === null ? [] : [resolved.matchTransactionId]
+  )
+  const stale = trx
+    .from('transactions')
+    .join('import_rows', (join) =>
+      join
+        .on('import_rows.transaction_id', '=', 'transactions.id')
+        .andOn('import_rows.account_id', '=', 'transactions.account_id')
+    )
+    .where('transactions.account_id', batch.accountId)
+    .where('transactions.status', 'pending')
+    .where('import_rows.is_pending', true)
+    .whereNot('import_rows.resolution', 'superseded')
+    .whereNot('import_rows.import_batch_id', batch.id)
+    .whereBetween('import_rows.bank_date', [batch.dateFrom!, batch.dateTo!])
+    .whereNotIn('import_rows.external_hash', hashes)
+    .if(claimed.length > 0, (query) => query.whereNotIn('transactions.id', claimed))
+    .select('transactions.id')
+
+  await trx
+    .from('transactions')
+    .whereIn('id', stale)
+    .where('needs_review', false)
+    .update({ needs_review: true, updated_at: new Date() })
 }
 
 /** Rows that become a new ledger row of this account on confirm (as proposed). */

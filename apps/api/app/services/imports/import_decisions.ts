@@ -49,21 +49,29 @@ export default class ImportDecisions {
     rowId: number,
     input: DecideInput
   ): Promise<ImportRow> {
-    const batch = await findInHousehold(ImportBatch, household, batchId)
-    const row = await this.rowOf(batch, rowId)
+    await findInHousehold(ImportBatch, household, batchId)
     return db.transaction(async (trx) => {
+      // Same lock as confirm: a decision never lands on a batch being confirmed.
+      const batch = await ImportBatch.query({ client: trx })
+        .where('household_id', household.id)
+        .where('id', batchId)
+        .forUpdate()
+        .firstOrFail()
+      if (!batch.isStaged) throw new ImportBatchClosed()
+      const row = await this.rowOf(batch, rowId, trx)
       const decided = await this.apply(household, actor, batch, row, input, trx)
       await this.bookkeeping.refreshCounts(batch, trx)
       return decided
     })
   }
 
-  /** The row of the batch (404 otherwise, a row of another batch included). */
-  async rowOf(batch: ImportBatch, rowId: number, trx?: TransactionClientContract) {
+  /** The row of the batch, locked (404 otherwise, a row of another batch included). */
+  async rowOf(batch: ImportBatch, rowId: number, trx: TransactionClientContract) {
     return ImportRow.query({ client: trx })
       .where('household_id', batch.householdId)
       .where('import_batch_id', batch.id)
       .where('id', rowId)
+      .forUpdate()
       .firstOrFail()
   }
 
@@ -88,7 +96,7 @@ export default class ImportDecisions {
       decidedAt: DateTime.now(),
       decidedByUserId: actor.id,
     })
-    await this.validate(household, row)
+    await this.validate(household, row, trx)
 
     row.useTransaction(trx)
     await row.save()
@@ -98,11 +106,16 @@ export default class ImportDecisions {
   /**
    * The row's effective decision still points at things of the household
    * (422 per field). Confirm calls it again: a category or account deleted
-   * since the decision fails the whole confirm.
+   * since the decision fails the whole confirm. A movement of 0.00 can only
+   * be ignored.
    */
-  async validate(household: Household, row: ImportRow) {
+  async validate(household: Household, row: ImportRow, trx: TransactionClientContract) {
     const effective = effectiveRow(row)
     const decision = row.decision ?? {}
+
+    if (row.amountCents === 0 && row.resolution !== 'ignored') {
+      throw new FieldError('resolution', 'zeroAmount')
+    }
 
     if (effective.splits.length > 0 && typeof decision.categoryId === 'number') {
       throw new FieldError('categoryId', 'split')
@@ -132,17 +145,62 @@ export default class ImportDecisions {
     }
 
     if (typeof decision.matchTransactionId === 'number') {
-      const target = await Transaction.query()
-        .where('household_id', household.id)
-        .where('id', decision.matchTransactionId)
-        .first()
-      if (!target) throw new FieldError('matchTransactionId', 'database.exists')
-      if (target.accountId !== row.accountId) {
-        throw new FieldError('matchTransactionId', 'sameAccount')
-      }
+      await this.assertMatchable(household, row, decision.matchTransactionId, trx)
     }
     if (row.resolution === 'auto_matched' && effective.matchTransactionId === null) {
       throw new FieldError('matchTransactionId', 'required')
+    }
+    if (row.resolution === 'auto_matched' && effective.matchTransactionId !== null) {
+      await this.assertUnclaimedInBatch(row, effective.matchTransactionId, trx)
+    }
+  }
+
+  /**
+   * A transaction a person picks as the bank copy: of the household (422
+   * `database.exists`), of the row's account, with the same amount, and not
+   * already the copy of a posted bank row (a pending one is fine: this row
+   * upgrades it).
+   */
+  protected async assertMatchable(
+    household: Household,
+    row: ImportRow,
+    transactionId: number,
+    trx: TransactionClientContract
+  ) {
+    const target = await Transaction.query({ client: trx })
+      .where('household_id', household.id)
+      .where('id', transactionId)
+      .first()
+    if (!target) throw new FieldError('matchTransactionId', 'database.exists')
+    if (target.accountId !== row.accountId) {
+      throw new FieldError('matchTransactionId', 'sameAccount')
+    }
+    if (target.amountCents !== row.amountCents) {
+      throw new FieldError('matchTransactionId', 'amountMismatch')
+    }
+    const posted = await ImportRow.query({ client: trx })
+      .where('transaction_id', target.id)
+      .where('account_id', row.accountId)
+      .whereNot('id', row.id)
+      .whereNot('resolution', 'superseded')
+      .where('is_pending', false)
+      .first()
+    if (posted) throw new FieldError('matchTransactionId', 'claimed')
+  }
+
+  /** One bank row per transaction: no other open row of the batch matches it. */
+  protected async assertUnclaimedInBatch(
+    row: ImportRow,
+    transactionId: number,
+    trx: TransactionClientContract
+  ) {
+    const others = await ImportRow.query({ client: trx })
+      .where('import_batch_id', row.importBatchId)
+      .whereNot('id', row.id)
+      .whereNull('confirmed_at')
+      .where('resolution', 'auto_matched')
+    if (others.some((other) => effectiveRow(other).matchTransactionId === transactionId)) {
+      throw new FieldError('matchTransactionId', 'claimed')
     }
   }
 

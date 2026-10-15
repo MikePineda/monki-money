@@ -8,8 +8,9 @@ import { decodeHtmlEntities } from '#importers/html_entities'
  * One bank row under review: the bank's data, what the importer proposes
  * (`resolution`, `match`, `suggestion`, `transfer`, payer) and what the
  * person decided. `description` is the bank text (entities decoded): plain
- * text, never HTML. The matched transaction (needs `matchTransaction`
- * preloaded) hides its payee when it is the partner's private one.
+ * text, never HTML. Needs `transaction` and `matchTransaction` preloaded:
+ * a row linked to the partner's private transaction hides its bank text,
+ * merchant, suggestion and decision (`isMasked`), like the ledger does.
  */
 export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
   constructor(
@@ -22,6 +23,10 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
   toObject() {
     const row = this.resource
     const matched = row.matchTransaction ?? null
+    const linked = row.transaction ?? matched
+    // Linked to the partner's private transaction: the bank text would reveal it.
+    const masked = linked !== null && isHiddenFrom(linked, this.viewer)
+    const text = <Value>(value: Value) => (masked ? null : value)
 
     return {
       id: row.id,
@@ -31,12 +36,13 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
       amountCents: row.amountCents,
       balanceCents: row.balanceCents,
       transactionType: row.transactionType,
-      description: decodeHtmlEntities(row.descriptionRaw),
-      descriptionNormalized: row.descriptionNormalized,
-      merchantKey: row.merchantKey,
-      merchantFullKey: row.merchantFullKey,
-      nabCategory: row.nabCategory,
-      nabMerchant: row.nabMerchant,
+      description: text(decodeHtmlEntities(row.descriptionRaw)),
+      descriptionNormalized: text(row.descriptionNormalized),
+      merchantKey: text(row.merchantKey),
+      merchantFullKey: text(row.merchantFullKey),
+      nabCategory: text(row.nabCategory),
+      nabMerchant: text(row.nabMerchant),
+      isMasked: masked,
       cardSuffix: row.cardSuffix,
       isPending: row.isPending,
       isFutureDated: row.isFutureDated,
@@ -61,7 +67,7 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
                 : null,
             },
       suggestion:
-        row.suggestionSource === null
+        row.suggestionSource === null || masked
           ? null
           : {
               source: row.suggestionSource,
@@ -81,7 +87,7 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
               ruleId: row.transferRuleId,
             },
       suggestedPaidByUserId: row.suggestedPaidByUserId,
-      decision: row.decision,
+      decision: text(row.decision),
       decidedAt: isoTimestamp(row.decidedAt),
       transactionId: row.transactionId,
       confirmedAt: isoTimestamp(row.confirmedAt),

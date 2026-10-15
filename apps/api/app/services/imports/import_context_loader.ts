@@ -84,6 +84,8 @@ export default class ImportContextLoader {
       existingHashes: ReadonlySet<string>
       rules: readonly RuleValue[]
       otherStaged: readonly StagedRow[]
+      /** The person uploading: only their own private rows may be a transfer leg. */
+      actorId: number
     }
   ): Promise<ResolverContext> {
     if (rows.length === 0) {
@@ -105,7 +107,7 @@ export default class ImportContextLoader {
         from: addDays(from, -DAYS_BEFORE_PURCHASE),
         to: addDays(to, DAYS_AFTER_POSTING),
       }),
-      this.ledgerLegs(household, accountId, {
+      this.ledgerLegs(household, accountId, options.actorId, {
         from: addDays(from, -TRANSFER_LEG_WINDOW_DAYS),
         to: addDays(to, TRANSFER_LEG_WINDOW_DAYS),
       }),
@@ -130,17 +132,24 @@ export default class ImportContextLoader {
   /**
    * Movements in the household's other accounts that may be the other side
    * of a transfer: standalone expenses/income (a row already linked to a
-   * transfer has its other leg).
+   * transfer has its other leg). Another member's private row is never
+   * offered: turning it into a leg would expose and rewrite it.
    */
   protected async ledgerLegs(
     household: HouseholdRef,
     accountId: number,
+    actorId: number,
     window: { from: string; to: string }
   ): Promise<TransferLeg[]> {
     const rows = await Transaction.query()
       .where('household_id', householdIdOf(household))
       .whereNot('account_id', accountId)
       .whereNot('kind', 'transfer')
+      .where((visible) =>
+        visible
+          .where('is_private', false)
+          .orWhereRaw('COALESCE(paid_by_user_id, created_by_user_id) = ?', [actorId])
+      )
       .whereBetween('date', [window.from, window.to])
       .select('id', 'account_id', 'amount_cents', 'date')
       .orderBy('date')
@@ -156,15 +165,15 @@ export default class ImportContextLoader {
 }
 
 /**
- * A ledger row as the matcher sees it. A row this account's bank never
- * showed is, for the matcher, a hand entry: that includes the other leg of
- * a transfer created while importing another account (`source = import`
- * but cleared and unlinked here). Pending imports keep their source so the
- * matcher upgrades them.
+ * A ledger row as the matcher sees it. Rows linked to a bank row still
+ * pending (an import, or a hand entry matched while pending) are pending
+ * imports for the matcher, so their posted copy upgrades them. A row this
+ * account's bank never showed is a hand entry: that includes the other leg
+ * of a transfer created while importing another account (`source = import`,
+ * unlinked here).
  */
 function toCandidateTx(candidate: MatchCandidate): CandidateTx {
-  const pendingImport = candidate.source === 'import' && candidate.status === 'pending'
-  return {
+  const base = {
     id: candidate.id,
     accountId: candidate.accountId,
     amountCents: candidate.amountCents,
@@ -173,7 +182,11 @@ function toCandidateTx(candidate: MatchCandidate): CandidateTx {
     description: candidate.description ?? candidate.rawDescription,
     cardSuffix: candidate.cardSuffix,
     paidByUserId: candidate.paidByUserId,
-    source: candidate.source === 'import' && !pendingImport ? 'manual' : candidate.source,
+  }
+  if (candidate.linkedToPendingRow) return { ...base, source: 'import', status: 'pending' }
+  return {
+    ...base,
+    source: candidate.source === 'import' ? 'manual' : candidate.source,
     status: candidate.status,
   }
 }

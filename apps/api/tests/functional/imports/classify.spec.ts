@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import LlmUsage from '#models/llm_usage'
 import ImportRow from '#models/import_row'
+import ImportBatch from '#models/import_batch'
 import drive from '@adonisjs/drive/services/main'
 import { nabCsv } from '#tests/helpers/importing'
 import { categoryBySlug, freezeClock } from '#tests/helpers/ledger'
@@ -117,5 +118,64 @@ test.group('Imports: classify', (group) => {
     classify.assertStatus(202)
     const rows = await ImportRow.query().where('import_batch_id', batch.id)
     assert.isTrue(rows.every((row) => row.suggestionSource === 'nab_map'))
+  })
+
+  test('test_classify_keeps_the_chunks_answered_before_a_failure', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    // 50 uncategorized purchases: one model call per 40 rows.
+    const lines = Array.from({ length: 50 }, (_, index) =>
+      nabLine({
+        date: '02 Oct 26',
+        amount: `-${index + 1}.00`,
+        details: `V1111 01/10 COLES ${1000 + index} SAMPLEVILLE ${70000001000 + index}`,
+        balance: `${5000 - index}.00`,
+        category: 'Uncategorised',
+      })
+    )
+    const upload = await uploadCsv(client, home.owner, nabCsv(lines))
+    const batch = upload.body().data[0]
+    const firstAnswer = JSON.stringify({
+      results: Array.from({ length: 40 }, (_, index) => ({
+        id: String(index),
+        categorySlug: 'groceries',
+        confidence: 0.92,
+        payee: 'Coles',
+      })),
+    })
+    const { LlmProvider } = await import('#llm/llm_provider')
+    const { LlmProviderError } = await import('#llm/errors')
+    const { default: app } = await import('@adonisjs/core/services/app')
+    const llm = (await app.container.make(LlmProvider)) as any
+    llm.script(firstAnswer, new LlmProviderError('vendor down', 503))
+
+    const classify = await client.post(`/api/v1/imports/${batch.id}/classify`).actingAs(home.owner)
+
+    classify.assertStatus(202)
+    const rows = await ImportRow.query().where('import_batch_id', batch.id)
+    assert.equal(rows.filter((row) => row.suggestionSource === 'llm').length, 40)
+    assert.equal(rows.filter((row) => row.suggestionSource === 'nab_map').length, 10)
+  })
+
+  test('test_concurrent_classify_of_a_batch_is_a_conflict', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, csv)
+    const batchId = upload.body().data[0].id
+    const running = await ImportBatch.findOrFail(batchId)
+    running.classifyStartedAt = DateTime.now()
+    await running.save()
+
+    const busy = await client.post(`/api/v1/imports/${batchId}/classify`).actingAs(home.owner)
+
+    busy.assertStatus(409)
+    busy.assertBodyContains({ code: 'E_IMPORT_CLASSIFY_RUNNING' })
+    assert.equal(await countOf(LlmUsage.query().where('household_id', home.household.id)), 0)
+
+    // A run that died long ago does not block the next one.
+    running.classifyStartedAt = DateTime.now().minus({ minutes: 30 })
+    await running.save()
+    const retry = await client.post(`/api/v1/imports/${batchId}/classify`).actingAs(home.owner)
+    retry.assertStatus(202)
+    await running.refresh()
+    assert.isNull(running.classifyStartedAt, 'the claim is released when the run ends')
   })
 })

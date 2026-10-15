@@ -39,5 +39,7 @@
   "E_IMPORT_ROWS_UNDECIDED": "Some movements still need your decision",
   "E_IMPORT_BATCH_CLOSED": "This import is already finished",
   "E_IMPORT_LIMIT_REACHED": "Your plan does not allow more imports this month",
+  "E_IMPORT_CLASSIFY_RUNNING": "The AI is already reviewing this import. Wait a moment",
+  "E_CONCURRENT_UPDATE": "This was being saved at the same time elsewhere. Try again",
   "E_INTERNAL_SERVER_ERROR": "Something went wrong on our side. Try again in a moment"
 }
