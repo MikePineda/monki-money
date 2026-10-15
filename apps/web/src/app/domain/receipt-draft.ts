@@ -104,10 +104,7 @@ export function linesFromReceipt(receipt: ReceiptDraft, categoryId: number | nul
  * words joined with " + " (cut to the memo limit), the amounts added up,
  * the first line's category. Fewer than two selected lines change nothing.
  */
-export function mergeLines(
-  lines: readonly ReceiptLine[],
-  ids: ReadonlySet<number>
-): ReceiptLine[] {
+export function mergeLines(lines: readonly ReceiptLine[], ids: ReadonlySet<number>): ReceiptLine[] {
   const picked = lines.filter((item) => ids.has(item.id))
   const [first] = picked
   if (!first || picked.length < 2) {
@@ -172,6 +169,10 @@ export function receiptSplits(totalCents: Cents, lines: readonly ReceiptLine[]):
   }
   return settledLines(totalCents, lines).map((item) => {
     const memo = item.description.trim().slice(0, MAX_MEMO_LENGTH)
-    return { categoryId: item.categoryId as number, amountCents: item.amountCents, memo: memo || null }
+    return {
+      categoryId: item.categoryId as number,
+      amountCents: item.amountCents,
+      memo: memo || null,
+    }
   })
 }

@@ -230,7 +230,9 @@ describe('ReceiptReviewStore', () => {
     })
 
     await store.save()
-    const [first, second] = api.save.mock.calls.map((call) => (call[0] as { clientId: string }).clientId)
+    const [first, second] = api.save.mock.calls.map(
+      (call) => (call[0] as { clientId: string }).clientId
+    )
     expect(second).toBe(first)
   })
 

@@ -134,11 +134,13 @@ describe('ScanStore', () => {
   it('test_the_upload_reports_its_progress', async () => {
     const store = setup()
     let release!: () => void
-    api.put.mockImplementationOnce(async (_upload: PresignedUpload, _blob: Blob, options: PutOptions) => {
-      options.onProgress?.(0.5)
-      await new Promise<void>((done) => (release = done))
-      return { status: 200, body: null }
-    })
+    api.put.mockImplementationOnce(
+      async (_upload: PresignedUpload, _blob: Blob, options: PutOptions) => {
+        options.onProgress?.(0.5)
+        await new Promise<void>((done) => (release = done))
+        return { status: 200, body: null }
+      }
+    )
 
     const scanning = store.pick(photo())
     await vi.waitFor(() => expect(store.step()).toEqual({ step: 'uploading', progress: 0.5 }))

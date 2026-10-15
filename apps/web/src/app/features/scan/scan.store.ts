@@ -42,7 +42,12 @@ export type ScanStep =
   | { step: 'error'; problem: ScanProblem; retryable: boolean }
 
 /** Problems a second try with the same photo cannot fix. */
-const FINAL: ReadonlySet<ScanProblem> = new Set(['notImage', 'unreadablePhoto', 'quota', 'unreadable'])
+const FINAL: ReadonlySet<ScanProblem> = new Set([
+  'notImage',
+  'unreadablePhoto',
+  'quota',
+  'unreadable',
+])
 
 const WORKING: ReadonlySet<ScanStep['step']> = new Set([
   'optimizing',

@@ -94,8 +94,7 @@ export class ReceiptReviewStore {
   readonly settled = computed(() => settledLines(this.entry().amountCents, this.lines()))
   /** What the last line absorbs: the total minus the printed lines (0 when they agree). */
   readonly differenceCents = computed(
-    () =>
-      this.entry().amountCents - this.lines().reduce((sum, line) => sum + line.amountCents, 0)
+    () => this.entry().amountCents - this.lines().reduce((sum, line) => sum + line.amountCents, 0)
   )
   readonly issues = computed(() =>
     this.splitByLines() ? linesIssues(this.entry().amountCents, this.lines()) : []
@@ -267,9 +266,7 @@ export class ReceiptReviewStore {
   }
 
   private selectedIds(): ReadonlySet<number> {
-    return new Set(
-      [...this.selection()].filter((key): key is number => typeof key === 'number')
-    )
+    return new Set([...this.selection()].filter((key): key is number => typeof key === 'number'))
   }
 
   private vibrate(): void {

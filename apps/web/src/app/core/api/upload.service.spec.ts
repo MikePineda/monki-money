@@ -223,9 +223,14 @@ describe('UploadService', () => {
       const service = setup()
       const progress: (number | null)[] = []
 
-      const answer = service.putToUrl(URL, new Blob(['x']), {}, {
-        onProgress: (value) => progress.push(value),
-      })
+      const answer = service.putToUrl(
+        URL,
+        new Blob(['x']),
+        {},
+        {
+          onProgress: (value) => progress.push(value),
+        }
+      )
       xhr.progress(1, 4)
       xhr.respond(403, '<Error><Code>AccessDenied</Code></Error>')
 
