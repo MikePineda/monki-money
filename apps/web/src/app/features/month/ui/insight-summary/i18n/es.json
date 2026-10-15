@@ -1,0 +1,32 @@
+{
+  "eyebrow": "Resumen del mes",
+  "loading": "Cargando el resumen",
+  "generating": "Escribiendo tu resumen",
+  "missing": {
+    "title": "Obtén el resumen de {month}",
+    "body": "Una lectura breve del mes, escrita por IA a partir de tus totales.",
+    "action": "Generar resumen"
+  },
+  "noActivity": "Aún no hay nada que resumir en {month}. Agrega o importa movimientos primero.",
+  "future": "{month} todavía no empieza.",
+  "quota": "Se alcanzó el límite de IA de este mes",
+  "unavailable": "Los resúmenes no están disponibles por ahora",
+  "error": "No se pudo cargar el resumen.",
+  "retry": "Reintentar",
+  "highlights": "Puntos clave",
+  "tone": {
+    "positive": "Buena noticia:",
+    "neutral": "Nota:",
+    "warning": "Para revisar:"
+  },
+  "notice": {
+    "noActivity": "No hay nada nuevo que resumir. Este es el último resumen.",
+    "future": "Este mes todavía no empieza.",
+    "quota": "Se alcanzó el límite de IA de este mes. Este es el último resumen.",
+    "unavailable": "Los resúmenes no están disponibles por ahora. Este es el último resumen.",
+    "error": "No se pudo volver a generar el resumen. Inténtalo más tarde."
+  },
+  "updated": "Escrito por IA · Actualizado {time}",
+  "menu": "Opciones del resumen",
+  "regenerate": "Volver a generar el resumen"
+}

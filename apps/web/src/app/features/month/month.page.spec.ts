@@ -23,6 +23,7 @@ import { addMonths, currentMonthIn, type YearMonth } from '../../domain/month'
 import { BarListHarness } from '../../shared/charts/bar-list/bar-list.harness'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { MonthPickerHarness } from '../../shared/ui/month-picker/month-picker.harness'
+import { InsightsApi } from './data-access/insights.api'
 import MonthPage from './month.page'
 
 const TZ = 'Australia/Brisbane'
@@ -135,6 +136,7 @@ describe('MonthPage', () => {
             ],
           },
         },
+        { provide: InsightsApi, useValue: { show: async () => null, generate: vi.fn() } },
         { provide: AccountsApi, useValue: { list: async () => [anAccount()] } },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
         {
@@ -222,6 +224,16 @@ describe('MonthPage', () => {
       expect.stringContaining('Food is 50% above your 3-month average.'),
       expect.stringContaining('You saved 49% of your income this month.'),
     ])
+  })
+
+  it('test_the_ai_summary_card_leads_the_insights_for_the_month_on_screen', async () => {
+    const { root } = await open(`/month/${PREVIOUS}`)
+
+    const section = root.querySelector('[data-testid="month.insights"]')
+    expect(section?.firstElementChild?.nextElementSibling?.tagName).toBe('APP-INSIGHT-SUMMARY-CARD')
+    await vi.waitFor(() =>
+      expect(text(root, '[data-testid="month.summary.missing"]')).toMatch(/^Get your summary for/)
+    )
   })
 
   it('test_a_month_without_transactions_shows_the_empty_state', async () => {
