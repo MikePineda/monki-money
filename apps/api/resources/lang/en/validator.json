@@ -72,7 +72,11 @@
       "payeeOverride": "payee",
       "priority": "priority",
       "applyToFuture": "apply to future movements",
-      "turnstileToken": "security check"
+      "turnstileToken": "security check",
+      "contentType": "file type",
+      "byteSize": "file size",
+      "key": "photo",
+      "source": "origin"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -131,7 +135,12 @@
       "turnstile": "Complete the security check and try again",
       "verificationCode.invalid": "This code is not right. Check the email and try again",
       "verificationCode.expired": "This code has expired. Ask for a new email to get another one",
-      "verificationCode.locked": "Too many wrong codes. Ask for a new email to get another one"
+      "verificationCode.locked": "Too many wrong codes. Ask for a new email to get another one",
+      "contentType.enum": "Upload a JPEG, PNG or WebP photo",
+      "byteSize.max": "The photo must be 10 MB or smaller",
+      "key.mimetype": "Upload a JPEG, PNG or WebP photo",
+      "key.fileSize": "The photo must be 10 MB or smaller",
+      "key.image": "This file is not a photo we can read. Take it again"
     }
   }
 }

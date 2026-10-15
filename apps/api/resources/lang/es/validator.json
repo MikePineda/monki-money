@@ -72,7 +72,11 @@
       "payeeOverride": "comercio",
       "priority": "prioridad",
       "applyToFuture": "aplicar a movimientos futuros",
-      "turnstileToken": "verificación de seguridad"
+      "turnstileToken": "verificación de seguridad",
+      "contentType": "tipo de archivo",
+      "byteSize": "tamaño del archivo",
+      "key": "foto",
+      "source": "origen"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -131,7 +135,12 @@
       "turnstile": "Completa la verificación de seguridad e inténtalo de nuevo",
       "verificationCode.invalid": "Este código no es correcto. Revisa el correo e inténtalo de nuevo",
       "verificationCode.expired": "Este código ya venció. Pide un correo nuevo para recibir otro",
-      "verificationCode.locked": "Demasiados códigos incorrectos. Pide un correo nuevo para recibir otro"
+      "verificationCode.locked": "Demasiados códigos incorrectos. Pide un correo nuevo para recibir otro",
+      "contentType.enum": "Sube una foto JPEG, PNG o WebP",
+      "byteSize.max": "La foto debe pesar 10 MB o menos",
+      "key.mimetype": "Sube una foto JPEG, PNG o WebP",
+      "key.fileSize": "La foto debe pesar 10 MB o menos",
+      "key.image": "Este archivo no es una foto que podamos leer. Tómala de nuevo"
     }
   }
 }
