@@ -1,0 +1,12 @@
+// The thumb spans one option: the track width minus its 4px inset on both
+// sides and the 4px gaps, divided by the option count, then slides by whole
+// options (one width plus one gap). Count and index come from host styles.
+.thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px - (var(--seg-count) - 1) * 4px) / var(--seg-count));
+  transform: translateX(calc(var(--seg-index) * (100% + 4px)));
+  transition: transform var(--duration-segment) var(--ease-standard);
+}

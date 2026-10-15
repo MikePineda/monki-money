@@ -1,0 +1,10 @@
+// Tiles in a row are separated by a vertical hairline, never boxed. Sibling
+// hosts need ViewEncapsulation.None (`:host + :host` does not work emulated).
+app-stat-tile + app-stat-tile {
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+}
+
+app-stat-tile:has(+ app-stat-tile) {
+  padding-right: 12px;
+}

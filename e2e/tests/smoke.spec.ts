@@ -15,8 +15,17 @@ test.describe('smoke', () => {
   test('the Angular shell renders from the API origin', async ({ page }) => {
     await page.goto('/')
 
+    await expect(page).toHaveURL(/\/month$/)
     await expect(page.getByTestId('app.shell')).toBeVisible()
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('monkimoney')
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+    await expect(page.getByTestId('month.empty')).toBeVisible()
+  })
+
+  test('the theme is applied before the first paint', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('mm:theme', 'dark'))
+    await page.goto('/month')
+
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   })
 
   test('index.html and the service worker are never cached', async ({ request }) => {

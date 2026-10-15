@@ -1,0 +1,8 @@
+{
+  "title": "Movimientos",
+  "empty": {
+    "title": "Aún no hay movimientos.",
+    "body": "Todo lo que tú y tu pareja registren aparece aquí, agrupado por día.",
+    "action": "Agregar movimiento"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "rootTranslationsPath": "public/i18n/",
+  "langs": ["en", "es"],
+  "keysManager": {
+    "input": ["src/app"],
+    "unflat": true,
+    "sort": false
+  },
+  "scopePathMap": {
+    "month": "src/app/features/month/i18n",
+    "transactions": "src/app/features/transactions/i18n",
+    "add": "src/app/features/add/i18n",
+    "more": "src/app/features/more/i18n",
+    "kit": "src/app/kit/i18n"
+  }
+}

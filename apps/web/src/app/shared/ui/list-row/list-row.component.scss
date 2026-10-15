@@ -1,0 +1,13 @@
+// Hairline between consecutive rows, inset to the text column: 16px padding,
+// a 36px square and a 12px gap (DESIGN.md, List row). Sibling hosts cannot be
+// matched with emulated encapsulation (`:host + :host` targets content), so
+// this component uses ViewEncapsulation.None and element selectors.
+app-list-row + app-list-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 64px;
+  height: 1px;
+  background: var(--line);
+}

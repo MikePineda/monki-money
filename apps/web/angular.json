@@ -48,7 +48,13 @@
                 }
               ],
               "outputHashing": "all",
-              "serviceWorker": "ngsw-config.json"
+              "serviceWorker": "ngsw-config.json",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/kit/kit.routes.ts",
+                  "with": "src/app/kit/kit.routes.prod.ts"
+                }
+              ]
             },
             "development": {
               "optimization": false,

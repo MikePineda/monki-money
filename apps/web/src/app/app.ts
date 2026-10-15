@@ -1,14 +1,10 @@
 import { Component } from '@angular/core'
 import { RouterOutlet } from '@angular/router'
 
-/**
- * Root shell. A placeholder until the design system and the app shell land;
- * the `app.shell` test id is what the E2E smoke test waits for.
- */
+/** Root component: every frame (shell, auth, full-screen pages) is a route. */
 @Component({
-  imports: [RouterOutlet],
   selector: 'app-root',
-  styleUrl: './app.scss',
-  templateUrl: './app.html',
+  imports: [RouterOutlet],
+  template: '<router-outlet />',
 })
 export class App {}
