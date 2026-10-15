@@ -29,3 +29,10 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Move `TransactionForm`/`TransferForm` to `shared/` (or host quick add under `features/transactions`) so the add page can reuse them without a cross-feature import.
 - 2026-10-16 After a member leaves, `accounts.owner_user_id` and `account_cards.user_id` still point at them, so `defaultPayer` gives new rows on those accounts/cards to the ex-member: decide whether leaving makes their accounts joint or the default payer skips non-members.
 - 2026-10-16 Household ownership transfer (owners can only delete today, `household.leave` answers 422 for them), and letting a member leave while the household is pending deletion (today 403 like every household route).
+- 2026-10-16 API: expose the classify run on `ImportBatch` (for example `classifying`, from `classify_started_at`); the review screen polls `GET /imports/:id` every 2 s until the suggestions stop changing (at most 2 minutes) because nothing says when a run ends.
+- 2026-10-16 API: duplicate rows are counted (`counts.duplicate`) but never stored, so the review cannot list them behind a "Duplicates (D)" filter as DESIGN.md draws it; the summary shows the count only.
+- 2026-10-16 API: `GET /imports/:id` without its rows (or rows paginated): the result screen after a reload and every classify poll fetch the whole batch.
+- 2026-10-16 Import review: "Undo" for bulk decisions (accept suggested, assign category, ignore), and a bulk "Restore"; today each row is restored from its sheet.
+- 2026-10-16 Rules screen: edit a rule (pattern, category, priority; `PATCH /rules/:id` exists) and create one by hand; today rules are only learned from imports and `applyToFuture`.
+- 2026-10-16 `MonthStore` has no "everything may have changed" hook: applying a rule to history invalidates only the month on screen.
+- 2026-10-16 Web initial bundle is ~0.5 kB over its 350 kB warning budget (error at 450 kB) after the import and rules routes; trim or raise the warning line.
