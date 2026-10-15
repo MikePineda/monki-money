@@ -6,6 +6,7 @@ import Household from '#models/household'
 import db from '@adonisjs/lucid/services/db'
 import AccountCard from '#models/account_card'
 import HouseholdMember from '#models/household_member'
+import logger from '@adonisjs/core/services/logger'
 import type { AccountKind, Locale } from '@monkimoney/shared'
 import TaxonomySeeder from '#services/households/taxonomy_seeder'
 import HouseholdCreator from '#services/households/household_creator'
@@ -51,7 +52,7 @@ export default class ProductionBootstrap {
       const member = input.member ? await this.ensureUser(input.member, input.locale, trx) : null
 
       const household = await this.ensureHousehold(input, owner, trx)
-      if (member) await this.ensureMembership(household, member, trx)
+      const memberJoined = member ? await this.ensureMembership(household, member, trx) : false
 
       const accounts: Account[] = []
       for (const [index, spec] of ACCOUNTS.entries()) {
@@ -72,7 +73,7 @@ export default class ProductionBootstrap {
       const everyday = accounts[0]
       for (const [person, user] of [
         [input.owner, owner],
-        [input.member, member],
+        [input.member, memberJoined ? member : null],
       ] as const) {
         if (person?.cardSuffix && user) {
           await this.ensureCard(everyday, person.cardSuffix, user, trx)
@@ -133,18 +134,29 @@ export default class ProductionBootstrap {
     return household
   }
 
+  /**
+   * Adds user 2 as a member unless already there. One user = one household:
+   * someone who belongs to another household is left alone (warning logged,
+   * by id only). Returns whether the user is a member of this household.
+   */
   protected async ensureMembership(
     household: Household,
     user: User,
     trx: TransactionClientContract
-  ) {
-    const membership = await HouseholdMember.query({ client: trx })
-      .where('household_id', household.id)
-      .where('user_id', user.id)
-      .first()
-    if (!membership) {
-      await this.households.addMember(household, { user, role: 'member' }, trx)
+  ): Promise<boolean> {
+    const memberships = await HouseholdMember.query({ client: trx }).where('user_id', user.id)
+    if (memberships.some((membership) => membership.householdId === household.id)) return true
+
+    if (memberships.length > 0) {
+      logger.warn(
+        { userId: user.id, householdId: household.id },
+        'production bootstrap: user 2 already belongs to another household; not added'
+      )
+      return false
     }
+
+    await this.households.addMember(household, { user, role: 'member' }, trx)
+    return true
   }
 
   protected async ensureAccount(

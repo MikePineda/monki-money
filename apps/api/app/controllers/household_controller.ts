@@ -2,6 +2,7 @@ import { Readable } from 'node:stream'
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import HouseholdPolicy from '#policies/household_policy'
+import { authAttempts, throttleKey } from '#services/auth/throttles'
 import MemberTransformer from '#transformers/member_transformer'
 import HouseholdService from '#services/households/household_service'
 import HouseholdTransformer from '#transformers/household_transformer'
@@ -55,16 +56,20 @@ export default class HouseholdController {
     ctx.response.stream(Readable.from(this.exporter.json(ctx.household)))
   }
 
-  /** POST /household/delete (owner, password): schedules the deletion. */
+  /**
+   * POST /household/delete (owner, password): schedules the deletion. Wrong
+   * passwords count toward the same per-user limit as PATCH /me.
+   */
   async destroy(ctx: HttpContext) {
     const { password } = await ctx.request.validateUsing(deleteHouseholdValidator)
     await ctx.bouncer.with(HouseholdPolicy).authorize('delete', ctx.membership)
 
-    const household = await this.households.scheduleDeletion(
-      ctx.household,
-      ctx.auth.getUserOrFail(),
-      password
+    const owner = ctx.auth.getUserOrFail()
+    const [throttled, household] = await authAttempts().penalize(
+      throttleKey('password', owner.id),
+      () => this.households.scheduleDeletion(ctx.household, owner, password)
     )
+    if (throttled) throw throttled
 
     return ctx.serialize(HouseholdTransformer.transform(household))
   }

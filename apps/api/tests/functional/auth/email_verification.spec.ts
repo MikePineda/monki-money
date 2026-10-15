@@ -74,6 +74,19 @@ test.group('Auth / email verification', (group) => {
     mail.restore()
   })
 
+  test('test_resend_is_limited_to_three_per_fifteen_minutes', async ({ client }) => {
+    mail.fake()
+    const user = await UserFactory.apply('unverified').create()
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const response = await client.post('/api/v1/auth/email/resend').actingAs(user)
+      response.assertStatus(202)
+    }
+    const blocked = await client.post('/api/v1/auth/email/resend').actingAs(user)
+    blocked.assertStatus(429)
+    mail.restore()
+  })
+
   test('test_resend_is_a_no_op_for_verified_users', async ({ client }) => {
     const { mails } = mail.fake()
     const user = await UserFactory.create()

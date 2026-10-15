@@ -1,8 +1,35 @@
 import { test } from '@japa/runner'
 import hash from '@adonisjs/core/services/hash'
+import limiter from '@adonisjs/limiter/services/main'
 import { FACTORY_PASSWORD, UserFactory } from '#database/factories/user_factory'
 
-test.group('Profile (PATCH /me)', () => {
+test.group('Profile (PATCH /me)', (group) => {
+  group.each.setup(() => limiter.clear())
+
+  test('test_current_password_attempts_are_throttled_per_user', async ({ client }) => {
+    const user = await UserFactory.create()
+    const wrong = () =>
+      client
+        .patch('/api/v1/me')
+        .json({ password: 'brand-new-password', currentPassword: 'not-it-at-all' })
+        .actingAs(user)
+
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const response = await wrong()
+      response.assertStatus(422)
+    }
+    // A request without a password check neither counts nor resets the counter.
+    const themeOnly = await client.patch('/api/v1/me').json({ theme: 'dark' }).actingAs(user)
+    themeOnly.assertStatus(200)
+    const fifth = await wrong()
+    fifth.assertStatus(422)
+
+    const blocked = await client
+      .patch('/api/v1/me')
+      .json({ password: 'brand-new-password', currentPassword: FACTORY_PASSWORD })
+      .actingAs(user)
+    blocked.assertStatus(429)
+  })
   test('test_profile_updates_name_locale_and_theme', async ({ client, assert }) => {
     const user = await UserFactory.create()
 

@@ -90,6 +90,11 @@ const cases: IsolationCase[] = [
     method: 'delete',
     url: (v) => `/api/v1/household/invitations/${v.invitation.id}`,
   },
+  {
+    route: 'household.invitations.resend',
+    method: 'post',
+    url: (v) => `/api/v1/household/invitations/${v.invitation.id}/resend`,
+  },
 ]
 
 /**
@@ -153,7 +158,8 @@ test.group('Tenant isolation', () => {
       await victim.category.refresh()
       assert.equal(victim.category.slug, 'groceries')
       assert.isTrue(victim.category.isSystem)
-      assert.isNotNull(await Invitation.find(victim.invitation.id))
+      const invitation = await Invitation.find(victim.invitation.id)
+      assert.equal(invitation?.tokenHash, victim.invitation.tokenHash)
       assert.lengthOf(await AccountCard.query().where('account_id', victim.account.id), 1)
     })
 

@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { verifyEmailValidator } from '#validators/auth'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import EmailVerificationService from '#services/auth/email_verification_service'
+import { throttleKey, verificationResends } from '#services/auth/throttles'
 
 @inject()
 export default class EmailVerificationController {
@@ -17,9 +18,15 @@ export default class EmailVerificationController {
     return ctx.serialize({ emailVerifiedAt: isoTimestamp(user.emailVerifiedAt)! })
   }
 
-  /** POST /auth/email/resend: a new link for the logged-in user (no-op once verified). */
+  /**
+   * POST /auth/email/resend: a new link for the logged-in user (no-op once
+   * verified). 3 per 15 minutes per user.
+   */
   async resend({ auth, response }: HttpContext) {
-    await this.verification.send(auth.getUserOrFail())
+    const user = auth.getUserOrFail()
+    await verificationResends().consume(throttleKey('resend', user.id))
+
+    await this.verification.send(user)
     return response.accepted({ data: { queued: true } })
   }
 }

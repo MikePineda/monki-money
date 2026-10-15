@@ -2,14 +2,15 @@ import type Household from '#models/household'
 import HouseholdMember from '#models/household_member'
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import { HouseholdPendingDeletion, NoHousehold } from '#exceptions/errors'
+import { HouseholdPendingDeletion, HouseholdSuspended, NoHousehold } from '#exceptions/errors'
 
 /**
  * Runs after `auth`: loads the membership of the user's current household
  * and exposes `ctx.household` / `ctx.membership`. Every household-scoped
- * query starts from `ctx.household`. 403 when the user is not a member, or
- * when the household is scheduled for deletion (except routes that opt in
- * with `allowPendingDeletion`, i.e. restore).
+ * query starts from `ctx.household`. 403 when the user is not a member,
+ * when the household is suspended (E_HOUSEHOLD_SUSPENDED), or when it is
+ * scheduled for deletion (E_HOUSEHOLD_PENDING_DELETION) except on routes that
+ * opt in with `allowPendingDeletion` (restore).
  */
 export default class HouseholdContextMiddleware {
   async handle(ctx: HttpContext, next: NextFn, options: { allowPendingDeletion?: boolean } = {}) {
@@ -23,7 +24,9 @@ export default class HouseholdContextMiddleware {
       .first()
     if (!membership) throw new NoHousehold()
 
-    if (membership.household.status !== 'active' && !options.allowPendingDeletion) {
+    const { status } = membership.household
+    if (status === 'suspended') throw new HouseholdSuspended()
+    if (status === 'pending_deletion' && !options.allowPendingDeletion) {
       throw new HouseholdPendingDeletion()
     }
 

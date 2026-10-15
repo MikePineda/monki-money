@@ -8,6 +8,7 @@ import AccountCard from '#models/account_card'
 import HouseholdMember from '#models/household_member'
 import type { BootstrapInput } from '#services/bootstrap/dto'
 import ProductionBootstrap from '#services/bootstrap/production_bootstrap'
+import { createHousehold } from '#tests/helpers/household'
 
 const input: BootstrapInput = {
   householdName: 'Synthetic Home',
@@ -90,5 +91,29 @@ test.group('Production bootstrap', () => {
     assert.lengthOf(await AccountCard.query().where('account_id', first.accounts[0].id), 2)
     const owner = await User.findByOrFail('email', input.owner.email)
     assert.isTrue(await hash.verify(owner.password, 'owner-password-123'))
+  })
+
+  test('test_bootstrap_never_moves_a_member_who_already_has_another_household', async ({
+    assert,
+  }) => {
+    const elsewhere = await createHousehold()
+    const member = elsewhere.owner
+    const bootstrap = await app.container.make(ProductionBootstrap)
+
+    const { household, accounts } = await bootstrap.run({
+      ...input,
+      member: { ...input.member!, email: member.email },
+    })
+
+    const memberships = await HouseholdMember.query().where('user_id', member.id)
+    assert.deepEqual(
+      memberships.map((m) => m.householdId),
+      [elsewhere.household.id]
+    )
+    await member.refresh()
+    assert.equal(member.currentHouseholdId, elsewhere.household.id)
+    assert.lengthOf(await HouseholdMember.query().where('household_id', household.id), 1)
+    // No card is attributed to someone outside the household.
+    assert.lengthOf(await AccountCard.query().where('account_id', accounts[0].id), 1)
   })
 })

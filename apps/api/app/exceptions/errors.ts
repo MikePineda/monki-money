@@ -23,6 +23,23 @@ export const EmailNotVerified = domainError('E_EMAIL_NOT_VERIFIED', 403, 'Email 
 /** The user has no current household (or is no longer a member of it). */
 export const NoHousehold = domainError('E_NO_HOUSEHOLD', 403, 'No household')
 
+/** The household was suspended (billing, abuse): nothing is reachable. */
+export const HouseholdSuspended = domainError('E_HOUSEHOLD_SUSPENDED', 403, 'Household suspended')
+
+/** The household's plan does not allow another member. */
+export const MemberLimitReached = domainError(
+  'E_MEMBER_LIMIT_REACHED',
+  402,
+  'Plan member limit reached'
+)
+
+/** The household's plan does not allow another account. */
+export const AccountLimitReached = domainError(
+  'E_ACCOUNT_LIMIT_REACHED',
+  402,
+  'Plan account limit reached'
+)
+
 /** The household is scheduled for deletion; only restore is allowed. */
 export const HouseholdPendingDeletion = domainError(
   'E_HOUSEHOLD_PENDING_DELETION',

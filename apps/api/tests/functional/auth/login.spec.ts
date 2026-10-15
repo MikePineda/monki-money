@@ -147,6 +147,19 @@ test.group('Auth / login and sessions', (group) => {
     })
   })
 
+  test('test_authenticated_routes_are_throttled_per_user', async ({ client }) => {
+    const user = await UserFactory.create()
+
+    for (const request of [
+      client.get('/api/v1/auth/me'),
+      client.patch('/api/v1/me').json({ theme: 'dark' }),
+    ]) {
+      const response = await request.actingAs(user)
+      response.assertStatus(200)
+      response.assertHeader('x-ratelimit-limit', '300')
+    }
+  })
+
   test('test_logout_ends_the_session', async ({ client }) => {
     const user = await UserFactory.create()
 

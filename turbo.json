@@ -23,6 +23,7 @@
       "persistent": true
     },
     "codegen": {
+      "dependsOn": ["^build"],
       "cache": false
     },
     "test": {

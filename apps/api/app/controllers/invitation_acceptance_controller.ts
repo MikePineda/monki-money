@@ -21,20 +21,20 @@ export default class InvitationAcceptanceController {
   async show(ctx: HttpContext) {
     const { params } = await ctx.request.validateUsing(invitationTokenValidator)
 
-    const [throttled, result] = await authAttempts().penalize(
+    const [throttled, invitation] = await authAttempts().penalize(
       throttleKey('invitation', clientIp(ctx)),
       () => this.invitations.show(params.token)
     )
     if (throttled) throw throttled
 
-    const { invitation, userExists } = result
+    // No hint about whether the address has an account: accept answers 422
+    // (`password` required) when it does.
     return ctx.serialize({
       email: invitation.email,
       role: invitation.role,
       householdName: invitation.household.name,
       inviterName: invitation.invitedBy?.fullName ?? null,
       expiresAt: invitation.expiresAt.toUTC().toISO()!,
-      userExists,
     })
   }
 

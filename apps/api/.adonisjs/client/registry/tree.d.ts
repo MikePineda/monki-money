@@ -42,6 +42,7 @@ export interface ApiDefinition {
       index: typeof routes['household.invitations.index']
       store: typeof routes['household.invitations.store']
       destroy: typeof routes['household.invitations.destroy']
+      resend: typeof routes['household.invitations.resend']
     }
   }
   accounts: {

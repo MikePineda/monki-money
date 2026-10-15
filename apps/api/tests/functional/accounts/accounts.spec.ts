@@ -115,6 +115,22 @@ test.group('Accounts', () => {
     response.assertBodyContains({ errors: [{ field: 'externalAccountNumber', rule: 'taken' }] })
   })
 
+  test('test_account_creation_respects_the_plan_limit', async ({ client, assert }) => {
+    // Free plan: 6 accounts.
+    const { owner, household } = await createHousehold({
+      accounts: Array.from({ length: 6 }, (_, index) => ({ name: `Account ${index}` })),
+    })
+
+    const response = await client
+      .post('/api/v1/accounts')
+      .json({ name: 'Seventh', kind: 'cash' })
+      .actingAs(owner)
+
+    response.assertStatus(402)
+    response.assertBodyContains({ code: 'E_ACCOUNT_LIMIT_REACHED' })
+    assert.lengthOf(await Account.query().where('household_id', household.id), 6)
+  })
+
   test('test_owner_must_be_a_member_of_the_household', async ({ client }) => {
     const { owner } = await createHousehold()
     const outsider = await createHousehold()

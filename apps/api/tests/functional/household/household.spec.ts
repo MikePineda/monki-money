@@ -1,10 +1,60 @@
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import Household from '#models/household'
+import limiter from '@adonisjs/limiter/services/main'
 import { createHousehold } from '#tests/helpers/household'
 import { FACTORY_PASSWORD } from '#database/factories/user_factory'
 
-test.group('Household', () => {
+test.group('Household', (group) => {
+  group.each.setup(() => limiter.clear())
+
+  test('test_suspended_household_reports_its_own_error_code', async ({ client }) => {
+    const { owner, household } = await createHousehold()
+    household.status = 'suspended'
+    await household.save()
+
+    const response = await client.get('/api/v1/accounts').actingAs(owner)
+
+    response.assertStatus(403)
+    response.assertBodyContains({ code: 'E_HOUSEHOLD_SUSPENDED' })
+  })
+
+  test('test_stale_session_version_is_rejected_on_household_routes', async ({ client }) => {
+    const { owner } = await createHousehold()
+    const staleVersion = owner.sessionVersion
+    owner.sessionVersion += 1
+    await owner.save()
+
+    const response = await client
+      .get('/api/v1/accounts')
+      .loginAs(owner)
+      .withSession({ sv: staleVersion })
+
+    response.assertStatus(401)
+  })
+
+  test('test_household_delete_password_attempts_are_throttled_per_user', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, household } = await createHousehold()
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const response = await client
+        .post('/api/v1/household/delete')
+        .json({ password: 'not-the-password' })
+        .actingAs(owner)
+      response.assertStatus(422)
+    }
+
+    const blocked = await client
+      .post('/api/v1/household/delete')
+      .json({ password: FACTORY_PASSWORD })
+      .actingAs(owner)
+    blocked.assertStatus(429)
+    await household.refresh()
+    assert.equal(household.status, 'active')
+  })
   test('test_show_returns_the_current_household', async ({ client }) => {
     const { owner, household } = await createHousehold()
 

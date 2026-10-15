@@ -126,6 +126,14 @@ SSL Full (strict) via configuration rule, cache bypass for `/`,
 `/i18n/*`, `/api/*`; Rocket Loader and Bot Fight Mode off; rate limit on
 `/api/v1/auth/`. TODO: confirm each item once applied.
 
+**Client IP trust depends on Traefik's Cloudflare allowlist (`cf-only@file`).**
+The API takes the client IP from `CF-Connecting-IP` only when the TCP peer
+is the local proxy (loopback/private address), i.e. Traefik, and Traefik only
+accepts Cloudflare's ranges. Never remove `cf-only@file` from the router, nor
+publish the app port directly: anyone could then forge the header and get
+a fresh rate-limit bucket per request. If Cloudflare publishes new ranges,
+update the allowlist (otherwise every request is answered 403).
+
 ## Smoke test (Bruno)
 
 TODO (E2E/Bruno package): `bru run --env prod` from `apps/api/bruno` with
