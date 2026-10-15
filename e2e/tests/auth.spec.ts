@@ -51,22 +51,31 @@ test.describe('journey 1: login and session expiry', () => {
 })
 
 test.describe('journey 1b: the bot check on login', () => {
-  // Playwright sees request bodies only while the PWA service worker stays out of the way.
-  test.use({ serviceWorkers: 'block' })
-
   test('the login waits for the Turnstile token and sends it', async ({ page }) => {
     const login = new LoginPage(page)
+    // Chromium does not expose fetch bodies to Playwright (the client streams
+    // them), so the page records the login body itself.
+    await page.addInitScript(() => {
+      const send = window.fetch.bind(window)
+      window.fetch = async (input, init) => {
+        const request = new Request(input, init)
+        if (request.url.endsWith('/api/v1/auth/login')) {
+          sessionStorage.setItem('e2e:loginBody', await request.clone().text())
+        }
+        return send(request)
+      }
+    })
 
     await login.goto()
-    // e2e.env sets a site key, so the widget renders (served by the stand-in).
+    // e2e.env sets a site key, so the widget renders (through the stand-in).
     await expect(page.getByTestId('login.turnstile').getByTestId('turnstile.host')).toHaveAttribute(
       'data-turnstile',
       'e2e'
     )
-    const sent = page.waitForRequest('**/api/v1/auth/login')
     await login.logIn(SEEDED_OWNER.email, SEEDED_OWNER.password)
 
-    expect((await sent).postDataJSON()).toMatchObject({ turnstileToken: TURNSTILE_DUMMY_TOKEN })
     await expect(page).toHaveURL(/\/month$/)
+    const body = await page.evaluate(() => sessionStorage.getItem('e2e:loginBody'))
+    expect(JSON.parse(body ?? '{}')).toMatchObject({ turnstileToken: TURNSTILE_DUMMY_TOKEN })
   })
 })

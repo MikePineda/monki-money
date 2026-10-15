@@ -8,9 +8,11 @@ import type { BrowserContext } from '@playwright/test'
  * The real script cannot load here: every browser request carries the
  * per-test `CF-Connecting-IP` header (rate-limit isolation, see
  * fixtures.ts) and Cloudflare's edge answers 403 to any request that sends
- * it (Chromium then blocks the script as ORB). Stripping the header works
- * in Chromium only (WebKit re-adds it on the script's redirect). So the
- * suite serves this stand-in for `api.js`: the same explicit-render API the
+ * it (Chromium then blocks the script as ORB). Stripping the header with a
+ * route works in Chromium only: WebKit re-adds it on the script's redirect
+ * and does not route requests from pages the PWA service worker controls.
+ * So every page starts with this stand-in as `window.turnstile` (the app
+ * then never fetches Cloudflare's script): the same explicit-render API the
  * app uses, behaving like Cloudflare's always-pass test key (a dummy token
  * shortly after rendering, a fresh one after `reset`). No network, no
  * flakiness from a third party in CI.
@@ -43,12 +45,7 @@ const STAND_IN = `(() => {
   }
 })()`
 
-/** Serves the stand-in for Cloudflare's script and refuses anything else from Cloudflare. */
+/** Installs the stand-in on every page of the context before the app boots. */
 export async function stubTurnstile(context: BrowserContext): Promise<void> {
-  await context.route(/^https:\/\/challenges\.cloudflare\.com\//, (route) => {
-    if (new URL(route.request().url()).pathname === '/turnstile/v0/api.js') {
-      return route.fulfill({ contentType: 'application/javascript', body: STAND_IN })
-    }
-    return route.abort()
-  })
+  await context.addInitScript({ content: STAND_IN })
 }
