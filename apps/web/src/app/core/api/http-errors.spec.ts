@@ -2,9 +2,9 @@ import { TuyauHTTPError, TuyauNetworkError } from '@tuyau/core/client'
 import { toApiError } from './http-errors'
 
 /** Builds the error Tuyau throws for a non-2xx response (it wraps a Ky HTTPError). */
-function httpError(status: number, body: unknown): TuyauHTTPError {
+function httpError(status: number, body: unknown, headers: Record<string, string> = {}) {
   const kyError = {
-    response: { status },
+    response: { status, headers: new Headers(headers) },
     request: { url: 'http://localhost/api/v1/thing', method: 'POST' },
     options: { prefixUrl: 'http://localhost' },
   }
@@ -40,14 +40,47 @@ describe('toApiError', () => {
     expect(toApiError(httpError(401, {}))).toEqual({ kind: 'unauthorized', status: 401 })
   })
 
-  it('test_403_maps_to_forbidden', () => {
-    expect(toApiError(httpError(403, {}))).toEqual({ kind: 'forbidden', status: 403 })
+  it('test_403_maps_to_forbidden_with_the_api_code', () => {
+    expect(toApiError(httpError(403, {}))).toEqual({ kind: 'forbidden', status: 403, code: null })
+    expect(
+      toApiError(httpError(403, { message: 'Closed', code: 'E_REGISTRATION_CLOSED' }))
+    ).toEqual({ kind: 'forbidden', status: 403, code: 'E_REGISTRATION_CLOSED' })
   })
 
-  it('test_other_statuses_map_to_server', () => {
+  it('test_429_maps_to_throttled_with_the_retry_after_seconds', () => {
+    expect(toApiError(httpError(429, {}, { 'Retry-After': '1200' }))).toEqual({
+      kind: 'throttled',
+      status: 429,
+      retryAfterSeconds: 1200,
+    })
+    expect(toApiError(httpError(429, {}))).toEqual({
+      kind: 'throttled',
+      status: 429,
+      retryAfterSeconds: null,
+    })
+  })
+
+  it('test_other_client_errors_map_to_http_with_the_api_code', () => {
+    expect(toApiError(httpError(404, { message: 'Not found', code: 'E_ROW_NOT_FOUND' }))).toEqual({
+      kind: 'http',
+      status: 404,
+      code: 'E_ROW_NOT_FOUND',
+    })
+    expect(toApiError(httpError(410, { code: 'E_INVITATION_EXPIRED' }))).toEqual({
+      kind: 'http',
+      status: 410,
+      code: 'E_INVITATION_EXPIRED',
+    })
+    expect(toApiError(httpError(400, { errors: [{ message: 'Invalid credentials' }] }))).toEqual({
+      kind: 'http',
+      status: 400,
+      code: null,
+    })
+  })
+
+  it('test_server_errors_map_to_server', () => {
     expect(toApiError(httpError(500, {}))).toEqual({ kind: 'server', status: 500 })
-    expect(toApiError(httpError(404, {}))).toEqual({ kind: 'server', status: 404 })
-    expect(toApiError(httpError(429, {}))).toEqual({ kind: 'server', status: 429 })
+    expect(toApiError(httpError(503, {}))).toEqual({ kind: 'server', status: 503 })
   })
 
   it('test_network_failures_map_to_offline', () => {

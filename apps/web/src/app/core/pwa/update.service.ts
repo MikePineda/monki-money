@@ -60,6 +60,21 @@ export class UpdateService {
     )
   }
 
+  /**
+   * User-initiated check ("Check for update" in settings). A found version
+   * then arrives as VERSION_READY and shows the usual "Update" toast.
+   */
+  async checkNow(): Promise<'found' | 'latest' | 'failed' | 'unsupported'> {
+    if (!this.sw.isEnabled) {
+      return 'unsupported'
+    }
+    try {
+      return (await this.sw.checkForUpdate()) ? 'found' : 'latest'
+    } catch {
+      return 'failed'
+    }
+  }
+
   /** User-initiated: activate the waiting version, then load it. */
   async applyUpdate(): Promise<void> {
     await this.sw.activateUpdate().catch(() => false)

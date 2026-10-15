@@ -1,0 +1,12 @@
+{
+  "back": "Atrás",
+  "placeholder": "Texto provisional. La versión final se publicará antes de abrir el registro al público.",
+  "terms": {
+    "title": "Términos de uso",
+    "body": "monkimoney es una herramienta privada para que un hogar registre y entienda sus gastos compartidos. Eres responsable de los datos que capturas y de cuidar tu contraseña. El servicio se ofrece tal cual mientras está en desarrollo."
+  },
+  "privacy": {
+    "title": "Aviso de privacidad",
+    "body": "monkimoney guarda tu nombre, tu correo, tu hogar y los movimientos que capturas, solo para que la app funcione para tu hogar. Nada se vende ni se comparte con anunciantes. Puedes exportar tus datos o eliminar tu hogar desde Ajustes cuando quieras."
+  }
+}

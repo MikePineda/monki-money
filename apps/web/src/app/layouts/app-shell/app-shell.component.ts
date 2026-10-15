@@ -59,7 +59,7 @@ export class AppShellComponent {
     return [
       { path: '/month', icon: 'calendar', label: month },
       { path: '/transactions', icon: 'list', label: transactions },
-      { path: '/more', icon: 'ellipsis', label: more },
+      { path: '/settings', icon: 'ellipsis', label: more },
     ]
   })
 }

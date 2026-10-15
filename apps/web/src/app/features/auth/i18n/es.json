@@ -1,0 +1,119 @@
+{
+  "fields": {
+    "email": "Correo",
+    "password": "Contraseña",
+    "newPassword": "Contraseña nueva",
+    "fullName": "Tu nombre",
+    "passwordHint": "Al menos 10 caracteres."
+  },
+  "login": {
+    "title": "Inicia sesión",
+    "forgot": "¿Olvidaste tu contraseña?",
+    "submit": "Iniciar sesión",
+    "newHere": "¿Eres nuevo?",
+    "createAccount": "Crear cuenta",
+    "errors": {
+      "credentials": "El correo o la contraseña no son correctos.",
+      "throttled": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}."
+    }
+  },
+  "signup": {
+    "title": "Crea tu cuenta",
+    "subtitle": "Una cuenta por persona. Tu pareja se une después con una invitación.",
+    "terms": "Acepto los",
+    "termsLink": "términos",
+    "privacyLink": "aviso de privacidad",
+    "submit": "Crear cuenta",
+    "haveAccount": "¿Ya tienes cuenta?",
+    "login": "Inicia sesión",
+    "errors": {
+      "closed": "El registro está cerrado por ahora."
+    }
+  },
+  "verify": {
+    "pending": {
+      "title": "Revisa tu correo",
+      "body": "Enviamos un enlace de confirmación a {email}. Ábrelo para continuar.",
+      "resend": "Enviar el enlace otra vez",
+      "resendIn": "Reenviar en {seconds} s",
+      "sent": "Enviamos un enlace nuevo.",
+      "otherAccount": "Usar otra cuenta"
+    },
+    "confirming": "Confirmando tu correo…",
+    "confirmed": {
+      "title": "Correo confirmado",
+      "body": "Tu cuenta está lista.",
+      "continue": "Continuar"
+    },
+    "invalid": {
+      "title": "Este enlace ya no funciona",
+      "body": "Puede que haya vencido o que ya se haya usado. Inicia sesión para pedir uno nuevo.",
+      "action": "Continuar"
+    }
+  },
+  "forgot": {
+    "title": "Restablece tu contraseña",
+    "body": "Escribe tu correo y te enviaremos un enlace para elegir una contraseña nueva.",
+    "submit": "Enviar enlace",
+    "back": "Volver a iniciar sesión",
+    "sent": {
+      "title": "Revisa tu correo",
+      "body": "Si existe una cuenta para {email}, el enlace va en camino. Funciona durante una hora."
+    }
+  },
+  "reset": {
+    "title": "Elige una contraseña nueva",
+    "submit": "Guardar contraseña",
+    "done": {
+      "title": "Contraseña actualizada",
+      "body": "Cerramos tu sesión en todos los dispositivos. Inicia sesión con tu contraseña nueva.",
+      "action": "Iniciar sesión"
+    },
+    "invalid": {
+      "title": "Este enlace ya no funciona",
+      "body": "Los enlaces para restablecer funcionan una vez y durante una hora.",
+      "action": "Pedir un enlace nuevo"
+    }
+  },
+  "noHousehold": {
+    "title": "Aún no estás en un hogar",
+    "body": "Pide a quien administra tu hogar que te invite y abre el enlace del correo.",
+    "logout": "Cerrar sesión"
+  },
+  "deleted": {
+    "title": "{name} se eliminará pronto",
+    "body": "Todo lo que contiene se eliminará el {date}. Hasta entonces puedes restaurarlo.",
+    "memberBody": "Todo lo que contiene se eliminará el {date}. Solo quien lo administra puede restaurarlo antes.",
+    "restore": "Restaurar hogar",
+    "restored": "Hogar restaurado.",
+    "expired": "El plazo para restaurarlo ya terminó.",
+    "logout": "Cerrar sesión"
+  },
+  "invite": {
+    "loading": "Abriendo la invitación…",
+    "title": "Únete a {household}",
+    "from": "{inviter} invitó a {email} a compartir su hogar en monkimoney.",
+    "fromUnknown": "{email} recibió una invitación para compartir un hogar en monkimoney.",
+    "createAccount": "Crear cuenta",
+    "login": "Ya tengo una cuenta",
+    "confirmPassword": "Escribe tu contraseña para unirte.",
+    "accept": "Unirme al hogar",
+    "otherEmail": "Esta invitación es para {email}. Cierra sesión y entra con esa cuenta.",
+    "logout": "Cerrar sesión",
+    "full": "Este hogar ya tiene a todos sus miembros.",
+    "exit": "Continuar",
+    "alreadyIn": {
+      "title": "Ya tienes un hogar",
+      "body": "Por ahora monkimoney permite un hogar por persona, así que no puedes usar esta invitación con tu cuenta.",
+      "action": "Ir a la app"
+    },
+    "invalid": {
+      "title": "Esta invitación no existe",
+      "body": "Revisa el enlace del correo o pide una invitación nueva."
+    },
+    "expired": {
+      "title": "Esta invitación venció",
+      "body": "Las invitaciones funcionan 7 días y una sola vez. Pide una nueva."
+    }
+  }
+}

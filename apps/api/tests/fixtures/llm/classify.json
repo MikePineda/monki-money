@@ -1,0 +1,36 @@
+{
+  "rules": [
+    {
+      "match": "woolworths",
+      "categorySlug": "groceries",
+      "confidence": 0.94,
+      "payee": "Woolworths"
+    },
+    { "match": "coles", "categorySlug": "groceries", "confidence": 0.92, "payee": "Coles" },
+    { "match": "aldi", "categorySlug": "groceries", "confidence": 0.9, "payee": "Aldi" },
+    {
+      "match": "translink",
+      "categorySlug": "public-transport",
+      "confidence": 0.97,
+      "payee": "Translink"
+    },
+    {
+      "match": "uber eats",
+      "categorySlug": "restaurants-takeaway",
+      "confidence": 0.9,
+      "payee": "Uber Eats"
+    },
+    { "match": "uber trip", "categorySlug": "rideshare-taxi", "confidence": 0.88, "payee": "Uber" },
+    { "match": "coffee", "categorySlug": "cafe-coffee", "confidence": 0.8, "payee": null },
+    {
+      "match": "netflix",
+      "categorySlug": "subscriptions-games",
+      "confidence": 0.9,
+      "payee": "Netflix"
+    },
+    { "match": "pharmacy", "categorySlug": "medical-pharmacy", "confidence": 0.85, "payee": null },
+    { "match": "rent", "categorySlug": "rent", "confidence": 0.8, "payee": null },
+    { "match": "salary", "categorySlug": "salary", "confidence": 0.95, "payee": null },
+    { "match": "payroll", "categorySlug": "salary", "confidence": 0.93, "payee": null }
+  ]
+}
