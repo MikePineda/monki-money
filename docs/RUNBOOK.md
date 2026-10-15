@@ -41,16 +41,42 @@ ARM server). Fill the TODOs as the infrastructure work packages land.
 ## Deploy and verification
 
 Merge to `main` -> Dokploy webhook -> ARM64 build on the server (target
-`runtime`) -> Swarm start-first update with rollback. Then:
+`runtime`) -> Swarm start-first update with rollback. The `ship` skill
+(`.claude/skills/ship`) runs the whole sequence; by hand:
+
+### Post-deploy verification
 
 ```bash
-curl -s https://app.example.com/api/health | jq '{status, version, sha}'
+# 1. Wait until production reports the merge commit (polls /api/health, browser UA).
+.claude/skills/ship/scripts/wait-for-deploy.sh https://app.example.com "$(git rev-parse origin/main)"
+
+# 2. Smoke as the smoke user: health, CSRF handshake, login, me, household,
+#    accounts, categories, logout (Bruno, read-only in prod).
+npm run smoke:prod
+
+# 3. PWA files are never cached.
 curl -sI https://app.example.com/ngsw-worker.js | grep -i 'cache-control\|cf-cache-status'
 # expect: cache-control: no-cache, cf-cache-status: DYNAMIC or BYPASS
 ```
 
+Expect 2 to 4 minutes from merge to live (build about 70 s, healthcheck
+start period 60 s). Production still on the old sha after that means a
+failed build or an automatic rollback: see "The two Dokploy traps".
+
 Before the first push of Docker changes: `docker build --target runtime -t
 monkimoney:local .` on the Mac (see `CLAUDE.md` for running it).
+
+### Talking to production from scripts
+
+- **Browser User-Agent, always.** Cloudflare's Browser Integrity Check
+  answers 403 to clients that do not look like a browser (python-urllib got
+  403). curl's default UA passes today, but send a browser one anyway:
+  `curl -A 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'`.
+  The Bruno collection sets it on every request.
+- **CSRF: GET first.** Every response sets the `XSRF-TOKEN` cookie; every
+  POST/PUT/PATCH/DELETE (login included) must send it back as
+  `X-XSRF-TOKEN` with the same cookie jar, or the API answers 403
+  `E_BAD_CSRF_TOKEN`. So: `GET /api/v1/config` (or any GET), then the write.
 
 ## The two Dokploy traps
 
@@ -71,7 +97,8 @@ The full, commented list is `apps/api/.env.example`. Production specifics:
 `SEED_USERS` (first deploy only), `SEED_HOUSEHOLD_NAME`, `SEED_LOCALE`,
 `SEED_USER1_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
 `SEED_USER2_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
-`SEED_JOINT_ACCOUNT_NUMBER`, `SMOKE_PASSWORD`.
+`SEED_JOINT_ACCOUNT_NUMBER`, `SMOKE_EMAIL`, `SMOKE_PASSWORD` (smoke user,
+see "Smoke test").
 
 The production bootstrap (`database/seeders/production_bootstrap_seeder`) is
 idempotent by email and account name and never resets a password, so a
@@ -101,7 +128,10 @@ stdout; secrets, cookies and emails are redacted.
 
 ## Rollback, reload, scale
 
-- Rollback: Dokploy `rollback-rollback` (or redeploy a previous commit).
+- Rollback: Dokploy `rollback-rollback {rollbackId}` (ids from
+  `deployment-all`, only when rollbacks are enabled for the application) or
+  the panel, else revert the merge (`git revert -m 1 <merge-sha>`) and ship
+  the revert. Details: `.claude/skills/ship/SKILL.md` → "Rollback".
 - Reload without rebuild: `application-reload`.
 - Scale: `replicas: 2` is safe (pool 10 x replicas < 100 connections) once
   `MIGRATE_ON_START=false` and migrations run out of band.
@@ -136,8 +166,37 @@ update the allowlist (otherwise every request is answered 403).
 
 ## Smoke test (Bruno)
 
-TODO (E2E/Bruno package): `bru run --env prod` from `apps/api/bruno` with
-`SMOKE_PASSWORD` in the environment.
+Collection: `apps/api/bruno` (how it works and how to add a request:
+`apps/api/bruno/README.md`). Nine requests in `seq` order: `/api/health`,
+`/api/health/live`, `/api/v1/config` (CSRF handshake), login, `auth/me`,
+`household`, `accounts`, `categories?tree=1`, logout. Runs with `--bail`.
+
+```bash
+npm run smoke:local      # against npm run dev (http://localhost:3333)
+npm run smoke:prod       # against production, after every deploy
+```
+
+Credentials: `SMOKE_EMAIL` and `SMOKE_PASSWORD` exported in the shell or in
+`apps/api/bruno/.env` (gitignored); environments only reference
+`{{process.env.*}}`. Against `prod` the collection only reads (plus the
+smoke user's login/logout): its pre-request script skips any other write,
+and `04-login` fails the run unless the user landed in the "Smoke"
+household. Five failed logins per minute block the IP + email for 20
+minutes, so fix a wrong password before retrying.
+
+**Smoke user (one-time setup in production).** The production bootstrap
+seeder creates it from `SMOKE_EMAIL` / `SMOKE_PASSWORD`: verified, alone in
+its own household "Smoke", no accounts, never the real household
+(`SMOKE_EMAIL` must differ from every `SEED_USER*_EMAIL`). In the Dokploy
+panel set `SMOKE_EMAIL`, `SMOKE_PASSWORD` (10+ characters) and
+`SEED_USERS=true`, then redeploy. Either keep the whole `SEED_*` household
+block complete (idempotent, never resets a password) or clear every
+`SEED_*` household variable: a partial block fails validation, the seeder
+aborts the boot and Swarm rolls back. After the deploy, check the log line
+`production bootstrap: smoke user ready`, set `SEED_USERS=false` and run
+`npm run smoke:prod` with the same credentials locally. Rotation: change
+the password in the app as the smoke user (the seeder never resets it),
+then update `SMOKE_PASSWORD` wherever the smoke runs.
 
 ## Opening registration
 
@@ -146,7 +205,16 @@ rate limits and email verification active.
 
 ## LLM cost
 
-TODO (LLM package): query over `llm_usage` per household and month.
+Per household and month, read-only, from `.claude/skills/pulse/pulse.sql`
+(guarded: prints "not created yet" until the `llm_usage` table exists):
+
+```bash
+ssh <server> 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
+  psql -U monkimoney -d monkimoney -X -q -v ON_ERROR_STOP=1 -f -' < .claude/skills/pulse/pulse.sql
+```
+
+The `pulse` skill runs it together with health, logs, deployments, backups
+and disk.
 
 ## Disk
 
