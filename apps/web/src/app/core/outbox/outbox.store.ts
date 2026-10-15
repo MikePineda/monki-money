@@ -9,6 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core'
+import { marker } from '@jsverse/transloco-keys-manager/marker'
 import {
   backoffMs,
   deserialize,
@@ -36,8 +37,8 @@ import { syncResult, type SyncResult } from './sync-result'
 /** localStorage key prefix, one outbox per person on this device: `outbox:<userId>`. */
 export const OUTBOX_KEY = 'outbox:'
 
-/** Shown where the toast renders (scope `outbox`): t(outbox.toast.synced) */
-const SYNCED_TOAST = 'outbox.toast.synced'
+/** A global key: the toast shows on whatever screen the person is on. */
+const SYNCED_TOAST = marker('sync.synced')
 
 /**
  * The offline outbox (domain/outbox.ts) of the person signed in: creates

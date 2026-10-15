@@ -1,0 +1,31 @@
+{
+  "pill": {
+    "pending": "{count, plural, one {# pendiente} other {# pendientes}}",
+    "failed": "{count, plural, one {# con error} other {# con error}}"
+  },
+  "sheet": {
+    "title": "Sin sincronizar",
+    "body": "Guardados en este teléfono. Se sincronizan solos cuando hay conexión.",
+    "retryAll": "Reintentar todo",
+    "status": {
+      "pending": "En espera de sincronizar",
+      "offline": "Esperando conexión",
+      "syncing": "Sincronizando…",
+      "failed": "No se guardó"
+    },
+    "refused": "El servidor rechazó este movimiento.",
+    "retry": "Reintentar",
+    "edit": "Editar",
+    "discard": "Descartar",
+    "confirm": {
+      "question": "¿Descartar este movimiento? No se guardará.",
+      "keep": "Conservar",
+      "discard": "Descartar"
+    },
+    "kind": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia"
+    }
+  }
+}

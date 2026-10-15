@@ -23,6 +23,9 @@
       "action": "Recargar"
     }
   },
+  "sync": {
+    "synced": "{count, plural, one {Se sincronizó # movimiento} other {Se sincronizaron # movimientos}}"
+  },
   "ui": {
     "amount": {
       "transfer": "Transferencia"

@@ -232,7 +232,7 @@ describe('OutboxStore', () => {
       await store.flush()
 
       expect(TestBed.inject(ToastStore).current()).toMatchObject({
-        messageKey: 'outbox.toast.synced',
+        messageKey: 'sync.synced',
         params: { count: 2 },
       })
     })
