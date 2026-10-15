@@ -89,11 +89,12 @@ ssh <server> 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
 `pulse.sql` (next to this file) opens a read-only transaction and prints
 aggregates only: households by status, users (verified, new in 7 days),
 accounts, transactions created (24 h / 7 d, once the ledger exists) and
-`llm_usage` (once the LLM package is deployed): this month's calls, failures,
-tokens, latency and cost per household and purpose, the last 24 hours by
-status and the last three failures. Missing tables print a "not created
-yet" line instead of failing. If a migration renames those columns, update
-the SQL with it.
+`llm_usage`: this month's calls, failures, tokens, latency and cost
+(`cost_micros`, priced by `apps/api/config/llm.ts`) per household and
+purpose (`operator` = `node ace llm:smoke`), the last 24 hours by status and
+the last three failures. Missing tables print a "not created yet" line
+instead of failing. If a migration renames those columns, update the SQL
+with it.
 
 Flag: LLM failures above about 10% of calls, cost climbing faster than
 usage, a household near its monthly cap, latency well above a few seconds.
