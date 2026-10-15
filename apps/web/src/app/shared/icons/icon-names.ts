@@ -43,6 +43,10 @@ export const ICON_NAMES = [
   // Bank import review
   'ban',
   'link',
+  // Receipt scanner
+  'camera',
+  'image',
+  'merge',
   // Keypad and forms
   'delete',
   // PWA and preferences

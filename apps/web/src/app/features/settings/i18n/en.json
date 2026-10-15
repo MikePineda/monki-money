@@ -58,6 +58,9 @@
   "import": {
     "title": "Import bank CSV"
   },
+  "scan": {
+    "title": "Scan a receipt"
+  },
   "rules": {
     "title": "Merchant rules"
   },

@@ -209,6 +209,14 @@ describe('QuickAddPage', () => {
     expect(heroText(root)).toBe('$0.00')
   })
 
+  it('test_the_camera_button_in_the_header_opens_the_receipt_scanner', async () => {
+    const { root } = await open()
+
+    const scan = byTestId(root, 'quickAdd.scan')
+    expect(scan.getAttribute('href')).toBe('/scan')
+    expect(scan.getAttribute('aria-label')).toBe('Scan a receipt')
+  })
+
   it('test_without_a_stored_account_the_latest_own_entry_picks_it', async () => {
     const { root } = await open('/add', [aTransaction({ accountId: 2, createdByUserId: 1 })])
 

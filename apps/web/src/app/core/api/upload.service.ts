@@ -55,11 +55,29 @@ function parseJson(text: string): unknown {
 }
 
 /**
- * Multipart uploads with real progress, which fetch (and so the Tuyau
- * client) cannot report: an XMLHttpRequest to the same origin with the
- * CSRF header Tuyau would send (`X-XSRF-TOKEN` from the cookie), progress
- * events from `xhr.upload`, and cancellation through an AbortSignal. A 401
- * is reported to {@link SessionExpiry} like any other API call.
+ * Headers a page may not set (the browser writes them from the request
+ * itself); a presigned PUT lists `Content-Length` among the signed ones.
+ */
+const BROWSER_OWNED_HEADERS = new Set(['content-length', 'host', 'connection'])
+
+interface SendOptions extends UploadOptions {
+  headers: Record<string, string>
+  /** A 401 means the session ended (API calls only, never the bucket). */
+  reportExpiry: boolean
+}
+
+/**
+ * Uploads with real progress, which fetch (and so the Tuyau client) cannot
+ * report, over XMLHttpRequest with progress events from `xhr.upload` and
+ * cancellation through an AbortSignal:
+ *
+ * - `post`: a multipart form to the API (same origin) with the CSRF header
+ *   Tuyau would send (`X-XSRF-TOKEN` from the cookie); a 401 is reported to
+ *   {@link SessionExpiry} like any other API call.
+ * - `putToUrl`: a file straight to the bucket through a presigned URL, with
+ *   exactly the signed headers. Nothing of the session goes there: no
+ *   cookies (`withCredentials` stays false), no CSRF token, and the
+ *   bucket's 401 or 403 says nothing about the session.
  */
 @Injectable({ providedIn: 'root' })
 export class UploadService {
@@ -68,7 +86,34 @@ export class UploadService {
   private readonly createXhr = inject(XHR_FACTORY)
 
   post(path: string, body: FormData, options: UploadOptions = {}): Promise<UploadResponse> {
-    const { signal, onProgress } = options
+    const headers: Record<string, string> = { Accept: 'application/json' }
+    const token = xsrfToken(this.document.cookie)
+    if (token) {
+      headers['X-XSRF-TOKEN'] = token
+    }
+    return this.send('POST', path, body, { ...options, headers, reportExpiry: true })
+  }
+
+  /** PUTs `blob` to a presigned `url` with the `headers` its signature expects. */
+  putToUrl(
+    url: string,
+    blob: Blob,
+    headers: Record<string, string>,
+    options: UploadOptions = {}
+  ): Promise<UploadResponse> {
+    const signed = Object.fromEntries(
+      Object.entries(headers).filter(([name]) => !BROWSER_OWNED_HEADERS.has(name.toLowerCase()))
+    )
+    return this.send('PUT', url, blob, { ...options, headers: signed, reportExpiry: false })
+  }
+
+  private send(
+    method: 'POST' | 'PUT',
+    url: string,
+    body: FormData | Blob,
+    options: SendOptions
+  ): Promise<UploadResponse> {
+    const { signal, onProgress, headers, reportExpiry } = options
     return new Promise<UploadResponse>((resolve, reject) => {
       if (signal?.aborted) {
         reject(new UploadAbortedError())
@@ -77,16 +122,15 @@ export class UploadService {
       const xhr = this.createXhr()
       const abort = () => xhr.abort()
 
-      xhr.open('POST', path)
-      xhr.setRequestHeader('Accept', 'application/json')
-      const token = xsrfToken(this.document.cookie)
-      if (token) {
-        xhr.setRequestHeader('X-XSRF-TOKEN', token)
+      xhr.open(method, url)
+      xhr.withCredentials = false
+      for (const [name, value] of Object.entries(headers)) {
+        xhr.setRequestHeader(name, value)
       }
       xhr.upload.onprogress = (event) =>
         onProgress?.(event.lengthComputable && event.total > 0 ? event.loaded / event.total : null)
       xhr.onload = () => {
-        if (xhr.status === 401) {
+        if (reportExpiry && xhr.status === 401) {
           this.expiry.notify()
         }
         resolve({ status: xhr.status, body: parseJson(xhr.responseText) })

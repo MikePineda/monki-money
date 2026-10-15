@@ -5,6 +5,7 @@
     "transfer": "Add transfer"
   },
   "done": "Done",
+  "scan": "Scan a receipt",
   "loading": "Loading your accounts and categories",
   "loadError": "Your accounts and categories did not load.",
   "kind": {
