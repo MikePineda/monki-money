@@ -71,7 +71,7 @@ const CATALOGUE_PROBE = 'result.title'
       <main class="flex flex-1 flex-col gap-8 px-4 pt-2 pb-8">
         @if (outcome(); as current) {
           <section class="flex flex-col gap-1">
-            <p class="text-display pnum text-ink-1" data-testid="import.result.created">
+            <p class="text-display pnum text-ink-1" data-testid="import.result.headline">
               {{ current.result.created }}
             </p>
             <p class="text-body text-ink-2">
@@ -86,7 +86,7 @@ const CATALOGUE_PROBE = 'result.title'
             @for (item of tallies(); track item.key) {
               <div
                 class="flex flex-col gap-1 bg-surface-0 p-4"
-                [attr.data-testid]="'import.result.' + item.key"
+                [attr.data-testid]="'import.result.count.' + item.key"
               >
                 <dt class="text-caption text-ink-2">
                   {{ 'import.result.' + item.key | transloco: { count: item.count } }}

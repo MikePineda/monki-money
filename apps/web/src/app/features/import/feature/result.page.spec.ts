@@ -66,8 +66,8 @@ describe('ImportResultPage', () => {
     await vi.waitFor(() => expect(text(root, 'h1')).toBe('Import confirmed'))
 
     expect(api.show).not.toHaveBeenCalled()
-    expect(text(root, '[data-testid="import.result.created"]')).toBe('29')
-    expect(text(root, '[data-testid="import.result.matched"]')).toBe('Matched 2')
+    expect(text(root, '[data-testid="import.result.headline"]')).toBe('29')
+    expect(text(root, '[data-testid="import.result.count.matched"]')).toBe('Matched 2')
     expect(text(root, '[data-testid="import.result.reconciliation"]')).toBe(
       'Balanced with the bank: $7,237.31 on 27 Sept 2026.'
     )
@@ -91,7 +91,7 @@ describe('ImportResultPage', () => {
         })
       )
     })
-    await vi.waitFor(() => expect(text(root, '[data-testid="import.result.created"]')).toBe('4'))
+    await vi.waitFor(() => expect(text(root, '[data-testid="import.result.headline"]')).toBe('4'))
 
     expect(text(root, '[data-testid="import.result.reconciliation"]')).toBe(
       '$237.31 away from the bank’s balance. Movements before 1 Sept 2026 are missing: ' +
