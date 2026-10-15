@@ -29,3 +29,8 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Move `TransactionForm`/`TransferForm` to `shared/` (or host quick add under `features/transactions`) so the add page can reuse them without a cross-feature import.
 - 2026-10-16 After a member leaves, `accounts.owner_user_id` and `account_cards.user_id` still point at them, so `defaultPayer` gives new rows on those accounts/cards to the ex-member: decide whether leaving makes their accounts joint or the default payer skips non-members.
 - 2026-10-16 Household ownership transfer (owners can only delete today, `household.leave` answers 422 for them), and letting a member leave while the household is pending deletion (today 403 like every household route).
+- 2026-10-16 Outbox: warn before an explicit logout when entries are still queued (logout deletes them from the device today).
+- 2026-10-16 Outbox across tabs: reload it on the `storage` event so two open windows do not overwrite each other's queue (both sync idempotently today, but a write can drop the other tab's newest entry).
+- 2026-10-16 Outbox: "Undo" on the "Saved offline" toast (remove the queued entry, or delete the row once synced); queued entries can only be discarded from the sync sheet today.
+- 2026-10-16 Outbox: say so when localStorage refuses the write (quota, private mode); the entry then lives in memory until the app closes.
+- 2026-10-16 Outbox: a queued expense does not feed quick add's category/payee ranking until it syncs and the next visit reloads the recent rows.
