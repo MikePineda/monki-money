@@ -91,6 +91,7 @@
     "pg": "8.23.1",
     "proxy-addr": "2.0.8",
     "reflect-metadata": "^0.2.2",
+    "safe-regex2": "5.1.1",
     "sharp": "0.35.5"
   },
   "hotHook": {

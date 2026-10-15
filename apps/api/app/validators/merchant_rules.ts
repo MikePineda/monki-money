@@ -1,6 +1,7 @@
 import vine from '@vinejs/vine'
 import { RULE_MATCH_TYPES } from '@monkimoney/shared'
 import { id, idParams } from '#validators/rules'
+import { MAX_RULE_PATTERN_LENGTH } from '#domain/importing/regex_safety'
 
 /**
  * Merchant rules. Every rule needs a category or a transfer account
@@ -15,7 +16,7 @@ const ruleFields = {
   priority: vine.number().withoutDecimals().min(-1000).max(1000).optional(),
 }
 
-const pattern = () => vine.string().trim().minLength(1).maxLength(255)
+const pattern = () => vine.string().trim().minLength(1).maxLength(MAX_RULE_PATTERN_LENGTH)
 
 export const createRuleValidator = vine.create({
   matchType: vine.enum(RULE_MATCH_TYPES),

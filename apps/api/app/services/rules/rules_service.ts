@@ -13,6 +13,7 @@ import { decodeHtmlEntities } from '#importers/html_entities'
 import LedgerReferences from '#services/ledger/ledger_references'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
+import { isSafeRulePattern } from '#domain/importing/regex_safety'
 import { findMatchingRule, type RuleSubject } from '#domain/importing/rule_matching'
 import { merchantFullKey, merchantKey, normalizeDescription } from '#domain/importing/normalize'
 
@@ -162,6 +163,8 @@ export default class RulesService {
       } catch {
         throw new FieldError('pattern', 'regex')
       }
+      // Rules run synchronously on every imported row: no catastrophic backtracking.
+      if (!isSafeRulePattern(pattern)) throw new FieldError('pattern', 'unsafeRegex')
     }
 
     const pick = <Key extends keyof RuleInput>(key: Key, fallback: RuleInput[Key]) =>
