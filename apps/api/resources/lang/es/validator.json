@@ -60,7 +60,8 @@
       "targetCents": "monto meta",
       "targetDate": "fecha meta",
       "startingCents": "monto ya ahorrado",
-      "monthlyContributionCents": "aportación mensual"
+      "monthlyContributionCents": "aportación mensual",
+      "force": "volver a generar"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -101,7 +102,9 @@
       "splits.zeroLine": "Cada línea de la división necesita un monto",
       "categoryId.split": "Un movimiento dividido toma sus categorías de sus líneas",
       "amountCents.splitSum": "Cambia las líneas de la división junto con el monto",
-      "toAccountId.sameAccount": "Elige dos cuentas distintas"
+      "toAccountId.sameAccount": "Elige dos cuentas distintas",
+      "month.future": "Este mes todavía no empieza",
+      "month.noActivity": "Todavía no hay ingresos ni gastos en este mes"
     }
   }
 }

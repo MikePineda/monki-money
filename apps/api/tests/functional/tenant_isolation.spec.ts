@@ -5,6 +5,7 @@ import Category from '#models/category'
 import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
 import SavingsGoal from '#models/savings_goal'
+import MonthlyInsight from '#models/monthly_insight'
 import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import router from '@adonisjs/core/services/router'
@@ -30,6 +31,7 @@ interface Victim {
   transaction: Transaction
   transfer: Transfer
   goal: SavingsGoal
+  insight: MonthlyInsight
 }
 
 interface Attacker {
@@ -42,6 +44,8 @@ interface IsolationCase {
   method: 'get' | 'patch' | 'post' | 'put' | 'delete'
   url: (victim: Victim, attacker: Attacker) => string
   body?: Record<string, unknown>
+  /** 404 unless the param is not an id (see the case). */
+  status?: number
 }
 
 const cases: IsolationCase[] = [
@@ -153,6 +157,17 @@ const cases: IsolationCase[] = [
     method: 'get',
     url: (v) => `/api/v1/goals/${v.goal.id}/projection`,
   },
+  // A month is not an id: the attacker only ever reaches its own summaries.
+  { route: 'insights.show', method: 'get', url: (v) => `/api/v1/insights/${v.insight.month}` },
+  {
+    // Its own ledger has nothing that month: 422, and the victim's stored
+    // summary is neither returned nor replaced.
+    route: 'insights.generate',
+    method: 'post',
+    url: (v) => `/api/v1/insights/${v.insight.month}/generate`,
+    body: { force: true },
+    status: 422,
+  },
 ]
 
 /**
@@ -206,7 +221,34 @@ async function victimHousehold(): Promise<Victim> {
     accountId: account.id,
     sortOrder: 0,
   })
-  return { household, account, card, group, category, invitation, transaction, transfer, goal }
+  const insight = await MonthlyInsight.create({
+    householdId: household.household.id,
+    month: transaction.date.slice(0, 7),
+    locale: 'en',
+    headline: 'Victim headline',
+    bodyMarkdown: 'Victim body',
+    highlights: [],
+    inputJson: {
+      month: transaction.date.slice(0, 7),
+      currencyCode: 'AUD',
+      totals: { incomeCents: 0, expenseCents: 0, netCents: 0 },
+      byCategory: [],
+    },
+    model: 'fake',
+    generatedAt: DateTime.now(),
+  })
+  return {
+    household,
+    account,
+    card,
+    group,
+    category,
+    invitation,
+    transaction,
+    transfer,
+    goal,
+    insight,
+  }
 }
 
 test.group('Tenant isolation', () => {
@@ -224,7 +266,8 @@ test.group('Tenant isolation', () => {
       if (entry.body) request.json(entry.body)
       const response = await request.actingAs(attackerHousehold.owner)
 
-      response.assertStatus(404)
+      response.assertStatus(entry.status ?? 404)
+      assert.notInclude(JSON.stringify(response.body()), 'Victim')
 
       // Nothing of the victim changed.
       await victim.account.refresh()
@@ -246,6 +289,12 @@ test.group('Tenant isolation', () => {
       assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
       await victim.goal.refresh()
       assert.include(victim.goal.serialize(), { name: 'Victim goal', status: 'active' })
+      await victim.insight.refresh()
+      assert.equal(victim.insight.headline, 'Victim headline')
+      assert.lengthOf(
+        await MonthlyInsight.query().where('household_id', attackerHousehold.household.id),
+        0
+      )
     })
 
   test('test_isolation_dataset_covers_every_route_with_an_id', ({ assert }) => {

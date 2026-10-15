@@ -69,6 +69,8 @@ export type ScannedRoutes = {
     'goals.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.projection': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'insights.show': { paramsTuple: [ParamValue]; params: {'month': ParamValue} }
+    'insights.generate': { paramsTuple: [ParamValue]; params: {'month': ParamValue} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
@@ -94,6 +96,7 @@ export type ScannedRoutes = {
     'goals.index': { paramsTuple?: []; params?: {} }
     'goals.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.projection': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'insights.show': { paramsTuple: [ParamValue]; params: {'month': ParamValue} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
@@ -119,6 +122,7 @@ export type ScannedRoutes = {
     'goals.index': { paramsTuple?: []; params?: {} }
     'goals.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.projection': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'insights.show': { paramsTuple: [ParamValue]; params: {'month': ParamValue} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
@@ -144,6 +148,7 @@ export type ScannedRoutes = {
     'transactions.bulkCategorize': { paramsTuple?: []; params?: {} }
     'transfers.store': { paramsTuple?: []; params?: {} }
     'goals.store': { paramsTuple?: []; params?: {} }
+    'insights.generate': { paramsTuple: [ParamValue]; params: {'month': ParamValue} }
   }
   PATCH: {
     'me.update': { paramsTuple?: []; params?: {} }

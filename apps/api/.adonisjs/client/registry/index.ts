@@ -396,6 +396,18 @@ const routes = {
     tokens: [{"old":"/api/v1/goals/:id/projection","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id/projection","type":1,"val":"id","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"projection","end":""}],
     types: placeholder as Registry['goals.projection']['types'],
   },
+  'insights.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/insights/:month',
+    tokens: [{"old":"/api/v1/insights/:month","type":0,"val":"api","end":""},{"old":"/api/v1/insights/:month","type":0,"val":"v1","end":""},{"old":"/api/v1/insights/:month","type":0,"val":"insights","end":""},{"old":"/api/v1/insights/:month","type":1,"val":"month","end":""}],
+    types: placeholder as Registry['insights.show']['types'],
+  },
+  'insights.generate': {
+    methods: ["POST"],
+    pattern: '/api/v1/insights/:month/generate',
+    tokens: [{"old":"/api/v1/insights/:month/generate","type":0,"val":"api","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"v1","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"insights","end":""},{"old":"/api/v1/insights/:month/generate","type":1,"val":"month","end":""},{"old":"/api/v1/insights/:month/generate","type":0,"val":"generate","end":""}],
+    types: placeholder as Registry['insights.generate']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

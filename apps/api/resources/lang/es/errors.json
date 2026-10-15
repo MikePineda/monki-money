@@ -27,5 +27,6 @@
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
   "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
   "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
+  "E_INSIGHTS_UNAVAILABLE": "Los resúmenes del mes no están disponibles por ahora. Intenta más tarde",
   "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento"
 }

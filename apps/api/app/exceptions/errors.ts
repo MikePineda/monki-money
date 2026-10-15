@@ -98,3 +98,13 @@ export const PrivateTransaction = domainError(
   403,
   'This transaction is private'
 )
+
+/**
+ * Monthly insights are written by a model: without a live one (no
+ * LLM_API_KEY) the API answers 503 instead of ever serving fake content.
+ */
+export const InsightsUnavailable = domainError(
+  'E_INSIGHTS_UNAVAILABLE',
+  503,
+  'Monthly summaries are not available'
+)

@@ -787,4 +787,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['projection']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'insights.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/insights/:month'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { month: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/insights').insightParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'insights.generate': {
+    methods: ["POST"]
+    pattern: '/api/v1/insights/:month/generate'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/insights').generateInsightValidator)>>
+      paramsTuple: [ParamValue]
+      params: { month: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/insights').generateInsightValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['generate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/insights_controller').default['generate']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }

@@ -13,6 +13,7 @@ export const controllers = {
   HealthChecks: () => import('#controllers/health_checks_controller'),
   Household: () => import('#controllers/household_controller'),
   HouseholdInvitations: () => import('#controllers/household_invitations_controller'),
+  Insights: () => import('#controllers/insights_controller'),
   InvitationAcceptance: () => import('#controllers/invitation_acceptance_controller'),
   PasswordReset: () => import('#controllers/password_reset_controller'),
   Profile: () => import('#controllers/profile_controller'),

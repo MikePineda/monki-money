@@ -102,6 +102,8 @@ export interface InsightTotals {
 export interface InsightCategoryLine {
   slug: string
   name: string
+  /** Side of the line; amounts are positive on their own side. */
+  kind?: 'expense' | 'income'
   amountCents: number
   previousAmountCents?: number | null
 }

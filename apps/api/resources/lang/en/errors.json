@@ -27,5 +27,6 @@
   "E_CONFLICT": "This already exists. Reload and try again",
   "E_TRANSFER_LEG": "This movement is part of a transfer. Edit or delete the transfer instead",
   "E_TRANSACTION_PRIVATE": "This transaction is private",
+  "E_INSIGHTS_UNAVAILABLE": "Monthly summaries are not available right now. Try again later",
   "E_INTERNAL_SERVER_ERROR": "Something went wrong on our side. Try again in a moment"
 }

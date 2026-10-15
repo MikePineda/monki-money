@@ -103,4 +103,8 @@ export interface ApiDefinition {
     destroy: typeof routes['goals.destroy']
     projection: typeof routes['goals.projection']
   }
+  insights: {
+    show: typeof routes['insights.show']
+    generate: typeof routes['insights.generate']
+  }
 }

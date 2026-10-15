@@ -60,7 +60,8 @@
       "targetCents": "target amount",
       "targetDate": "target date",
       "startingCents": "amount already saved",
-      "monthlyContributionCents": "monthly contribution"
+      "monthlyContributionCents": "monthly contribution",
+      "force": "regenerate"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -101,7 +102,9 @@
       "splits.zeroLine": "Every split line needs an amount",
       "categoryId.split": "A split transaction takes its categories from its lines",
       "amountCents.splitSum": "Change the split lines together with the amount",
-      "toAccountId.sameAccount": "Choose two different accounts"
+      "toAccountId.sameAccount": "Choose two different accounts",
+      "month.future": "This month has not started yet",
+      "month.noActivity": "There is no income or spending in this month yet"
     }
   }
 }
