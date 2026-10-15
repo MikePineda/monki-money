@@ -120,3 +120,15 @@ export function toApiError(error: unknown): ApiError {
 export function hasStatus(error: ApiError, status: number): boolean {
   return 'status' in error && error.status === status
 }
+
+/**
+ * The JSON body of a failed call, for the extras some errors carry next to
+ * `message` and `code` (`rowIds`, `accountNumbers`, `batchId`...). Empty
+ * when there is no body (network failures) or it is not an object.
+ */
+export function errorPayload(error: unknown): Record<string, unknown> {
+  if (!isTuyauError(error) || typeof error.response !== 'object' || error.response === null) {
+    return {}
+  }
+  return error.response as Record<string, unknown>
+}

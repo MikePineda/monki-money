@@ -1,5 +1,5 @@
 import { TuyauHTTPError, TuyauNetworkError } from '@tuyau/core/client'
-import { toApiError } from './http-errors'
+import { errorPayload, toApiError } from './http-errors'
 
 /** Builds the error Tuyau throws for a non-2xx response (it wraps a Ky HTTPError). */
 function httpError(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -96,5 +96,27 @@ describe('toApiError', () => {
   it('test_anything_else_maps_to_server', () => {
     expect(toApiError(new Error('boom'))).toEqual({ kind: 'server' })
     expect(toApiError('weird')).toEqual({ kind: 'server' })
+  })
+})
+
+describe('errorPayload', () => {
+  it('test_reads_the_extras_the_api_sends_next_to_message_and_code', () => {
+    const error = httpError(422, {
+      message: 'Some rows still need a decision',
+      code: 'E_IMPORT_ROWS_UNDECIDED',
+      rowIds: [4, 9],
+    })
+
+    expect(errorPayload(error)).toEqual({
+      message: 'Some rows still need a decision',
+      code: 'E_IMPORT_ROWS_UNDECIDED',
+      rowIds: [4, 9],
+    })
+  })
+
+  it('test_is_empty_for_network_failures_and_unknown_errors', () => {
+    expect(errorPayload(new TuyauNetworkError(new TypeError('Failed to fetch')))).toEqual({})
+    expect(errorPayload(httpError(500, 'Internal'))).toEqual({})
+    expect(errorPayload(new Error('boom'))).toEqual({})
   })
 })
