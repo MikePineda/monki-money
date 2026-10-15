@@ -215,10 +215,11 @@ while `TURNSTILE_SECRET` is empty (the API ignores `turnstileToken`).
    `TURNSTILE_SECRET`, then redeploy (start-first). `GET /api/v1/config`
    now returns `turnstileSiteKey`.
 3. From then on the three endpoints answer 422 (`turnstileToken` /
-   `turnstile`) without a valid widget token. The web widget lands with the
-   next web package: do not set the secret in production before that
-   release is deployed, or nobody can log in. To roll back, empty
-   `TURNSTILE_SECRET` and redeploy.
+   `turnstile`) without a valid widget token. The web renders the widget on
+   login, sign-up and forgot password as soon as `GET /config` returns the
+   site key (the submit button waits for the token), so set the site key
+   first (or together with the secret), never the secret alone, or nobody
+   can log in. To roll back, empty `TURNSTILE_SECRET` and redeploy.
 
 Cloudflare's test keys always pass (useful for staging and E2E): site key
 `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.

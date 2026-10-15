@@ -4,9 +4,11 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import { httpError, networkError } from '../../../../testing/session-fixtures'
+import { httpError, networkError, validationError } from '../../../../testing/session-fixtures'
+import { clearTurnstile, fakeTurnstile } from '../../../../testing/turnstile-testing'
 import { AuthApi } from '../../../core/auth/auth.api'
 import { SessionStore } from '../../../core/auth/session.store'
+import { TURNSTILE_SCRIPT_URL } from '../../../core/auth/turnstile.service'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
 import authEn from '../i18n/en.json'
@@ -19,10 +21,20 @@ describe('LoginPage', () => {
   let api: { login: ReturnType<typeof vi.fn>; config: ReturnType<typeof vi.fn> }
   let session: { load: ReturnType<typeof vi.fn>; homePath: ReturnType<typeof signal<string>> }
 
-  async function setup(options: { registrationOpen?: boolean; url?: string } = {}) {
+  interface Options {
+    registrationOpen?: boolean
+    url?: string
+    /** `GET /config` carries a Turnstile site key (the bot check is on). */
+    siteKey?: string
+  }
+
+  async function setup(options: Options = {}) {
     api = {
       login: vi.fn(async () => undefined),
-      config: vi.fn(async () => ({ registrationOpen: options.registrationOpen ?? true })),
+      config: vi.fn(async () => ({
+        registrationOpen: options.registrationOpen ?? true,
+        turnstileSiteKey: options.siteKey ?? null,
+      })),
     }
     session = { load: vi.fn(async () => undefined), homePath: signal('/month') }
     TestBed.configureTestingModule({
@@ -47,7 +59,16 @@ describe('LoginPage', () => {
     return { harness, root, email, password, submit }
   }
 
-  afterEach(() => sessionStorage.clear())
+  afterEach(() => {
+    sessionStorage.clear()
+    clearTurnstile()
+    document.head.querySelector(`script[src="${TURNSTILE_SCRIPT_URL}"]`)?.remove()
+  })
+
+  async function fillIn(email: TextFieldHarness, password: TextFieldHarness) {
+    await email.setValue('sam@example.test')
+    await password.setValue('secret-password')
+  }
 
   it('test_submit_stays_disabled_until_email_and_password_are_valid', async () => {
     const { email, password, submit } = await setup()
@@ -167,5 +188,80 @@ describe('LoginPage', () => {
     const closed = await setup({ registrationOpen: false })
     await closed.harness.fixture.whenStable()
     expect(closed.root.querySelector('a[href="/signup"]')).toBeNull()
+  })
+
+  describe('bot check (Turnstile)', () => {
+    it('test_without_a_site_key_no_widget_or_script_is_loaded_and_no_token_is_sent', async () => {
+      const { root, email, password, submit } = await setup()
+
+      await fillIn(email, password)
+      await submit.click()
+
+      await vi.waitFor(() => expect(api.login).toHaveBeenCalled())
+      expect(api.login.mock.calls[0]?.[0]).not.toHaveProperty('turnstileToken')
+      expect(root.querySelector('app-turnstile-widget')).toBeNull()
+      expect(document.head.querySelector(`script[src="${TURNSTILE_SCRIPT_URL}"]`)).toBeNull()
+    })
+
+    it('test_with_a_site_key_submit_waits_for_the_check_then_sends_its_token', async () => {
+      const turnstile = fakeTurnstile()
+      const { harness, email, password, submit } = await setup({ siteKey: 'site-key' })
+      await vi.waitFor(() => expect(turnstile.render).toHaveBeenCalled())
+
+      await fillIn(email, password)
+      expect(await submit.isDisabled()).toBe(true)
+
+      turnstile.solve('token-1')
+      await harness.fixture.whenStable()
+      expect(await submit.isDisabled()).toBe(false)
+      await submit.click()
+
+      await vi.waitFor(() =>
+        expect(api.login).toHaveBeenCalledWith({
+          email: 'sam@example.test',
+          password: 'secret-password',
+          turnstileToken: 'token-1',
+        })
+      )
+    })
+
+    it('test_a_rejected_check_shows_its_message_and_asks_for_a_new_token', async () => {
+      const turnstile = fakeTurnstile()
+      const { harness, root, email, password, submit } = await setup({ siteKey: 'site-key' })
+      await vi.waitFor(() => expect(turnstile.render).toHaveBeenCalled())
+      api.login.mockRejectedValueOnce(validationError({ turnstileToken: 'Security check failed' }))
+      turnstile.solve('token-1')
+      await fillIn(email, password)
+
+      await submit.click()
+
+      await vi.waitFor(() =>
+        expect(root.querySelector('[data-testid="turnstile.rejected"]')?.textContent).toContain(
+          'Complete the security check and try again.'
+        )
+      )
+      expect(turnstile.reset).toHaveBeenCalledWith('widget-1')
+      expect(root.querySelector('[data-testid="login.error"]')).toBeNull()
+      await harness.fixture.whenStable()
+      expect(await submit.isDisabled()).toBe(true)
+    })
+
+    it('test_wrong_credentials_also_ask_for_a_new_token', async () => {
+      const turnstile = fakeTurnstile()
+      const { root, email, password, submit } = await setup({ siteKey: 'site-key' })
+      await vi.waitFor(() => expect(turnstile.render).toHaveBeenCalled())
+      api.login.mockRejectedValueOnce(httpError(400, { errors: [{ message: 'Invalid' }] }))
+      turnstile.solve('token-1')
+      await fillIn(email, password)
+
+      await submit.click()
+
+      await vi.waitFor(() =>
+        expect(root.querySelector('[data-testid="login.error"]')?.textContent).toContain(
+          'Email or password is incorrect.'
+        )
+      )
+      expect(turnstile.reset).toHaveBeenCalled()
+    })
   })
 })

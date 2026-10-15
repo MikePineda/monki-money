@@ -84,7 +84,12 @@ export class SessionStore {
 
   /** Applies a fresh `/auth/me` body, including the user's theme and language. */
   set(me: Me): void {
+    const before = this._me()
     this._me.set(me)
+    // Left, created or joined a household: what other stores cached was the old one's.
+    if (before && before.household?.id !== me.household?.id) {
+      this.dropCachedData()
+    }
     this.theme.hydrate(me.user.theme)
     this.lang.hydrate(me.user.locale)
   }
@@ -105,7 +110,7 @@ export class SessionStore {
     }
   }
 
-  /** Other stores register here to drop their cached data on logout. */
+  /** Other stores register here to drop their cached data on logout and on a household change. */
   onClear(hook: () => void): void {
     this.clearHooks.add(hook)
   }
@@ -136,10 +141,14 @@ export class SessionStore {
   /** Forgets the session, every store's data and the app's storage keys. */
   clear(): void {
     this._me.set(null)
+    this.dropCachedData()
+    clearAppStorage(this.window)
+  }
+
+  private dropCachedData(): void {
     for (const hook of this.clearHooks) {
       hook()
     }
-    clearAppStorage(this.window)
   }
 
   private expire(): void {

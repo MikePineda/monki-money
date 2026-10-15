@@ -114,8 +114,10 @@
   "danger": {
     "title": "Danger zone",
     "body": "Export a copy of your household, or schedule it for deletion. A deleted household can be restored for 30 days.",
+    "memberBody": "You can leave this household. What you added stays in it for the others.",
     "export": "Export data (JSON)",
     "delete": "Delete household",
+    "leave": "Leave household",
     "sheet": {
       "title": "Delete household",
       "body": "{name} and everything in it will be deleted after 30 days. Until then you can restore it.",
@@ -123,6 +125,13 @@
       "password": "Your password",
       "confirm": "Delete household",
       "wrongPassword": "That password is not correct."
+    },
+    "leaveSheet": {
+      "title": "Leave {name}?",
+      "body": "Everything you added stays with {name}: its members keep seeing your transactions, accounts and cards.",
+      "after": "You lose access right away. Afterwards you can start your own household or join one with an invitation.",
+      "confirm": "Leave household",
+      "ownerCannot": "The owner cannot leave the household."
     }
   },
   "password": {

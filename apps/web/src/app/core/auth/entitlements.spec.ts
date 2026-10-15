@@ -36,7 +36,7 @@ describe('entitlements', () => {
     })
 
     it('test_a_user_without_household_belongs_on_no_household', () => {
-      expect(homePath({ ...signedIn, hasHousehold: false })).toBe('/no-household')
+      expect(homePath({ ...signedIn, hasHousehold: false })).toBe('/household/new')
     })
 
     it('test_a_household_pending_deletion_belongs_on_household_deleted', () => {

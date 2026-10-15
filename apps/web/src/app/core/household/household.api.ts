@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core'
 import type { Locale, MemberRole } from '@monkimoney/shared'
 import { API } from '../api/api'
+import type { Household, Membership } from '../api/api-types'
+import { unwrapData } from '../api/unwrap'
 
 export interface HouseholdInput {
   name?: string
@@ -8,9 +10,23 @@ export interface HouseholdInput {
   timezone?: string
 }
 
+export interface NewHouseholdInput {
+  name: string
+  locale?: Locale
+  timezone?: string
+  currencyCode?: string
+}
+
+/** `POST /households`: the new household and the owner membership in it. */
+export interface CreatedHousehold {
+  household: Household
+  membership: Membership
+}
+
 /**
  * Data access for the current household (onboarding and settings share it):
- * the household itself, its members, invitations, export and deletion.
+ * the household itself, its members, invitations, export, deletion and
+ * leaving it, plus creating one for someone who has none.
  */
 @Injectable({ providedIn: 'root' })
 export class HouseholdApi {
@@ -66,6 +82,18 @@ export class HouseholdApi {
   async scheduleDeletion(password: string) {
     const { data } = await (await this.api()).request('household.delete', { body: { password } })
     return data
+  }
+
+  /** A new household for a verified user who has none; they become its owner. */
+  async create(body: NewHouseholdInput): Promise<CreatedHousehold> {
+    return unwrapData<CreatedHousehold>(
+      await (await this.api()).request('households.store', { body })
+    )
+  }
+
+  /** Members only: drops the membership; the session stays, without a household. */
+  async leave(): Promise<void> {
+    await (await this.api()).request('household.leave', {})
   }
 
   async restore() {

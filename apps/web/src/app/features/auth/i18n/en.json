@@ -6,6 +6,10 @@
     "fullName": "Your name",
     "passwordHint": "At least 10 characters."
   },
+  "turnstile": {
+    "unavailable": "The security check could not load. Check your connection and reload the page.",
+    "rejected": "Complete the security check and try again."
+  },
   "login": {
     "title": "Log in",
     "forgot": "Forgot password?",
@@ -33,10 +37,13 @@
   "verify": {
     "pending": {
       "title": "Check your email",
-      "body": "We sent a confirmation link to {email}. Open it to continue.",
-      "resend": "Send the link again",
+      "body": "We sent a link and a 6-digit code to {email}. Open the link, or type the code here.",
+      "code": "6-digit code",
+      "codeInvalid": "This code is not right. Check the email and try again.",
+      "confirm": "Confirm",
+      "resend": "Send a new email",
       "resendIn": "Send again in {seconds} s",
-      "sent": "We sent a new link.",
+      "sent": "We sent a new email. The previous code no longer works.",
       "otherAccount": "Use another account"
     },
     "confirming": "Confirming your email…",
@@ -75,11 +82,6 @@
       "action": "Request a new link"
     }
   },
-  "noHousehold": {
-    "title": "You are not in a household yet",
-    "body": "Ask the person who manages your household to invite you, then open the link from the email.",
-    "logout": "Log out"
-  },
   "deleted": {
     "title": "{name} is scheduled for deletion",
     "body": "Everything in it will be deleted on {date}. Until then you can restore it.",
@@ -100,6 +102,7 @@
     "accept": "Join household",
     "otherEmail": "This invitation is for {email}. Log out, then log in with that account.",
     "logout": "Log out",
+    "notNow": "Not now",
     "full": "This household already has all its members.",
     "exit": "Continue",
     "alreadyIn": {
