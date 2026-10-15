@@ -6,6 +6,10 @@
     "fullName": "Tu nombre",
     "passwordHint": "Al menos 10 caracteres."
   },
+  "turnstile": {
+    "unavailable": "No se pudo cargar la verificación de seguridad. Revisa tu conexión y vuelve a cargar la página.",
+    "rejected": "Completa la verificación de seguridad e inténtalo de nuevo."
+  },
   "login": {
     "title": "Inicia sesión",
     "forgot": "¿Olvidaste tu contraseña?",

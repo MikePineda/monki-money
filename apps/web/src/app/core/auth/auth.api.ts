@@ -13,11 +13,25 @@ export interface Me {
   flags: string[]
 }
 
-export interface SignupInput {
+/** The Cloudflare Turnstile token, sent only while the API asks for the check. */
+export interface BotCheck {
+  turnstileToken?: string
+}
+
+export interface SignupInput extends BotCheck {
   fullName: string
   email: string
   password: string
   locale?: Locale
+}
+
+export interface LoginInput extends BotCheck {
+  email: string
+  password: string
+}
+
+export interface ForgotPasswordInput extends BotCheck {
+  email: string
 }
 
 export interface ProfileInput {
@@ -46,7 +60,7 @@ export class AuthApi {
     return unwrapData<Me>(await (await this.api()).request('auth.me', {}))
   }
 
-  async login(body: { email: string; password: string }): Promise<void> {
+  async login(body: LoginInput): Promise<void> {
     await (await this.api()).request('auth.login', { body })
   }
 
@@ -66,8 +80,8 @@ export class AuthApi {
     await (await this.api()).request('auth.email.resend', {})
   }
 
-  async forgotPassword(email: string): Promise<void> {
-    await (await this.api()).request('auth.password.forgot', { body: { email } })
+  async forgotPassword(body: ForgotPasswordInput): Promise<void> {
+    await (await this.api()).request('auth.password.forgot', { body })
   }
 
   async resetPassword(token: string, password: string): Promise<void> {

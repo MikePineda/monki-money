@@ -49,6 +49,11 @@ I/O, no implicit `now`), repositories and scopes for tenancy, one concept per
 file named after the concept. Web (`apps/web/src/app`): `core/` (API client,
 session, i18n, theme, PWA), `domain/` (pure, no Angular), `shared/ui`,
 `shared/charts`, `layouts/`, `features/<x>/{data-access,ui,feature}`.
+Cloudflare Turnstile is the only external script the web loads:
+`core/auth/turnstile.service.ts` appends it (explicit render) when a login,
+sign-up or forgot-password form opens and `GET /config` carries a
+`turnstileSiteKey`; never from `index.html`, and without a site key nothing
+is loaded or sent.
 Shared (`packages/shared`): wire types and pure helpers used by both sides,
 compiled to `dist/` because Node does not load `.ts` from `node_modules`.
 

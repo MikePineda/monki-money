@@ -6,6 +6,10 @@
     "fullName": "Your name",
     "passwordHint": "At least 10 characters."
   },
+  "turnstile": {
+    "unavailable": "The security check could not load. Check your connection and reload the page.",
+    "rejected": "Complete the security check and try again."
+  },
   "login": {
     "title": "Log in",
     "forgot": "Forgot password?",
