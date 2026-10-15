@@ -10,10 +10,12 @@ import { ChipHarness } from './chip.harness'
     <button appChip toggle [(selected)]="groceries">Groceries</button>
     <button appChip trailing="chevron-down" (click)="opened.set(true)">NAB Everyday</button>
     <button appChip person="a">You</button>
+    <button appChip pressable data-testid="add-chip" icon="plus" [selected]="cash()">Cash</button>
   `,
 })
 class Host {
   readonly groceries = signal(false)
+  readonly cash = signal(false)
   readonly opened = signal(false)
 }
 
@@ -57,6 +59,26 @@ describe('ChipComponent', () => {
     expect(host.opened()).toBe(true)
     const element = fixture.nativeElement.querySelector('[aria-haspopup="dialog"]') as HTMLElement
     expect(element.querySelector('[data-icon="chevron-down"]')).not.toBeNull()
+  })
+
+  it('test_a_pressable_add_chip_shows_its_icon_and_leaves_selection_to_the_consumer', async () => {
+    const { fixture, host } = await setup()
+    const chip = () =>
+      fixture.nativeElement.querySelector('[data-testid="add-chip"]') as HTMLElement
+    expect(chip().querySelector('[data-icon="plus"]')).not.toBeNull()
+
+    expect(chip().getAttribute('aria-pressed')).toBe('false')
+
+    chip().click()
+    await fixture.whenStable()
+    expect(chip().getAttribute('aria-pressed')).toBe('false')
+
+    host.cash.set(true)
+    await fixture.whenStable()
+
+    expect(chip().getAttribute('aria-pressed')).toBe('true')
+    expect(chip().querySelector('[data-icon="plus"]')).toBeNull()
+    expect(chip().querySelector('[data-icon="check"]')).not.toBeNull()
   })
 
   it('test_person_chip_shows_the_person_dot', async () => {

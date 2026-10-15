@@ -60,7 +60,9 @@
     "noteHint": "Optional. Only you and your partner see it.",
     "email": "Email",
     "emailError": "Enter a valid email address.",
-    "disabled": "Account"
+    "disabled": "Account",
+    "checkbox": "I agree to the terms",
+    "checkboxDisabled": "Checked and disabled"
   },
   "kind": {
     "label": "Transaction type",
