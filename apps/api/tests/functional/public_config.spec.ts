@@ -13,7 +13,14 @@ test.group('Public config', () => {
       'version',
       'turnstileSiteKey',
       'sentryDsnWeb',
+      'defaultLocale',
     ])
+  })
+
+  test('test_default_locale_is_english_unless_configured', async ({ client }) => {
+    const response = await client.get('/api/v1/config')
+
+    response.assertBodyContains({ data: { defaultLocale: 'en' } })
   })
 
   test('reflects REGISTRATION_OPEN from the environment', async ({ client }) => {

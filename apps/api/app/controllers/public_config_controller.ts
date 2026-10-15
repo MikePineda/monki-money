@@ -1,5 +1,6 @@
 import env from '#start/env'
 import type { PublicConfig } from '@monkimoney/shared'
+import i18nManager from '@adonisjs/i18n/services/main'
 import { currentBuildInfo } from '#services/build_info'
 
 /**
@@ -16,6 +17,7 @@ export default class PublicConfigController {
         version,
         turnstileSiteKey: env.get('TURNSTILE_SITE_KEY') ?? null,
         sentryDsnWeb: env.get('SENTRY_DSN_WEB') ?? null,
+        defaultLocale: i18nManager.defaultLocale,
       },
     }
   }

@@ -1,0 +1,20 @@
+{
+  "household": {
+    "defaultName": "Hogar de {firstName}"
+  },
+  "mail": {
+    "signature": "— monkimoney",
+    "verifyEmail": {
+      "subject": "Confirma tu correo",
+      "body": "Hola {name}:\n\nConfirma tu correo para empezar a usar monkimoney:\n\n{url}\n\nEl enlace vence en 24 horas. Si no creaste una cuenta, ignora este correo."
+    },
+    "passwordReset": {
+      "subject": "Restablece tu contraseña",
+      "body": "Hola {name}:\n\nAlguien pidió restablecer la contraseña de tu cuenta de monkimoney. Para elegir una nueva, abre:\n\n{url}\n\nEl enlace vence en 1 hora y solo funciona una vez. Si no fuiste tú, ignora este correo: tu contraseña no cambia."
+    },
+    "invitation": {
+      "subject": "{inviterName} te invitó a {householdName} en monkimoney",
+      "body": "Hola:\n\n{inviterName} te invitó a compartir las finanzas de {householdName} en monkimoney.\n\nAcepta la invitación aquí:\n\n{url}\n\nLa invitación vence en 7 días."
+    }
+  }
+}

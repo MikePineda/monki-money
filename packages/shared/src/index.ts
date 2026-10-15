@@ -1,2 +1,5 @@
 export * from './api_paths.ts'
 export * from './health.ts'
+export * from './enums.ts'
+export * from './household.ts'
+export * from './taxonomy.ts'

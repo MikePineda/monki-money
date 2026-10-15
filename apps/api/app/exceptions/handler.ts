@@ -1,27 +1,69 @@
 import app from '@adonisjs/core/services/app'
+import { FieldError } from '#exceptions/field_error'
+import type { I18n } from '@adonisjs/i18n'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 
+/** Self-rendering framework errors whose own rendering does not fit a JSON API. */
+const JSON_RENDERED_CODES = new Set(['E_BAD_CSRF_TOKEN'])
+
+/**
+ * JSON-only API error rendering:
+ *
+ * - Exceptions that render themselves (validation, auth, CSRF, throttle,
+ *   authorization) keep their shape: 422 `{ errors: [{ field, rule, message }] }`,
+ *   401/400/403/429 `{ errors: [{ message }] }`. Exception: CSRF (see
+ *   JSON_RENDERED_CODES) answers 403 `{ message, code }`.
+ * - `FieldError` (service-level validation) renders like a VineJS error.
+ * - Any other 4xx answers `{ message, code }` with the message translated
+ *   from `errors.<code>` (E_ROW_NOT_FOUND -> 404 "Not found", domain errors).
+ *   Never the debug page: 4xx bodies are part of the contract.
+ * - 5xx: debug page in development, `{ message }` in production.
+ */
 export default class HttpExceptionHandler extends ExceptionHandler {
-  /**
-   * In debug mode, the exception handler will display verbose errors
-   * with pretty printed stack traces.
-   */
   protected override debug = !app.inProduction
 
-  /**
-   * The method is used for handling errors and returning
-   * response to the client
-   */
   override async handle(error: unknown, ctx: HttpContext) {
+    const i18n = 'i18n' in ctx ? (ctx.i18n as I18n | undefined) : undefined
+
+    if (error instanceof FieldError) {
+      const messageKey = i18n?.resolveIdentifier(
+        `validator.shared.messages.${error.field}.${error.rule}`
+      )
+        ? `validator.shared.messages.${error.field}.${error.rule}`
+        : `validator.shared.messages.${error.rule}`
+      const field = i18n?.resolveIdentifier(`validator.shared.fields.${error.field}`)
+        ? i18n.t(`validator.shared.fields.${error.field}`)
+        : error.field
+      const message = i18n
+        ? i18n.t(messageKey, { field, ...error.meta }, error.message)
+        : error.message
+      return ctx.response
+        .status(422)
+        .send({ errors: [{ field: error.field, rule: error.rule, message }] })
+    }
+
+    const httpError = this.toHttpError(error) as {
+      status: number
+      code?: string
+      message: string
+      handle?: unknown
+    }
+    // Shield renders CSRF failures as an HTML redirect-back; an API answers 403.
+    const selfRendered =
+      typeof httpError.handle === 'function' && !JSON_RENDERED_CODES.has(httpError.code ?? '')
+    const isValidation = httpError.code === 'E_VALIDATION_ERROR'
+
+    if (!selfRendered && !isValidation && httpError.status >= 400 && httpError.status < 500) {
+      const message =
+        i18n && httpError.code
+          ? i18n.t(`errors.${httpError.code}`, {}, httpError.message)
+          : httpError.message
+      return ctx.response.status(httpError.status).send({ message, code: httpError.code })
+    }
+
     return super.handle(error, ctx)
   }
 
-  /**
-   * The method is used to report error to the logging service or
-   * the a third party error monitoring service.
-   *
-   * @note You should not attempt to send a response from this method.
-   */
   override async report(error: unknown, ctx: HttpContext) {
     return super.report(error, ctx)
   }

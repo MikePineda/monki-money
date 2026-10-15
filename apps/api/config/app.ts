@@ -1,4 +1,5 @@
 import env from '#start/env'
+import proxyAddr from 'proxy-addr'
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/core/http'
 
@@ -31,6 +32,13 @@ export const http = defineConfig({
    * from anywhere inside your application.
    */
   useAsyncLocalStorage: false,
+
+  /**
+   * Only the local reverse proxy (Traefik on the Docker network) is trusted
+   * for X-Forwarded-*. The real client IP comes from Cloudflare's
+   * CF-Connecting-IP header: always read it through `clientIp(ctx)`.
+   */
+  trustProxy: proxyAddr.compile(['loopback', 'uniquelocal']),
 
   router: {
     matcher: 'tree',

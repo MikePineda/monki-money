@@ -1,0 +1,21 @@
+{
+  "E_UNAUTHORIZED_ACCESS": "Please sign in to continue",
+  "E_INVALID_CREDENTIALS": "The email or password is incorrect",
+  "E_TOO_MANY_REQUESTS": "Too many attempts. Wait a few minutes and try again",
+  "E_AUTHORIZATION_FAILURE": "You are not allowed to do this",
+  "E_ROW_NOT_FOUND": "Not found",
+  "E_ROUTE_NOT_FOUND": "Not found",
+  "E_BAD_CSRF_TOKEN": "Your session expired. Reload the page and try again",
+  "E_REGISTRATION_CLOSED": "Sign-up is closed for now",
+  "E_EMAIL_NOT_VERIFIED": "Verify your email address to continue",
+  "E_NO_HOUSEHOLD": "You are not part of a household yet",
+  "E_HOUSEHOLD_PENDING_DELETION": "This household is scheduled for deletion",
+  "E_HOUSEHOLD_NOT_PENDING_DELETION": "This household is not scheduled for deletion",
+  "E_RESTORE_WINDOW_EXPIRED": "The restore window for this household has ended",
+  "E_INVALID_TOKEN": "This link is invalid or has expired",
+  "E_INVITATION_EXPIRED": "This invitation has expired or was already used",
+  "E_ALREADY_IN_HOUSEHOLD": "This account already belongs to a household",
+  "E_ACCOUNT_IN_USE": "This account has transactions and cannot be deleted",
+  "E_CATEGORY_IN_USE": "This category is in use. Choose a replacement category to delete it",
+  "E_GROUP_NOT_EMPTY": "Move or delete the categories of this group first"
+}

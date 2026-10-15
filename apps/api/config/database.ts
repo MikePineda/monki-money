@@ -23,11 +23,13 @@ const dbConfig = defineConfig({
         naturalSort: true,
         paths: ['database/migrations'],
       },
-      // Regenerates database/schema.ts after migrations. Never in production:
-      // the image is read-only for the app user.
+      // Regenerates database/schema.ts after migrations, in development only:
+      // the image is read-only for the app user, and the test suite migrates
+      // a database whose schema is identical by definition.
       schemaGeneration: {
-        enabled: !app.inProduction,
+        enabled: app.inDev,
         rulesPaths: ['./database/schema_rules.js'],
+        excludeTables: ['rate_limits'],
       },
       debug: app.inDev && env.get('LOG_LEVEL') === 'debug',
     },
