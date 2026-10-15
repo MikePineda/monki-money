@@ -1,0 +1,6 @@
+# Git hooks (installed by `npm install` through the root "prepare" script).
+# Only commit-msg is enforced locally; the full gate is `npm run verify` and CI.
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: npx --no-install commitlint --edit {1}
