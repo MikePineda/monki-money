@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine'
-import type { FieldContext } from '@vinejs/vine/types'
+import type { FieldContext, SchemaTypes } from '@vinejs/vine/types'
 
 /**
  * Shared VineJS building blocks. Dates stay 'YYYY-MM-DD' strings end to end
@@ -24,6 +24,15 @@ const timezoneRule = vine.createRule((value: unknown, _: undefined, field: Field
   }
 })
 
+const monthRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
+  if (typeof value !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+    field.report('The {{ field }} field must be a month (YYYY-MM)', 'month', field)
+  }
+})
+
+/** Calendar month as 'YYYY-MM'. */
+export const month = () => vine.string().trim().use(monthRule())
+
 /** Calendar date as 'YYYY-MM-DD'. */
 export const isoDate = () => vine.string().trim().use(isoDateRule())
 
@@ -41,6 +50,27 @@ export const id = () => vine.number().withoutDecimals().positive()
 
 /** Integer amount in cents (may be negative). */
 export const cents = () => vine.number().withoutDecimals().min(-2_000_000_000).max(2_000_000_000)
+
+/** Integer amount in cents typed by a person: positive, the sign comes from the kind. */
+export const amount = () => vine.number().withoutDecimals().positive().max(2_000_000_000)
+
+/** Integer amount in cents that may go either way (split lines). */
+export const signedCents = () => cents()
+
+/** Client-generated idempotency key. */
+export const uuid = () => vine.string().trim().uuid()
+
+/**
+ * A list from the query string that also accepts a single value:
+ * `?accountId=1` and `?accountId[]=1&accountId[]=2` both give an array.
+ */
+export const oneOrMany = <Schema extends SchemaTypes>(schema: Schema) =>
+  vine
+    .array(schema)
+    .maxLength(50)
+    .parse((value) =>
+      value === undefined || value === null || Array.isArray(value) ? value : [value]
+    )
 
 /** `{ params: { id } }` for routes with `:id`. */
 export const idParams = () => vine.object({ id: id() })

@@ -1,0 +1,193 @@
+import type User from '#models/user'
+import { inject } from '@adonisjs/core'
+import type Account from '#models/account'
+import Transfer from '#models/transfer'
+import type Household from '#models/household'
+import Transaction from '#models/transaction'
+import db from '@adonisjs/lucid/services/db'
+import { defaultPayer } from '#domain/ledger/payer'
+import { FieldError } from '#exceptions/field_error'
+import { findInHousehold } from '#repositories/scoped'
+import { isUniqueViolationOn } from '#services/ledger/unique_violation'
+import LedgerReferences from '#services/ledger/ledger_references'
+import type { HouseholdRef } from '#models/mixins/household_scoped'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { CreateTransferInput, UpdateTransferInput } from '#services/ledger/dto'
+
+/** Partial unique index of migration 10: one transfer per (household, client_id). */
+const CLIENT_ID_CONSTRAINT = 'transfers_household_client_id_unique'
+
+/**
+ * Transfers between two accounts of the household: one `transfers` row
+ * plus two legs in `transactions` (kind `transfer`): the outgoing leg is
+ * negative on the source account, the incoming one positive on the
+ * destination. The three rows are always written in one DB transaction.
+ */
+@inject()
+export default class TransferService {
+  constructor(protected references: LedgerReferences) {}
+
+  async find(household: HouseholdRef, transferId: number) {
+    const transfer = await findInHousehold(Transfer, household, transferId)
+    await transfer.load('legs', (legs) => legs.preload('splits').orderBy('amount_cents'))
+    return transfer
+  }
+
+  async create(
+    household: Household,
+    actor: User,
+    input: CreateTransferInput
+  ): Promise<{ transfer: Transfer; created: boolean }> {
+    if (input.clientId) {
+      const existing = await this.findByClientId(household, input.clientId)
+      if (existing) return { transfer: existing, created: false }
+    }
+
+    const { from, to } = await this.accounts(household, input.fromAccountId, input.toAccountId)
+
+    try {
+      const transferId = await db.transaction(async (trx) => {
+        const transfer = await Transfer.create(
+          {
+            householdId: household.id,
+            date: input.date,
+            amountCents: input.amountCents,
+            fromAccountId: from.id,
+            toAccountId: to.id,
+            memo: input.memo ?? null,
+            clientId: input.clientId ?? null,
+            createdByUserId: actor.id,
+            updatedByUserId: actor.id,
+          },
+          { client: trx }
+        )
+        await Transaction.createMany(
+          [
+            this.leg(transfer, from, -transfer.amountCents, actor),
+            this.leg(transfer, to, transfer.amountCents, actor),
+          ],
+          { client: trx }
+        )
+        return transfer.id
+      })
+      return { transfer: await this.find(household, transferId), created: true }
+    } catch (error) {
+      if (input.clientId && isUniqueViolationOn(error, CLIENT_ID_CONSTRAINT)) {
+        const existing = await this.findByClientId(household, input.clientId)
+        if (existing) return { transfer: existing, created: false }
+      }
+      throw error
+    }
+  }
+
+  /** Changes the transfer and rewrites both legs to match it. */
+  async update(household: Household, actor: User, transferId: number, input: UpdateTransferInput) {
+    const transfer = await findInHousehold(Transfer, household, transferId)
+    const { from, to } = await this.accounts(
+      household,
+      input.fromAccountId ?? transfer.fromAccountId,
+      input.toAccountId ?? transfer.toAccountId
+    )
+
+    await db.transaction(async (trx) => {
+      transfer.useTransaction(trx)
+      transfer.merge({
+        date: input.date ?? transfer.date,
+        amountCents: input.amountCents ?? transfer.amountCents,
+        fromAccountId: from.id,
+        toAccountId: to.id,
+        memo: input.memo === undefined ? transfer.memo : input.memo,
+        updatedByUserId: actor.id,
+      })
+      await transfer.save()
+      await this.rewriteLegs(transfer, from, to, actor, trx)
+    })
+
+    return this.find(household, transfer.id)
+  }
+
+  /** Deletes the transfer and both legs. */
+  async destroy(household: Household, transferId: number) {
+    const transfer = await findInHousehold(Transfer, household, transferId)
+    await db.transaction(async (trx) => {
+      await Transaction.query({ client: trx }).where('transfer_id', transfer.id).delete()
+      transfer.useTransaction(trx)
+      await transfer.delete()
+    })
+  }
+
+  protected async findByClientId(household: HouseholdRef, clientId: string) {
+    const existing = await Transfer.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .where('client_id', clientId)
+      .first()
+    return existing ? this.find(household, existing.id) : null
+  }
+
+  /** Both accounts of the household (422 each) and different (422 on `toAccountId`). */
+  protected async accounts(household: HouseholdRef, fromAccountId: number, toAccountId: number) {
+    if (fromAccountId === toAccountId) throw new FieldError('toAccountId', 'sameAccount')
+    return {
+      from: await this.references.account(household, fromAccountId, 'fromAccountId'),
+      to: await this.references.account(household, toAccountId, 'toAccountId'),
+    }
+  }
+
+  protected leg(transfer: Transfer, account: Account, amountCents: number, actor: User) {
+    return {
+      householdId: transfer.householdId,
+      accountId: account.id,
+      kind: 'transfer' as const,
+      date: transfer.date,
+      amountCents,
+      currencyCode: account.currencyCode,
+      description: transfer.memo,
+      transferId: transfer.id,
+      paidByUserId: defaultPayer({
+        accountOwnerUserId: account.ownerUserId,
+        cards: account.cards,
+        creatorUserId: actor.id,
+      }),
+      status: 'cleared' as const,
+      source: 'manual' as const,
+      createdByUserId: actor.id,
+      updatedByUserId: actor.id,
+    }
+  }
+
+  protected async rewriteLegs(
+    transfer: Transfer,
+    from: Account,
+    to: Account,
+    actor: User,
+    trx: TransactionClientContract
+  ) {
+    const legs = await Transaction.query({ client: trx })
+      .where('transfer_id', transfer.id)
+      .orderBy('amount_cents')
+    const outgoing = legs.find((leg) => leg.amountCents < 0)
+    const incoming = legs.find((leg) => leg !== outgoing)
+
+    for (const [leg, account, amountCents] of [
+      [outgoing, from, -transfer.amountCents],
+      [incoming, to, transfer.amountCents],
+    ] as const) {
+      const values = this.leg(transfer, account, amountCents, actor)
+      if (!leg) {
+        await Transaction.create(values, { client: trx })
+        continue
+      }
+      leg.useTransaction(trx)
+      leg.merge({
+        accountId: values.accountId,
+        date: values.date,
+        amountCents: values.amountCents,
+        currencyCode: values.currencyCode,
+        description: values.description,
+        updatedByUserId: actor.id,
+        ...(leg.accountId === account.id ? {} : { paidByUserId: values.paidByUserId }),
+      })
+      await leg.save()
+    }
+  }
+}

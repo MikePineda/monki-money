@@ -7,6 +7,7 @@ import MemberTransformer from '#transformers/member_transformer'
 import HouseholdService from '#services/households/household_service'
 import HouseholdTransformer from '#transformers/household_transformer'
 import HouseholdExporter from '#services/households/household_exporter'
+import LedgerCsvExporter from '#services/households/ledger_csv_exporter'
 import {
   deleteHouseholdValidator,
   exportHouseholdValidator,
@@ -17,7 +18,8 @@ import {
 export default class HouseholdController {
   constructor(
     protected households: HouseholdService,
-    protected exporter: HouseholdExporter
+    protected exporter: HouseholdExporter,
+    protected csvExporter: LedgerCsvExporter
   ) {}
 
   /** GET /household */
@@ -41,19 +43,34 @@ export default class HouseholdController {
     return ctx.serialize(MemberTransformer.transform(members))
   }
 
-  /** GET /household/export (owner): streamed JSON download. */
+  /**
+   * GET /household/export?format=json|csv (owner): streamed download. JSON
+   * has everything; CSV has the ledger, one row per posting.
+   */
   async export(ctx: HttpContext) {
-    await ctx.request.validateUsing(exportHouseholdValidator)
+    const { format } = await ctx.request.validateUsing(exportHouseholdValidator)
     await ctx.bouncer.with(HouseholdPolicy).authorize('export', ctx.membership)
+    const viewer = ctx.auth.getUserOrFail()
 
     const date = new Date().toISOString().slice(0, 10)
+    ctx.response.header('Cache-Control', 'no-store')
+
+    if (format === 'csv') {
+      ctx.response.header('Content-Type', 'text/csv; charset=utf-8')
+      ctx.response.header(
+        'Content-Disposition',
+        `attachment; filename="monkimoney-transactions-${date}.csv"`
+      )
+      ctx.response.stream(Readable.from(this.csvExporter.csv(ctx.household, viewer.id, ctx.i18n)))
+      return
+    }
+
     ctx.response.header('Content-Type', 'application/json; charset=utf-8')
     ctx.response.header(
       'Content-Disposition',
       `attachment; filename="monkimoney-export-${date}.json"`
     )
-    ctx.response.header('Cache-Control', 'no-store')
-    ctx.response.stream(Readable.from(this.exporter.json(ctx.household)))
+    ctx.response.stream(Readable.from(this.exporter.json(ctx.household, viewer.id)))
   }
 
   /**

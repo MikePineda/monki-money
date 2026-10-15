@@ -183,6 +183,56 @@ router
               })
               .prefix('categories')
               .as('categories')
+
+            router
+              .group(() => {
+                router.get('/', [controllers.Transactions, 'index']).as('index')
+                router.post('/', [controllers.Transactions, 'store']).as('store')
+                router.post('quick', [controllers.Transactions, 'quick']).as('quick')
+                router
+                  .post('bulk-categorize', [controllers.Transactions, 'bulkCategorize'])
+                  .as('bulkCategorize')
+                router.get(':id', [controllers.Transactions, 'show']).where('id', id).as('show')
+                router
+                  .patch(':id', [controllers.Transactions, 'update'])
+                  .where('id', id)
+                  .as('update')
+                router
+                  .delete(':id', [controllers.Transactions, 'destroy'])
+                  .where('id', id)
+                  .as('destroy')
+                router
+                  .put(':id/splits', [controllers.TransactionSplits, 'update'])
+                  .where('id', id)
+                  .as('splits.update')
+              })
+              .prefix('transactions')
+              .as('transactions')
+
+            router
+              .group(() => {
+                router.post('/', [controllers.Transfers, 'store']).as('store')
+                router.patch(':id', [controllers.Transfers, 'update']).where('id', id).as('update')
+                router
+                  .delete(':id', [controllers.Transfers, 'destroy'])
+                  .where('id', id)
+                  .as('destroy')
+              })
+              .prefix('transfers')
+              .as('transfers')
+
+            router
+              .group(() => {
+                router.get('month', [controllers.Reports, 'month']).as('month')
+                router.get('trend', [controllers.Reports, 'trend']).as('trend')
+                router
+                  .get('category/:id', [controllers.Reports, 'category'])
+                  .where('id', id)
+                  .as('category')
+                router.get('balances', [controllers.Reports, 'balances']).as('balances')
+              })
+              .prefix('reports')
+              .as('reports')
           })
           .use(inHousehold())
       })

@@ -80,3 +80,21 @@ export const CategoryInUse = domainError('E_CATEGORY_IN_USE', 409, 'Category is 
 
 /** The group still has categories. */
 export const GroupNotEmpty = domainError('E_GROUP_NOT_EMPTY', 409, 'Group is not empty')
+
+/** Transfer legs are edited (or deleted) through their transfer, never alone. */
+export const TransferLegReadOnly = domainError(
+  'E_TRANSFER_LEG',
+  409,
+  'Edit this movement from its transfer'
+)
+
+/**
+ * A private transaction of the partner: its amount counts in the household
+ * totals but only its owner (the payer, or the creator of a joint one) may
+ * see or change its details.
+ */
+export const PrivateTransaction = domainError(
+  'E_TRANSACTION_PRIVATE',
+  403,
+  'This transaction is private'
+)
