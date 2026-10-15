@@ -1,0 +1,51 @@
+{
+  "step": "Step {current} of {total}",
+  "back": "Back",
+  "continue": "Continue",
+  "household": {
+    "title": "Name your household",
+    "body": "This is the shared space for your money. You can rename it later.",
+    "label": "Household name",
+    "default": "{firstName}’s home"
+  },
+  "region": {
+    "title": "Money and time",
+    "body": "The time zone decides when a day and a month start for both of you.",
+    "currency": "Currency",
+    "currencyValue": "AUD · Australian dollar",
+    "currencyHint": "Only AUD for now.",
+    "language": "Language",
+    "timezone": "Time zone",
+    "languages": {
+      "en": "English",
+      "es": "Español"
+    }
+  },
+  "accounts": {
+    "title": "Add your accounts",
+    "body": "Tap the accounts you use. You can add more later.",
+    "owners": "Who owns each account",
+    "ownerOf": "Owner of {name}",
+    "you": "You",
+    "joint": "Joint",
+    "partnerLater": "Accounts can be given to your partner once they join.",
+    "cash": "Cash",
+    "other": "Other",
+    "limit": "Your plan allows {max} accounts.",
+    "otherSheet": {
+      "title": "Another account",
+      "name": "Account name",
+      "add": "Add account"
+    }
+  },
+  "invite": {
+    "title": "Invite your partner",
+    "body": "They get an email with a link to join this household. It works for 7 days.",
+    "email": "Their email",
+    "send": "Send invitation",
+    "later": "Later",
+    "sent": "Invitation sent to {email}.",
+    "finish": "Finish",
+    "full": "Your household already has all its members."
+  }
+}

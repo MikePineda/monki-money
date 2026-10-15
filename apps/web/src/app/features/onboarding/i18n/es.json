@@ -1,0 +1,51 @@
+{
+  "step": "Paso {current} de {total}",
+  "back": "Atrás",
+  "continue": "Continuar",
+  "household": {
+    "title": "Ponle nombre a tu hogar",
+    "body": "Es el espacio compartido para su dinero. Puedes cambiarle el nombre después.",
+    "label": "Nombre del hogar",
+    "default": "Hogar de {firstName}"
+  },
+  "region": {
+    "title": "Dinero y hora",
+    "body": "La zona horaria decide cuándo empieza un día y un mes para los dos.",
+    "currency": "Moneda",
+    "currencyValue": "AUD · Dólar australiano",
+    "currencyHint": "Por ahora solo AUD.",
+    "language": "Idioma",
+    "timezone": "Zona horaria",
+    "languages": {
+      "en": "English",
+      "es": "Español"
+    }
+  },
+  "accounts": {
+    "title": "Agrega tus cuentas",
+    "body": "Toca las cuentas que usas. Puedes agregar más después.",
+    "owners": "De quién es cada cuenta",
+    "ownerOf": "Dueño de {name}",
+    "you": "Tú",
+    "joint": "Compartida",
+    "partnerLater": "Podrás asignar cuentas a tu pareja cuando se una.",
+    "cash": "Efectivo",
+    "other": "Otra",
+    "limit": "Tu plan permite {max} cuentas.",
+    "otherSheet": {
+      "title": "Otra cuenta",
+      "name": "Nombre de la cuenta",
+      "add": "Agregar cuenta"
+    }
+  },
+  "invite": {
+    "title": "Invita a tu pareja",
+    "body": "Recibirá un correo con un enlace para unirse a este hogar. Funciona durante 7 días.",
+    "email": "Su correo",
+    "send": "Enviar invitación",
+    "later": "Después",
+    "sent": "Invitación enviada a {email}.",
+    "finish": "Terminar",
+    "full": "Tu hogar ya tiene a todos sus miembros."
+  }
+}

@@ -42,5 +42,16 @@
     "toast": {
       "dismiss": "Dismiss"
     }
+  },
+  "forms": {
+    "required": "This field is required.",
+    "email": "Enter a valid email address.",
+    "passwordMin": "Use at least {min} characters."
+  },
+  "errors": {
+    "offline": "Can’t reach monkimoney. Check your connection and try again.",
+    "server": "Something went wrong on our side. Try again in a moment.",
+    "throttled": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "retry": "Try again"
   }
 }

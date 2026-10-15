@@ -1,5 +1,6 @@
 import { Component, booleanAttribute, computed, input, model } from '@angular/core'
 import { IconComponent } from '../../icons/icon.component'
+import type { IconName } from '../../icons/icon-names'
 import { PersonDotComponent, type Person } from '../person-dot/person-dot.component'
 
 /**
@@ -18,6 +19,8 @@ import { PersonDotComponent, type Person } from '../person-dot/person-dot.compon
       <app-icon name="check" [size]="16" />
     } @else if (person(); as who) {
       <app-person-dot [person]="who" />
+    } @else if (icon(); as leading) {
+      <app-icon [name]="leading" [size]="16" />
     }
     <span class="truncate"><ng-content /></span>
     @if (trailing(); as icon) {
@@ -27,7 +30,7 @@ import { PersonDotComponent, type Person } from '../person-dot/person-dot.compon
   host: {
     'type': 'button',
     '[class]': 'classes()',
-    '[attr.aria-pressed]': 'toggle() ? selected() : null',
+    '[attr.aria-pressed]': 'toggle() || pressable() ? selected() : null',
     '[attr.aria-haspopup]': "trailing() ? 'dialog' : null",
     '(click)': 'onClick()',
   },
@@ -36,8 +39,16 @@ export class ChipComponent {
   readonly selected = model(false)
   /** A filter chip that toggles `selected` on click. */
   readonly toggle = input(false, { transform: booleanAttribute })
+  /**
+   * A pressed/unpressed chip whose selection the consumer owns (for example
+   * one that creates or deletes something on click): announces aria-pressed
+   * but never flips `selected` by itself.
+   */
+  readonly pressable = input(false, { transform: booleanAttribute })
   readonly trailing = input<'chevron-down' | null>(null)
   readonly person = input<Person | null>(null)
+  /** Leading icon at rest (for example `plus` on "add this" chips); the check replaces it once selected. */
+  readonly icon = input<IconName | null>(null)
 
   protected readonly classes = computed(() => {
     const base =

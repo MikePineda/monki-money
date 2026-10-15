@@ -20,6 +20,7 @@ import { BannerComponent } from '../shared/ui/banner/banner.component'
 import { BottomSheetService } from '../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonComponent } from '../shared/ui/button/button.component'
 import { CardComponent } from '../shared/ui/card/card.component'
+import { CheckboxComponent } from '../shared/ui/checkbox/checkbox.component'
 import { ChipComponent } from '../shared/ui/chip/chip.component'
 import { EmptyStateComponent } from '../shared/ui/empty-state/empty-state.component'
 import { IconButtonComponent } from '../shared/ui/icon-button/icon-button.component'
@@ -161,6 +162,7 @@ const KIT_KEYS = {
     BannerComponent,
     ButtonComponent,
     CardComponent,
+    CheckboxComponent,
     ChipComponent,
     EmptyStateComponent,
     IconButtonComponent,
@@ -237,6 +239,7 @@ export default class KitPage {
   protected readonly kind = signal<TransactionKind>('expense')
   protected readonly amountCents = signal(4250)
   protected readonly note = signal('')
+  protected readonly agreed = signal(false)
   protected readonly loading = signal(false)
   protected readonly tablePressed = signal(false)
   protected readonly groceriesSelected = signal(true)

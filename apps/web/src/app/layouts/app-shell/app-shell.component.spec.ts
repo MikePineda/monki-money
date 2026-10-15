@@ -33,7 +33,7 @@ describe('AppShellComponent', () => {
             children: [
               { path: 'month', component: Page },
               { path: 'transactions', component: Page },
-              { path: 'more', component: Page },
+              { path: 'settings', component: Page },
             ],
           },
         ]),

@@ -1,0 +1,134 @@
+{
+  "title": "Ajustes",
+  "back": "Atrás",
+  "save": "Guardar",
+  "logout": "Cerrar sesión",
+  "errors": {
+    "invalid": "{message}"
+  },
+  "profile": {
+    "editName": "Editar tu nombre",
+    "language": "Idioma",
+    "password": "Contraseña",
+    "languages": {
+      "en": "English",
+      "es": "Español"
+    },
+    "nameSheet": {
+      "title": "Tu nombre",
+      "label": "Nombre"
+    }
+  },
+  "appearance": {
+    "title": "Apariencia",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "household": {
+    "timezone": "Zona horaria",
+    "you": "tú",
+    "roles": {
+      "owner": "Administra",
+      "member": "Miembro"
+    },
+    "nameSheet": {
+      "title": "Nombre del hogar",
+      "label": "Nombre"
+    },
+    "invite": {
+      "action": "Invitar a tu pareja",
+      "sheetTitle": "Invita a tu pareja",
+      "email": "Su correo",
+      "send": "Enviar invitación",
+      "sent": "Invitación enviada a {email}.",
+      "pending": "Invitaciones pendientes",
+      "expires": "Vence el {date}",
+      "resend": "Enviar el enlace otra vez",
+      "revoke": "Cancelar invitación",
+      "full": "Tu hogar ya tiene a todos sus miembros."
+    }
+  },
+  "accounts": {
+    "title": "Cuentas",
+    "add": "Agregar cuenta",
+    "archive": "Archivar cuenta",
+    "restore": "Restaurar cuenta",
+    "archived": "Archivadas",
+    "atLimit": "Llegaste al límite de cuentas de tu plan. Archiva una para agregar otra.",
+    "limit": "Tu plan permite {max} cuentas.",
+    "empty": {
+      "title": "Aún no hay cuentas.",
+      "body": "Agrega las cuentas que usan tú y tu pareja."
+    },
+    "kinds": {
+      "transaction": "Diaria",
+      "savings": "Ahorro",
+      "wallet": "Monedero",
+      "cash": "Efectivo",
+      "other": "Otra"
+    },
+    "owners": {
+      "you": "Tú",
+      "joint": "Compartida"
+    },
+    "sheet": {
+      "name": "Nombre",
+      "institution": "Banco o proveedor",
+      "optional": "Opcional.",
+      "kind": "Tipo",
+      "owner": "Dueño"
+    },
+    "cards": {
+      "sheetTitle": "Agregar una tarjeta",
+      "suffix": "Últimos dígitos de la tarjeta",
+      "suffixHint": "De 2 a 8 letras o números, como vienen en la tarjeta.",
+      "holder": "Quién la usa",
+      "add": "Agregar tarjeta",
+      "remove": "Quitar tarjeta"
+    }
+  },
+  "upgrade": {
+    "row": "Planes",
+    "title": "Planes",
+    "placeholderTitle": "Los planes vienen en camino.",
+    "placeholderBody": "Tu hogar conserva todas las funciones que tiene hoy."
+  },
+  "app": {
+    "install": "Instalar la app",
+    "installed": "Instalada",
+    "iosHint": "En Safari, toca Compartir y luego Agregar a inicio.",
+    "version": "Versión",
+    "checkUpdate": "Buscar actualizaciones",
+    "upToDate": "Tienes la versión más reciente.",
+    "updateFailed": "No pudimos buscar actualizaciones. Inténtalo más tarde.",
+    "updateUnsupported": "Las actualizaciones se revisan en la app instalada."
+  },
+  "legal": {
+    "terms": "Términos de uso",
+    "privacy": "Aviso de privacidad"
+  },
+  "danger": {
+    "title": "Zona de riesgo",
+    "body": "Exporta una copia de tu hogar o programa su eliminación. Un hogar eliminado se puede restaurar durante 30 días.",
+    "export": "Exportar datos (JSON)",
+    "delete": "Eliminar hogar",
+    "sheet": {
+      "title": "Eliminar hogar",
+      "body": "{name} y todo lo que contiene se eliminarán en 30 días. Hasta entonces puedes restaurarlo.",
+      "typeName": "Escribe “{name}” para confirmar",
+      "password": "Tu contraseña",
+      "confirm": "Eliminar hogar",
+      "wrongPassword": "Esa contraseña no es correcta."
+    }
+  },
+  "password": {
+    "title": "Cambiar contraseña",
+    "body": "Se cerrará la sesión en tus otros dispositivos. En este seguirás dentro.",
+    "current": "Contraseña actual",
+    "new": "Contraseña nueva",
+    "hint": "Al menos 10 caracteres.",
+    "submit": "Cambiar contraseña",
+    "changed": "Contraseña cambiada. Cerramos la sesión en tus otros dispositivos."
+  }
+}
