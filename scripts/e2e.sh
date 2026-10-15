@@ -13,7 +13,8 @@ cd "$ROOT"
 
 API_BUILD="apps/api/build"
 WEB_DIST="apps/web/dist/web/browser"
-COMPOSE=(docker compose -f docker-compose.test.yml)
+# Absolute path: the cleanup trap must work from any working directory.
+COMPOSE=(docker compose -f "$ROOT/docker-compose.test.yml")
 
 if [[ ! -f "$API_BUILD/bin/server.js" || ! -f "$WEB_DIST/index.html" ]]; then
   echo "e2e: builds not found. Run 'npm run e2e' from the repo root (it builds first)." >&2
@@ -43,5 +44,4 @@ echo "e2e: migrating ${DB_DATABASE}"
 (cd "$API_BUILD" && node ace migration:run --force)
 
 echo "e2e: running Playwright"
-cd e2e
-npx playwright test "$@"
+(cd e2e && npx playwright test "$@")
