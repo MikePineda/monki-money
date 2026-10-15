@@ -95,6 +95,14 @@ describe('SettingsPage', () => {
     expect(root.querySelector('[data-testid="settings.export"]')).toBeNull()
   })
 
+  it('test_the_menu_offers_the_receipt_scanner_next_to_the_bank_import', async () => {
+    const { root } = await open('member')
+
+    const scan = root.querySelector('[data-testid="settings.scan"]')
+    expect(scan?.getAttribute('href')).toBe('/scan')
+    expect(scan?.textContent).toContain('Scan a receipt')
+  })
+
   it('test_an_owner_sees_export_and_delete_but_never_leave', async () => {
     const { root } = await open('owner')
 

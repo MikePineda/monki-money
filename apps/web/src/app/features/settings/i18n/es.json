@@ -58,6 +58,9 @@
   "import": {
     "title": "Importar CSV del banco"
   },
+  "scan": {
+    "title": "Escanear ticket"
+  },
   "rules": {
     "title": "Reglas de comercios"
   },

@@ -5,6 +5,7 @@
     "transfer": "Agregar transferencia"
   },
   "done": "Listo",
+  "scan": "Escanear ticket",
   "loading": "Cargando tus cuentas y categorías",
   "loadError": "No se cargaron tus cuentas y categorías.",
   "kind": {

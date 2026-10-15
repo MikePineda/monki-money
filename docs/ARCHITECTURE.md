@@ -80,7 +80,7 @@ off); and an error with Try again. A failed regenerate keeps the stored
 summary and says why under it. The two deterministic insight cards stay below.
 
 **Review before save (web).** Anything a machine proposes and a person
-confirms (the bank import today, the receipt scanner next) uses the same
+confirms (the bank import, the receipt scanner's lines) uses the same
 pattern. `domain/import-row.ts` is the pure row state machine: a row's tone
 (auto, doubtful, new, duplicate, transfer, ignored) from the API's proposal
 plus the person's decision, the actions each tone allows, the optimistic
@@ -96,6 +96,28 @@ the consumer's template), `RowTriage` (the triage sheet's frame and slots)
 and `BulkBar` (the selection's actions). The CSV goes up through
 `core/api/upload.service.ts` (XHR: real progress, abort, the same CSRF header
 as Tuyau), since fetch cannot report upload progress.
+
+**Receipt scanner (web).** `/scan` (camera with `capture="environment"`,
+or the photo library; entry points in the quick add header and the More
+menu) never uploads the photo as taken: `core/platform/image-optimizer.ts`
+decodes it with `createImageBitmap` (EXIF rotation applied), draws it at
+most 1600 px on its longest side on a canvas (every metadata field is
+dropped) and writes WebP 0.8, or JPEG 0.82 where the browser cannot write
+WebP (the math is pure in `domain/image-optimizer.ts`). The store
+(`features/scan/scan.store.ts`) asks `POST /uploads/presign` for a URL
+sized to that blob, PUTs it straight to the bucket with
+`UploadService.putToUrl` (only the signed headers, no cookies or CSRF
+token, real progress; a 403 from an expired URL gets one fresh presign)
+and calls `POST /receipts/scan` with the key. Scanning needs the network:
+offline is said, never queued, and "Try again" uploads under a new key
+(each key scans once). The draft opens in the shared `TransactionForm`
+(merchant, date, total, offered category, last used account, you as the
+payer) with a confidence hint, and "Split by lines" lists the printed lines
+in `ReviewList` with `BulkBar` (merge, drop, category; the last line takes
+the difference to the total, `domain/receipt-draft.ts`). Saving posts
+`POST /transactions` with `source: 'receipt'` and one client id per review.
+Nothing of the photo stays on the device: the preview is a `blob:` URL
+revoked once the draft is back, on cancel and when the screen goes away.
 
 ## Offline outbox (web)
 

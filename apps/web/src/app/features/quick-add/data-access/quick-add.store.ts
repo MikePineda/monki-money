@@ -11,6 +11,7 @@ import { TransactionsApi } from '../../../core/ledger/transactions.api'
 import { MonthStore } from '../../../core/month/month.store'
 import { OutboxStore } from '../../../core/outbox/outbox.store'
 import { newClientId } from '../../../core/platform/client-id'
+import { LAST_ACCOUNT_KEY } from '../../../core/platform/last-account'
 import { readPreference, writePreference } from '../../../core/platform/local-preference'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { WINDOW } from '../../../core/platform/window.token'
@@ -53,8 +54,6 @@ export type LoadState = 'loading' | 'ready' | 'error'
 export const RECENT_ROWS = 100
 /** Payees offered as suggestions (the form filters them by what is typed). */
 const PAYEE_SUGGESTIONS = 20
-/** localStorage keys, per person: the account last used for an expense or income. */
-export const LAST_ACCOUNT_KEY = 'qa:account:'
 
 const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
 

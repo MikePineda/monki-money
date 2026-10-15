@@ -20,6 +20,7 @@ import { BannerComponent } from '../../shared/ui/banner/banner.component'
 import { ButtonComponent } from '../../shared/ui/button/button.component'
 import { ChipComponent } from '../../shared/ui/chip/chip.component'
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component'
+import { IconButtonComponent } from '../../shared/ui/icon-button/icon-button.component'
 import {
   SegmentedControlComponent,
   type SegmentOption,
@@ -60,6 +61,7 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
     ButtonComponent,
     ChipComponent,
     EmptyStateComponent,
+    IconButtonComponent,
     RouterLink,
     SegmentedControlComponent,
     SkeletonComponent,
@@ -90,6 +92,14 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
         >
           {{ 'quickAdd.done' | transloco }}
         </button>
+        <a
+          appIconButton
+          icon="camera"
+          routerLink="/scan"
+          class="ml-auto"
+          data-testid="quickAdd.scan"
+          [label]="'quickAdd.scan' | transloco"
+        ></a>
         <button
           appChip
           data-testid="quickAdd.dateChip"
