@@ -1,0 +1,22 @@
+<!-- @dsCard group="Actions" height=240 subtitle="Primary, secondary, ghost, destructive, icon" -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Button</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..600&amp;display=swap">
+<style>
+.pv { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.pv-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.pv-note { font: 400 12px/16px var(--font-sans); color: var(--ink-3); margin: 0; }
+
+</style>
+</head>
+<body>
+<div class="mm pv">
+<div class="pv-row"><button class="mm-btn mm-btn--primary" type="button">Guardar gasto</button><button class="mm-btn mm-btn--secondary" type="button">Importar CSV</button><button class="mm-btn mm-btn--ghost" type="button">Cancelar</button><button class="mm-btn mm-btn--link" type="button">Deshacer</button></div>
+<div class="pv-row"><button class="mm-btn mm-btn--destructive" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>Eliminar hogar</button><button class="mm-btn mm-btn--primary" type="button" disabled>Guardar</button><button class="mm-btn mm-btn--secondary is-focus" type="button">Con foco</button><button class="mm-iconbtn" type="button" aria-label="Buscar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button></div>
+<button class="mm-btn mm-btn--primary mm-btn--block" type="button">Guardar −$42.50</button>
+</div>
+</body>
+</html>

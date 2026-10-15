@@ -1,0 +1,25 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-15T10:00:58Z"
+  },
+  "title": "monkimoney design system",
+  "namespace": "Monkimoney",
+  "libraries": [],
+  "sections": {},
+  "groups": [],
+  "assetGroups": {},
+  "blobs": {},
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "lastChange": {
+    "by": "Claude",
+    "via": "Claude Code",
+    "at": "2026-10-15T10:08:55Z",
+    "note": "Primary buttons and the add button are ink, not accent; accent reserved for links, focus and selection."
+  }
+}

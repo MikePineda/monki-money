@@ -1,0 +1,22 @@
+<!-- @dsCard group="Inputs" height=300 subtitle="Rest, focus, error" -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>TextField</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..600&amp;display=swap">
+<style>
+.pv { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.pv-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.pv-note { font: 400 12px/16px var(--font-sans); color: var(--ink-3); margin: 0; }
+
+</style>
+</head>
+<body>
+<div class="mm pv">
+<div class="mm-field"><label class="mm-field__label" for="f1">Nombre del hogar</label><input class="mm-input" id="f1" value="Casa Brisbane"><p class="mm-field__msg">Lo ven las dos personas del hogar.</p></div>
+<div class="mm-field"><label class="mm-field__label" for="f2">Correo de tu pareja</label><input class="mm-input mm-input--focus" id="f2" placeholder="nombre@correo.com"></div>
+<div class="mm-field"><label class="mm-field__label" for="f3">Contraseña</label><input class="mm-input mm-input--error" id="f3" type="password" value="12345"><p class="mm-field__msg mm-field__msg--error"><svg class="ic ic-16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>Usa al menos 12 caracteres.</p></div>
+</div>
+</body>
+</html>

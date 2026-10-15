@@ -7,12 +7,12 @@ ARM server). Fill the TODOs as the infrastructure work packages land.
 
 | What               | Value                                                           |
 | ------------------ | --------------------------------------------------------------- |
-| Project            | `monkimoney` (TODO: projectId, environmentId)                   |
-| Postgres service   | `monkimoney-db` (TODO: postgresId, appName)                     |
-| Application        | `monkimoney-web` (TODO: applicationId, appName)                 |
+| Project            | `monkimoney` (projectId `<id>`, environmentId `<id>`)                   |
+| Postgres service   | `monkimoney-db` (postgresId `<id>`, appName/host `monkimoney-db-xxxxxx`, volume `monkimoney-db-xxxxxx-data`)                     |
+| Application        | `monkimoney-web` (applicationId `<id>`, appName `monkimoney-web-xxxxxx`, domainId `<id>`)                 |
 | Domain             | `app.example.com`, https, `certificateType: none`, port 3333 |
-| GitHub provider    | App `dokploy-<server>` (TODO: githubId)                      |
-| Backup destination | R2, prefix `monkimoney/` (TODO: destinationId, backupId)        |
+| GitHub provider    | App `dokploy-<server>` (githubId `<id>`)                      |
+| Backup destination | R2 destination `<id>`, prefix `monkimoney/`, daily 16:15 UTC, keep 60 (backupId: see panel)        |
 
 ## GitHub
 
@@ -72,7 +72,7 @@ The full, commented list is `apps/api/.env.example`. Production specifics:
 
 ## Backups, restore and drill
 
-TODO (infra package): Dokploy `backup-create` for `monkimoney-db` to the R2
+DONE 2026-10-15: Dokploy `backup-create` for `monkimoney-db` to the R2
 destination, prefix `monkimoney/`, cron `15 16 * * *` UTC (02:15 Brisbane),
 keep 60. Manual: `backup-manualBackupPostgres`. List:
 `backup-listBackupFiles`. Restore:

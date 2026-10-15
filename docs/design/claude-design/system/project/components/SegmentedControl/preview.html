@@ -1,0 +1,21 @@
+<!-- @dsCard group="Actions" height=150 subtitle="Transaction type, review filter" -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SegmentedControl</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..600&amp;display=swap">
+<style>
+.pv { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.pv-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.pv-note { font: 400 12px/16px var(--font-sans); color: var(--ink-3); margin: 0; }
+
+</style>
+</head>
+<body>
+<div class="mm pv">
+<div class="mm-seg" role="radiogroup" aria-label="Tipo"><button class="mm-seg__opt mm-seg__opt--on" role="radio" aria-checked="true" type="button">Gasto</button><button class="mm-seg__opt" role="radio" aria-checked="false" type="button">Ingreso</button><button class="mm-seg__opt" role="radio" aria-checked="false" type="button">Transferencia</button></div>
+<div class="mm-seg" role="radiogroup" aria-label="Filtro"><button class="mm-seg__opt" type="button">Todas (64)</button><button class="mm-seg__opt mm-seg__opt--on" type="button">Dudosas (9)</button><button class="mm-seg__opt" type="button">Nuevas (4)</button></div>
+</div>
+</body>
+</html>
