@@ -1,0 +1,30 @@
+[
+  {
+    "id": "nab-everyday",
+    "name": "NAB Everyday",
+    "institution": "NAB",
+    "kind": "transaction",
+    "owner": "joint"
+  },
+  {
+    "id": "nab-savings",
+    "name": "NAB Savings",
+    "institution": "NAB",
+    "kind": "savings",
+    "owner": "joint"
+  },
+  {
+    "id": "hnry",
+    "name": "Hnry",
+    "institution": "Hnry",
+    "kind": "wallet",
+    "owner": "you"
+  },
+  {
+    "id": "cash",
+    "name": null,
+    "institution": null,
+    "kind": "cash",
+    "owner": "joint"
+  }
+]
