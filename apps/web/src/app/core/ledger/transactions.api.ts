@@ -18,6 +18,7 @@ export interface QuickEntryInput {
   /** null = joint ("both of us"). */
   paidByUserId?: number | null
   isPrivate?: boolean
+  tags?: string[]
 }
 
 /** `POST /transfers`: money moved between two of the household's accounts. */

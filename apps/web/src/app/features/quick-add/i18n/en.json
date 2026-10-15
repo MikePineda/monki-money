@@ -13,50 +13,12 @@
     "income": "Income",
     "transfer": "Transfer"
   },
-  "amount": {
-    "label": "Amount"
-  },
-  "account": {
-    "label": "Account",
-    "choose": "Choose account",
-    "sheet": "Account"
-  },
   "who": {
-    "label": "Who paid",
-    "sheet": "Who paid",
     "you": "You",
     "joint": "Shared"
   },
-  "category": {
-    "label": "Category",
-    "more": "More",
-    "sheet": "Category",
-    "none": "No category"
-  },
-  "transfer": {
-    "from": "From",
-    "to": "To",
-    "fromSheet": "From account",
-    "toSheet": "To account",
-    "sameAccount": "Choose two different accounts.",
-    "presets": "Frequent transfers",
-    "preset": "→ {to}",
-    "route": "{from} to {to}"
-  },
-  "details": {
-    "toggle": "Add note, merchant, date",
-    "toggleTransfer": "Add note, date",
-    "payee": "Merchant",
-    "suggestions": "Recent merchants",
-    "note": "Note",
-    "date": "Date",
-    "today": "Today",
-    "yesterday": "Yesterday",
-    "pick": "Pick a date",
-    "private": "Private",
-    "privateHint": "Your partner sees the amount, not the details."
-  },
   "dateChip": {
+    "label": "Date",
     "today": "Today · {day}",
     "yesterday": "Yesterday · {day}"
   },

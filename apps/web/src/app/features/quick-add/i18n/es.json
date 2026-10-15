@@ -13,50 +13,12 @@
     "income": "Ingreso",
     "transfer": "Transferencia"
   },
-  "amount": {
-    "label": "Monto"
-  },
-  "account": {
-    "label": "Cuenta",
-    "choose": "Elegir cuenta",
-    "sheet": "Cuenta"
-  },
   "who": {
-    "label": "Quién pagó",
-    "sheet": "Quién pagó",
     "you": "Tú",
     "joint": "Compartido"
   },
-  "category": {
-    "label": "Categoría",
-    "more": "Más",
-    "sheet": "Categoría",
-    "none": "Sin categoría"
-  },
-  "transfer": {
-    "from": "Desde",
-    "to": "Hacia",
-    "fromSheet": "Cuenta de origen",
-    "toSheet": "Cuenta de destino",
-    "sameAccount": "Elige dos cuentas distintas.",
-    "presets": "Transferencias frecuentes",
-    "preset": "→ {to}",
-    "route": "De {from} a {to}"
-  },
-  "details": {
-    "toggle": "Agregar nota, comercio, fecha",
-    "toggleTransfer": "Agregar nota, fecha",
-    "payee": "Comercio",
-    "suggestions": "Comercios recientes",
-    "note": "Nota",
-    "date": "Fecha",
-    "today": "Hoy",
-    "yesterday": "Ayer",
-    "pick": "Elegir fecha",
-    "private": "Privado",
-    "privateHint": "Tu pareja ve el monto, no los detalles."
-  },
   "dateChip": {
+    "label": "Fecha",
     "today": "Hoy · {day}",
     "yesterday": "Ayer · {day}"
   },

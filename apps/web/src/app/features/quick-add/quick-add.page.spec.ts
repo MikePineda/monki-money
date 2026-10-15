@@ -131,6 +131,16 @@ describe('QuickAddPage', () => {
     return byTestId(root, id).textContent?.replace(/\s+/g, ' ').trim() ?? ''
   }
 
+  /** The hero amount as shown (without its screen-reader label). */
+  function heroText(root: ParentNode): string {
+    return (
+      root
+        .querySelector('[data-testid="transactions.form.amount"] app-amount-display')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim() ?? ''
+    )
+  }
+
   async function settle(harness: RouterTestingHarness): Promise<void> {
     await harness.fixture.whenStable()
   }
@@ -142,16 +152,16 @@ describe('QuickAddPage', () => {
     const { root, loader } = await open()
 
     expect(await (await loader.getHarness(SegmentedControlHarness)).getSelected()).toBe('Expense')
-    expect(text(root, 'quickAdd.account')).toBe('Savings')
-    expect(text(root, 'quickAdd.who')).toBe('You')
+    expect(text(root, 'transactions.form.account')).toBe('Savings')
+    expect(text(root, 'transactions.form.person')).toBe('You')
     expect(text(root, 'quickAdd.dateChip')).toMatch(/^Today · [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}$/)
-    expect(text(root, 'quickAdd.amount')).toBe('$0.00')
+    expect(heroText(root)).toBe('$0.00')
   })
 
   it('test_without_a_stored_account_the_latest_own_entry_picks_it', async () => {
     const { root } = await open('/add', [aTransaction({ accountId: 2, createdByUserId: 1 })])
 
-    expect(text(root, 'quickAdd.account')).toBe('Savings')
+    expect(text(root, 'transactions.form.account')).toBe('Savings')
   })
 
   it('test_the_manifest_type_opens_on_that_kind', async () => {
@@ -189,6 +199,7 @@ describe('QuickAddPage', () => {
       description: null,
       paidByUserId: 1,
       isPrivate: false,
+      tags: [],
     })
   })
 
@@ -213,7 +224,7 @@ describe('QuickAddPage', () => {
     await settle(harness)
 
     expect(TestBed.inject(Router).url).toBe('/add')
-    expect(text(root, 'quickAdd.amount')).toBe('$0.00')
+    expect(heroText(root)).toBe('$0.00')
     expect(localStorage.getItem('qa:account:1')).toBe('1')
     expect(months.invalidate).toHaveBeenCalledWith(todayIn(TZ).slice(0, 7))
     const toast = root.querySelector('app-toast') as HTMLElement
@@ -248,7 +259,7 @@ describe('QuickAddPage', () => {
     await settle(harness)
 
     expect(text(root, 'quickAdd.error')).toContain('Can’t reach monkimoney')
-    expect(text(root, 'quickAdd.amount')).toBe('$1.00')
+    expect(heroText(root)).toBe('$1.00')
     const retry = byTestId(root, 'quickAdd.error').querySelector('button') as HTMLButtonElement
     retry.click()
     await settle(harness)
@@ -279,7 +290,9 @@ describe('QuickAddPage', () => {
     byTestId(root, 'quickAdd.save').click()
     await settle(harness)
 
-    expect(root.querySelector('app-field-error')?.textContent).toContain('The amount is too large.')
+    expect(
+      root.querySelector('[data-testid="transactions.form.amountError"]')?.textContent
+    ).toContain('The amount is too large.')
     expect(root.querySelector('[data-testid="quickAdd.error"]')).toBeNull()
   })
 
@@ -288,11 +301,11 @@ describe('QuickAddPage', () => {
     await (await loader.getHarness(SegmentedControlHarness)).select('Transfer')
     await (await loader.getHarness(AmountKeypadHarness)).press('5', '00')
 
-    expect(text(root, 'quickAdd.from')).toBe('Everyday')
-    expect(text(root, 'quickAdd.to')).toBe('Savings')
+    expect(text(root, 'transactions.transfer.from')).toBe('Everyday')
+    expect(text(root, 'transactions.transfer.to')).toBe('Savings')
     expect((byTestId(root, 'quickAdd.save') as HTMLButtonElement).disabled).toBe(false)
 
-    byTestId(root, 'quickAdd.to').click()
+    byTestId(root, 'transactions.transfer.to').click()
     await settle(harness)
     const everyday = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) =>
       option.textContent?.includes('Everyday')
@@ -300,8 +313,8 @@ describe('QuickAddPage', () => {
     everyday.click()
     await settle(harness)
 
-    expect(text(root, 'quickAdd.to')).toBe('Everyday')
-    expect(text(root, 'quickAdd.sameAccount')).toBe('Choose two different accounts.')
+    expect(text(root, 'transactions.transfer.to')).toBe('Everyday')
+    expect(text(root, 'transactions.transfer.accountError')).toBe('Choose two different accounts.')
     expect((byTestId(root, 'quickAdd.save') as HTMLButtonElement).disabled).toBe(true)
   })
 

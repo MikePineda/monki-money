@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core'
-import { IconComponent } from '../../../shared/icons/icon.component'
-import type { IconName } from '../../../shared/icons/icon-names'
+import { IconComponent } from '../icons/icon.component'
+import type { IconName } from '../icons/icon-names'
 
 export interface CategoryTile {
   id: number

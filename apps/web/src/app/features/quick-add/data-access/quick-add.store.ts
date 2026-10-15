@@ -14,7 +14,6 @@ import { readPreference, writePreference } from '../../../core/platform/local-pr
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { WINDOW } from '../../../core/platform/window.token'
 import { ToastStore } from '../../../core/ui/toast.store'
-import type { Person } from '../../../shared/ui/person-dot/person-dot.component'
 import { monthOf, todayIn, type IsoDate } from '../../../domain/month'
 import {
   QUICK_CATEGORY_COUNT,
@@ -26,14 +25,21 @@ import {
   type RecentEntry,
   type TransferPair,
 } from '../../../domain/quick-add-defaults'
+import type { TransactionDraft } from '../../../shared/transaction-form/transaction-draft'
+import { EMPTY_DRAFT } from '../../../shared/transaction-form/transaction-form.component'
+import {
+  EMPTY_TRANSFER,
+  transferDraftValid,
+  type TransferDraft,
+} from '../../../shared/transaction-form/transfer-form.component'
 
 export type QuickKind = 'expense' | 'income' | 'transfer'
-/** Who paid: you, the partner, or both of you (a joint expense, `paidByUserId: null`). */
-export type Who = 'you' | 'partner' | 'joint'
 export type LoadState = 'loading' | 'ready' | 'error'
 
 /** Rows read to rank categories, routes and payees (newest first). */
 export const RECENT_ROWS = 100
+/** Payees offered as suggestions (the form filters them by what is typed). */
+const PAYEE_SUGGESTIONS = 20
 /** localStorage keys, per person: the account last used for an expense or income. */
 export const LAST_ACCOUNT_KEY = 'qa:account:'
 
@@ -93,9 +99,15 @@ function toRecentEntry(row: LedgerRow): RecentEntry {
   }
 }
 
+function text(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
+}
+
 /**
  * Quick add's state and behaviour (the sacred screen, 3 taps ≈ 6 s): the
- * draft, the defaults it opens with, and saving. Provided by the page.
+ * drafts the shared transaction and transfer forms edit, the defaults they
+ * open with, and saving. Provided by the page.
  *
  * - Defaults: expense (or the `type` the link asked for), the account this
  *   person used last on this device (`qa:account:<userId>`), else their
@@ -118,19 +130,13 @@ export class QuickAddStore {
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
   readonly directory = inject(HouseholdDirectory)
 
-  /* ------------------------------------------------------------ the draft */
+  /* ----------------------------------------------------------- the drafts */
 
   readonly kind = signal<QuickKind>('expense')
-  readonly amountCents = signal(0)
-  readonly accountId = signal<number | null>(null)
-  readonly fromAccountId = signal<number | null>(null)
-  readonly toAccountId = signal<number | null>(null)
-  readonly categoryId = signal<number | null>(null)
-  readonly who = signal<Who>('you')
-  readonly date = signal<IsoDate>(todayIn(this.timeZone()))
-  readonly payee = signal('')
-  readonly note = signal('')
-  readonly isPrivate = signal(false)
+  /** What the transaction form edits (expense or income). */
+  readonly entry = signal<TransactionDraft>({ ...EMPTY_DRAFT, date: todayIn(this.timeZone()) })
+  /** What the transfer form edits. */
+  readonly transfer = signal<TransferDraft>({ ...EMPTY_TRANSFER, date: todayIn(this.timeZone()) })
 
   /* ---------------------------------------------------------- the screen */
 
@@ -150,6 +156,15 @@ export class QuickAddStore {
   readonly youId = computed(() => this.session.user()?.id ?? null)
   readonly hasAccounts = computed(() => this.directory.activeAccounts().length > 0)
 
+  /** The amount on the keypad, shared by both drafts so switching type keeps it. */
+  readonly amountCents = computed(() =>
+    this.kind() === 'transfer' ? this.transfer().amountCents : this.entry().amountCents
+  )
+  /** The date of the draft on screen (the header chip). */
+  readonly date = computed(() =>
+    this.kind() === 'transfer' ? this.transfer().date : this.entry().date
+  )
+
   /** The seven category tiles for the current kind; a category picked from "More" takes a slot. */
   readonly categoryTiles = computed<CategoryEntry[]>(() => {
     const kind = this.kind()
@@ -163,7 +178,7 @@ export class QuickAddStore {
       this.today(),
       candidates.map((entry) => entry.category)
     )
-    const selected = this.categoryId()
+    const selected = this.entry().categoryId
     if (selected !== null && !ids.includes(selected)) {
       ids.splice(QUICK_CATEGORY_COUNT - 1, 1)
       ids.unshift(selected)
@@ -178,40 +193,23 @@ export class QuickAddStore {
     transferPresets(this.recent(), this.directory.accounts(), this.today())
   )
 
-  readonly payeeOptions = computed(() => {
+  /** Recent payees of this kind, most used first (the form filters them as one types). */
+  readonly payees = computed(() => {
     const kind = this.kind()
     return kind === 'transfer'
       ? []
-      : payeeSuggestions(this.recent(), kind, this.payee(), this.today())
+      : payeeSuggestions(this.recent(), kind, '', this.today(), PAYEE_SUGGESTIONS)
   })
-
-  /** The mark next to "who paid": each member's own colour, the shared ring for joint. */
-  readonly whoPerson = computed<Person>(() => {
-    switch (this.who()) {
-      case 'partner':
-        return this.directory.personOf(this.directory.partner()?.userId ?? null)
-      case 'joint':
-        return 'joint'
-      default:
-        return this.directory.personOf(this.youId())
-    }
-  })
-
-  readonly sameAccount = computed(
-    () =>
-      this.kind() === 'transfer' &&
-      this.fromAccountId() !== null &&
-      this.fromAccountId() === this.toAccountId()
-  )
 
   readonly canSave = computed(() => {
     if (this.amountCents() <= 0 || this.saving() || this.loadState() !== 'ready') {
       return false
     }
     if (this.kind() === 'transfer') {
-      return this.fromAccountId() !== null && this.toAccountId() !== null && !this.sameAccount()
+      return transferDraftValid(this.transfer())
     }
-    return this.accountId() !== null
+    const entry = this.entry()
+    return entry.accountId !== null && entry.date !== ''
   })
 
   /** The amount as the save button repeats it: "−$42.50", "+$3,200.00", "$500.00". */
@@ -225,7 +223,7 @@ export class QuickAddStore {
   /** Loads the household's accounts, categories, members and recent rows, then applies the defaults. */
   async init(requestedKind: unknown): Promise<void> {
     if (isQuickKind(requestedKind)) {
-      this.kind.set(requestedKind)
+      this.setKind(requestedKind)
     }
     this.loadState.set('loading')
     const loadedBefore = this.directory.status() === 'ready'
@@ -257,12 +255,10 @@ export class QuickAddStore {
             this.directory.accounts(),
             this.storedAccount(youId)
           )
-    this.accountId.set(accountId)
     const pair = defaultTransferPair(this.directory.accounts(), this.presets(), accountId)
-    this.fromAccountId.set(pair.fromAccountId)
-    this.toAccountId.set(pair.toAccountId)
-    this.who.set('you')
-    this.date.set(this.today())
+    const today = this.today()
+    this.entry.update((entry) => ({ ...entry, accountId, paidByUserId: youId, date: today }))
+    this.transfer.update((transfer) => ({ ...transfer, ...pair, date: today }))
   }
 
   /** The account this person saved with last on this device, if any. */
@@ -278,19 +274,30 @@ export class QuickAddStore {
       return
     }
     this.kind.set(kind)
-    // A category belongs to one side (expense or income).
-    this.categoryId.set(null)
     this.fieldErrors.set({})
+    if (kind !== 'transfer') {
+      // A category belongs to one side (expense or income).
+      this.entry.update((entry) =>
+        entry.kind === kind ? entry : { ...entry, kind, categoryId: null }
+      )
+    }
   }
 
-  /** Tapping the selected tile again leaves the entry uncategorised. */
-  toggleCategory(id: number): void {
-    this.categoryId.update((current) => (current === id ? null : id))
+  /** The keypad writes both drafts, so the amount survives a change of type. */
+  setAmount(amountCents: number): void {
+    this.entry.update((entry) => ({ ...entry, amountCents }))
+    this.transfer.update((transfer) => ({ ...transfer, amountCents }))
   }
 
-  applyPreset(pair: TransferPair): void {
-    this.fromAccountId.set(pair.fromAccountId)
-    this.toAccountId.set(pair.toAccountId)
+  /**
+   * The next entry has started (a keypad press): the "Saved · Undo" toast
+   * docks under the top bar, over the type segment, so it gets out of the way.
+   */
+  startNextEntry(): void {
+    if (this.savedToast !== null) {
+      this.toasts.dismiss(this.savedToast)
+      this.savedToast = null
+    }
   }
 
   /* -------------------------------------------------------------- saving */
@@ -302,11 +309,8 @@ export class QuickAddStore {
     this.saving.set(true)
     this.failure.set(null)
     this.fieldErrors.set({})
-    const kind = this.kind()
-    const date = this.date()
     try {
-      const saved =
-        kind === 'transfer' ? await this.saveTransfer(date) : await this.saveEntry(kind, date)
+      const saved = this.kind() === 'transfer' ? await this.saveTransfer() : await this.saveEntry()
       this.attempt = null
       this.afterSave(saved)
     } catch (error) {
@@ -321,17 +325,19 @@ export class QuickAddStore {
     }
   }
 
-  private async saveEntry(kind: 'expense' | 'income', date: IsoDate): Promise<Saved> {
+  private async saveEntry(): Promise<Saved> {
+    const entry = this.entry()
     const body: Omit<QuickEntryInput, 'clientId'> = {
-      kind,
-      amountCents: this.amountCents(),
-      accountId: this.accountId() ?? undefined,
-      date,
-      categoryId: this.categoryId(),
-      payee: this.payee().trim() || null,
-      description: this.note().trim() || null,
-      paidByUserId: this.paidByUserId(),
-      isPrivate: this.isPrivate(),
+      kind: entry.kind,
+      amountCents: entry.amountCents,
+      accountId: entry.accountId ?? undefined,
+      date: entry.date,
+      categoryId: entry.categoryId,
+      payee: text(entry.payee),
+      description: text(entry.description),
+      paidByUserId: entry.paidByUserId,
+      isPrivate: entry.isPrivate,
+      tags: [...entry.tags],
     }
     const row = await this.api.quick({ clientId: this.clientIdFor(body), ...body })
     this.recent.update((rows) => [toRecentEntry(row), ...rows])
@@ -339,31 +345,21 @@ export class QuickAddStore {
     if (youId !== null) {
       writePreference(this.window, `${LAST_ACCOUNT_KEY}${youId}`, String(row.accountId))
     }
-    return { kind, id: row.id, date: row.date }
+    return { kind: entry.kind, id: row.id, date: row.date }
   }
 
-  private async saveTransfer(date: IsoDate): Promise<Saved> {
+  private async saveTransfer(): Promise<Saved> {
+    const transfer = this.transfer()
     const body = {
-      fromAccountId: this.fromAccountId() as number,
-      toAccountId: this.toAccountId() as number,
-      date,
-      amountCents: this.amountCents(),
-      memo: this.note().trim() || null,
+      fromAccountId: transfer.fromAccountId as number,
+      toAccountId: transfer.toAccountId as number,
+      date: transfer.date,
+      amountCents: transfer.amountCents,
+      memo: text(transfer.memo),
     }
-    const transfer = await this.api.transfer({ clientId: this.clientIdFor(body), ...body })
-    this.recent.update((rows) => [...transfer.legs.map(toRecentEntry), ...rows])
-    return { kind: 'transfer', id: transfer.id, date: transfer.date }
-  }
-
-  private paidByUserId(): number | null {
-    switch (this.who()) {
-      case 'partner':
-        return this.directory.partner()?.userId ?? null
-      case 'joint':
-        return null
-      default:
-        return this.youId()
-    }
+    const saved = await this.api.transfer({ clientId: this.clientIdFor(body), ...body })
+    this.recent.update((rows) => [...saved.legs.map(toRecentEntry), ...rows])
+    return { kind: 'transfer', id: saved.id, date: saved.date }
   }
 
   /** The same draft retried keeps its id; any change makes it a new attempt. */
@@ -388,24 +384,18 @@ export class QuickAddStore {
     this.clearDraft()
   }
 
-  /** Clears what changes from one entry to the next; kind, accounts, payer and date stay. */
+  /** Clears what changes from one entry to the next; type, accounts, payer and date stay. */
   private clearDraft(): void {
-    this.amountCents.set(0)
-    this.categoryId.set(null)
-    this.payee.set('')
-    this.note.set('')
-    this.isPrivate.set(false)
-  }
-
-  /**
-   * The next entry has started (a keypad press): the "Saved · Undo" toast
-   * docks under the top bar, over the type segment, so it gets out of the way.
-   */
-  startNextEntry(): void {
-    if (this.savedToast !== null) {
-      this.toasts.dismiss(this.savedToast)
-      this.savedToast = null
-    }
+    this.entry.update((entry) => ({
+      ...entry,
+      amountCents: 0,
+      categoryId: null,
+      payee: '',
+      description: '',
+      isPrivate: false,
+      tags: [],
+    }))
+    this.transfer.update((transfer) => ({ ...transfer, amountCents: 0, memo: '' }))
   }
 
   /** "Undo" on the toast: deletes what was just saved. */

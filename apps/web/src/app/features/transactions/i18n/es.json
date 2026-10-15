@@ -88,31 +88,6 @@
     "account": "Cuenta",
     "paidBy": "Pagó"
   },
-  "form": {
-    "kind": "Tipo",
-    "expense": "Gasto",
-    "income": "Ingreso",
-    "amount": "Monto",
-    "amountHint": "Toca el monto para cambiarlo.",
-    "amountLocked": "Un movimiento dividido conserva su monto. Quita la división para cambiarlo.",
-    "chooseAccount": "Elige una cuenta",
-    "accountTitle": "Cuenta",
-    "personTitle": "Quién pagó",
-    "category": "Categoría",
-    "categoryTitle": "Categoría",
-    "uncategorized": "Sin categoría",
-    "split": "Dividir",
-    "splitInto": "{count, plural, one {Dividido · # categoría} other {Dividido · # categorías}}",
-    "date": "Fecha",
-    "payee": "Comercio",
-    "suggestions": "Comercios recientes",
-    "note": "Nota",
-    "tags": "Etiquetas",
-    "addTag": "Agregar etiqueta",
-    "removeTag": "Quitar etiqueta {tag}",
-    "private": "Privado",
-    "privateHint": "Tu pareja ve el monto, no el comercio, la nota ni la categoría."
-  },
   "split": {
     "title": "Dividir {amount}",
     "chooseCategory": "Elige una categoría",
@@ -127,14 +102,5 @@
     "balanced": "Las líneas suman {amount}.",
     "save": "Guardar división",
     "unsplit": "Quitar división"
-  },
-  "transfer": {
-    "from": "Desde",
-    "to": "A",
-    "memo": "Nota",
-    "chooseAccount": "Elige una cuenta",
-    "sameAccount": "Elige dos cuentas distintas.",
-    "fromTitle": "Cuenta de origen",
-    "toTitle": "Cuenta de destino"
   }
 }

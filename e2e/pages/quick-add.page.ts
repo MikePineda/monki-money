@@ -2,12 +2,20 @@ import { expect, type Page } from '@playwright/test'
 
 type Key = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '00'
 
-/** `/add`: the type segment, hero amount, keypad, category grid, save and the toast. */
+/**
+ * `/add`: the type segment, the shared transaction or transfer form (hero
+ * amount, category grid, from/to), the docked keypad, save and the toast.
+ */
 export class QuickAddPage {
   constructor(private readonly page: Page) {}
 
+  /** The hero amount of the form on screen (transaction or transfer). */
   get amount() {
-    return this.page.getByTestId('quickAdd.amount')
+    return this.page
+      .locator(
+        '[data-testid="transactions.form.amount"] app-amount-display, [data-testid="transactions.transfer.amount"] app-amount-display'
+      )
+      .first()
   }
   get save() {
     return this.page.getByTestId('quickAdd.save')
@@ -16,10 +24,10 @@ export class QuickAddPage {
     return this.page.getByTestId('quickAdd.done')
   }
   get from() {
-    return this.page.getByTestId('quickAdd.from')
+    return this.page.getByTestId('transactions.transfer.from')
   }
   get to() {
-    return this.page.getByTestId('quickAdd.to')
+    return this.page.getByTestId('transactions.transfer.to')
   }
   get toast() {
     return this.page.locator('app-toast')
@@ -48,7 +56,11 @@ export class QuickAddPage {
 
   /** Taps the n-th category tile (0 = the most used). */
   async tapCategory(index = 0): Promise<void> {
-    await this.page.getByTestId('quickAdd.categories').locator('[data-category]').nth(index).click()
+    await this.page
+      .getByTestId('transactions.form.categoryGrid')
+      .locator('[data-category]')
+      .nth(index)
+      .click()
   }
 
   /** Saves and waits for the "Saved · Undo" toast and the cleared amount. */

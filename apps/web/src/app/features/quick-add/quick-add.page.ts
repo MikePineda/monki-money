@@ -1,53 +1,54 @@
 import { Location } from '@angular/common'
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
-import {
-  TranslocoPipe,
-  TranslocoService,
-  provideTranslocoScope,
-  translateSignal,
-} from '@jsverse/transloco'
-import { firstValueFrom } from 'rxjs'
+import { TranslocoPipe, provideTranslocoScope, translateSignal } from '@jsverse/transloco'
+import { flattenCategories } from '../../domain/category-tree'
 import { formatWeekdayDate } from '../../domain/dates'
 import { formatTransactionAmount } from '../../domain/money'
 import { addDays } from '../../domain/month'
-import type { TransferPair } from '../../domain/quick-add-defaults'
 import { ToastOutletComponent } from '../../layouts/toast-outlet/toast-outlet.component'
 import { categoryIcon } from '../../shared/icons/category-icons'
+import type { CategoryTile } from '../../shared/transaction-form/category-grid.component'
+import { TransactionFormComponent } from '../../shared/transaction-form/transaction-form.component'
+import {
+  TransferFormComponent,
+  type TransferPreset,
+} from '../../shared/transaction-form/transfer-form.component'
 import { AmountKeypadComponent } from '../../shared/ui/amount-keypad/amount-keypad.component'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { BannerComponent } from '../../shared/ui/banner/banner.component'
-import { BottomSheetService } from '../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonComponent } from '../../shared/ui/button/button.component'
 import { ChipComponent } from '../../shared/ui/chip/chip.component'
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component'
 import {
-  openSelectSheet,
-  type SelectOption,
-} from '../../shared/ui/select-sheet/select-sheet.component'
+  SegmentedControlComponent,
+  type SegmentOption,
+} from '../../shared/ui/segmented-control/segmented-control.component'
+import type { SelectOption } from '../../shared/ui/select-sheet/select-sheet.component'
 import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component'
-import { QuickAddStore, type QuickKind, type Who } from './data-access/quick-add.store'
-import type { CategoryTile } from './ui/category-grid.component'
-import { TransactionFormComponent, type PresetChoice } from './ui/transaction-form.component'
+import { QuickAddStore, type QuickKind } from './data-access/quick-add.store'
 
 /**
  * Scoped keys used from TypeScript. translateSignal() adds the "quickAdd."
- * prefix itself (relative keys); sheet titles and toasts take full keys.
- * Declared for transloco-keys-manager:
- * t(quickAdd.who.you, quickAdd.who.joint, quickAdd.who.sheet, quickAdd.category.none)
- * t(quickAdd.category.sheet, quickAdd.account.sheet)
- * t(quickAdd.transfer.fromSheet, quickAdd.transfer.toSheet)
+ * prefix itself (relative keys). Declared for transloco-keys-manager:
+ * t(quickAdd.who.you, quickAdd.who.joint)
  */
 const PEOPLE_KEYS = ['who.you', 'who.joint']
-const NO_CATEGORY_KEY = 'quickAdd.category.none'
+/** t(quickAdd.kind.expense, quickAdd.kind.income, quickAdd.kind.transfer) */
+const KIND_KEYS = ['kind.expense', 'kind.income', 'kind.transfer']
+const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
 
 /**
  * Quick add `/add` (DESIGN.md, "the sacred screen"; 3 taps ≈ 6 s). Full
  * screen, no tab bar: the keypad and the save button own the bottom edge,
- * toasts dock under the top bar. Opens with the defaults (QuickAddStore),
- * honours `?type=income|transfer` (the manifest shortcut uses
- * `?type=expense`), saves, clears and stays here for the next entry.
- * "Done" goes back to where the person came from (the month by default).
+ * toasts dock under the top bar. The page shows the type segment (with
+ * transfer) and hosts the shared transaction or transfer form in its quick
+ * shape: the amount fed by the docked keypad, the grid of the most used
+ * categories (or the most used transfer routes) and the details folded
+ * into one row. It opens with the defaults (QuickAddStore), honours
+ * `?type=income|transfer` (the manifest shortcut uses `?type=expense`),
+ * saves, clears and stays here for the next entry. "Done" goes back to
+ * where the person came from (the month by default).
  */
 @Component({
   selector: 'app-quick-add-page',
@@ -58,9 +59,11 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
     ChipComponent,
     EmptyStateComponent,
     RouterLink,
+    SegmentedControlComponent,
     SkeletonComponent,
     ToastOutletComponent,
     TransactionFormComponent,
+    TransferFormComponent,
     TranslocoPipe,
   ],
   providers: [
@@ -88,7 +91,7 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
         <button
           appChip
           data-testid="quickAdd.dateChip"
-          [attr.aria-label]="('quickAdd.details.date' | transloco) + ': ' + dayText()"
+          [attr.aria-label]="('quickAdd.dateChip.label' | transloco) + ': ' + dayText()"
           (click)="detailsOpen.set(true)"
         >
           @switch (dateIs()) {
@@ -119,11 +122,11 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
       </h1>
       <app-toast-outlet class="fixed inset-x-0 top-[calc(var(--safe-top)+56px)] z-20" />
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
+      <div class="min-h-0 flex-1 overflow-y-auto pt-2 pb-4">
         @if (store.failure(); as failure) {
           <app-banner
             data-testid="quickAdd.error"
-            class="mb-4"
+            class="mx-4 mb-4"
             status="critical"
             [message]="failure.key | transloco: failure.params ?? {}"
             [actionLabel]="'errors.retry' | transloco"
@@ -132,7 +135,7 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
         }
         @switch (store.loadState()) {
           @case ('loading') {
-            <div class="flex flex-col gap-4" role="status">
+            <div class="flex flex-col gap-4 px-4" role="status">
               <span class="sr-only">{{ 'quickAdd.loading' | transloco }}</span>
               <app-skeleton height="44px" />
               <app-skeleton width="50%" height="48px" />
@@ -142,6 +145,7 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
           @case ('error') {
             <app-banner
               data-testid="quickAdd.loadError"
+              class="mx-4"
               status="critical"
               [message]="'quickAdd.loadError' | transloco"
               [actionLabel]="'errors.retry' | transloco"
@@ -150,35 +154,43 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
           }
           @default {
             @if (store.hasAccounts()) {
-              <app-transaction-form
-                [kind]="store.kind()"
-                (kindChange)="store.setKind($event)"
-                [amountCents]="store.amountCents()"
-                [tiles]="tiles()"
-                [categoryId]="store.categoryId()"
-                [accountName]="accountName(store.accountId())"
-                [whoLabel]="whoLabel()"
-                [whoPerson]="store.whoPerson()"
-                [fromName]="accountName(store.fromAccountId())"
-                [toName]="accountName(store.toAccountId())"
-                [sameAccount]="store.sameAccount()"
-                [presets]="presets()"
-                [payeeOptions]="store.payeeOptions()"
-                [today]="store.today()"
-                [errors]="store.fieldErrors()"
-                [(payee)]="store.payee"
-                [(note)]="store.note"
-                [(date)]="store.date"
-                [(isPrivate)]="store.isPrivate"
-                [(detailsOpen)]="detailsOpen"
-                (pickAccount)="pickAccount('accountId')"
-                (pickFrom)="pickAccount('fromAccountId')"
-                (pickTo)="pickAccount('toAccountId')"
-                (pickWho)="pickWho()"
-                (moreCategories)="pickCategory()"
-                (toggleCategory)="store.toggleCategory($event)"
-                (applyPreset)="store.applyPreset($event)"
-              />
+              <div class="flex flex-col gap-5">
+                <app-segmented-control
+                  class="mx-4"
+                  data-testid="quickAdd.kind"
+                  [label]="'quickAdd.kind.label' | transloco"
+                  [options]="kindOptions()"
+                  [value]="store.kind()"
+                  (valueChange)="store.setKind($event)"
+                />
+                @if (store.kind() === 'transfer') {
+                  <app-transfer-form
+                    keypad="external"
+                    compact
+                    [today]="store.today()"
+                    [presets]="presets()"
+                    [accounts]="accountOptions()"
+                    [errors]="store.fieldErrors()"
+                    [(draft)]="store.transfer"
+                    [(detailsOpen)]="detailsOpen"
+                  />
+                } @else {
+                  <app-transaction-form
+                    keypad="external"
+                    compact
+                    [showKind]="false"
+                    [today]="store.today()"
+                    [categoryTiles]="tiles()"
+                    [accounts]="accountOptions()"
+                    [people]="peopleOptions()"
+                    [categories]="categoryOptions()"
+                    [payees]="store.payees()"
+                    [serverErrors]="store.fieldErrors()"
+                    [(draft)]="store.entry"
+                    [(detailsOpen)]="detailsOpen"
+                  />
+                }
+              </div>
             } @else {
               <app-empty-state
                 data-testid="quickAdd.noAccounts"
@@ -199,7 +211,8 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
         class="shrink-0"
         data-testid="quickAdd.keypad"
         [disabled]="!store.hasAccounts() || store.loadState() !== 'ready'"
-        [(value)]="store.amountCents"
+        [value]="store.amountCents()"
+        (valueChange)="store.setAmount($event)"
         (touch)="store.startNextEntry()"
       />
       <div class="shrink-0 px-4 pt-4 pb-[calc(var(--safe-bottom)+16px)]">
@@ -220,8 +233,6 @@ const NO_CATEGORY_KEY = 'quickAdd.category.none'
 })
 export default class QuickAddPage {
   protected readonly store = inject(QuickAddStore)
-  private readonly sheets = inject(BottomSheetService)
-  private readonly transloco = inject(TranslocoService)
   private readonly router = inject(Router)
   private readonly location = inject(Location)
   private readonly locale = inject(APP_LOCALE)
@@ -231,6 +242,50 @@ export default class QuickAddPage {
 
   protected readonly detailsOpen = signal(false)
 
+  private readonly kindLabels = translateSignal(KIND_KEYS)
+  /** Expense, income and transfer (the shared form's own segment has no transfer). */
+  protected readonly kindOptions = computed<SegmentOption<QuickKind>[]>(() => {
+    const labels = this.kindLabels()
+    return KINDS.map((value, index) => ({ value, label: labels[index] ?? '' }))
+  })
+
+  /** "You" and "Shared" follow the language; the partner is their own name. */
+  private readonly peopleLabels = translateSignal(PEOPLE_KEYS)
+
+  protected readonly accountOptions = computed<SelectOption<number>[]>(() =>
+    this.store.directory.activeAccounts().map((account) => ({
+      value: account.id,
+      label: account.name,
+      meta: account.institution ?? undefined,
+      icon: 'wallet',
+    }))
+  )
+
+  /** You, the partner (when there is one) and joint, each with their own mark. */
+  protected readonly peopleOptions = computed<SelectOption<number | null>[]>(() => {
+    const directory = this.store.directory
+    const [you = '', joint = ''] = this.peopleLabels()
+    const youId = this.store.youId()
+    const partner = directory.partner()
+    const options: SelectOption<number | null>[] = []
+    if (youId !== null) {
+      options.push({ value: youId, label: you, person: directory.personOf(youId) })
+    }
+    if (partner) {
+      options.push({
+        value: partner.userId,
+        label: partner.name,
+        person: directory.personOf(partner.userId),
+      })
+    }
+    options.push({ value: null, label: joint, person: 'joint' })
+    return options
+  })
+
+  protected readonly categoryOptions = computed(() =>
+    flattenCategories(this.store.directory.groups())
+  )
+
   protected readonly tiles = computed<CategoryTile[]>(() =>
     this.store.categoryTiles().map(({ category }) => ({
       id: category.id,
@@ -239,24 +294,21 @@ export default class QuickAddPage {
     }))
   )
 
-  protected readonly presets = computed<PresetChoice[]>(() =>
+  protected readonly presets = computed<TransferPreset[]>(() =>
     this.store.presets().map((pair) => ({
       ...pair,
       fromName: this.accountName(pair.fromAccountId),
       toName: this.accountName(pair.toAccountId),
-      current: this.isCurrent(pair),
     }))
   )
-
-  /** "You" and "Shared" follow the language; the partner is their own name. */
-  private readonly peopleLabels = translateSignal(PEOPLE_KEYS)
-  protected readonly whoLabel = computed(() => this.whoText(this.store.who()))
 
   protected readonly saveAmount = computed(() =>
     formatTransactionAmount(this.store.signedCents(), this.store.kind(), this.locale())
   )
 
-  protected readonly dayText = computed(() => formatWeekdayDate(this.store.date(), this.locale()))
+  protected readonly dayText = computed(() =>
+    this.store.date() ? formatWeekdayDate(this.store.date(), this.locale()) : ''
+  )
   protected readonly dateIs = computed<'today' | 'yesterday' | 'other'>(() => {
     const today = this.store.today()
     if (this.store.date() === today) {
@@ -273,10 +325,6 @@ export default class QuickAddPage {
     })
   }
 
-  protected accountName(id: number | null): string {
-    return this.store.directory.account(id)?.name ?? ''
-  }
-
   /** "Done": back to the previous screen, or to the month when /add was opened directly. */
   protected done(): void {
     if (this.router.lastSuccessfulNavigation()?.previousNavigation) {
@@ -286,97 +334,7 @@ export default class QuickAddPage {
     }
   }
 
-  protected async pickAccount(field: 'accountId' | 'fromAccountId' | 'toAccountId'): Promise<void> {
-    const titles = {
-      accountId: 'quickAdd.account.sheet',
-      fromAccountId: 'quickAdd.transfer.fromSheet',
-      toAccountId: 'quickAdd.transfer.toSheet',
-    } as const
-    const options: SelectOption<number>[] = this.store.directory
-      .activeAccounts()
-      .map((account) => ({
-        value: account.id,
-        label: account.name,
-        meta: account.institution ?? undefined,
-        icon: 'wallet',
-      }))
-    const chosen = await this.choose(titles[field], options, this.store[field]())
-    if (chosen !== undefined) {
-      this.store[field].set(chosen)
-    }
-  }
-
-  protected async pickWho(): Promise<void> {
-    const people: Who[] = this.store.directory.partner()
-      ? ['you', 'partner', 'joint']
-      : ['you', 'joint']
-    const directory = this.store.directory
-    const person = {
-      you: directory.personOf(this.store.youId()),
-      partner: directory.personOf(directory.partner()?.userId ?? null),
-      joint: 'joint',
-    } as const
-    const options: SelectOption<Who>[] = people.map((who) => ({
-      value: who,
-      label: this.whoText(who),
-      person: person[who],
-    }))
-    const chosen = await this.choose('quickAdd.who.sheet', options, this.store.who())
-    if (chosen !== undefined) {
-      this.store.who.set(chosen)
-    }
-  }
-
-  protected async pickCategory(): Promise<void> {
-    const kind: QuickKind = this.store.kind()
-    if (kind === 'transfer') {
-      return
-    }
-    const options: SelectOption<number | null>[] = [
-      { value: null, label: this.transloco.translate(NO_CATEGORY_KEY), icon: 'tag' },
-      ...this.store.directory.categoriesOf(kind).map(({ category, group }) => ({
-        value: category.id,
-        label: category.name,
-        meta: group.name,
-        icon: categoryIcon(category),
-      })),
-    ]
-    const chosen = await this.choose('quickAdd.category.sheet', options, this.store.categoryId())
-    if (chosen !== undefined) {
-      this.store.categoryId.set(chosen)
-    }
-  }
-
-  private whoText(who: Who): string {
-    const [you = '', joint = ''] = this.peopleLabels()
-    switch (who) {
-      case 'partner':
-        return this.store.directory.partnerName()
-      case 'joint':
-        return joint
-      default:
-        return you
-    }
-  }
-
-  private isCurrent(pair: TransferPair): boolean {
-    return (
-      this.store.fromAccountId() === pair.fromAccountId &&
-      this.store.toAccountId() === pair.toAccountId
-    )
-  }
-
-  private choose<T>(
-    titleKey: string,
-    options: SelectOption<T>[],
-    selected: T | null
-  ): Promise<T | undefined> {
-    return firstValueFrom(
-      openSelectSheet(this.sheets, {
-        title: this.transloco.translate(titleKey),
-        options,
-        selected,
-      })
-    )
+  private accountName(id: number): string {
+    return this.store.directory.account(id)?.name ?? ''
   }
 }

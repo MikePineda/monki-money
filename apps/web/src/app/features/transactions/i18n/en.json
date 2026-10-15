@@ -88,31 +88,6 @@
     "account": "Account",
     "paidBy": "Paid by"
   },
-  "form": {
-    "kind": "Type",
-    "expense": "Expense",
-    "income": "Income",
-    "amount": "Amount",
-    "amountHint": "Tap the amount to change it.",
-    "amountLocked": "A split keeps its amount. Unsplit it to change the amount.",
-    "chooseAccount": "Choose an account",
-    "accountTitle": "Account",
-    "personTitle": "Who paid",
-    "category": "Category",
-    "categoryTitle": "Category",
-    "uncategorized": "Uncategorised",
-    "split": "Split",
-    "splitInto": "{count, plural, one {Split · # category} other {Split · # categories}}",
-    "date": "Date",
-    "payee": "Payee",
-    "suggestions": "Recent payees",
-    "note": "Note",
-    "tags": "Tags",
-    "addTag": "Add a tag",
-    "removeTag": "Remove tag {tag}",
-    "private": "Private",
-    "privateHint": "Your partner sees the amount, not the payee, note or category."
-  },
   "split": {
     "title": "Split {amount}",
     "chooseCategory": "Choose a category",
@@ -127,14 +102,5 @@
     "balanced": "The lines add up to {amount}.",
     "save": "Save split",
     "unsplit": "Unsplit"
-  },
-  "transfer": {
-    "from": "From",
-    "to": "To",
-    "memo": "Memo",
-    "chooseAccount": "Choose an account",
-    "sameAccount": "Choose two different accounts.",
-    "fromTitle": "From account",
-    "toTitle": "To account"
   }
 }

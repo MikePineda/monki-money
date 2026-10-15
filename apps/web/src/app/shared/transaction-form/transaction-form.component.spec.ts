@@ -1,15 +1,15 @@
 import { Component, signal, viewChild } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
-import { i18nTesting, i18nTestingProviders } from '../../../../../testing/i18n-testing'
-import { aCategoryTree, aTransaction } from '../../../../../testing/ledger-fixtures'
-import { flattenCategories } from '../../../../domain/category-tree'
-import { AmountKeypadHarness } from '../../../../shared/ui/amount-keypad/amount-keypad.harness'
-import { BottomSheetService } from '../../../../shared/ui/bottom-sheet/bottom-sheet.service'
-import { SelectSheetHarness } from '../../../../shared/ui/select-sheet/select-sheet.harness'
-import { TextFieldHarness } from '../../../../shared/ui/text-field/text-field.harness'
-import transactionsEn from '../../i18n/en.json'
-import { draftFromTransaction, type TransactionDraft } from './transaction-draft'
+import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
+import { aCategoryTree } from '../../../testing/ledger-fixtures'
+import { flattenCategories } from '../../domain/category-tree'
+import { AmountKeypadHarness } from '../ui/amount-keypad/amount-keypad.harness'
+import { BottomSheetService } from '../ui/bottom-sheet/bottom-sheet.service'
+import { SelectSheetHarness } from '../ui/select-sheet/select-sheet.harness'
+import { TextFieldHarness } from '../ui/text-field/text-field.harness'
+import transactionFormEn from './i18n/en.json'
+import type { TransactionDraft } from './transaction-draft'
 import { TransactionFormComponent } from './transaction-form.component'
 
 @Component({
@@ -24,9 +24,18 @@ import { TransactionFormComponent } from './transaction-form.component'
   />`,
 })
 class Host {
-  readonly draft = signal<TransactionDraft>(
-    draftFromTransaction(aTransaction({ amountCents: -4820, categoryId: 20, payee: '' }))
-  )
+  readonly draft = signal<TransactionDraft>({
+    kind: 'expense',
+    amountCents: 4820,
+    accountId: 1,
+    paidByUserId: 1,
+    categoryId: 20,
+    date: '2026-10-15',
+    payee: '',
+    description: '',
+    isPrivate: false,
+    tags: [],
+  })
   readonly errors = signal<Record<string, string>>({})
   readonly accounts = [
     { value: 1, label: 'NAB Everyday' },
@@ -44,7 +53,7 @@ class Host {
 describe('TransactionFormComponent', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'transactions/en': transactionsEn } })],
+      imports: [i18nTesting({ scopes: { 'transactionForm/en': transactionFormEn } })],
       providers: [i18nTestingProviders()],
     })
     const fixture = TestBed.createComponent(Host)
