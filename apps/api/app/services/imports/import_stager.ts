@@ -148,7 +148,7 @@ export default class ImportStager {
       .withScopes((scopes) => scopes.forHousehold(household))
       .where('created_at', '>=', monthStart.toUTC().toISO()!)
       .count('* as total')
-    if (Number(row.$extras.total) + newBatches > limit) throw new ImportLimitReached()
+    if (Number(row.$extras['total']) + newBatches > limit) throw new ImportLimitReached()
   }
 
   /** One staged batch per account: the review of the previous upload comes first. */
@@ -181,7 +181,7 @@ export default class ImportStager {
     const plans: AccountPlan[] = []
     for (const [number, rows] of groups) {
       const account = accounts.get(number)!
-      if (!account.$preloaded.cards) await account.load('cards')
+      if (!account.$preloaded['cards']) await account.load('cards')
       const staged = stageRows(rows, {
         accountId: account.id,
         today,
