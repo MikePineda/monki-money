@@ -1,0 +1,82 @@
+{
+  "title": "Scan a receipt",
+  "back": "Back",
+  "capture": {
+    "intro": "Photograph the whole receipt on a flat surface, in good light.",
+    "camera": "Take a photo",
+    "library": "Choose from library",
+    "privacy": "The photo is reduced on this device, read once and then deleted. Nothing about it is kept.",
+    "preview": "The receipt photo",
+    "optimizing": "Preparing the photo",
+    "presigning": "Getting ready to upload",
+    "uploading": "Uploading the photo",
+    "scanning": "Reading the receipt",
+    "progressLabel": "Progress",
+    "cancel": "Cancel",
+    "retry": "Try again",
+    "another": "Take another photo",
+    "manual": "Add it by hand",
+    "problem": {
+      "notImage": "This file is not a photo. Choose a photo of the receipt.",
+      "unreadablePhoto": "This photo could not be opened. Try another one.",
+      "offline": "No connection. Scanning needs the internet, so try again when you are back online.",
+      "quota": "AI limit reached for this month. You can still add the expense by hand.",
+      "unavailable": "Scanning is not available right now.",
+      "unreadable": "We could not read this receipt, try a clearer photo.",
+      "throttled": "Too many scans in a minute. Wait a moment and try again.",
+      "upload": "The photo could not be uploaded. Try again.",
+      "failed": "Something went wrong. Try again."
+    }
+  },
+  "review": {
+    "title": "Review receipt",
+    "discard": "Discard receipt",
+    "discardSheet": {
+      "title": "Discard this receipt?",
+      "body": "The details read from the photo will be lost. Nothing has been saved.",
+      "confirm": "Discard",
+      "keep": "Keep reviewing"
+    },
+    "confidence": {
+      "high": "Read clearly. Check the details before saving.",
+      "medium": "Some parts were hard to read. Check the amount and the date.",
+      "low": "Hard to read. Check every field before saving."
+    },
+    "split": "Split by lines",
+    "splitHint": "Give each line of the receipt its own category.",
+    "lines": "Receipt lines",
+    "selectAll": "Select all lines",
+    "check": "Select {description}, {amount}",
+    "quantity": "Qty {quantity}",
+    "adjusted": "Adjusted",
+    "difference": "The last line takes {amount} so the lines match the total.",
+    "issue": {
+      "tooFewLines": "A split needs at least two lines. Turn off split by lines to save it with one category.",
+      "missingCategory": "Every line needs a category.",
+      "zeroLine": "A line has no amount left. Merge it with another line or drop it.",
+      "overTotal": "The lines add up to more than the total.",
+      "tooManyLines": "Too many lines for one split. Merge some of them."
+    },
+    "who": {
+      "you": "You",
+      "joint": "Shared"
+    },
+    "lineCategory": "Line category",
+    "uncategorized": "Uncategorised",
+    "selected": "{count, plural, one {# line selected} other {# lines selected}}",
+    "bulk": {
+      "label": "Selected lines",
+      "clear": "Clear selection",
+      "merge": "Merge",
+      "drop": "Drop",
+      "category": "Category"
+    },
+    "save": "Save {amount}",
+    "offline": "No connection. The receipt is still here, so save it again when you are back online.",
+    "loading": "Loading your accounts",
+    "loadError": "Your accounts could not be loaded."
+  },
+  "toast": {
+    "saved": "Receipt saved"
+  }
+}

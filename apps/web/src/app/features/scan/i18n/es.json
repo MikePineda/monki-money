@@ -1,0 +1,82 @@
+{
+  "title": "Escanear ticket",
+  "back": "Atrás",
+  "capture": {
+    "intro": "Fotografía el ticket completo sobre una superficie plana y con buena luz.",
+    "camera": "Tomar foto",
+    "library": "Elegir de la galería",
+    "privacy": "La foto se reduce en este dispositivo, se lee una vez y luego se borra. No se guarda nada de ella.",
+    "preview": "La foto del ticket",
+    "optimizing": "Preparando la foto",
+    "presigning": "Preparando la subida",
+    "uploading": "Subiendo la foto",
+    "scanning": "Leyendo el ticket",
+    "progressLabel": "Progreso",
+    "cancel": "Cancelar",
+    "retry": "Intentar de nuevo",
+    "another": "Tomar otra foto",
+    "manual": "Agregarlo a mano",
+    "problem": {
+      "notImage": "Este archivo no es una foto. Elige una foto del ticket.",
+      "unreadablePhoto": "No se pudo abrir esta foto. Prueba con otra.",
+      "offline": "Sin conexión. Escanear necesita internet, así que inténtalo de nuevo cuando vuelvas a estar en línea.",
+      "quota": "Llegaste al límite de IA de este mes. Aún puedes agregar el gasto a mano.",
+      "unavailable": "El escaneo no está disponible en este momento.",
+      "unreadable": "No pudimos leer este ticket, prueba con una foto más clara.",
+      "throttled": "Demasiados escaneos en un minuto. Espera un momento e inténtalo de nuevo.",
+      "upload": "No se pudo subir la foto. Inténtalo de nuevo.",
+      "failed": "Algo salió mal. Inténtalo de nuevo."
+    }
+  },
+  "review": {
+    "title": "Revisar ticket",
+    "discard": "Descartar ticket",
+    "discardSheet": {
+      "title": "¿Descartar este ticket?",
+      "body": "Se perderán los datos leídos de la foto. No se ha guardado nada.",
+      "confirm": "Descartar",
+      "keep": "Seguir revisando"
+    },
+    "confidence": {
+      "high": "Se leyó bien. Revisa los datos antes de guardar.",
+      "medium": "Algunas partes costaron trabajo. Revisa el monto y la fecha.",
+      "low": "Se leyó con dificultad. Revisa cada campo antes de guardar."
+    },
+    "split": "Dividir por líneas",
+    "splitHint": "Dale a cada línea del ticket su propia categoría.",
+    "lines": "Líneas del ticket",
+    "selectAll": "Seleccionar todas las líneas",
+    "check": "Seleccionar {description}, {amount}",
+    "quantity": "Cant. {quantity}",
+    "adjusted": "Ajustada",
+    "difference": "La última línea toma {amount} para que las líneas sumen el total.",
+    "issue": {
+      "tooFewLines": "Una división necesita al menos dos líneas. Desactiva dividir por líneas para guardarlo con una categoría.",
+      "missingCategory": "Cada línea necesita una categoría.",
+      "zeroLine": "Una línea se quedó sin monto. Júntala con otra o quítala.",
+      "overTotal": "Las líneas suman más que el total.",
+      "tooManyLines": "Demasiadas líneas para una división. Junta algunas."
+    },
+    "who": {
+      "you": "Tú",
+      "joint": "Compartido"
+    },
+    "lineCategory": "Categoría de la línea",
+    "uncategorized": "Sin categoría",
+    "selected": "{count, plural, one {# línea seleccionada} other {# líneas seleccionadas}}",
+    "bulk": {
+      "label": "Líneas seleccionadas",
+      "clear": "Quitar selección",
+      "merge": "Juntar",
+      "drop": "Quitar",
+      "category": "Categoría"
+    },
+    "save": "Guardar {amount}",
+    "offline": "Sin conexión. El ticket sigue aquí, así que guárdalo de nuevo cuando vuelvas a estar en línea.",
+    "loading": "Cargando tus cuentas",
+    "loadError": "No se pudieron cargar tus cuentas."
+  },
+  "toast": {
+    "saved": "Ticket guardado"
+  }
+}
