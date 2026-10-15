@@ -54,7 +54,10 @@ The SPA fallback route (`spa.fallback`) is excluded from the registry
   (or revoked session), 403 role (`HouseholdPolicy`), 429 throttled (with
   `Retry-After`).
 - 5xx in production: a generic translated `{ message, code: 'E_INTERNAL_SERVER_ERROR' }`
-  (driver, table and constraint names stay in the logs).
+  (driver, table and constraint names stay in the logs). Exception: 503
+  `E_LLM_UNAVAILABLE` (the model is down or not configured) and
+  `E_STORAGE_UNAVAILABLE` (no bucket, or it did not answer) answer the
+  translated `{ message, code }` in every environment ("try again later").
 - Unknown routes: JSON 404 (`{ message, code }`), including any `/api/*` GET
   that would otherwise hit the SPA fallback.
 - Amounts are integer cents named `*Cents`; dates are `YYYY-MM-DD` (years
@@ -189,7 +192,7 @@ isMasked, tags[], createdByUserId, updatedByUserId, createdAt, updatedAt }`.
 | Name                          | Method and path                      | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `transactions.index`          | `GET /transactions`                  | Paginated `{ data: Transaction[], metadata }`. Filters: `month=YYYY-MM` (wins over `from`/`to`), `from`, `to`, `accountId[]`, `categoryId[]` (also matches split lines), `uncategorized`, `paidByUserId`, `kind`, `status`, `needsReview`, `q` (payee, notes, bank text; wildcards literal), `page`, `perPage` (≤ 100, default 50), `sort` (`-date` default, `date`, `amount`, `-amount`)                                                                                                                                                                                                         |
-| `transactions.store`          | `POST /transactions`                 | `{ clientId?, accountId, kind: expense\|income, date, amountCents > 0, categoryId? \| splits?[{ categoryId, amountCents, memo? }] (≥ 2 lines, same direction as the parent unless negative, sum = amount: 422 `splits`/`sumMismatch`), payee?, description?, paidByUserId? (null = joint; omitted = account owner → card → creator), status?, isPrivate?, tags? }` → 201 (200 on a `clientId` replay)                                                                                                                                                                                             |
+| `transactions.store`          | `POST /transactions`                 | `{ clientId?, accountId, kind: expense\|income, date, amountCents > 0, categoryId? \| splits?[{ categoryId, amountCents, memo? }] (≥ 2 lines, same direction as the parent unless negative, sum = amount: 422 `splits`/`sumMismatch`), payee?, description?, paidByUserId? (null = joint; omitted = account owner → card → creator), status?, isPrivate?, tags?, source? (`manual`default \|`receipt` for a scanned draft; anything else 422) }` → 201 (200 on a `clientId` replay)                                                                                                               |
 | `transactions.quick`          | `POST /transactions/quick`           | Same body; only `amountCents` is required. Defaults: the account this person used last (else the first active one; none → 422 `accountId`/`required`), today in the household time zone, `kind: expense`, no category                                                                                                                                                                                                                                                                                                                                                                             |
 | `transactions.show`           | `GET /transactions/:id`              | `Transaction` (masked for the partner when private)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `transactions.update`         | `PATCH /transactions/:id`            | `{ accountId?, kind?, date?, amountCents?, categoryId?, payee?, description?, paidByUserId?, status?, isPrivate?, tags?, needsReview?, applyToFuture? }`. Setting a category clears `needsReview`; with `applyToFuture: true` the new category also becomes the merchant rule of the bank row the transaction came from (learned `merchant` rule; nothing for rows typed by hand); a new account brings its `currencyCode`. Split rows: amount changes → 422 `amountCents`/`splitSum`, a category → 422 `categoryId`/`split`, a kind change flips the lines. Transfer legs → 409 `E_TRANSFER_LEG` |
@@ -259,3 +262,34 @@ container): `node ace import:nab <file.csv> --account <bank number|account id>
 household's owner) and prints a summary; `--confirm-auto` confirms matches,
 known transfers, zero-amount checks and categorized new rows, and leaves the
 rest staged for the review screen.
+
+### Receipts and uploads
+
+Receipt photos never pass through the API and nothing about a receipt is
+stored. The flow:
+
+1. `POST /uploads/presign` with what the client is about to upload: the
+   server picks the key and signs a PUT for exactly that type and size.
+2. The browser PUTs the photo (already reduced on the device) to `url` with
+   `headers`, before `expiresAt`. Another type or size is refused by the
+   bucket (403); the bucket allows the app origin through CORS
+   (`node ace storage:configure`, see the runbook).
+3. `POST /receipts/scan` with the `key`: the API reads the photo, reduces it
+   again (≤ 1600 px, JPEG, metadata stripped), asks the vision model and
+   deletes the photo whatever the outcome. A photo nobody scans expires from
+   the bucket after one day. Each key scans once: retrying needs a new upload.
+4. The person reviews the draft and saves it with `POST /transactions` and
+   `source: 'receipt'` (`amountCents` from `totalCents`, `payee` from
+   `merchant`, `categoryId`, or `splits` built from `items`).
+
+`ReceiptDraft` = `{ merchant, date, totalCents, currencyCode, categoryId,
+categorySlug, items: [{ description, amountCents, quantity }], confidence,
+key }`. Amounts are cents as printed on the receipt (positive); any field but
+`items`, `confidence` (0..1) and `key` is null when unreadable. `categorySlug`
+is one of the household's visible categories (hidden ones are never offered)
+and `categoryId` is that category's id.
+
+| Name              | Method and path         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `uploads.presign` | `POST /uploads/presign` | `{ kind: 'receipt', contentType: image/jpeg\|image/png\|image/webp, byteSize (exact bytes to PUT, ≤ 10 MB) }` → 201 `{ key, url, headers, expiresAt }`. The key is `receipts/<householdId>/<uuid>.<ext>`, chosen by the server (a `key` in the body is ignored); the URL works for 5 minutes. 422 `contentType`/`enum`, `byteSize`/`max` \| `min`, `kind`/`enum`; 503 `E_STORAGE_UNAVAILABLE` without a bucket. 30 per minute per user                                                                                           |
+| `receipts.scan`   | `POST /receipts/scan`   | `{ key }` → `ReceiptDraft`. 404 `E_ROW_NOT_FOUND` for a key outside the household's prefix (the object is never touched) or an object that is not there; 422 `key`/`mimetype` \| `fileSize` \| `image` (not JPEG/PNG/WebP, over 10 MB, not a readable image); 402 `E_LLM_QUOTA_EXCEEDED` (checked before reading the photo); 422 `E_LLM_OUTPUT_INVALID`; 503 `E_LLM_UNAVAILABLE` (model down, or no `LLM_API_KEY`) / `E_STORAGE_UNAVAILABLE`. Each model call is an `llm_usage` row (`purpose: receipt`). 10 per minute per user |

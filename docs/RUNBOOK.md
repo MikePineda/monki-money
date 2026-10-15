@@ -253,6 +253,57 @@ ssh <server> 'docker exec -i $(docker ps -q -f name=monkimoney-db) \
 Check the live endpoint with `node ace llm:smoke` inside the app container
 (see `docs/llm.md`).
 
+## Receipts storage
+
+Receipt photos go from the browser straight to the bucket (`S3_BUCKET`)
+under `receipts/<householdId>/` through presigned PUTs; the API reads each
+one back for the scan and deletes it right away (flow in `docs/CONTRACTS.md`,
+"Receipts and uploads"). Without `DRIVE_DISK=s3` uploads and scans answer 503
+`E_STORAGE_UNAVAILABLE`; without `LLM_API_KEY` scans answer 503
+`E_LLM_UNAVAILABLE`.
+
+The bucket needs two settings. Set them once from inside the production
+container (and again whenever `APP_URL` changes):
+
+```bash
+# Print the merged configuration only:
+ssh <server> 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:configure --dry-run'
+# Apply it:
+ssh <server> 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:configure'
+```
+
+- **CORS**: the `APP_URL` origin may `PUT` with the `Content-Type` header
+  (preflight cached for an hour). Without it the upload fails in the browser
+  with a CORS error before reaching the bucket.
+- **Lifecycle rule `expire-receipts`**: objects under `receipts/` expire after
+  1 day: photos nobody scanned and photos whose delete failed (the API logs
+  `receipt scan: could not delete the photo` at warn). Bank CSVs live under
+  `imports/` and are not affected.
+
+The command reads the current configuration and merges: other CORS rules and
+other lifecycle rules (such as R2's default multipart-abort rule) stay, a
+re-run changes nothing, and it prints the result, never credentials. Changing
+bucket settings needs an R2 token with **Admin Read & Write**; with an
+object-only token the command fails with `AccessDenied`. In that case set both
+by hand in the dashboard (R2 → bucket → Settings → CORS policy / Object
+lifecycle rules) or with wrangler from the Mac (`npx wrangler r2 bucket cors
+set <bucket> --file <rules.json>` and `npx wrangler r2 bucket lifecycle add
+<bucket> expire-receipts receipts/ --expire-days 1`; check the flags with
+`--help`, they change between wrangler versions).
+
+Verify (S3 API with the R2 token, or wrangler):
+
+```bash
+aws s3api get-bucket-cors --bucket <bucket> --endpoint-url https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+aws s3api get-bucket-lifecycle-configuration --bucket <bucket> --endpoint-url https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+npx wrangler r2 bucket cors list <bucket>
+npx wrangler r2 bucket lifecycle list <bucket>
+```
+
+Locally, MinIO has no bucket CORS (it allows every origin): the command sets
+only the lifecycle rule and says so. Presigned URLs point at `S3_ENDPOINT`, so
+the browser must reach that host (`http://127.0.0.1:9030` in development).
+
 ## Disk
 
 The server's `/` is small; Docker lives on `/mnt/data`. Watch the build cache
