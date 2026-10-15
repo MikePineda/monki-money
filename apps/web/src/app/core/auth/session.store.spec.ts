@@ -155,4 +155,27 @@ describe('SessionStore', () => {
     expect(store.user()?.fullName).toBe('Sam R.')
     expect(store.household()?.name).toBe('Sam’s home')
   })
+
+  it('test_leaving_or_switching_households_drops_the_cached_household_data', async () => {
+    const store = setup(async () => aMe('member'))
+    await store.load()
+    const dropped = vi.fn()
+    store.onClear(dropped)
+
+    api.me.mockResolvedValueOnce(aMe('member'))
+    await store.load()
+    expect(dropped).not.toHaveBeenCalled()
+
+    api.me.mockResolvedValueOnce(aMe('noHousehold'))
+    await store.load()
+    expect(dropped).toHaveBeenCalledTimes(1)
+    expect(store.isAuthenticated()).toBe(true)
+    expect(store.homePath()).toBe('/household/new')
+
+    const fresh = aMe('owner')
+    fresh.household = { ...fresh.household!, id: 11 }
+    api.me.mockResolvedValueOnce(fresh)
+    await store.load()
+    expect(dropped).toHaveBeenCalledTimes(2)
+  })
 })

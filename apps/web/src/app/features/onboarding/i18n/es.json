@@ -47,5 +47,22 @@
     "sent": "Invitación enviada a {email}.",
     "finish": "Terminar",
     "full": "Tu hogar ya tiene a todos sus miembros."
+  },
+  "create": {
+    "title": "Empieza tu hogar",
+    "body": "Ahora no estás en ningún hogar. Crea uno nuevo o únete al de tu pareja con el enlace de su invitación.",
+    "submit": "Crear hogar",
+    "haveInvite": "Tengo un enlace de invitación",
+    "logout": "Cerrar sesión",
+    "alreadyIn": "Ya tienes un hogar.",
+    "goToApp": "Ir a la app",
+    "join": {
+      "title": "Únete con una invitación",
+      "body": "Pega el enlace del correo de invitación, o solo su código.",
+      "label": "Enlace o código de invitación",
+      "submit": "Abrir invitación",
+      "invalid": "Eso no es un enlace de invitación. Copia el enlace completo del correo.",
+      "back": "Mejor crear un hogar"
+    }
   }
 }

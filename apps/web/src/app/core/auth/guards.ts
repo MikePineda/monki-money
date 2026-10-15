@@ -1,8 +1,10 @@
 import { inject } from '@angular/core'
 import { Router, type CanActivateFn, type CanMatchFn } from '@angular/router'
 import type { MemberRole } from '@monkimoney/shared'
+import { WINDOW } from '../platform/window.token'
 import { ConfigStore } from './config.store'
 import { OnboardingStatus } from './onboarding-status'
+import { readPendingInvite } from './pending-invite'
 import { SessionStore } from './session.store'
 
 /**
@@ -41,9 +43,17 @@ export const householdGuard: CanActivateFn = () => {
   return session.hasHousehold() && !session.isPendingDeletion() ? true : goHome()
 }
 
-/** Signed in without a household (they can only join one through an invitation). */
-export const noHouseholdGuard: CanActivateFn = () =>
-  inject(SessionStore).hasHousehold() ? goHome() : true
+/**
+ * Signed in without a household (never had one, or left it): the screen to
+ * create one. An invitation opened earlier in this tab comes first.
+ */
+export const noHouseholdGuard: CanActivateFn = () => {
+  if (inject(SessionStore).hasHousehold()) {
+    return goHome()
+  }
+  const invite = readPendingInvite(inject(WINDOW))
+  return invite ? inject(Router).parseUrl(`/invite/${encodeURIComponent(invite)}`) : true
+}
 
 /** The household is scheduled for deletion (the restore screen). */
 export const pendingDeletionGuard: CanActivateFn = () =>
