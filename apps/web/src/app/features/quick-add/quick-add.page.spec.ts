@@ -59,9 +59,18 @@ describe('QuickAddPage', () => {
   /** Entries the fake outbox holds (for editing a queued entry). */
   let queued: OutboxEntry[] = []
 
-  async function open(url = '/add', recent: Transaction[] = []) {
+  async function open(
+    url = '/add',
+    recent: Transaction[] = [],
+    options: { listFails?: boolean } = {}
+  ) {
     api = {
-      list: vi.fn(async () => recent),
+      list: vi.fn(async () => {
+        if (options.listFails) {
+          throw networkError()
+        }
+        return recent
+      }),
       quick: vi.fn(async (body: QuickEntryInput) =>
         aTransaction({
           id: 501,
@@ -211,6 +220,13 @@ describe('QuickAddPage', () => {
 
     expect(await (await loader.getHarness(SegmentedControlHarness)).getSelected()).toBe('Income')
     expect(text(root, 'quickAdd.title')).toBe('Add income')
+  })
+
+  it('test_offline_it_opens_with_the_loaded_accounts_even_without_recent_rows', async () => {
+    const { root } = await open('/add', [], { listFails: true })
+
+    expect(text(root, 'transactions.form.account')).toBe('Everyday')
+    expect(root.querySelector('[data-testid="quickAdd.loadError"]')).toBeNull()
   })
 
   it('test_save_is_disabled_at_zero', async () => {

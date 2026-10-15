@@ -130,6 +130,8 @@ function toRecentEntry(row: LedgerRow): RecentEntry {
  * - After a save: a haptic tick, "Saved · Undo" (undo deletes it), the
  *   draft clears, the outbox gets a chance to sync, and the screen stays on
  *   /add for the next one.
+ * - Offline it still opens with the accounts and categories already loaded
+ *   this session (the recent rows that rank the defaults are skipped).
  * - `/add?outbox=<id>` edits a queued entry: the drafts open with its
  *   values, the outbox holds it meanwhile, and saving replaces it (same
  *   client id) instead of posting.
@@ -257,7 +259,8 @@ export class QuickAddStore {
     try {
       const [, rows] = await Promise.all([
         this.directory.load(),
-        this.api.list({ perPage: RECENT_ROWS, sort: '-date' }),
+        // Recent rows only rank the defaults: offline, quick add opens without them.
+        this.api.list({ perPage: RECENT_ROWS, sort: '-date' }).catch(() => []),
       ])
       this.recent.set(rows.map(toRecentEntry))
       this.applyDefaults()
