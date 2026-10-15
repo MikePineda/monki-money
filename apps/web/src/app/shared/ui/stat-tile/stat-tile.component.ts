@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core'
+import { Component, ViewEncapsulation, computed, input } from '@angular/core'
 import { IconComponent } from '../../icons/icon.component'
 import { AmountDisplayComponent } from '../amount-display/amount-display.component'
 
@@ -30,6 +30,7 @@ export type StatTrend = 'up' | 'down'
     }
   `,
   styleUrl: './stat-tile.component.scss',
+  encapsulation: ViewEncapsulation.None,
   host: { class: 'flex min-w-0 flex-col gap-1' },
 })
 export class StatTileComponent {

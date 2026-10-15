@@ -26,9 +26,9 @@ export interface TabItem {
           <li>
             <a
               [routerLink]="tab.path"
-              routerLinkActive="font-semibold text-accent"
+              routerLinkActive=""
               ariaCurrentWhenActive="page"
-              class="flex h-14 flex-col items-center justify-center gap-0.5 text-caption text-ink-3"
+              class="flex h-14 flex-col items-center justify-center gap-0.5 text-caption text-ink-3 aria-[current=page]:font-semibold aria-[current=page]:text-accent"
             >
               <app-icon [name]="tab.icon" />
               <span class="max-w-full truncate px-1">{{ tab.label }}</span>

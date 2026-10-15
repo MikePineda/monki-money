@@ -58,7 +58,7 @@ export const SELECT_SEARCH_THRESHOLD = 8
           <li
             role="option"
             tabindex="0"
-            class="relative flex h-14 items-center gap-3 px-4 text-ink-1 outline-offset-[-2px] active:bg-surface-2"
+            class="option relative flex h-14 items-center gap-3 px-4 text-ink-1 outline-offset-[-2px] active:bg-surface-2"
             [attr.aria-selected]="isSelected(option)"
             (click)="choose(option)"
             (keydown.enter)="choose(option)"
@@ -87,6 +87,7 @@ export const SELECT_SEARCH_THRESHOLD = 8
       </ul>
     </app-bottom-sheet>
   `,
+  styleUrl: './select-sheet.component.scss',
 })
 export class SelectSheetComponent<T> {
   private readonly dialogRef = inject<DialogRef<T, SelectSheetComponent<T>>>(DialogRef)

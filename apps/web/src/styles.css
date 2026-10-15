@@ -387,6 +387,11 @@
   animation: var(--animate-sheet-in);
 }
 
+/* The container takes focus when a sheet opens (tabindex -1, not a control). */
+.mm-sheet-panel .cdk-dialog-container:focus {
+  outline: none;
+}
+
 /* ------------------------------------------------------------- keyframes */
 
 @keyframes skeleton-pulse {

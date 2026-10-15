@@ -38,7 +38,9 @@ export class BottomSheetService {
       ariaLabelledBy: config.ariaLabelledBy ?? null,
       ariaModal: true,
       role: 'dialog',
-      autoFocus: 'first-tabbable',
+      // Focus the sheet itself: announced as a dialog, no control picked and
+      // no on-screen keyboard popping up for a search field.
+      autoFocus: 'dialog',
       restoreFocus: true,
       hasBackdrop: true,
       closeOnNavigation: true,

@@ -35,7 +35,7 @@
         @for (swatch of group.swatches; track swatch.token) {
         <div class="flex min-w-0 flex-col gap-1">
           <span class="h-10 rounded-md border border-line" [class]="swatch.className"></span>
-          <code class="truncate text-caption text-ink-3">{{ swatch.token }}</code>
+          <code class="truncate font-sans text-caption text-ink-3">{{ swatch.token }}</code>
         </div>
         }
       </div>
@@ -56,9 +56,9 @@
         <p class="text-eyebrow uppercase text-ink-2">{{ 'kit.type.eyebrow' | transloco }}</p>
         <p class="text-caption text-ink-3">{{ 'kit.type.caption' | transloco }}</p>
         <ul class="flex flex-col text-caption text-ink-3">
-          @for (line of pluralSample(); track $index) {
-          <li>{{ line }}</li>
-          }
+          <li>{{ 'kit.plural.transactions' | transloco: { count: 0 } }}</li>
+          <li>{{ 'kit.plural.transactions' | transloco: { count: 1 } }}</li>
+          <li>{{ 'kit.plural.transactions' | transloco: { count: 1284 } }}</li>
         </ul>
       </div>
     </section>

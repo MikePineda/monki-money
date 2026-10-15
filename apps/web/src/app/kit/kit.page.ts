@@ -113,12 +113,14 @@ const SWATCHES: readonly { group: string; swatches: readonly Swatch[] }[] = [
  * t(kit.tabs.month, kit.tabs.transactions, kit.tabs.more)
  * t(kit.data.groceries, kit.data.rent, kit.data.utilities, kit.data.eatingOut, kit.data.transport)
  * t(kit.data.health, kit.data.phone, kit.data.coffee, kit.data.other, kit.data.shared, kit.data.you)
- * t(kit.sheet.accountTitle, kit.sheet.categoryTitle, kit.plural.transactions, kit.toast.saved, kit.toast.undo)
+ * t(kit.sheet.accountTitle, kit.sheet.categoryTitle, kit.toast.saved, kit.toast.undo)
  */
-const THEME_KEYS = ['kit.theme.light', 'kit.theme.dark', 'kit.theme.system']
-const LANG_KEYS = ['kit.lang.en', 'kit.lang.es']
-const KIND_KEYS = ['kit.kind.expense', 'kit.kind.income', 'kit.kind.transfer']
-const TAB_KEYS = ['kit.tabs.month', 'kit.tabs.transactions', 'kit.tabs.more']
+// translateSignal() prefixes the component's scope alias ("kit."), so the
+// keys it receives are relative to the scope.
+const THEME_KEYS = ['theme.light', 'theme.dark', 'theme.system']
+const LANG_KEYS = ['lang.en', 'lang.es']
+const KIND_KEYS = ['kind.expense', 'kind.income', 'kind.transfer']
+const TAB_KEYS = ['tabs.month', 'tabs.transactions', 'tabs.more']
 const CATEGORY_KEYS = [
   'kit.data.groceries',
   'kit.data.rent',
@@ -130,12 +132,18 @@ const CATEGORY_KEYS = [
   'kit.data.coffee',
   'kit.data.other',
 ]
+/** Demo account names (data, not copy). */
+const ACCOUNT_LABELS: Record<string, string> = {
+  everyday: 'NAB Everyday',
+  savings: 'NAB Savings',
+  hnry: 'Hnry',
+}
+
 const KIT_KEYS = {
   shared: 'kit.data.shared',
   you: 'kit.data.you',
   accountTitle: 'kit.sheet.accountTitle',
   categoryTitle: 'kit.sheet.categoryTitle',
-  plural: 'kit.plural.transactions',
   saved: 'kit.toast.saved',
   undo: 'kit.toast.undo',
 }
@@ -239,24 +247,7 @@ export default class KitPage {
   protected readonly month = signal(this.currentMonth)
   protected readonly bannerVisible = signal(true)
 
-  protected readonly accounts = computed<SelectOption<string>[]>(() => {
-    this.lang.lang()
-    const shared = this.transloco.translate(KIT_KEYS.shared)
-    return [
-      { value: 'everyday', label: 'NAB Everyday', meta: shared, person: 'joint' },
-      { value: 'savings', label: 'NAB Savings', meta: shared, person: 'joint' },
-      { value: 'hnry', label: 'Hnry', meta: this.transloco.translate(KIT_KEYS.you), person: 'a' },
-    ]
-  })
-
-  protected readonly accountLabel = computed(
-    () => this.accounts().find((option) => option.value === this.account())?.label ?? ''
-  )
-
-  protected readonly pluralSample = computed(() => {
-    this.lang.lang()
-    return [0, 1, 5].map((count) => this.transloco.translate(KIT_KEYS.plural, { count }))
-  })
+  protected readonly accountLabel = computed(() => ACCOUNT_LABELS[this.account()] ?? '')
 
   protected toggleLoading(): void {
     this.loading.set(true)
@@ -282,13 +273,28 @@ export default class KitPage {
   protected openAccountSheet(): void {
     openSelectSheet(this.sheets, {
       title: this.transloco.translate(KIT_KEYS.accountTitle),
-      options: this.accounts(),
+      options: this.accountOptions(),
       selected: this.account(),
     }).subscribe((value) => {
       if (value !== undefined) {
         this.account.set(value)
       }
     })
+  }
+
+  /** Built when the sheet opens, so the scope catalogue is loaded by then. */
+  private accountOptions(): SelectOption<string>[] {
+    const shared = this.transloco.translate(KIT_KEYS.shared)
+    return [
+      { value: 'everyday', label: ACCOUNT_LABELS['everyday'] ?? '', meta: shared, person: 'joint' },
+      { value: 'savings', label: ACCOUNT_LABELS['savings'] ?? '', meta: shared, person: 'joint' },
+      {
+        value: 'hnry',
+        label: ACCOUNT_LABELS['hnry'] ?? '',
+        meta: this.transloco.translate(KIT_KEYS.you),
+        person: 'a',
+      },
+    ]
   }
 
   protected openCategorySheet(): void {

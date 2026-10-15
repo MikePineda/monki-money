@@ -1,4 +1,11 @@
-import { Component, booleanAttribute, computed, input, output } from '@angular/core'
+import {
+  Component,
+  ViewEncapsulation,
+  booleanAttribute,
+  computed,
+  input,
+  output,
+} from '@angular/core'
 import { NgTemplateOutlet } from '@angular/common'
 import type { TransactionKind } from '../../../domain/money'
 import { IconComponent } from '../../icons/icon.component'
@@ -51,6 +58,7 @@ import { PersonDotComponent, type Person } from '../person-dot/person-dot.compon
     }
   `,
   styleUrl: './list-row.component.scss',
+  encapsulation: ViewEncapsulation.None,
   host: { role: 'listitem', class: 'relative block' },
 })
 export class ListRowComponent {

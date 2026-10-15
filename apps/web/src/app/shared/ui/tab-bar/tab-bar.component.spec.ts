@@ -53,7 +53,7 @@ describe('TabBarComponent', () => {
 
     expect(await bar.getActiveTab()).toBe('Month')
     const active = fixture.nativeElement.querySelector('[aria-current="page"]') as HTMLElement
-    expect(active.className).toContain('text-accent')
+    expect(active.className).toContain('aria-[current=page]:text-accent')
   })
 
   it('test_navigates_between_tabs_and_to_add', async () => {
