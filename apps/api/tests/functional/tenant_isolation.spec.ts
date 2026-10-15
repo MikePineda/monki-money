@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
 import type Account from '#models/account'
 import Category from '#models/category'
 import type Transfer from '#models/transfer'
@@ -11,15 +12,18 @@ import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import router from '@adonisjs/core/services/router'
 import CategoryGroup from '#models/category_group'
+import { receiptKey } from '#domain/receipts/receipt_key'
 import { createHousehold, type TestHousehold } from '#tests/helpers/household'
+import { fakeObjectStorage, restoreObjectStorage } from '#tests/helpers/storage'
 import { generateInvitationToken, hashInvitationToken } from '#domain/households/invitation_token'
 import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 
 /**
  * Cross-household access answers 404 (never 403, which would leak that the
  * id exists) and leaves the victim's data untouched. One case per route
- * with an `:id`-like param; the guard test below fails when a new route is
- * added without a case here.
+ * with an `:id`-like param (or a household-scoped reference in the body,
+ * see BODY_SCOPED); the guard test below fails when a new route is added
+ * without a case here.
  */
 
 interface Victim {
@@ -34,6 +38,8 @@ interface Victim {
   batch: ImportBatch
   row: ImportRow
   rule: MerchantRule
+  /** An uploaded receipt photo, still in (fake) storage. */
+  receiptKey: string
 }
 
 interface Attacker {
@@ -46,7 +52,7 @@ interface IsolationCase {
   route: string
   method: 'get' | 'patch' | 'post' | 'put' | 'delete'
   url: (victim: Victim, attacker: Attacker) => string
-  body?: Record<string, unknown>
+  body?: Record<string, unknown> | ((victim: Victim) => Record<string, unknown>)
 }
 
 const cases: IsolationCase[] = [
@@ -182,6 +188,12 @@ const cases: IsolationCase[] = [
   },
   { route: 'rules.destroy', method: 'delete', url: (v) => `/api/v1/rules/${v.rule.id}` },
   { route: 'rules.apply', method: 'post', url: (v) => `/api/v1/rules/${v.rule.id}/apply` },
+  {
+    route: 'receipts.scan',
+    method: 'post',
+    url: () => '/api/v1/receipts/scan',
+    body: (v) => ({ key: v.receiptKey }),
+  },
 ]
 
 /** A staged batch with one open row for `account`. */
@@ -216,6 +228,12 @@ async function stagedBatch(householdId: number, accountId: number) {
  * routes are looked up by an unguessable token, not by id.
  */
 const NOT_ID_SCOPED = new Set(['auth.invitations.show', 'auth.invitations.accept'])
+
+/**
+ * Routes without params that still reach a household-scoped resource by a
+ * reference in the body (the key of an uploaded receipt photo).
+ */
+const BODY_SCOPED = new Set(['receipts.scan'])
 
 async function victimHousehold(): Promise<Victim> {
   const household = await createHousehold({
@@ -275,14 +293,18 @@ async function victimHousehold(): Promise<Victim> {
     batch,
     row,
     rule,
+    receiptKey: receiptKey(household.household.id, randomUUID(), 'image/jpeg'),
   }
 }
 
 test.group('Tenant isolation', () => {
   test('test_every_resource_returns_404_for_other_household ({$self})')
     .with(cases.map((entry) => ({ ...entry, toString: () => `${entry.method} ${entry.route}` })))
-    .run(async ({ client, assert }, entry) => {
+    .run(async ({ client, assert, cleanup }, entry) => {
+      const storage = fakeObjectStorage()
+      cleanup(() => restoreObjectStorage())
       const victim = await victimHousehold()
+      storage.put(victim.receiptKey, Buffer.from('victim photo'), 'image/jpeg')
       const attackerHousehold = await createHousehold({
         taxonomy: true,
         accounts: [{ name: 'Attacker account' }],
@@ -298,7 +320,8 @@ test.group('Tenant isolation', () => {
       }
 
       const request = client[entry.method](entry.url(victim, attacker))
-      if (entry.body) request.json(entry.body)
+      if (entry.body)
+        request.json(typeof entry.body === 'function' ? entry.body(victim) : entry.body)
       const response = await request.actingAs(attackerHousehold.owner)
 
       response.assertStatus(404)
@@ -328,6 +351,8 @@ test.group('Tenant isolation', () => {
       assert.isNull(victim.row.decision)
       await victim.rule.refresh()
       assert.equal(victim.rule.pattern, 'VICTIM')
+      assert.isTrue(storage.has(victim.receiptKey), 'the photo was neither read nor deleted')
+      assert.deepEqual(storage.deleted, [])
     })
 
   test('test_isolation_dataset_covers_every_route_with_an_id', ({ assert }) => {
@@ -338,8 +363,10 @@ test.group('Tenant isolation', () => {
       .filter((name) => !NOT_ID_SCOPED.has(name))
 
     assert.isNotEmpty(withParams)
+    const names = new Set(routes.map((route) => route.name))
+    for (const name of BODY_SCOPED) assert.isTrue(names.has(name), `${name} is a route`)
     assert.sameMembers(
-      [...new Set(withParams)].sort(),
+      [...new Set([...withParams, ...BODY_SCOPED])].sort(),
       [...new Set(cases.map((entry) => entry.route))].sort(),
       'Every route with an :id needs a tenant isolation case (or a reason in NOT_ID_SCOPED)'
     )

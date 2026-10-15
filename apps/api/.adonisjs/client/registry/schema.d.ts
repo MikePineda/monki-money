@@ -895,4 +895,16 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/uploads_controller').default['presign']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'receipts.scan': {
+    methods: ["POST"]
+    pattern: '/api/v1/receipts/scan'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }

@@ -120,4 +120,7 @@ export interface ApiDefinition {
   uploads: {
     presign: typeof routes['uploads.presign']
   }
+  receipts: {
+    scan: typeof routes['receipts.scan']
+  }
 }
