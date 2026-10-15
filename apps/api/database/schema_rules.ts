@@ -54,5 +54,18 @@ export default {
         kind: shared('CategoryGroupKind'),
       },
     },
+    transactions: {
+      columns: {
+        kind: shared('TransactionKind'),
+        status: shared('TransactionStatus'),
+        source: shared('TransactionSource'),
+        // jsonb array: stringified on write (see database/json_column.ts).
+        tags: {
+          tsType: 'string[]',
+          imports: [{ source: '#database/json_column', namedImports: ['jsonColumn'] }],
+          decorators: [{ name: '@jsonColumn' }],
+        },
+      },
+    },
   },
 } satisfies SchemaRules
