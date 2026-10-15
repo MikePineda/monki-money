@@ -6,28 +6,27 @@
  * Money is integer cents, dates are `YYYY-MM-DD` strings.
  */
 
-/** Import sources, one per `BankCsvParser` strategy (`import_batches.source`). */
-export type ImportSource = 'nab_csv'
+import {
+  IMPORT_RESOLUTIONS,
+  RULE_MATCH_TYPES,
+  SUGGESTION_SOURCES,
+  type ImportResolution,
+  type ImportSource,
+  type RuleMatchType,
+  type SuggestionSource,
+} from '@monkimoney/shared'
+
+/**
+ * The closed sets live in `@monkimoney/shared` (native Postgres enums of
+ * `import_batches` / `import_rows` / `merchant_rules`); re-exported here
+ * under the pipeline's names.
+ */
+export { RULE_MATCH_TYPES, SUGGESTION_SOURCES }
+export type { ImportSource, RuleMatchType, SuggestionSource }
 
 /** Final state of an import row (`import_rows.resolution`). */
-export const RESOLUTIONS = [
-  'new',
-  'auto_matched',
-  'needs_confirmation',
-  'duplicate',
-  'transfer_leg',
-  'ignored',
-  'superseded',
-] as const
-export type Resolution = (typeof RESOLUTIONS)[number]
-
-/** Where a category suggestion came from (`import_rows.suggestion_source`). */
-export const SUGGESTION_SOURCES = ['rule', 'nab_map', 'llm', 'none'] as const
-export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number]
-
-/** How a merchant rule matches a row (`merchant_rules.match_type`). */
-export const RULE_MATCH_TYPES = ['merchant', 'contains', 'regex'] as const
-export type RuleMatchType = (typeof RULE_MATCH_TYPES)[number]
+export const RESOLUTIONS = IMPORT_RESOLUTIONS
+export type Resolution = ImportResolution
 
 /** One CSV data row, decoded and typed but not interpreted yet. */
 export interface ParsedRow {

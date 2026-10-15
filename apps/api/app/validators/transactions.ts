@@ -72,6 +72,7 @@ export const updateTransactionValidator = vine.create({
   isPrivate: vine.boolean().optional(),
   tags: tags().optional(),
   needsReview: vine.boolean().optional(),
+  applyToFuture: vine.boolean().optional(),
 })
 
 export const transactionParamsValidator = vine.create({

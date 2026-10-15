@@ -4,6 +4,9 @@ import type Account from '#models/account'
 import Category from '#models/category'
 import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
+import ImportRow from '#models/import_row'
+import ImportBatch from '#models/import_batch'
+import MerchantRule from '#models/merchant_rule'
 import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import router from '@adonisjs/core/services/router'
@@ -28,11 +31,15 @@ interface Victim {
   invitation: Invitation
   transaction: Transaction
   transfer: Transfer
+  batch: ImportBatch
+  row: ImportRow
+  rule: MerchantRule
 }
 
 interface Attacker {
   household: TestHousehold
   account: Account
+  batch: ImportBatch
 }
 
 interface IsolationCase {
@@ -138,7 +145,71 @@ const cases: IsolationCase[] = [
     method: 'get',
     url: (v) => `/api/v1/reports/category/${v.category.id}`,
   },
+  { route: 'imports.show', method: 'get', url: (v) => `/api/v1/imports/${v.batch.id}` },
+  {
+    route: 'imports.classify',
+    method: 'post',
+    url: (v) => `/api/v1/imports/${v.batch.id}/classify`,
+  },
+  {
+    route: 'imports.confirm',
+    method: 'post',
+    url: (v) => `/api/v1/imports/${v.batch.id}/confirm`,
+  },
+  {
+    route: 'imports.cancel',
+    method: 'post',
+    url: (v) => `/api/v1/imports/${v.batch.id}/cancel`,
+  },
+  {
+    route: 'imports.rows.update',
+    method: 'patch',
+    url: (v) => `/api/v1/imports/${v.batch.id}/rows/${v.row.id}`,
+    body: { resolution: 'ignored' },
+  },
+  {
+    // Own batch in the path, another household's row id.
+    route: 'imports.rows.update',
+    method: 'patch',
+    url: (v, a) => `/api/v1/imports/${a.batch.id}/rows/${v.row.id}`,
+    body: { resolution: 'ignored' },
+  },
+  {
+    route: 'rules.update',
+    method: 'patch',
+    url: (v) => `/api/v1/rules/${v.rule.id}`,
+    body: { pattern: 'HIJACKED' },
+  },
+  { route: 'rules.destroy', method: 'delete', url: (v) => `/api/v1/rules/${v.rule.id}` },
+  { route: 'rules.apply', method: 'post', url: (v) => `/api/v1/rules/${v.rule.id}/apply` },
 ]
+
+/** A staged batch with one open row for `account`. */
+async function stagedBatch(householdId: number, accountId: number) {
+  const batch = await ImportBatch.create({
+    householdId,
+    accountId,
+    source: 'nab_csv',
+    status: 'staged',
+    fileHash: 'a'.repeat(64),
+  })
+  const row = await ImportRow.create({
+    importBatchId: batch.id,
+    householdId,
+    accountId,
+    rowIndex: 0,
+    externalHash: 'b'.repeat(64),
+    raw: {},
+    bankDate: '2026-10-01',
+    date: '2026-10-01',
+    amountCents: -1_000,
+    descriptionRaw: 'VICTIM ROW',
+    descriptionNormalized: 'VICTIM ROW',
+    resolution: 'new',
+    reasons: [],
+  })
+  return { batch, row }
+}
 
 /**
  * Routes with params that are not household-scoped ids: public invitation
@@ -184,7 +255,27 @@ async function victimHousehold(): Promise<Victim> {
     toAccountId: household.accounts[1].id,
     memo: 'Victim memo',
   }).create()
-  return { household, account, card, group, category, invitation, transaction, transfer }
+  const { batch, row } = await stagedBatch(household.household.id, account.id)
+  const rule = await MerchantRule.create({
+    householdId: household.household.id,
+    matchType: 'contains',
+    pattern: 'VICTIM',
+    categoryId: category.id,
+    origin: 'user',
+  })
+  return {
+    household,
+    account,
+    card,
+    group,
+    category,
+    invitation,
+    transaction,
+    transfer,
+    batch,
+    row,
+    rule,
+  }
 }
 
 test.group('Tenant isolation', () => {
@@ -196,7 +287,15 @@ test.group('Tenant isolation', () => {
         taxonomy: true,
         accounts: [{ name: 'Attacker account' }],
       })
-      const attacker = { household: attackerHousehold, account: attackerHousehold.accounts[0] }
+      const { batch: attackerBatch } = await stagedBatch(
+        attackerHousehold.household.id,
+        attackerHousehold.accounts[0].id
+      )
+      const attacker = {
+        household: attackerHousehold,
+        account: attackerHousehold.accounts[0],
+        batch: attackerBatch,
+      }
 
       const request = client[entry.method](entry.url(victim, attacker))
       if (entry.body) request.json(entry.body)
@@ -222,6 +321,13 @@ test.group('Tenant isolation', () => {
       await victim.transfer.refresh()
       assert.equal(victim.transfer.memo, 'Victim memo')
       assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
+      await victim.batch.refresh()
+      assert.equal(victim.batch.status, 'staged')
+      await victim.row.refresh()
+      assert.equal(victim.row.resolution, 'new')
+      assert.isNull(victim.row.decision)
+      await victim.rule.refresh()
+      assert.equal(victim.rule.pattern, 'VICTIM')
     })
 
   test('test_isolation_dataset_covers_every_route_with_an_id', ({ assert }) => {
@@ -272,6 +378,11 @@ test.group('Tenant isolation', () => {
       .get(`/api/v1/reports/month?month=${victim.transaction.date.slice(0, 7)}`)
       .actingAs(attacker.owner)
     assert.equal(month.body().data.transactionCount, 0)
+
+    const imports = await client.get('/api/v1/imports').actingAs(attacker.owner)
+    assert.deepEqual(imports.body().data, [])
+    const rules = await client.get('/api/v1/rules').actingAs(attacker.owner)
+    assert.isFalse(rules.body().data.some((rule: any) => rule.id === victim.rule.id))
 
     const balances = await client.get('/api/v1/reports/balances').actingAs(attacker.owner)
     assert.deepEqual(

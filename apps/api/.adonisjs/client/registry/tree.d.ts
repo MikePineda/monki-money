@@ -99,4 +99,22 @@ export interface ApiDefinition {
     category: typeof routes['reports.category']
     balances: typeof routes['reports.balances']
   }
+  imports: {
+    index: typeof routes['imports.index']
+    store: typeof routes['imports.store']
+    show: typeof routes['imports.show']
+    classify: typeof routes['imports.classify']
+    confirm: typeof routes['imports.confirm']
+    cancel: typeof routes['imports.cancel']
+    rows: {
+      update: typeof routes['imports.rows.update']
+    }
+  }
+  rules: {
+    index: typeof routes['rules.index']
+    store: typeof routes['rules.store']
+    update: typeof routes['rules.update']
+    destroy: typeof routes['rules.destroy']
+    apply: typeof routes['rules.apply']
+  }
 }

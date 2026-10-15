@@ -12,6 +12,7 @@ import HouseholdCreator from '#services/households/household_creator'
 export interface HouseholdAccountSpec {
   name?: string
   kind?: Account['kind']
+  institution?: string | null
   /** Index into `users` of the owner; omit for a joint account. */
   owner?: number
   externalAccountNumber?: string | null
@@ -75,6 +76,7 @@ export async function createHousehold(
             householdId: household.id,
             name: spec.name ?? `Account ${index + 1}`,
             kind: spec.kind ?? 'transaction',
+            ...(spec.institution === undefined ? {} : { institution: spec.institution }),
             ownerUserId: spec.owner === undefined ? null : users[spec.owner].id,
             externalAccountNumber: spec.externalAccountNumber ?? null,
             openingBalanceCents: spec.openingBalanceCents ?? 0,

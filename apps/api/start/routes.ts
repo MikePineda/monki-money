@@ -245,6 +245,47 @@ router
               })
               .prefix('reports')
               .as('reports')
+
+            /*
+             * Bank imports. `POST /imports` reads its multipart body by hand
+             * (config/bodyparser.ts `processManually`).
+             */
+            router
+              .group(() => {
+                router.get('/', [controllers.Imports, 'index']).as('index')
+                router.post('/', [controllers.Imports, 'store']).as('store')
+                router.get(':id', [controllers.Imports, 'show']).where('id', id).as('show')
+                router
+                  .post(':id/classify', [controllers.Imports, 'classify'])
+                  .where('id', id)
+                  .as('classify')
+                router
+                  .post(':id/confirm', [controllers.Imports, 'confirm'])
+                  .where('id', id)
+                  .as('confirm')
+                router
+                  .post(':id/cancel', [controllers.Imports, 'cancel'])
+                  .where('id', id)
+                  .as('cancel')
+                router
+                  .patch(':id/rows/:rowId', [controllers.ImportRows, 'update'])
+                  .where('id', id)
+                  .where('rowId', id)
+                  .as('rows.update')
+              })
+              .prefix('imports')
+              .as('imports')
+
+            router
+              .group(() => {
+                router.get('/', [controllers.Rules, 'index']).as('index')
+                router.post('/', [controllers.Rules, 'store']).as('store')
+                router.patch(':id', [controllers.Rules, 'update']).where('id', id).as('update')
+                router.delete(':id', [controllers.Rules, 'destroy']).where('id', id).as('destroy')
+                router.post(':id/apply', [controllers.Rules, 'apply']).where('id', id).as('apply')
+              })
+              .prefix('rules')
+              .as('rules')
           })
           .use(inHousehold())
       })

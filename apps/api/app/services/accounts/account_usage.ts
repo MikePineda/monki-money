@@ -4,8 +4,9 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**
  * What references an account (deletion guard): ledger rows (transfer legs
- * included) and transfers. Import batches join here when they exist.
- * Resolved through the container, so tests can swap it.
+ * included) and transfers. Import batches and the rules that point at the
+ * account do not block it: they are deleted with it (FK cascade). Resolved
+ * through the container, so tests can swap it.
  */
 export default class AccountUsage {
   async transactionCount(account: Account, trx?: TransactionClientContract): Promise<number> {

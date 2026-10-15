@@ -739,4 +739,148 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/reports_controller').default['balances']>>>
     }
   }
+  'imports.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/imports'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/imports').listImportsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'imports.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/imports').uploadImportValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/imports').uploadImportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'imports.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/imports/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/imports').showImportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'imports.classify': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/:id/classify'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/imports').importParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/imports').importParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['classify']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['classify']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'imports.confirm': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/:id/confirm'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/imports').confirmImportValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/imports').confirmImportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['confirm']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['confirm']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'imports.cancel': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/:id/cancel'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/imports').importParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/imports').importParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['cancel']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['cancel']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'imports.rows.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/imports/:id/rows/:rowId'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/imports').decideRowValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; rowId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/imports').decideRowValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/import_rows_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/import_rows_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rules.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/rules'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['index']>>>
+    }
+  }
+  'rules.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/rules'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/merchant_rules').createRuleValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/merchant_rules').createRuleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rules.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/rules/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/merchant_rules').updateRuleValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/merchant_rules').updateRuleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rules.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/rules/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/merchant_rules').ruleParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/merchant_rules').ruleParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rules.apply': {
+    methods: ["POST"]
+    pattern: '/api/v1/rules/:id/apply'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/merchant_rules').ruleParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/merchant_rules').ruleParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['apply']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['apply']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }
