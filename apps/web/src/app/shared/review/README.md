@@ -1,7 +1,7 @@
 # Review before save
 
 The pattern for anything a machine proposes and a person confirms: bank
-imports today (`features/import`), the receipt scanner next. Three pieces,
+imports (`features/import`) and a scanned receipt's lines (`features/scan`). Three pieces,
 generic over the consumer's row view model, with no API, store or
 translation of their own (labels come in as inputs, already worded).
 
