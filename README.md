@@ -18,3 +18,6 @@ npm install && (cd apps/api && node ace migration:run)
 npm run dev        # http://localhost:4200
 npm run verify     # the gate before any pull request
 ```
+
+Agents: run the `verify` skill (`.claude/skills/verify`) before opening a pull
+request; it refuses to open one while the gate is red.
