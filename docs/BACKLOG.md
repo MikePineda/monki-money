@@ -14,3 +14,7 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Siri / Apple Shortcuts quick add through a personal-token endpoint (P3).
 - 2026-10-15 SaaS in Australia: own domain, Privacy Act (APPs) policy and retention, data residency (APAC), full `audit_log`, private analytics only if needed.
 - 2026-10-15 Real data never in the repo or in agents' context: synthetic fixtures with the real structure; real CSVs only in Downloads and the private bucket.
+- 2026-10-15 Email verification by 6-digit code as well as the link (on iOS the link opens Safari, not the installed PWA); needs an API endpoint.
+- 2026-10-15 "Leave household" for members and "create a household" for a user left without one: no API route yet, the settings screen omits leave.
+- 2026-10-15 Show/hide toggle on password fields (the login mock has the eye icon); a ui-kit text-field option.
+- 2026-10-15 Type `GET /auth/me` with its `{ data }` wrapper in the registry (the web reads it through `unwrapData`).

@@ -1,0 +1,119 @@
+{
+  "fields": {
+    "email": "Email",
+    "password": "Password",
+    "newPassword": "New password",
+    "fullName": "Your name",
+    "passwordHint": "At least 10 characters."
+  },
+  "login": {
+    "title": "Log in",
+    "forgot": "Forgot password?",
+    "submit": "Log in",
+    "newHere": "New here?",
+    "createAccount": "Create account",
+    "errors": {
+      "credentials": "Email or password is incorrect.",
+      "throttled": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}."
+    }
+  },
+  "signup": {
+    "title": "Create your account",
+    "subtitle": "One account per person. Your partner joins later with an invitation.",
+    "terms": "I agree to the",
+    "termsLink": "terms",
+    "privacyLink": "privacy policy",
+    "submit": "Create account",
+    "haveAccount": "Already have an account?",
+    "login": "Log in",
+    "errors": {
+      "closed": "Sign-up is closed right now."
+    }
+  },
+  "verify": {
+    "pending": {
+      "title": "Check your email",
+      "body": "We sent a confirmation link to {email}. Open it to continue.",
+      "resend": "Send the link again",
+      "resendIn": "Send again in {seconds} s",
+      "sent": "We sent a new link.",
+      "otherAccount": "Use another account"
+    },
+    "confirming": "Confirming your email…",
+    "confirmed": {
+      "title": "Email confirmed",
+      "body": "Your account is ready.",
+      "continue": "Continue"
+    },
+    "invalid": {
+      "title": "This link no longer works",
+      "body": "It may have expired or already been used. Log in to ask for a new one.",
+      "action": "Continue"
+    }
+  },
+  "forgot": {
+    "title": "Reset your password",
+    "body": "Enter your email and we will send you a link to choose a new password.",
+    "submit": "Send link",
+    "back": "Back to log in",
+    "sent": {
+      "title": "Check your email",
+      "body": "If an account exists for {email}, a reset link is on its way. It works for one hour."
+    }
+  },
+  "reset": {
+    "title": "Choose a new password",
+    "submit": "Save password",
+    "done": {
+      "title": "Password updated",
+      "body": "You were logged out on every device. Log in with your new password.",
+      "action": "Log in"
+    },
+    "invalid": {
+      "title": "This link no longer works",
+      "body": "Reset links work once and for one hour.",
+      "action": "Request a new link"
+    }
+  },
+  "noHousehold": {
+    "title": "You are not in a household yet",
+    "body": "Ask the person who manages your household to invite you, then open the link from the email.",
+    "logout": "Log out"
+  },
+  "deleted": {
+    "title": "{name} is scheduled for deletion",
+    "body": "Everything in it will be deleted on {date}. Until then you can restore it.",
+    "memberBody": "Everything in it will be deleted on {date}. Only the owner can restore it before then.",
+    "restore": "Restore household",
+    "restored": "Household restored.",
+    "expired": "The restore window has ended.",
+    "logout": "Log out"
+  },
+  "invite": {
+    "loading": "Opening the invitation…",
+    "title": "Join {household}",
+    "from": "{inviter} invited {email} to share their household on monkimoney.",
+    "fromUnknown": "{email} was invited to share a household on monkimoney.",
+    "createAccount": "Create account",
+    "login": "I already have an account",
+    "confirmPassword": "Enter your password to join.",
+    "accept": "Join household",
+    "otherEmail": "This invitation is for {email}. Log out, then log in with that account.",
+    "logout": "Log out",
+    "full": "This household already has all its members.",
+    "exit": "Continue",
+    "alreadyIn": {
+      "title": "You already have a household",
+      "body": "monkimoney supports one household per person for now, so this invitation cannot be used with your account.",
+      "action": "Go to the app"
+    },
+    "invalid": {
+      "title": "This invitation does not exist",
+      "body": "Check the link in the email, or ask for a new invitation."
+    },
+    "expired": {
+      "title": "This invitation has expired",
+      "body": "Invitations work for 7 days and only once. Ask for a new one."
+    }
+  }
+}

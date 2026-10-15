@@ -42,5 +42,16 @@
     "toast": {
       "dismiss": "Cerrar aviso"
     }
+  },
+  "forms": {
+    "required": "Este campo es obligatorio.",
+    "email": "Escribe un correo válido.",
+    "passwordMin": "Usa al menos {min} caracteres."
+  },
+  "errors": {
+    "offline": "No pudimos conectar con monkimoney. Revisa tu conexión e inténtalo de nuevo.",
+    "server": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento.",
+    "throttled": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}.",
+    "retry": "Reintentar"
   }
 }
