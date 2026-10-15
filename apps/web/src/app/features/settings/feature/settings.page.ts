@@ -1,5 +1,5 @@
 import { DOCUMENT, Component, Injector, OnInit, computed, inject, signal } from '@angular/core'
-import { RouterLink } from '@angular/router'
+import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
 import type { Observable } from 'rxjs'
 import type { Invitation, Member } from '../../../core/api/api-types'
@@ -18,6 +18,7 @@ import { ToastStore } from '../../../core/ui/toast.store'
 import { formatDay } from '../../../domain/dates'
 import type { AppLang } from '../../../domain/locale'
 import { initial } from '../../../domain/people'
+import { supportedTimeZones } from '../../../domain/time-zones'
 import { IconComponent } from '../../../shared/icons/icon.component'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
@@ -36,6 +37,10 @@ import {
   type DeleteHouseholdSheetData,
   type DeleteOutcome,
 } from '../ui/delete-household-sheet.component'
+import {
+  LeaveHouseholdSheetComponent,
+  type LeaveHouseholdSheetData,
+} from '../ui/leave-household-sheet.component'
 import { SettingsRowComponent } from '../ui/settings-row.component'
 import { TextInputSheetComponent, type TextInputSheetData } from '../ui/text-input-sheet.component'
 
@@ -52,26 +57,18 @@ import { TextInputSheetComponent, type TextInputSheetData } from '../ui/text-inp
  * t(settings.household.invite.send, settings.household.invite.sent, settings.household.invite.full)
  * t(settings.app.upToDate, settings.app.updateFailed, settings.app.updateUnsupported)
  * t(settings.danger.sheet.wrongPassword, settings.errors.invalid)
+ * t(settings.danger.leaveSheet.ownerCannot)
  */
 const THEME_KEYS = ['appearance.light', 'appearance.dark', 'appearance.system']
 const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
-
-/** IANA zones the API accepts. */
-function timeZones(): string[] {
-  try {
-    return Intl.supportedValuesOf('timeZone')
-  } catch {
-    return []
-  }
-}
 
 /**
  * Settings (DESIGN mock `settings`), one scrolling page of cards: profile
  * (name, language, password), appearance, the household (name, time zone,
  * members, invitations), accounts, the app (install, version, updates),
- * legal, and the owner's danger zone (export, delete). Every change saves
- * at once; owner-only controls are hidden from members (the API enforces
- * the same rule).
+ * legal, and the danger zone (the owner exports or deletes, a member
+ * leaves). Every change saves at once; owner-only controls are hidden from
+ * members (the API enforces the same rule).
  */
 @Component({
   selector: 'app-settings-page',
@@ -327,6 +324,21 @@ function timeZones(): string[] {
             {{ 'settings.danger.delete' | transloco }}
           </button>
         </app-card>
+      } @else if (isMember()) {
+        <app-card class="gap-3!" data-testid="settings.danger">
+          <h2 class="text-body text-ink-1">{{ 'settings.danger.title' | transloco }}</h2>
+          <p class="text-caption text-ink-3">{{ 'settings.danger.memberBody' | transloco }}</p>
+          <button
+            appButton
+            type="button"
+            variant="destructive"
+            icon="log-out"
+            data-testid="settings.leave"
+            (click)="leaveHousehold()"
+          >
+            {{ 'settings.danger.leave' | transloco }}
+          </button>
+        </app-card>
       }
 
       <button
@@ -357,6 +369,7 @@ export default class SettingsPage implements OnInit {
   private readonly locale = inject(APP_LOCALE)
   protected readonly install = inject(InstallService)
   private readonly updates = inject(UpdateService)
+  private readonly router = inject(Router)
 
   private readonly themeLabels = translateSignal(THEME_KEYS)
   private readonly languageLabels = translateSignal(LANGUAGE_KEYS)
@@ -364,6 +377,7 @@ export default class SettingsPage implements OnInit {
   protected readonly user = this.session.user
   protected readonly household = this.session.household
   protected readonly isOwner = computed(() => canManageHousehold(this.session.role()))
+  protected readonly isMember = computed(() => this.session.role() === 'member')
   protected readonly initial = computed(() => initial(this.user()?.fullName ?? ''))
   protected readonly showUpgrade = computed(() => this.session.hasFlag('billing'))
 
@@ -474,7 +488,10 @@ export default class SettingsPage implements OnInit {
   protected chooseTimeZone(): void {
     openSelectSheet(this.sheets, {
       title: this.t('settings.household.timezone'),
-      options: timeZones().map((zone) => ({ value: zone, label: zone.replaceAll('_', ' ') })),
+      options: supportedTimeZones().map((zone) => ({
+        value: zone,
+        label: zone.replaceAll('_', ' '),
+      })),
       selected: this.household()?.timezone ?? null,
     }).subscribe((timezone) => {
       if (timezone) {
@@ -563,6 +580,18 @@ export default class SettingsPage implements OnInit {
     this.sheets.open<boolean>(DeleteHouseholdSheetComponent, { data, injector: this.injector })
   }
 
+  protected leaveHousehold(): void {
+    const household = this.household()
+    if (!household) {
+      return
+    }
+    const data: LeaveHouseholdSheetData = {
+      householdName: household.name,
+      confirm: () => this.leave(),
+    }
+    this.sheets.open<boolean>(LeaveHouseholdSheetComponent, { data, injector: this.injector })
+  }
+
   protected async logout(): Promise<void> {
     await this.session.logout()
   }
@@ -585,6 +614,25 @@ export default class SettingsPage implements OnInit {
       const message = failureMessage(failure)
       return { field: 'general', message: this.t(message.key, message.params) }
     }
+  }
+
+  /** Leaves, then goes where the session now belongs: creating a household. */
+  private async leave(): Promise<string | null> {
+    try {
+      await this.households.leave()
+    } catch (error) {
+      const failure = toApiError(error)
+      // 422 E_OWNER_CANNOT_LEAVE: only if the role changed under this screen.
+      if (failure.kind === 'validation') {
+        return this.t('settings.danger.leaveSheet.ownerCannot')
+      }
+      const message = failureMessage(failure)
+      return this.t(message.key, message.params)
+    }
+    this.sheets.closeAll()
+    await this.session.load()
+    await this.router.navigateByUrl(this.session.homePath())
+    return null
   }
 
   private openTextSheet(data: TextInputSheetData): Observable<string | undefined> {

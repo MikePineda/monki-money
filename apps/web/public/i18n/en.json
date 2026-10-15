@@ -23,6 +23,9 @@
       "action": "Reload"
     }
   },
+  "sync": {
+    "synced": "{count, plural, one {Synced # entry} other {Synced # entries}}"
+  },
   "ui": {
     "amount": {
       "transfer": "Transfer"

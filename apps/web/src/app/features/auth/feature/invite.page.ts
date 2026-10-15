@@ -141,17 +141,27 @@ type View =
             <p class="mt-6 text-body text-ink-2" data-testid="invite.otherEmail">
               {{ 'auth.invite.otherEmail' | transloco: { email: preview()?.email ?? '' } }}
             </p>
-            <button
-              appButton
-              type="button"
-              size="block"
-              variant="secondary"
-              icon="log-out"
-              class="mt-auto"
-              (click)="logoutAndStay()"
-            >
-              {{ 'auth.invite.logout' | transloco }}
-            </button>
+            <div class="mt-auto flex flex-col gap-2 pt-8">
+              <button
+                appButton
+                type="button"
+                size="block"
+                variant="secondary"
+                icon="log-out"
+                (click)="logoutAndStay()"
+              >
+                {{ 'auth.invite.logout' | transloco }}
+              </button>
+              <button
+                appButton
+                type="button"
+                variant="ghost"
+                data-testid="invite.notNow"
+                (click)="setAside()"
+              >
+                {{ 'auth.invite.notNow' | transloco }}
+              </button>
+            </div>
           }
           @default {
             <form class="mt-8 flex flex-1 flex-col" novalidate (submit)="accept($event)">
@@ -279,6 +289,12 @@ export default class InvitePage implements OnInit {
   protected async logoutAndStay(): Promise<void> {
     await this.session.logout()
     savePendingInvite(this.window, this.token())
+  }
+
+  /** Not this account's invitation, and not now: forget it and go home. */
+  protected async setAside(): Promise<void> {
+    clearPendingInvite(this.window)
+    await this.router.navigateByUrl(this.session.homePath())
   }
 
   private signedInView(): View {

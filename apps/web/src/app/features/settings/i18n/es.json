@@ -117,8 +117,10 @@
   "danger": {
     "title": "Zona de riesgo",
     "body": "Exporta una copia de tu hogar o programa su eliminación. Un hogar eliminado se puede restaurar durante 30 días.",
+    "memberBody": "Puedes salir de este hogar. Lo que agregaste se queda en él para los demás.",
     "export": "Exportar datos (JSON)",
     "delete": "Eliminar hogar",
+    "leave": "Salir del hogar",
     "sheet": {
       "title": "Eliminar hogar",
       "body": "{name} y todo lo que contiene se eliminarán en 30 días. Hasta entonces puedes restaurarlo.",
@@ -126,6 +128,13 @@
       "password": "Tu contraseña",
       "confirm": "Eliminar hogar",
       "wrongPassword": "Esa contraseña no es correcta."
+    },
+    "leaveSheet": {
+      "title": "¿Salir de {name}?",
+      "body": "Todo lo que agregaste se queda en {name}: sus miembros siguen viendo tus movimientos, cuentas y tarjetas.",
+      "after": "Pierdes el acceso al momento. Después puedes crear tu propio hogar o unirte a otro con una invitación.",
+      "confirm": "Salir del hogar",
+      "ownerCannot": "Quien administra el hogar no puede salir de él."
     }
   },
   "password": {

@@ -1,0 +1,355 @@
+import {
+  BACKOFF_MAX_MS,
+  OUTBOX_VERSION,
+  backoffMs,
+  deserialize,
+  discard,
+  enqueue,
+  markFailed,
+  markSynced,
+  markSyncing,
+  nextToSync,
+  replace,
+  retry,
+  serialize,
+  type OutboxEntry,
+  type OutboxItem,
+  type TransactionPayload,
+  type TransferPayload,
+} from './outbox'
+
+const NOW = new Date('2026-10-16T09:30:00.000Z')
+const LATER = new Date('2026-10-16T09:31:00.000Z')
+
+let counter = 0
+
+function clientId(): string {
+  counter += 1
+  return `00000000-0000-4000-8000-${String(counter).padStart(12, '0')}`
+}
+
+function anEntryItem(overrides: Partial<TransactionPayload> = {}): OutboxItem {
+  return {
+    kind: 'transaction',
+    payload: {
+      clientId: clientId(),
+      kind: 'expense',
+      accountId: 1,
+      date: '2026-10-16',
+      amountCents: 4250,
+      categoryId: 10,
+      payee: 'Corner Shop',
+      description: null,
+      paidByUserId: 1,
+      isPrivate: false,
+      tags: [],
+      ...overrides,
+    },
+  }
+}
+
+function aTransferItem(overrides: Partial<TransferPayload> = {}): OutboxItem {
+  return {
+    kind: 'transfer',
+    payload: {
+      clientId: clientId(),
+      fromAccountId: 1,
+      toAccountId: 2,
+      date: '2026-09-30',
+      amountCents: 50000,
+      memo: null,
+      ...overrides,
+    },
+  }
+}
+
+const OFFLINE = { code: 'E_OFFLINE', message: '' }
+const INVALID = { code: 'E_VALIDATION', message: 'The selected category does not exist' }
+
+describe('outbox', () => {
+  describe('enqueue', () => {
+    it('test_enqueue_creates_a_pending_entry_keyed_by_the_client_id', () => {
+      const item = anEntryItem()
+
+      const [entry] = enqueue([], item, NOW)
+
+      expect(entry).toEqual({
+        id: item.payload.clientId,
+        kind: 'transaction',
+        payload: item.payload,
+        createdAt: '2026-10-16T09:30:00.000Z',
+        attempts: 0,
+        status: 'pending',
+        error: null,
+        month: '2026-10',
+      })
+    })
+
+    it('test_enqueue_keeps_fifo_order', () => {
+      const first = anEntryItem()
+      const second = aTransferItem()
+      const third = anEntryItem({ kind: 'income' })
+
+      const entries = enqueue(enqueue(enqueue([], first, NOW), second, NOW), third, LATER)
+
+      expect(entries.map((entry) => entry.id)).toEqual([
+        first.payload.clientId,
+        second.payload.clientId,
+        third.payload.clientId,
+      ])
+    })
+
+    it('test_enqueue_takes_the_month_from_the_entry_date', () => {
+      const [entry] = enqueue([], aTransferItem({ date: '2026-09-30' }), NOW)
+
+      expect(entry?.month).toBe('2026-09')
+    })
+
+    it('test_enqueueing_the_same_client_id_twice_keeps_one_entry', () => {
+      const item = anEntryItem()
+
+      const entries = enqueue(enqueue([], item, NOW), item, LATER)
+
+      expect(entries).toHaveLength(1)
+      expect(entries[0]?.createdAt).toBe('2026-10-16T09:30:00.000Z')
+    })
+
+    it('test_enqueue_never_mutates_the_list_it_was_given', () => {
+      const before: OutboxEntry[] = []
+
+      enqueue(before, anEntryItem(), NOW)
+
+      expect(before).toEqual([])
+    })
+  })
+
+  describe('syncing', () => {
+    it('test_mark_syncing_flags_only_that_entry', () => {
+      const entries = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+      const [first, second] = entries
+
+      const next = markSyncing(entries, first?.id ?? '')
+
+      expect(next.map((entry) => entry.status)).toEqual(['syncing', 'pending'])
+      expect(next[1]).toBe(second)
+    })
+
+    it('test_mark_synced_removes_the_entry', () => {
+      const entries = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+
+      const next = markSynced(entries, entries[0]?.id ?? '')
+
+      expect(next.map((entry) => entry.id)).toEqual([entries[1]?.id])
+    })
+
+    it('test_retryable_failure_keeps_entry_pending_and_counts_attempt', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+      const id = entries[0]?.id ?? ''
+
+      const once = markFailed(markSyncing(entries, id), id, OFFLINE, true)
+      const twice = markFailed(markSyncing(once, id), id, OFFLINE, true)
+
+      expect(twice[0]).toMatchObject({ status: 'pending', attempts: 2, error: OFFLINE })
+    })
+
+    it('test_validation_failure_marks_entry_failed_with_server_message', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+      const id = entries[0]?.id ?? ''
+
+      const next = markFailed(markSyncing(entries, id), id, INVALID, false)
+
+      expect(next[0]).toMatchObject({ status: 'failed', attempts: 1, error: INVALID })
+    })
+
+    it('test_an_unknown_id_leaves_the_list_as_it_was', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+
+      expect(markSyncing(entries, 'missing')).toEqual(entries)
+      expect(markSynced(entries, 'missing')).toEqual(entries)
+      expect(markFailed(entries, 'missing', OFFLINE, true)).toEqual(entries)
+    })
+  })
+
+  describe('nextToSync', () => {
+    it('test_next_to_sync_is_the_oldest_pending_entry', () => {
+      const entries = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), LATER)
+
+      expect(nextToSync(entries)?.id).toBe(entries[0]?.id)
+    })
+
+    it('test_next_to_sync_skips_failed_and_syncing_entries', () => {
+      let entries = enqueue(
+        enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW),
+        anEntryItem(),
+        NOW
+      )
+      const [first, second, third] = entries.map((entry) => entry.id)
+      entries = markFailed(entries, first ?? '', INVALID, false)
+      entries = markSyncing(entries, second ?? '')
+
+      expect(nextToSync(entries)?.id).toBe(third)
+    })
+
+    it('test_next_to_sync_skips_entries_being_edited', () => {
+      const entries = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+
+      expect(nextToSync(entries, new Set([entries[0]?.id ?? '']))?.id).toBe(entries[1]?.id)
+    })
+
+    it('test_nothing_to_sync_when_every_entry_failed', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+
+      expect(nextToSync(markFailed(entries, entries[0]?.id ?? '', INVALID, false))).toBeNull()
+      expect(nextToSync([])).toBeNull()
+    })
+  })
+
+  describe('retry, replace and discard', () => {
+    it('test_retry_puts_a_failed_entry_back_in_line_with_a_clean_slate', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+      const id = entries[0]?.id ?? ''
+
+      const next = retry(markFailed(entries, id, INVALID, false), id)
+
+      expect(next[0]).toMatchObject({ status: 'pending', attempts: 0, error: null })
+    })
+
+    it('test_retry_without_an_id_retries_every_failed_entry', () => {
+      let entries = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+      for (const entry of entries) {
+        entries = markFailed(entries, entry.id, INVALID, false)
+      }
+
+      expect(retry(entries).map((entry) => entry.status)).toEqual(['pending', 'pending'])
+    })
+
+    it('test_replace_swaps_the_payload_in_place_and_keeps_the_client_id', () => {
+      let entries = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+      const id = entries[0]?.id ?? ''
+      entries = markFailed(entries, id, INVALID, false)
+
+      const next = replace(entries, id, anEntryItem({ categoryId: 11, date: '2026-11-02' }))
+
+      expect(next.map((entry) => entry.id)).toEqual(entries.map((entry) => entry.id))
+      expect(next[0]).toMatchObject({
+        id,
+        status: 'pending',
+        attempts: 0,
+        error: null,
+        month: '2026-11',
+        createdAt: '2026-10-16T09:30:00.000Z',
+        payload: { clientId: id, categoryId: 11, date: '2026-11-02' },
+      })
+    })
+
+    it('test_replace_may_turn_an_entry_into_a_transfer', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+      const id = entries[0]?.id ?? ''
+
+      const [entry] = replace(entries, id, aTransferItem())
+
+      expect(entry).toMatchObject({ id, kind: 'transfer', payload: { clientId: id } })
+    })
+
+    it('test_discard_removes_the_entry', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+
+      expect(discard(entries, entries[0]?.id ?? '')).toEqual([])
+    })
+  })
+
+  describe('backoffMs', () => {
+    it('test_backoff_doubles_and_caps_at_sixty_seconds', () => {
+      expect([0, 1, 2, 3, 4, 5, 6, 7, 20].map(backoffMs)).toEqual([
+        1_000, 1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000,
+      ])
+      expect(BACKOFF_MAX_MS).toBe(60_000)
+    })
+  })
+
+  describe('serialize and deserialize', () => {
+    it('test_a_serialized_outbox_reads_back_the_same', () => {
+      let entries = enqueue(enqueue([], anEntryItem(), NOW), aTransferItem({ memo: 'Rent' }), NOW)
+      entries = markFailed(entries, entries[0]?.id ?? '', INVALID, false)
+
+      const raw = serialize(entries)
+
+      expect(JSON.parse(raw)).toMatchObject({ version: OUTBOX_VERSION })
+      expect(deserialize(raw)).toEqual(entries)
+    })
+
+    it('test_deserialize_of_nothing_or_garbage_is_an_empty_outbox', () => {
+      expect(deserialize(null)).toEqual([])
+      expect(deserialize('')).toEqual([])
+      expect(deserialize('{not json')).toEqual([])
+      expect(deserialize('[]')).toEqual([])
+      expect(deserialize('{"version":1,"entries":"nope"}')).toEqual([])
+    })
+
+    it('test_deserialize_ignores_an_unknown_schema_version', () => {
+      const raw = serialize(enqueue([], anEntryItem(), NOW)).replace(
+        `"version":${OUTBOX_VERSION}`,
+        '"version":99'
+      )
+
+      expect(deserialize(raw)).toEqual([])
+    })
+
+    it('test_deserialize_drops_corrupt_entries_and_keeps_the_rest', () => {
+      const good = enqueue(enqueue([], anEntryItem(), NOW), aTransferItem(), NOW)
+      const [entry, transfer] = good
+      const corrupt = [
+        null,
+        'text',
+        { ...entry, id: '' },
+        { ...entry, kind: 'refund' },
+        { ...entry, payload: { ...entry?.payload, amountCents: -5 } },
+        { ...entry, payload: { ...entry?.payload, date: '2026-02-30' } },
+        { ...entry, payload: { ...entry?.payload, clientId: 'another-id' } },
+        { ...entry, payload: { ...entry?.payload, kind: 'transfer' } },
+        { ...transfer, payload: { ...transfer?.payload, toAccountId: '2' } },
+      ]
+      const raw = JSON.stringify({
+        version: OUTBOX_VERSION,
+        entries: [entry, ...corrupt, transfer],
+      })
+
+      expect(deserialize(raw)).toEqual(good)
+    })
+
+    it('test_deserialize_turns_an_interrupted_sync_back_into_pending', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
+
+      const [entry] = deserialize(serialize(markSyncing(entries, entries[0]?.id ?? '')))
+
+      expect(entry?.status).toBe('pending')
+    })
+
+    it('test_deserialize_repairs_bookkeeping_and_drops_unknown_payload_fields', () => {
+      const [entry] = enqueue([], anEntryItem(), NOW)
+      const raw = JSON.stringify({
+        version: OUTBOX_VERSION,
+        entries: [
+          {
+            ...entry,
+            attempts: -3,
+            status: 'weird',
+            error: { code: 42 },
+            month: '1999-01',
+            payload: { ...entry?.payload, injected: true },
+          },
+        ],
+      })
+
+      expect(deserialize(raw)).toEqual([entry])
+    })
+
+    it('test_deserialize_keeps_the_first_of_two_entries_with_the_same_id', () => {
+      const [entry] = enqueue([], anEntryItem(), NOW)
+      const copy = { ...entry, createdAt: '2026-10-17T00:00:00.000Z' }
+      const raw = JSON.stringify({ version: OUTBOX_VERSION, entries: [entry, copy] })
+
+      expect(deserialize(raw)).toEqual([entry])
+    })
+  })
+})

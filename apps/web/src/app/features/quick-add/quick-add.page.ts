@@ -47,8 +47,10 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
  * categories (or the most used transfer routes) and the details folded
  * into one row. It opens with the defaults (QuickAddStore), honours
  * `?type=income|transfer` (the manifest shortcut uses `?type=expense`),
- * saves, clears and stays here for the next entry. "Done" goes back to
- * where the person came from (the month by default).
+ * saves, clears and stays here for the next entry; offline, the entry goes
+ * to the outbox instead ("Saved offline · will sync"). `?outbox=<id>` edits
+ * a queued entry, and saving it goes back. "Done" goes back to where the
+ * person came from (the month by default).
  */
 @Component({
   selector: 'app-quick-add-page',
@@ -123,16 +125,6 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
       <app-toast-outlet class="fixed inset-x-0 top-[calc(var(--safe-top)+56px)] z-20" />
 
       <div class="min-h-0 flex-1 overflow-y-auto pt-2 pb-4">
-        @if (store.failure(); as failure) {
-          <app-banner
-            data-testid="quickAdd.error"
-            class="mx-4 mb-4"
-            status="critical"
-            [message]="failure.key | transloco: failure.params ?? {}"
-            [actionLabel]="'errors.retry' | transloco"
-            (action)="store.save()"
-          />
-        }
         @switch (store.loadState()) {
           @case ('loading') {
             <div class="flex flex-col gap-4 px-4" role="status">
@@ -149,7 +141,7 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
               status="critical"
               [message]="'quickAdd.loadError' | transloco"
               [actionLabel]="'errors.retry' | transloco"
-              (action)="store.init(type())"
+              (action)="store.init(type(), outbox())"
             />
           }
           @default {
@@ -223,7 +215,7 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
           data-testid="quickAdd.save"
           [disabled]="!store.canSave()"
           [loading]="store.saving()"
-          (click)="store.save()"
+          (click)="save()"
         >
           {{ 'quickAdd.save' | transloco: { amount: saveAmount() } }}
         </button>
@@ -239,6 +231,8 @@ export default class QuickAddPage {
 
   /** Bound from the `type` query parameter (router component input binding). */
   readonly type = input<string | undefined>(undefined)
+  /** Bound from the `outbox` query parameter: the queued entry to edit. */
+  readonly outbox = input<string | undefined>(undefined)
 
   protected readonly detailsOpen = signal(false)
 
@@ -318,11 +312,19 @@ export default class QuickAddPage {
   })
 
   constructor() {
-    // The `type` query parameter is read once, when the screen opens.
+    // The query parameters are read once, when the screen opens.
     effect(() => {
       const type = this.type()
-      untracked(() => void this.store.init(type))
+      const outbox = this.outbox()
+      untracked(() => void this.store.init(type, outbox))
     })
+  }
+
+  /** Saves (or queues) and stays for the next entry; an edited queued entry goes back. */
+  protected async save(): Promise<void> {
+    if ((await this.store.save()) === 'edited') {
+      this.done()
+    }
   }
 
   /** "Done": back to the previous screen, or to the month when /add was opened directly. */

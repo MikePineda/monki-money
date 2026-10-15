@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core'
+import { Component, computed, inject, signal, viewChild } from '@angular/core'
 import { FormField, email, form, minLength, required } from '@angular/forms/signals'
 import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe } from '@jsverse/transloco'
@@ -14,13 +14,16 @@ import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { CheckboxComponent } from '../../../shared/ui/checkbox/checkbox.component'
 import { TextFieldComponent } from '../../../shared/ui/text-field/text-field.component'
 import { provideAuthScope } from '../auth.scope'
+import { TurnstileGate, isTurnstileRejection } from '../ui/turnstile-gate'
+import { TurnstileWidgetComponent } from '../ui/turnstile-widget.component'
 
-/** Scoped keys used from TypeScript: t(auth.signup.errors.closed) */
+/** Scoped keys used from TypeScript: t(auth.signup.errors.closed, auth.turnstile.rejected) */
 
 /**
  * Create an account (only routed while registration is open). The API
  * creates the household too and logs in; the next stop is "check your
- * email", then the onboarding wizard.
+ * email", then the onboarding wizard. With a Turnstile site key the form
+ * also waits for the bot check.
  */
 @Component({
   selector: 'app-signup-page',
@@ -32,8 +35,9 @@ import { provideAuthScope } from '../auth.scope'
     RouterLink,
     TextFieldComponent,
     TranslocoPipe,
+    TurnstileWidgetComponent,
   ],
-  providers: [provideAuthScope()],
+  providers: [provideAuthScope(), TurnstileGate],
   template: `
     <form class="flex flex-1 flex-col" novalidate (submit)="submit($event)">
       <h1 class="text-title text-ink-1">{{ 'auth.signup.title' | transloco }}</h1>
@@ -86,6 +90,15 @@ import { provideAuthScope } from '../auth.scope'
             'auth.signup.privacyLink' | transloco
           }}</a>
         </app-checkbox>
+        @if (gate.siteKey(); as siteKey) {
+          <app-turnstile-widget
+            data-testid="signup.turnstile"
+            [siteKey]="siteKey"
+            [token]="gate.token()"
+            [rejected]="gate.rejected()"
+            (tokenChange)="gate.setToken($event)"
+          />
+        }
       </div>
 
       <div class="mt-auto flex flex-col items-center gap-2 pt-8">
@@ -94,7 +107,7 @@ import { provideAuthScope } from '../auth.scope'
           type="submit"
           size="block"
           data-testid="signup.submit"
-          [disabled]="signupForm().invalid()"
+          [disabled]="signupForm().invalid() || gate.waiting()"
           [loading]="submitting()"
         >
           {{ 'auth.signup.submit' | transloco }}
@@ -113,6 +126,8 @@ export default class SignupPage {
   private readonly session = inject(SessionStore)
   private readonly router = inject(Router)
   private readonly lang = inject(LangStore)
+  protected readonly gate = inject(TurnstileGate)
+  private readonly turnstile = viewChild(TurnstileWidgetComponent)
 
   private readonly messages = formMessages()
   protected readonly model = signal({ fullName: '', email: '', password: '', terms: false })
@@ -132,11 +147,12 @@ export default class SignupPage {
 
   protected async submit(event?: Event): Promise<void> {
     event?.preventDefault()
-    if (this.signupForm().invalid() || this.submitting()) {
+    if (this.signupForm().invalid() || this.gate.waiting() || this.submitting()) {
       return
     }
     this.submitting.set(true)
     this.failure.set(null)
+    this.gate.rejected.set(false)
     const { fullName, email: address, password } = this.model()
     try {
       await this.api.signup({
@@ -144,12 +160,19 @@ export default class SignupPage {
         email: address.trim().toLowerCase(),
         password,
         locale: this.lang.lang(),
+        ...this.gate.field(),
       })
       await this.session.load()
       await this.router.navigateByUrl('/verify-email')
     } catch (error) {
+      // Turnstile tokens are single use: every failed attempt needs a new one.
+      this.turnstile()?.reset()
       const failure = toApiError(error)
-      if (failure.kind === 'validation') {
+      if (isTurnstileRejection(failure)) {
+        if (!this.gate.reject()) {
+          this.failure.set({ key: 'auth.turnstile.rejected' })
+        }
+      } else if (failure.kind === 'validation') {
         this.fieldErrors.set(failure.fields)
       } else if (failure.kind === 'forbidden') {
         this.failure.set({ key: 'auth.signup.errors.closed' })

@@ -41,12 +41,20 @@ const entryFields = {
   tags: tags().optional(),
 }
 
+/**
+ * Origins a person may claim: typed by hand, or a draft read from a receipt
+ * photo (`POST /receipts/scan`). `import` and `telegram` rows are only ever
+ * written by the server.
+ */
+export const CLIENT_TRANSACTION_SOURCES = ['manual', 'receipt'] as const
+
 export const createTransactionValidator = vine.create({
   ...entryFields,
   accountId: id(),
   kind: vine.enum(ENTRY_KINDS),
   date: isoDate(),
   amountCents: amount(),
+  source: vine.enum(CLIENT_TRANSACTION_SOURCES).optional(),
 })
 
 /** Quick add: only the amount is required. */

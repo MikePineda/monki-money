@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core'
+import { Component, computed, inject, signal, viewChild } from '@angular/core'
 import { FormField, email, form, required } from '@angular/forms/signals'
 import { RouterLink } from '@angular/router'
 import { TranslocoPipe } from '@jsverse/transloco'
@@ -11,11 +11,16 @@ import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component'
 import { TextFieldComponent } from '../../../shared/ui/text-field/text-field.component'
 import { provideAuthScope } from '../auth.scope'
+import { TurnstileGate, isTurnstileRejection } from '../ui/turnstile-gate'
+import { TurnstileWidgetComponent } from '../ui/turnstile-widget.component'
+
+/** Scoped keys used from TypeScript: t(auth.turnstile.rejected) */
 
 /**
  * Request a password reset link. The answer is the same whether or not the
  * address has an account (the API never tells), so the confirmation says
- * "if an account exists".
+ * "if an account exists". With a Turnstile site key the form also waits
+ * for the bot check.
  */
 @Component({
   selector: 'app-forgot-password-page',
@@ -27,8 +32,9 @@ import { provideAuthScope } from '../auth.scope'
     RouterLink,
     TextFieldComponent,
     TranslocoPipe,
+    TurnstileWidgetComponent,
   ],
-  providers: [provideAuthScope()],
+  providers: [provideAuthScope(), TurnstileGate],
   template: `
     @if (sentTo(); as address) {
       <app-empty-state
@@ -62,13 +68,23 @@ import { provideAuthScope } from '../auth.scope'
           [label]="'auth.fields.email' | transloco"
           [formField]="forgotForm.email"
         />
+        @if (gate.siteKey(); as siteKey) {
+          <app-turnstile-widget
+            class="mt-6"
+            data-testid="forgot.turnstile"
+            [siteKey]="siteKey"
+            [token]="gate.token()"
+            [rejected]="gate.rejected()"
+            (tokenChange)="gate.setToken($event)"
+          />
+        }
         <div class="mt-auto flex flex-col gap-2 pt-8">
           <button
             appButton
             type="submit"
             size="block"
             data-testid="forgot.submit"
-            [disabled]="forgotForm().invalid()"
+            [disabled]="forgotForm().invalid() || gate.waiting()"
             [loading]="submitting()"
           >
             {{ 'auth.forgot.submit' | transloco }}
@@ -82,6 +98,8 @@ import { provideAuthScope } from '../auth.scope'
 })
 export default class ForgotPasswordPage {
   private readonly api = inject(AuthApi)
+  protected readonly gate = inject(TurnstileGate)
+  private readonly turnstile = viewChild(TurnstileWidgetComponent)
 
   private readonly messages = formMessages()
   protected readonly model = signal({ email: '' })
@@ -97,17 +115,27 @@ export default class ForgotPasswordPage {
 
   protected async submit(event?: Event): Promise<void> {
     event?.preventDefault()
-    if (this.forgotForm().invalid() || this.submitting()) {
+    if (this.forgotForm().invalid() || this.gate.waiting() || this.submitting()) {
       return
     }
     this.submitting.set(true)
     this.failure.set(null)
+    this.gate.rejected.set(false)
     const address = this.model().email.trim().toLowerCase()
     try {
-      await this.api.forgotPassword(address)
+      await this.api.forgotPassword({ email: address, ...this.gate.field() })
       this.sentTo.set(address)
     } catch (error) {
-      this.failure.set(failureMessage(toApiError(error)))
+      // Turnstile tokens are single use: every failed attempt needs a new one.
+      this.turnstile()?.reset()
+      const failure = toApiError(error)
+      if (isTurnstileRejection(failure)) {
+        if (!this.gate.reject()) {
+          this.failure.set({ key: 'auth.turnstile.rejected' })
+        }
+      } else {
+        this.failure.set(failureMessage(failure))
+      }
     } finally {
       this.submitting.set(false)
     }

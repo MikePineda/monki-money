@@ -7,6 +7,7 @@ import {
   type BrowserContext,
   type TestInfo,
 } from '@playwright/test'
+import { stubTurnstile } from './turnstile.ts'
 
 /** The synthetic E2E household seeded by `POST /api/test/reset` (apps/api e2e_seed.ts). */
 export const SEEDED_OWNER = { email: 'owner@e2e.test', password: 'e2e-password-123' }
@@ -39,6 +40,11 @@ export const test = base.extend({
   extraHTTPHeaders: async ({}, use, testInfo) => {
     await use({ 'CF-Connecting-IP': clientIpFor(`${testInfo.testId}-${testInfo.retry}`) })
   },
+  // Cloudflare Turnstile is served by a stand-in (see turnstile.ts).
+  context: async ({ context }, use) => {
+    await stubTurnstile(context)
+    await use(context)
+  },
 })
 
 export { expect }
@@ -49,11 +55,13 @@ export { expect }
  */
 export async function newDevice(browser: Browser, info: TestInfo): Promise<BrowserContext> {
   const device = info.project.name === 'mobile-webkit' ? devices['iPhone 14'] : devices['Pixel 7']
-  return browser.newContext({
+  const context = await browser.newContext({
     ...device,
     baseURL: info.project.use.baseURL,
     extraHTTPHeaders: { 'CF-Connecting-IP': clientIpFor(`${info.testId}-device-${info.retry}`) },
   })
+  await stubTurnstile(context)
+  return context
 }
 
 /** The XSRF token the API set as a cookie (sent back as X-XSRF-TOKEN on mutations). */
@@ -69,7 +77,16 @@ interface CapturedMail {
   to: string[]
   subject: string
   links: string[]
+  /** The 6-digit verification codes in the body. */
+  codes: string[]
   sentAt: string
+}
+
+/** The test-only outbox (`GET /api/test/outbox`), newest mail last. */
+async function outbox(request: APIRequestContext): Promise<CapturedMail[]> {
+  const response = await request.get('/api/test/outbox')
+  expect(response.ok(), 'GET /api/test/outbox').toBe(true)
+  return ((await response.json()) as { data: CapturedMail[] }).data
 }
 
 /**
@@ -86,10 +103,7 @@ export async function mailedLink(
   await expect
     .poll(
       async () => {
-        const response = await request.get('/api/test/outbox')
-        expect(response.ok(), 'GET /api/test/outbox').toBe(true)
-        const { data } = (await response.json()) as { data: CapturedMail[] }
-        found = data
+        found = (await outbox(request))
           .filter((mail) => mail.to.includes(email))
           .flatMap((mail) => mail.links)
           .filter((link) => link.includes(fragment))
@@ -100,6 +114,24 @@ export async function mailedLink(
     )
     .toBeTruthy()
   return new URL(found as string).pathname + new URL(found as string).search
+}
+
+/** The newest 6-digit verification code mailed to `email` (polled like {@link mailedLink}). */
+export async function mailedCode(request: APIRequestContext, email: string): Promise<string> {
+  let found: string | undefined
+  await expect
+    .poll(
+      async () => {
+        found = (await outbox(request))
+          .filter((mail) => mail.to.includes(email))
+          .flatMap((mail) => mail.codes)
+          .at(-1)
+        return found
+      },
+      { message: `a mail to ${email} with a verification code` }
+    )
+    .toBeTruthy()
+  return found as string
 }
 
 export interface Account {

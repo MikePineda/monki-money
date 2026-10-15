@@ -1,3 +1,7 @@
 # Fingerprints of confirmed false positives (commit:file:rule:line).
 ae40f74533c791700c6a4b00aa0408a94f74253c:apps/api/tests/unit/llm/anthropic_compatible_provider.spec.ts:generic-api-key:9
 bd0869c962a25aa9ea77683c8403fc2c12d1794f:apps/api/app/domain/importing/suggesters/rule_suggester.ts:generic-api-key:13
+
+# Fake invitation token used by web specs (WP 6.2b)
+087c712ae0b7b8664f0d9a4710b30659750338a4:apps/web/src/app/domain/invitation-link.spec.ts:generic-api-key:3
+087c712ae0b7b8664f0d9a4710b30659750338a4:apps/web/src/app/features/onboarding/feature/create-household.page.spec.ts:generic-api-key:27

@@ -19,6 +19,7 @@
     "settings": "src/app/features/settings/i18n",
     "legal": "src/app/features/legal/i18n",
     "kit": "src/app/kit/i18n",
-    "charts": "src/app/shared/charts/i18n"
+    "charts": "src/app/shared/charts/i18n",
+    "outbox": "src/app/core/outbox/i18n"
   }
 }

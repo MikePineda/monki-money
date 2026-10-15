@@ -10,6 +10,7 @@ import { provideServiceWorker } from '@angular/service-worker'
 import { routes } from './app.routes'
 import { provideAuth } from './core/auth/auth.providers'
 import { provideI18n } from './core/i18n/i18n.providers'
+import { OutboxStore } from './core/outbox/outbox.store'
 import { InstallService } from './core/pwa/install.service'
 import { UpdateService } from './core/pwa/update.service'
 import { ThemeStore } from './core/theme/theme.store'
@@ -27,10 +28,12 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       // Theme first (theme-boot.js already painted it; this keeps it in sync),
-      // then the PWA listeners: update checks and the install prompt.
+      // then the PWA listeners: update checks and the install prompt, and
+      // the offline outbox (it syncs once the session is known).
       inject(ThemeStore)
       inject(UpdateService).start()
       inject(InstallService).start()
+      inject(OutboxStore).start()
     }),
   ],
 }

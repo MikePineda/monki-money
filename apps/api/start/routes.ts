@@ -19,7 +19,7 @@
 */
 
 import router from '@adonisjs/core/services/router'
-import { apiThrottle } from '#start/limiter'
+import { apiThrottle, receiptScansThrottle, uploadsThrottle } from '#start/limiter'
 import { middleware } from '#start/kernel'
 import { controllers } from '#generated/controllers'
 import { registerE2eRoutes } from '#start/routes/e2e'
@@ -317,6 +317,24 @@ router
               })
               .prefix('rules')
               .as('rules')
+
+            /*
+             * Direct uploads: the browser PUTs the file to the bucket with a
+             * presigned URL; the API never receives the bytes.
+             */
+            router
+              .post('uploads/presign', [controllers.Uploads, 'presign'])
+              .as('uploads.presign')
+              .use(uploadsThrottle)
+
+            /*
+             * Receipt scanning: the key of an uploaded photo in the body
+             * (another household's key answers 404, like an `:id`).
+             */
+            router
+              .post('receipts/scan', [controllers.Receipts, 'scan'])
+              .as('receipts.scan')
+              .use(receiptScansThrottle)
           })
           .use(inHousehold())
       })

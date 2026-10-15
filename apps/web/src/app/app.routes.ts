@@ -24,8 +24,9 @@ const inTheApp = [authGuard, verifiedGuard, householdGuard, onboardedGuard]
  *   otherwise match `/` with an empty outlet).
  * - Onboarding and quick add are full screen.
  * - The auth layout frames everything outside the app proper: login,
- *   sign-up, verification, password reset, invitations, the "no household"
- *   and "scheduled for deletion" states, and the legal texts.
+ *   sign-up, verification, password reset, invitations, "create your
+ *   household" (signed in without one), "scheduled for deletion", and the
+ *   legal texts.
  * `/__kit` is the ui-kit gallery, development builds only.
  */
 export const routes: Routes = [
@@ -126,10 +127,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/auth/feature/invite.page'),
       },
       {
-        path: 'no-household',
+        path: 'household/new',
         canActivate: [authGuard, verifiedGuard, noHouseholdGuard],
-        loadComponent: () => import('./features/auth/feature/no-household.page'),
+        loadComponent: () => import('./features/onboarding/feature/create-household.page'),
       },
+      // The old "no household" screen: links and installed apps may still open it.
+      { path: 'no-household', redirectTo: 'household/new' },
       {
         path: 'household-deleted',
         canActivate: [authGuard, verifiedGuard, pendingDeletionGuard],
