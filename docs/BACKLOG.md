@@ -34,3 +34,4 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 Outbox: "Undo" on the "Saved offline" toast (remove the queued entry, or delete the row once synced); queued entries can only be discarded from the sync sheet today.
 - 2026-10-16 Outbox: say so when localStorage refuses the write (quota, private mode); the entry then lives in memory until the app closes.
 - 2026-10-16 Outbox: a queued expense does not feed quick add's category/payee ranking until it syncs and the next visit reloads the recent rows.
+- 2026-10-16 Offline cold start: opening the installed app with no network ends on login (`GET /auth/me` fails, the session is in memory only) and quick add needs the accounts loaded this session; keeping a last-known session and directory on the device would let the outbox work from a cold start.
