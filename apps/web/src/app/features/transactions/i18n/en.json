@@ -1,8 +1,140 @@
 {
   "title": "Transactions",
+  "search": {
+    "open": "Search transactions",
+    "close": "Close search",
+    "label": "Search payee, note or bank text"
+  },
+  "filters": {
+    "label": "Filters",
+    "allAccounts": "All accounts",
+    "everyone": "Everyone",
+    "category": "Category",
+    "allCategories": "Any category",
+    "uncategorized": "Uncategorised",
+    "clear": "Clear",
+    "monthTitle": "Month",
+    "accountTitle": "Account",
+    "personTitle": "Who paid",
+    "categoryTitle": "Category"
+  },
+  "people": {
+    "you": "You",
+    "joint": "Joint"
+  },
+  "day": {
+    "today": "Today · {date}",
+    "yesterday": "Yesterday · {date}"
+  },
+  "row": {
+    "private": "Private",
+    "uncategorized": "Uncategorised",
+    "split": "Split",
+    "transfer": "Transfer",
+    "noPayee": "No payee",
+    "transferFrom": "Transfer from {account}",
+    "transferTo": "Transfer to {account}"
+  },
+  "list": {
+    "loadMore": "Load more"
+  },
   "empty": {
-    "title": "No transactions yet.",
-    "body": "Everything you and your partner record shows up here, grouped by day.",
+    "title": "No activity in {month} yet.",
+    "body": "Add the first one or import your bank CSV.",
     "action": "Add transaction"
+  },
+  "filtered": {
+    "title": "Nothing matches these filters.",
+    "body": "Try another account, person or category, or clear the filters.",
+    "action": "Clear filters"
+  },
+  "error": {
+    "title": "Transactions did not load.",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "actions": {
+    "title": "Transaction",
+    "edit": "Edit",
+    "duplicate": "Duplicate for today",
+    "delete": "Delete"
+  },
+  "toast": {
+    "saved": "Changes saved.",
+    "splitSaved": "Split saved.",
+    "transferSaved": "Transfer saved.",
+    "deleted": "Transaction deleted.",
+    "transferDeleted": "Transfer deleted.",
+    "undo": "Undo",
+    "duplicated": "Copy added for today.",
+    "private": "Only the person who paid can change a private transaction."
+  },
+  "edit": {
+    "title": "Edit transaction",
+    "privateTitle": "Private transaction",
+    "transferTitle": "Transfer",
+    "editTransferTitle": "Edit transfer",
+    "save": "Save changes",
+    "delete": "Delete transaction",
+    "editTransfer": "Edit transfer",
+    "deleteTransfer": "Delete transfer",
+    "saveTransfer": "Save transfer",
+    "loadError": "This transaction could not be loaded. It may have been deleted.",
+    "privateBody": "{name} marked this one private. You see the amount; only they can change it.",
+    "from": "From",
+    "to": "To",
+    "date": "Date",
+    "memo": "Memo",
+    "account": "Account",
+    "paidBy": "Paid by"
+  },
+  "form": {
+    "kind": "Type",
+    "expense": "Expense",
+    "income": "Income",
+    "amount": "Amount",
+    "amountHint": "Tap the amount to change it.",
+    "amountLocked": "A split keeps its amount. Unsplit it to change the amount.",
+    "chooseAccount": "Choose an account",
+    "accountTitle": "Account",
+    "personTitle": "Who paid",
+    "category": "Category",
+    "categoryTitle": "Category",
+    "uncategorized": "Uncategorised",
+    "split": "Split",
+    "splitInto": "{count, plural, one {Split · # category} other {Split · # categories}}",
+    "date": "Date",
+    "payee": "Payee",
+    "suggestions": "Recent payees",
+    "note": "Note",
+    "tags": "Tags",
+    "addTag": "Add a tag",
+    "removeTag": "Remove tag {tag}",
+    "private": "Private",
+    "privateHint": "Your partner sees the amount, not the payee, note or category."
+  },
+  "split": {
+    "title": "Split {amount}",
+    "chooseCategory": "Choose a category",
+    "categoryTitle": "Category",
+    "amount": "Amount of line {number}",
+    "rest": "Rest",
+    "remove": "Remove line {number}",
+    "add": "Add a line",
+    "over": "The lines go over by {amount}.",
+    "missingCategory": "Choose a category for every line.",
+    "zeroLine": "Every line needs an amount.",
+    "balanced": "The lines add up to {amount}.",
+    "save": "Save split",
+    "unsplit": "Unsplit"
+  },
+  "transfer": {
+    "from": "From",
+    "to": "To",
+    "memo": "Memo",
+    "chooseAccount": "Choose an account",
+    "sameAccount": "Choose two different accounts.",
+    "fromTitle": "From account",
+    "toTitle": "To account"
   }
 }

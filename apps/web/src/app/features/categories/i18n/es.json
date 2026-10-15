@@ -1,0 +1,46 @@
+{
+  "title": "Categorías",
+  "back": "Volver a ajustes",
+  "reorder": "Reordenar categorías",
+  "reorderHint": "Mueve las categorías con las flechas o arrástralas por el asa.",
+  "group": {
+    "up": "Subir el grupo {name}",
+    "down": "Bajar el grupo {name}"
+  },
+  "row": {
+    "icon": "Cambiar el ícono de {name}",
+    "rename": "Renombrar {name}",
+    "up": "Subir {name}",
+    "down": "Bajar {name}",
+    "archive": "Archivar {name}"
+  },
+  "add": {
+    "action": "Agregar categoría",
+    "label": "Nueva categoría en {group}"
+  },
+  "archived": {
+    "title": "Archivadas ({count})",
+    "restore": "Restaurar {name}",
+    "delete": "Eliminar {name}"
+  },
+  "icons": {
+    "title": "Ícono de {name}",
+    "option": "Ícono: {name}"
+  },
+  "delete": {
+    "reassignTitle": "{name} tiene movimientos. Muévelos a"
+  },
+  "toast": {
+    "archived": "{name} archivada. Sus movimientos la conservan.",
+    "deleted": "Categoría eliminada.",
+    "undo": "Deshacer"
+  },
+  "error": {
+    "title": "No se cargaron las categorías.",
+    "body": "Revisa tu conexión e intenta de nuevo.",
+    "retry": "Intentar de nuevo"
+  },
+  "errors": {
+    "invalid": "{message}"
+  }
+}
