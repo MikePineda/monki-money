@@ -79,6 +79,12 @@ jobs:
 
       - run: npm ci
 
+      # `node ace codegen` boots the app, so start/env.ts must validate. CI has
+      # no .env: create it exactly like a fresh clone does (tests still load
+      # .env.test on top of it).
+      - name: Prepare apps/api/.env
+        run: cp apps/api/.env.example apps/api/.env && (cd apps/api && node ace generate:key)
+
       - uses: actions/cache@v6
         with:
           path: .turbo
@@ -135,6 +141,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # `node ace codegen` boots the app, so start/env.ts must validate. CI has
+      # no .env: create it exactly like a fresh clone does (tests still load
+      # .env.test on top of it).
+      - name: Prepare apps/api/.env
+        run: cp apps/api/.env.example apps/api/.env && (cd apps/api && node ace generate:key)
 
       - name: Install Playwright Chromium
         working-directory: e2e
