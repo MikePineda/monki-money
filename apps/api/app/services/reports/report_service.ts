@@ -6,6 +6,7 @@ import { inject } from '@adonisjs/core'
 import type Household from '#models/household'
 import { postingsFor } from '#domain/ledger/privacy'
 import { findInHousehold } from '#repositories/scoped'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { summarizeMonth } from '#domain/reports/month_summary'
 import AccountBalances from '#services/accounts/account_balances'
 import PostingsRepository from '#repositories/postings_repository'
@@ -63,7 +64,7 @@ export default class ReportService {
 
     let postings = postingsFor(
       await this.postings.between(household, monthRange(previous).from, monthRange(month).to),
-      viewer.id
+      await privacyViewer(household, viewer)
     )
     if (input.paidByUserId !== undefined) {
       postings = postings.filter((posting) => posting.paidByUserId === input.paidByUserId)
@@ -105,7 +106,10 @@ export default class ReportService {
     }
   }
 
-  /** Cleared and available balance per account, plus the household totals. */
+  /**
+   * Cleared and available balance per account, plus the household totals
+   * per currency (amounts in different currencies are never added up).
+   */
   async balances(household: Household) {
     const accounts = await Account.query()
       .withScopes((scopes) => scopes.forHousehold(household))
@@ -115,15 +119,23 @@ export default class ReportService {
 
     const rows = accounts.map((account) => ({
       accountId: account.id,
+      currencyCode: account.currencyCode,
       isActive: account.isActive,
       clearedBalanceCents: balances.get(account.id)?.clearedBalanceCents ?? 0,
       availableBalanceCents: balances.get(account.id)?.availableBalanceCents ?? 0,
     }))
-    return {
-      accounts: rows,
-      clearedBalanceCents: rows.reduce((total, row) => total + row.clearedBalanceCents, 0),
-      availableBalanceCents: rows.reduce((total, row) => total + row.availableBalanceCents, 0),
+
+    const totals: Record<string, { clearedBalanceCents: number; availableBalanceCents: number }> =
+      {}
+    for (const row of rows) {
+      const total = (totals[row.currencyCode] ??= {
+        clearedBalanceCents: 0,
+        availableBalanceCents: 0,
+      })
+      total.clearedBalanceCents += row.clearedBalanceCents
+      total.availableBalanceCents += row.availableBalanceCents
     }
+    return { accounts: rows, totals }
   }
 
   protected currentMonth(household: Household) {
@@ -133,6 +145,9 @@ export default class ReportService {
   protected async window(household: Household, viewer: User, months: Month[]) {
     const from = monthRange(months[0]).from
     const to = monthRange(months[months.length - 1]).to
-    return postingsFor(await this.postings.between(household, from, to), viewer.id)
+    return postingsFor(
+      await this.postings.between(household, from, to),
+      await privacyViewer(household, viewer)
+    )
   }
 }

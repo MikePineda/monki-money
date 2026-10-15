@@ -6,7 +6,7 @@ import type Household from '#models/household'
 import Transaction from '#models/transaction'
 import CategoryGroup from '#models/category_group'
 import HouseholdMember from '#models/household_member'
-import { isHiddenFrom } from '#domain/ledger/privacy'
+import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 
 const PAGE_SIZE = 500
@@ -14,12 +14,15 @@ const PAGE_SIZE = 500
 /**
  * Full JSON export of a household ("download my data"), streamed as it is
  * read so memory stays flat as tables grow. Sections are read page by page
- * in id order. Never includes secrets (password hashes, tokens). The
+ * in id order with a keyset (`id > last`), so rows added or deleted while
+ * the export runs never shift a page (no duplicates, no gaps). Never includes secrets (password hashes, tokens). The
  * partner's private transactions keep their amount but not their details
  * (same rule as the API, app/domain/ledger/privacy.ts).
  */
 export default class HouseholdExporter {
-  async *json(household: Household, viewerUserId: number): AsyncGenerator<string> {
+  constructor(protected pageSize = PAGE_SIZE) {}
+
+  async *json(household: Household, viewer: PrivacyViewer): AsyncGenerator<string> {
     yield `{"format":"monkimoney-export","version":1,"exportedAt":${JSON.stringify(
       isoTimestamp(DateTime.now())
     )}`
@@ -35,14 +38,16 @@ export default class HouseholdExporter {
       createdAt: isoTimestamp(household.createdAt),
     })}`
 
-    yield* this.section('members', (page) =>
+    yield* this.section('members', (afterId) =>
       HouseholdMember.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .preload('user')
         .orderBy('id')
-        .forPage(page, PAGE_SIZE)
+        .where('id', '>', afterId)
+        .limit(this.pageSize)
         .then((rows) =>
           rows.map((member) => ({
+            id: member.id,
             userId: member.userId,
             fullName: member.user.fullName,
             email: member.user.email,
@@ -53,12 +58,13 @@ export default class HouseholdExporter {
         )
     )
 
-    yield* this.section('accounts', (page) =>
+    yield* this.section('accounts', (afterId) =>
       Account.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .preload('cards')
         .orderBy('id')
-        .forPage(page, PAGE_SIZE)
+        .where('id', '>', afterId)
+        .limit(this.pageSize)
         .then((rows) =>
           rows.map((account) => ({
             id: account.id,
@@ -80,11 +86,12 @@ export default class HouseholdExporter {
         )
     )
 
-    yield* this.section('categoryGroups', (page) =>
+    yield* this.section('categoryGroups', (afterId) =>
       CategoryGroup.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .orderBy('id')
-        .forPage(page, PAGE_SIZE)
+        .where('id', '>', afterId)
+        .limit(this.pageSize)
         .then((rows) =>
           rows.map((group) => ({
             id: group.id,
@@ -97,11 +104,12 @@ export default class HouseholdExporter {
         )
     )
 
-    yield* this.section('categories', (page) =>
+    yield* this.section('categories', (afterId) =>
       Category.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .orderBy('id')
-        .forPage(page, PAGE_SIZE)
+        .where('id', '>', afterId)
+        .limit(this.pageSize)
         .then((rows) =>
           rows.map((category) => ({
             id: category.id,
@@ -115,11 +123,12 @@ export default class HouseholdExporter {
         )
     )
 
-    yield* this.section('transfers', (page) =>
+    yield* this.section('transfers', (afterId) =>
       Transfer.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .orderBy('id')
-        .forPage(page, PAGE_SIZE)
+        .where('id', '>', afterId)
+        .limit(this.pageSize)
         .then((rows) =>
           rows.map((transfer) => ({
             id: transfer.id,
@@ -134,20 +143,21 @@ export default class HouseholdExporter {
         )
     )
 
-    yield* this.section('transactions', (page) =>
+    yield* this.section('transactions', (afterId) =>
       Transaction.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .preload('splits', (splits) => splits.orderBy('sort_order').orderBy('id'))
         .orderBy('id')
-        .forPage(page, PAGE_SIZE)
-        .then((rows) => rows.map((transaction) => this.transaction(transaction, viewerUserId)))
+        .where('id', '>', afterId)
+        .limit(this.pageSize)
+        .then((rows) => rows.map((transaction) => this.transaction(transaction, viewer)))
     )
 
     yield '}\n'
   }
 
-  protected transaction(transaction: Transaction, viewerUserId: number) {
-    const masked = isHiddenFrom(transaction, viewerUserId)
+  protected transaction(transaction: Transaction, viewer: PrivacyViewer) {
+    const masked = isHiddenFrom(transaction, viewer)
     return {
       id: transaction.id,
       accountId: transaction.accountId,
@@ -181,19 +191,25 @@ export default class HouseholdExporter {
     }
   }
 
+  /**
+   * One JSON array, read with a keyset on `id`: `load(afterId)` returns the
+   * next page in id order, already shaped for the export.
+   */
   protected async *section(
     name: string,
-    loadPage: (page: number) => Promise<unknown[]>
+    load: (afterId: number) => Promise<Array<{ id: number }>>
   ): AsyncGenerator<string> {
     yield `,${JSON.stringify(name)}:[`
     let first = true
-    for (let page = 1; ; page++) {
-      const rows = await loadPage(page)
-      for (const row of rows) {
+    let afterId = 0
+    for (;;) {
+      const page = await load(afterId)
+      for (const row of page) {
         yield `${first ? '' : ','}${JSON.stringify(row)}`
         first = false
       }
-      if (rows.length < PAGE_SIZE) break
+      if (page.length < this.pageSize) break
+      afterId = page[page.length - 1].id
     }
     yield ']'
   }

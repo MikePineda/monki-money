@@ -290,6 +290,11 @@ test.group('Tenant isolation', () => {
       householdId: attacker.household.id,
       accountId: attacker.accounts[0].id,
     }).create()
+    const ownTransfer = await TransferFactory.merge({
+      householdId: attacker.household.id,
+      fromAccountId: attacker.accounts[0].id,
+      toAccountId: attacker.accounts[1].id,
+    }).create()
     const entry = { kind: 'expense', date: '2026-10-01', amountCents: 100 }
 
     const requests: Array<[() => any, string]> = [
@@ -359,6 +364,42 @@ test.group('Tenant isolation', () => {
             date: '2026-10-01',
             amountCents: 100,
           }),
+        'toAccountId',
+      ],
+      [
+        () =>
+          client.patch(`/api/v1/transactions/${own.id}`).json({ categoryId: victim.category.id }),
+        'categoryId',
+      ],
+      [
+        () =>
+          client
+            .patch(`/api/v1/transactions/${own.id}`)
+            .json({ paidByUserId: victim.household.owner.id }),
+        'paidByUserId',
+      ],
+      [
+        () =>
+          client.put(`/api/v1/transactions/${own.id}/splits`).json({
+            splits: [
+              { categoryId: ownCategory.id, amountCents: Math.abs(own.amountCents) - 1 },
+              { categoryId: victim.category.id, amountCents: 1 },
+            ],
+          }),
+        'splits',
+      ],
+      [
+        () =>
+          client
+            .patch(`/api/v1/transfers/${ownTransfer.id}`)
+            .json({ fromAccountId: victim.account.id }),
+        'fromAccountId',
+      ],
+      [
+        () =>
+          client
+            .patch(`/api/v1/transfers/${ownTransfer.id}`)
+            .json({ toAccountId: victim.account.id }),
         'toAccountId',
       ],
     ]

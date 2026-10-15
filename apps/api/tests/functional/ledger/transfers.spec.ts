@@ -1,7 +1,13 @@
 import { test } from '@japa/runner'
+import type User from '#models/user'
 import Transfer from '#models/transfer'
+import type Account from '#models/account'
 import Transaction from '#models/transaction'
+import app from '@adonisjs/core/services/app'
 import { createHousehold } from '#tests/helpers/household'
+import TransferService from '#services/ledger/transfer_service'
+import AccountBalances from '#services/accounts/account_balances'
+import LedgerReferences from '#services/ledger/ledger_references'
 import { TransactionFactory } from '#database/factories/transaction_factory'
 
 const CLIENT_ID = '3b241101-e2bb-4255-8caf-4136c566a962'
@@ -199,5 +205,61 @@ test.group('Transfers', () => {
       summary.byCategory.map((line: any) => [line.bucket, line.amountCents]),
       [['uncategorized', 1_200]]
     )
+  })
+
+  test('test_transfer_legs_sum_to_zero_across_accounts', async ({ assert }) => {
+    const { owner, household, accounts } = await twoAccounts()
+    const service = await app.container.make(TransferService)
+
+    const { transfer } = await service.create(household, owner, {
+      fromAccountId: accounts[0].id,
+      toAccountId: accounts[1].id,
+      date: '2026-10-04',
+      amountCents: 12_345,
+    })
+
+    assert.equal(
+      transfer.legs.reduce((total, leg) => total + leg.amountCents, 0),
+      0
+    )
+    const balances = await new AccountBalances().forAccounts(accounts)
+    const total = accounts.reduce(
+      (sum, account) => sum + balances.get(account.id)!.clearedBalanceCents,
+      0
+    )
+    // Moving money between own accounts never changes the household total.
+    assert.equal(total, 100_000)
+    assert.equal(balances.get(accounts[1].id)!.clearedBalanceCents, 12_345)
+  })
+
+  test('test_failing_second_leg_rolls_the_whole_transfer_back', async ({ assert }) => {
+    const { owner, household, accounts } = await twoAccounts()
+    class BrokenSecondLeg extends TransferService {
+      #legs = 0
+      protected override leg(
+        transfer: Transfer,
+        account: Account,
+        amountCents: number,
+        actor: User
+      ) {
+        const values = super.leg(transfer, account, amountCents, actor)
+        this.#legs++
+        // A transfer leg without its link violates transactions_transfer_link.
+        return this.#legs === 2 ? { ...values, kind: 'expense' as never } : values
+      }
+    }
+    const service = new BrokenSecondLeg(new LedgerReferences())
+
+    await assert.rejects(() =>
+      service.create(household, owner, {
+        fromAccountId: accounts[0].id,
+        toAccountId: accounts[1].id,
+        date: '2026-10-04',
+        amountCents: 500,
+      })
+    )
+
+    assert.lengthOf(await Transfer.query().where('household_id', household.id), 0)
+    assert.lengthOf(await Transaction.query().where('household_id', household.id), 0)
   })
 })

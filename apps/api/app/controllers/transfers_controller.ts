@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import TransferService from '#services/ledger/transfer_service'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
 import TransferTransformer from '#transformers/transfer_transformer'
 import {
   createTransferValidator,
@@ -16,22 +17,26 @@ export default class TransfersController {
   /** POST /transfers: 201, or 200 with the existing transfer for a repeated `clientId`. */
   async store(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(createTransferValidator)
-    const viewer = ctx.auth.getUserOrFail()
+    const user = ctx.auth.getUserOrFail()
 
-    const { transfer, created } = await this.transfers.create(ctx.household, viewer, payload)
+    const { transfer, created } = await this.transfers.create(ctx.household, user, payload)
 
     ctx.response.status(created ? 201 : 200)
-    return ctx.serialize(TransferTransformer.transform(transfer, viewer.id))
+    return ctx.serialize(
+      TransferTransformer.transform(transfer, await privacyViewer(ctx.household, user))
+    )
   }
 
   /** PATCH /transfers/:id: both legs follow. */
   async update(ctx: HttpContext) {
     const { params, ...payload } = await ctx.request.validateUsing(updateTransferValidator)
-    const viewer = ctx.auth.getUserOrFail()
+    const user = ctx.auth.getUserOrFail()
 
-    const transfer = await this.transfers.update(ctx.household, viewer, params.id, payload)
+    const transfer = await this.transfers.update(ctx.household, user, params.id, payload)
 
-    return ctx.serialize(TransferTransformer.transform(transfer, viewer.id))
+    return ctx.serialize(
+      TransferTransformer.transform(transfer, await privacyViewer(ctx.household, user))
+    )
   }
 
   /** DELETE /transfers/:id: removes both legs. */

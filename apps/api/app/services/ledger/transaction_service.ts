@@ -9,13 +9,14 @@ import type { EntryKind } from '@monkimoney/shared'
 import { todayIn } from '#domain/calendar/month'
 import { defaultPayer } from '#domain/ledger/payer'
 import { FieldError } from '#exceptions/field_error'
-import { isHiddenFrom } from '#domain/ledger/privacy'
+import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import { validateSplits } from '#domain/ledger/splits'
 import TransactionSplit from '#models/transaction_split'
 import { findInHousehold, idsInHousehold } from '#repositories/scoped'
 import { signedAmount, signedLines } from '#domain/ledger/amounts'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
 import LedgerReferences from '#services/ledger/ledger_references'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
 import TransactionListing from '#services/ledger/transaction_listing'
 import { PrivateTransaction, TransferLegReadOnly } from '#exceptions/errors'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -54,8 +55,8 @@ export default class TransactionService {
     protected clock: Clock
   ) {}
 
-  list(household: Household, viewer: User, filters: TransactionFilters) {
-    return this.listing.paginate(household, viewer.id, filters)
+  list(household: Household, viewer: PrivacyViewer, filters: TransactionFilters) {
+    return this.listing.paginate(household, viewer, filters)
   }
 
   async find(household: HouseholdRef, transactionId: number) {
@@ -163,73 +164,82 @@ export default class TransactionService {
     })
   }
 
+  /**
+   * Edits an expense or income. Everything is decided on the row locked
+   * inside the DB transaction, so two overlapping edits never work from a
+   * stale copy (e.g. flipping the split lines twice).
+   */
   async update(
     household: Household,
     actor: User,
     transactionId: number,
     input: UpdateTransactionInput
   ) {
-    const transaction = await this.findForWrite(household, actor, transactionId)
-
-    if (input.accountId !== undefined && input.accountId !== transaction.accountId) {
-      await this.references.account(household, input.accountId)
-    }
-    if (input.categoryId !== undefined && input.categoryId !== null) {
-      if (transaction.isSplit) throw new FieldError('categoryId', 'split')
-      await this.references.categories(household, [input.categoryId], 'categoryId')
-    }
-    await this.references.payer(household, input.paidByUserId)
-
-    const kind: EntryKind = input.kind ?? (transaction.kind === 'income' ? 'income' : 'expense')
-    const amountCents = signedAmount(kind, input.amountCents ?? transaction.amountCents)
-    if (transaction.isSplit && Math.abs(amountCents) !== Math.abs(transaction.amountCents)) {
-      throw new FieldError('amountCents', 'splitSum')
-    }
-    const flipLines = transaction.isSplit && amountCents !== transaction.amountCents
-
-    transaction.merge({
-      ...definedOnly({
-        accountId: input.accountId,
-        date: input.date,
-        categoryId: input.categoryId,
-        payee: input.payee,
-        description: input.description,
-        paidByUserId: input.paidByUserId,
-        status: input.status,
-        isPrivate: input.isPrivate,
-        tags: input.tags,
-        needsReview: input.needsReview,
-      }),
-      kind,
-      amountCents,
-      updatedByUserId: actor.id,
-    })
-    // Categorizing is reviewing, unless the request says otherwise.
-    if (input.categoryId && input.needsReview === undefined) transaction.needsReview = false
-
     await db.transaction(async (trx) => {
-      transaction.useTransaction(trx)
+      const transaction = await this.lockForWrite(household, actor, transactionId, trx)
+
+      const account =
+        input.accountId !== undefined && input.accountId !== transaction.accountId
+          ? await this.references.account(household, input.accountId)
+          : null
+      if (input.categoryId !== undefined && input.categoryId !== null) {
+        if (transaction.isSplit) throw new FieldError('categoryId', 'split')
+        await this.references.categories(household, [input.categoryId], 'categoryId')
+      }
+      await this.references.payer(household, input.paidByUserId)
+
+      const previousAmountCents = transaction.amountCents
+      const kind: EntryKind = input.kind ?? (transaction.kind === 'income' ? 'income' : 'expense')
+      const amountCents = signedAmount(kind, input.amountCents ?? previousAmountCents)
+      if (transaction.isSplit && Math.abs(amountCents) !== Math.abs(previousAmountCents)) {
+        throw new FieldError('amountCents', 'splitSum')
+      }
+
+      transaction.merge({
+        ...definedOnly({
+          accountId: input.accountId,
+          date: input.date,
+          categoryId: input.categoryId,
+          payee: input.payee,
+          description: input.description,
+          paidByUserId: input.paidByUserId,
+          status: input.status,
+          isPrivate: input.isPrivate,
+          tags: input.tags,
+          needsReview: input.needsReview,
+        }),
+        ...(account ? { currencyCode: account.currencyCode } : {}),
+        kind,
+        amountCents,
+        updatedByUserId: actor.id,
+      })
+      // Categorizing is reviewing, unless the request says otherwise.
+      if (input.categoryId && input.needsReview === undefined) transaction.needsReview = false
       await transaction.save()
-      if (flipLines) {
-        await trx
-          .from('transaction_splits')
-          .where('transaction_id', transaction.id)
-          .update({ amount_cents: trx.raw('-amount_cents'), updated_at: new Date() })
+
+      if (transaction.isSplit) {
+        await this.syncLines(
+          transaction,
+          Math.sign(amountCents) !== Math.sign(previousAmountCents),
+          trx
+        )
       }
     })
 
-    return this.find(household, transaction.id)
+    return this.find(household, transactionId)
   }
 
   async destroy(household: Household, actor: User, transactionId: number) {
-    const transaction = await this.findForWrite(household, actor, transactionId)
-    await transaction.delete()
+    await db.transaction(async (trx) => {
+      const transaction = await this.lockForWrite(household, actor, transactionId, trx)
+      await transaction.delete()
+    })
   }
 
   /**
    * Replaces the split lines (they must add up to the amount), or with no
    * lines turns the transaction back into a single one, optionally with a
-   * category.
+   * category. Works on the locked row.
    */
   async updateSplits(
     household: Household,
@@ -237,22 +247,21 @@ export default class TransactionService {
     transactionId: number,
     input: UpdateSplitsInput
   ) {
-    const transaction = await this.findForWrite(household, actor, transactionId)
-
     if (input.splits.length > 0 && input.categoryId !== undefined && input.categoryId !== null) {
       throw new FieldError('categoryId', 'split')
     }
-    await this.references.categories(household, [input.categoryId], 'categoryId')
-    await this.references.categories(
-      household,
-      input.splits.map((line) => line.categoryId),
-      'splits'
-    )
-    const lines = this.splitLines(transaction.amountCents, input.splits)
 
     await db.transaction(async (trx) => {
+      const transaction = await this.lockForWrite(household, actor, transactionId, trx)
+      await this.references.categories(household, [input.categoryId], 'categoryId')
+      await this.references.categories(
+        household,
+        input.splits.map((line) => line.categoryId),
+        'splits'
+      )
+      const lines = this.splitLines(transaction.amountCents, input.splits)
+
       await TransactionSplit.query({ client: trx }).where('transaction_id', transaction.id).delete()
-      transaction.useTransaction(trx)
       transaction.merge(
         lines.length > 0
           ? { isSplit: true, categoryId: null, needsReview: false, updatedByUserId: actor.id }
@@ -260,14 +269,16 @@ export default class TransactionService {
       )
       await transaction.save()
       await this.insertLines(household, transaction.id, lines, trx)
+      if (lines.length > 0) await this.syncLines(transaction, false, trx)
     })
 
-    return this.find(household, transaction.id)
+    return this.find(household, transactionId)
   }
 
   /**
-   * Sets one category on many transactions (triage). Transfer legs and
-   * split transactions have no category of their own and are skipped.
+   * Sets one category on many transactions (triage). Transfer legs, split
+   * transactions (no category of their own) and the partner's private rows
+   * are skipped, never touched.
    */
   async bulkCategorize(household: Household, actor: User, input: BulkCategorizeInput) {
     const ids = [...new Set(input.ids)]
@@ -275,25 +286,33 @@ export default class TransactionService {
     if (ids.some((id) => !owned.has(id))) throw new FieldError('ids', 'database.exists')
     await this.references.categories(household, [input.categoryId], 'categoryId')
 
+    const viewer = await privacyViewer(household, actor)
     const rows = await Transaction.query()
       .withScopes((scopes) => scopes.forHousehold(household))
       .whereIn('id', ids)
-    if (rows.some((row) => isHiddenFrom(row, actor.id))) throw new PrivateTransaction()
+    const eligible = rows
+      .filter((row) => !row.isTransferLeg && !row.isSplit && !isHiddenFrom(row, viewer))
+      .map((row) => row.id)
 
-    const eligible = rows.filter((row) => !row.isTransferLeg && !row.isSplit).map((row) => row.id)
+    let updated = 0
     if (eligible.length > 0) {
-      await Transaction.query()
+      // The conditions are repeated in the UPDATE: a row split or turned
+      // into a transfer meanwhile is skipped instead of breaking a CHECK.
+      const affected = await Transaction.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .whereIn('id', eligible)
+        .where('is_split', false)
+        .whereNot('kind', 'transfer')
         .update({
           category_id: input.categoryId,
           ...(input.categoryId === null ? {} : { needs_review: false }),
           updated_by_user_id: actor.id,
           updated_at: new Date(),
         })
+      updated = Number(Array.isArray(affected) ? affected[0] : affected)
     }
 
-    return { updated: eligible.length, skipped: ids.length - eligible.length }
+    return { updated, skipped: ids.length - updated }
   }
 
   protected async findByClientId(household: HouseholdRef, clientId: string) {
@@ -304,12 +323,56 @@ export default class TransactionService {
     return existing ? this.find(household, existing.id) : null
   }
 
-  /** The row, if this person may change it. */
-  protected async findForWrite(household: HouseholdRef, actor: User, transactionId: number) {
-    const transaction = await findInHousehold(Transaction, household, transactionId)
+  /**
+   * The row locked for the rest of `trx`, if this person may change it:
+   * 404 for another household, 409 for a transfer leg, 403 for the
+   * partner's private row.
+   */
+  protected async lockForWrite(
+    household: HouseholdRef,
+    actor: User,
+    transactionId: number,
+    trx: TransactionClientContract
+  ) {
+    const transaction = await Transaction.query({ client: trx })
+      .where('household_id', householdIdOf(household))
+      .where('id', transactionId)
+      .forUpdate()
+      .firstOrFail()
     if (transaction.isTransferLeg) throw new TransferLegReadOnly()
-    if (isHiddenFrom(transaction, actor.id)) throw new PrivateTransaction()
+    if (isHiddenFrom(transaction, await privacyViewer(household, actor))) {
+      throw new PrivateTransaction()
+    }
     return transaction
+  }
+
+  /**
+   * Re-reads the split lines inside `trx`, flips them (absolute values,
+   * computed from the locked rows) when the parent changed direction, and
+   * checks they still add up to the parent before anything commits.
+   */
+  protected async syncLines(
+    transaction: Transaction,
+    flip: boolean,
+    trx: TransactionClientContract
+  ) {
+    const lines = await TransactionSplit.query({ client: trx })
+      .where('transaction_id', transaction.id)
+      .orderBy('sort_order')
+      .orderBy('id')
+    if (flip) {
+      for (const line of lines) {
+        line.amountCents = -line.amountCents
+        await line.save()
+      }
+    }
+
+    const validation = validateSplits(transaction.amountCents, lines)
+    if (!validation.valid) {
+      throw new FieldError('splits', validation.problem, {
+        differenceCents: Math.abs(validation.differenceCents),
+      })
+    }
   }
 
   protected async defaultAccountId(household: Household, actor: User) {

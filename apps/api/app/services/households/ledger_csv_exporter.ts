@@ -6,10 +6,13 @@ import Transaction from '#models/transaction'
 import CategoryGroup from '#models/category_group'
 import HouseholdMember from '#models/household_member'
 import { csvRow } from '#domain/export/csv'
-import { isHiddenFrom } from '#domain/ledger/privacy'
+import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import { centsToDecimal } from '#domain/money/cents'
 
 const PAGE_SIZE = 500
+
+/** Last row of a page: the next one starts strictly after it. */
+type Cursor = { date: string; id: number }
 
 const COLUMNS = [
   'date',
@@ -39,25 +42,25 @@ const COLUMNS = [
  * the reader's locale, amounts as plain decimals, every text cell escaped
  * against formula injection (app/domain/export/csv.ts). The partner's
  * private transactions show their amount under "Private". Streamed page by
- * page; starts with a UTF-8 BOM so Excel reads accents right.
+ * page in `(date, id)` order with a keyset (`(date, id) > last`), so rows
+ * saved or deleted while the export runs never shift a page; starts with a
+ * UTF-8 BOM so Excel reads accents right.
  */
 export default class LedgerCsvExporter {
-  async *csv(household: Household, viewerUserId: number, i18n?: I18n): AsyncGenerator<string> {
+  constructor(protected pageSize = PAGE_SIZE) {}
+
+  async *csv(household: Household, viewer: PrivacyViewer, i18n?: I18n): AsyncGenerator<string> {
     const t = (key: string, fallback: string) => (i18n ? i18n.t(key, {}, fallback) : fallback)
     const names = await this.names(household, t)
 
     yield `\uFEFF${csvRow(COLUMNS.map((column) => t(`messages.export.columns.${column}`, column)))}`
 
-    for (let page = 1; ; page++) {
-      const rows = await Transaction.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .preload('splits', (splits) => splits.orderBy('sort_order').orderBy('id'))
-        .orderBy('date')
-        .orderBy('id')
-        .forPage(page, PAGE_SIZE)
+    let after: Cursor | null = null
+    for (;;) {
+      const rows: Transaction[] = await this.page(household, after)
 
       for (const transaction of rows) {
-        const masked = isHiddenFrom(transaction, viewerUserId)
+        const masked = isHiddenFrom(transaction, viewer)
         const lines =
           !masked && transaction.isSplit
             ? transaction.splits.map((line) => ({
@@ -101,8 +104,27 @@ export default class LedgerCsvExporter {
         }
       }
 
-      if (rows.length < PAGE_SIZE) break
+      if (rows.length < this.pageSize) break
+      const last = rows[rows.length - 1]
+      after = { date: last.date, id: last.id }
     }
+  }
+
+  /** The next page after `cursor` in (date, id) order. */
+  protected page(household: Household, cursor: Cursor | null) {
+    const query = Transaction.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .preload('splits', (splits) => splits.orderBy('sort_order').orderBy('id'))
+      .orderBy('date')
+      .orderBy('id')
+      .limit(this.pageSize)
+    if (cursor) {
+      query.whereRaw('(transactions.date, transactions.id) > (?::date, ?)', [
+        cursor.date,
+        cursor.id,
+      ])
+    }
+    return query
   }
 
   protected async names(household: Household, t: (key: string, fallback: string) => string) {

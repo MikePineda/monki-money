@@ -24,6 +24,15 @@ function pgUniqueViolation() {
   )
 }
 
+function pgForeignKeyViolation(statement: string) {
+  return Object.assign(
+    new Error(
+      `${statement} - update or delete on table violates foreign key constraint "transactions_category_id_foreign"`
+    ),
+    { code: '23503', constraint: 'transactions_category_id_foreign' }
+  )
+}
+
 test.group('Exception handler', () => {
   test('test_server_errors_never_leak_driver_messages_in_production', async ({ assert }) => {
     const { status, body } = await render(new Error('relation "secret_table" does not exist'), {
@@ -52,6 +61,21 @@ test.group('Exception handler', () => {
         message: 'This already exists. Reload and try again',
         code: 'E_CONFLICT',
       })
+    }
+  })
+
+  test('test_foreign_key_race_on_delete_maps_to_in_use', async ({ assert }) => {
+    const cases: Array<[string, string]> = [
+      ['delete from "categories" where "id" = $1', 'E_CATEGORY_IN_USE'],
+      ['delete from "accounts" where "id" = $1', 'E_ACCOUNT_IN_USE'],
+      ['insert into "transactions" ("account_id") values ($1)', 'E_CONFLICT'],
+    ]
+    for (const [statement, code] of cases) {
+      const { status, body } = await render(pgForeignKeyViolation(statement), { debug: false })
+
+      assert.equal(status, 409, statement)
+      assert.equal(body.code, code, statement)
+      assert.notInclude(JSON.stringify(body), 'transactions_category_id_foreign')
     }
   })
 })

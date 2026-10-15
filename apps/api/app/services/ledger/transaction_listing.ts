@@ -2,6 +2,7 @@ import Transaction from '#models/transaction'
 import type Household from '#models/household'
 import { monthRange } from '#domain/calendar/month'
 import type { TransactionFilters } from '#services/ledger/dto'
+import type { PrivacyViewer } from '#domain/ledger/privacy'
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
 const DEFAULT_PER_PAGE = 50
@@ -18,11 +19,11 @@ function containing(term: string) {
  *
  * Privacy: a private transaction of the partner still appears (masked by
  * the transformer, its amount counts) but never matches a filter on what
- * is hidden from the reader (text search, category, "uncategorized"), so
- * a search cannot reveal what the payee or category was.
+ * is hidden from the reader (text search, category, "uncategorized",
+ * review state), so a search cannot reveal what the payee or category was.
  */
 export default class TransactionListing {
-  async paginate(household: Household, viewerUserId: number, filters: TransactionFilters) {
+  async paginate(household: Household, viewer: PrivacyViewer, filters: TransactionFilters) {
     const query = Transaction.query()
       .withScopes((scopes) => scopes.forHousehold(household))
       .preload('splits', (splits) => splits.orderBy('sort_order').orderBy('id'))
@@ -33,11 +34,14 @@ export default class TransactionListing {
     if (filters.paidByUserId !== undefined) query.where('paid_by_user_id', filters.paidByUserId)
     if (filters.kind) query.where('kind', filters.kind)
     if (filters.status) query.where('status', filters.status)
-    if (filters.needsReview !== undefined) query.where('needs_review', filters.needsReview)
+    if (filters.needsReview !== undefined) {
+      this.visibleDetails(query, viewer)
+      query.where('needs_review', filters.needsReview)
+    }
 
     if (filters.categoryId?.length) {
       const ids = filters.categoryId
-      this.visibleDetails(query, viewerUserId)
+      this.visibleDetails(query, viewer)
       query.where((builder) => {
         builder.whereIn('transactions.category_id', ids).orWhereExists((splits) => {
           splits
@@ -49,13 +53,13 @@ export default class TransactionListing {
     }
 
     if (filters.uncategorized) {
-      this.visibleDetails(query, viewerUserId)
+      this.visibleDetails(query, viewer)
       query.whereNull('category_id').where('is_split', false).whereNot('kind', 'transfer')
     }
 
     if (filters.q) {
       const pattern = containing(filters.q)
-      this.visibleDetails(query, viewerUserId)
+      this.visibleDetails(query, viewer)
       query.where((builder) => {
         builder
           .whereILike('payee', pattern)
@@ -75,16 +79,20 @@ export default class TransactionListing {
     if (range.to) query.where('date', '<=', range.to)
   }
 
-  /** Rows whose details the reader may see (see app/domain/ledger/privacy.ts). */
-  protected visibleDetails(query: TransactionQuery, viewerUserId: number) {
-    query.where((builder) => {
-      builder
-        .where('is_private', false)
-        .orWhere('paid_by_user_id', viewerUserId)
-        .orWhere((joint) =>
-          joint.whereNull('paid_by_user_id').where('created_by_user_id', viewerUserId)
-        )
-    })
+  /**
+   * Rows whose details the reader may see: the SQL twin of `isHiddenFrom`
+   * (app/domain/ledger/privacy.ts). A private row is hidden when its owner
+   * (payer, else creator) is another current member.
+   */
+  protected visibleDetails(query: TransactionQuery, viewer: PrivacyViewer) {
+    const owner = 'COALESCE(transactions.paid_by_user_id, transactions.created_by_user_id)'
+    query.whereRaw(
+      `NOT (transactions.is_private
+            AND ${owner} IS NOT NULL
+            AND ${owner} <> ?
+            AND ${owner} = ANY(?::int[]))`,
+      [viewer.userId, [...viewer.memberIds]]
+    )
   }
 
   protected sort(query: TransactionQuery, sort: NonNullable<TransactionFilters['sort']>) {

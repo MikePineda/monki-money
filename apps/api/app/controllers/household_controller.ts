@@ -8,6 +8,7 @@ import HouseholdService from '#services/households/household_service'
 import HouseholdTransformer from '#transformers/household_transformer'
 import HouseholdExporter from '#services/households/household_exporter'
 import LedgerCsvExporter from '#services/households/ledger_csv_exporter'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
 import {
   deleteHouseholdValidator,
   exportHouseholdValidator,
@@ -50,7 +51,7 @@ export default class HouseholdController {
   async export(ctx: HttpContext) {
     const { format } = await ctx.request.validateUsing(exportHouseholdValidator)
     await ctx.bouncer.with(HouseholdPolicy).authorize('export', ctx.membership)
-    const viewer = ctx.auth.getUserOrFail()
+    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
 
     const date = new Date().toISOString().slice(0, 10)
     ctx.response.header('Cache-Control', 'no-store')
@@ -61,7 +62,7 @@ export default class HouseholdController {
         'Content-Disposition',
         `attachment; filename="monkimoney-transactions-${date}.csv"`
       )
-      ctx.response.stream(Readable.from(this.csvExporter.csv(ctx.household, viewer.id, ctx.i18n)))
+      ctx.response.stream(Readable.from(this.csvExporter.csv(ctx.household, viewer, ctx.i18n)))
       return
     }
 
@@ -70,7 +71,7 @@ export default class HouseholdController {
       'Content-Disposition',
       `attachment; filename="monkimoney-export-${date}.json"`
     )
-    ctx.response.stream(Readable.from(this.exporter.json(ctx.household, viewer.id)))
+    ctx.response.stream(Readable.from(this.exporter.json(ctx.household, viewer)))
   }
 
   /**

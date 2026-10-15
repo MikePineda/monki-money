@@ -615,4 +615,24 @@ test.group('Transactions: update and delete', () => {
     await leg.refresh()
     assert.isNull(leg.categoryId)
   })
+
+  test('test_changing_the_account_takes_its_currency', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{}] })
+    const wise = await household
+      .related('accounts')
+      .create({ name: 'Wise USD', kind: 'wallet', currencyCode: 'USD' })
+    const transaction = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+    }).create()
+
+    const response = await client
+      .patch(`/api/v1/transactions/${transaction.id}`)
+      .json({ accountId: wise.id })
+      .actingAs(owner)
+
+    response.assertBodyContains({ data: { accountId: wise.id, currencyCode: 'USD' } })
+    await transaction.refresh()
+    assert.equal(transaction.currencyCode, 'USD')
+  })
 })

@@ -5,10 +5,12 @@ import { accountBalance } from '#domain/ledger/balances'
 import type { AccountBalance } from '#services/accounts/dto'
 
 /**
- * Balances per account: opening balance + SUM(amount_cents) of every
- * ledger row of the account (transfer legs included). `cleared` counts
- * settled rows only, `available` pending ones too. One grouped query for
- * all the accounts.
+ * Balances per account: opening balance + SUM(amount_cents) of the
+ * account's ledger rows (transfer legs included). `openingBalanceCents` is
+ * the balance at the end of `openingBalanceDate`, so when that date is set
+ * only rows dated after it count (earlier ones are already inside it);
+ * without a date every row counts. `cleared` counts settled rows only,
+ * `available` pending ones too. One grouped query for all the accounts.
  */
 export default class AccountBalances {
   async forAccounts(accounts: Account[]): Promise<Map<number, AccountBalance>> {
@@ -16,13 +18,19 @@ export default class AccountBalances {
 
     const totals: Array<{ account_id: number; status: TransactionStatus; total: number }> = await db
       .from('transactions')
+      .join('accounts', 'accounts.id', 'transactions.account_id')
       .whereIn(
-        'account_id',
+        'transactions.account_id',
         accounts.map((account) => account.id)
       )
-      .groupBy('account_id', 'status')
-      .select('account_id', 'status')
-      .sum('amount_cents as total')
+      .where((rows) =>
+        rows
+          .whereNull('accounts.opening_balance_date')
+          .orWhereColumn('transactions.date', '>', 'accounts.opening_balance_date')
+      )
+      .groupBy('transactions.account_id', 'transactions.status')
+      .select('transactions.account_id', 'transactions.status')
+      .sum('transactions.amount_cents as total')
 
     return new Map(
       accounts.map((account) => [

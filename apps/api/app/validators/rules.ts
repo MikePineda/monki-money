@@ -6,8 +6,17 @@ import type { FieldContext, SchemaTypes } from '@vinejs/vine/types'
  * (no Date/DateTime conversion), money is integer cents.
  */
 
+/** Years the app stores: anything else is a typo (and some do not fit Postgres). */
+const MIN_YEAR = 1900
+const MAX_YEAR = 2999
+
+function isSupportedYear(value: string) {
+  const year = Number(value.slice(0, 4))
+  return year >= MIN_YEAR && year <= MAX_YEAR
+}
+
 function isIsoDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !isSupportedYear(value)) return false
   const date = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
@@ -25,15 +34,19 @@ const timezoneRule = vine.createRule((value: unknown, _: undefined, field: Field
 })
 
 const monthRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
-  if (typeof value !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-(0[1-9]|1[0-2])$/.test(value) ||
+    !isSupportedYear(value)
+  ) {
     field.report('The {{ field }} field must be a month (YYYY-MM)', 'month', field)
   }
 })
 
-/** Calendar month as 'YYYY-MM'. */
+/** Calendar month as 'YYYY-MM', years 1900-2999. */
 export const month = () => vine.string().trim().use(monthRule())
 
-/** Calendar date as 'YYYY-MM-DD'. */
+/** Calendar date as 'YYYY-MM-DD', years 1900-2999. */
 export const isoDate = () => vine.string().trim().use(isoDateRule())
 
 /** IANA time zone name (Australia/Brisbane). */
@@ -45,8 +58,8 @@ export const email = () => vine.string().trim().toLowerCase().email().maxLength(
 /** New password (scrypt-hashed). */
 export const newPassword = () => vine.string().minLength(10).maxLength(128)
 
-/** Positive integer id (route params and foreign keys). */
-export const id = () => vine.number().withoutDecimals().positive()
+/** Positive integer id (route params and foreign keys), within Postgres `integer`. */
+export const id = () => vine.number().withoutDecimals().positive().max(2_147_483_647)
 
 /** Integer amount in cents (may be negative). */
 export const cents = () => vine.number().withoutDecimals().min(-2_000_000_000).max(2_000_000_000)
