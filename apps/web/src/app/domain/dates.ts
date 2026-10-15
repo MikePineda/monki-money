@@ -39,3 +39,16 @@ export function formatWeekdayDate(
   const text = `${part('weekday')} ${part('day')} ${part('month')}`
   return options.withYear ? `${text} ${part('year')}` : text
 }
+
+/** A 'YYYY-MM-DD' calendar date as "5 Oct" / "5 oct" (no weekday, no year). */
+export function formatDayMonth(isoDate: string, locale: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number) as [number, number, number]
+  const parts = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).formatToParts(Date.UTC(year, month - 1, day))
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    (parts.find((item) => item.type === type)?.value ?? '').replace(/\.$/, '')
+  return `${part('day')} ${part('month')}`
+}

@@ -15,21 +15,18 @@ import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import type { SelectOption } from '../../../shared/ui/select-sheet/select-sheet.component'
 import { SkeletonComponent } from '../../../shared/ui/skeleton/skeleton.component'
 import { TransactionsStore, type TransferDetails } from '../transactions.store'
+import type { TransactionDraft } from '../../../shared/transaction-form/transaction-draft'
 import {
   EMPTY_DRAFT,
   TransactionFormComponent,
-} from '../ui/transaction-form/transaction-form.component'
-import {
-  draftFromTransaction,
-  draftToPatch,
-  type TransactionDraft,
-} from '../ui/transaction-form/transaction-draft'
+} from '../../../shared/transaction-form/transaction-form.component'
 import {
   EMPTY_TRANSFER,
   TransferFormComponent,
   transferDraftValid,
   type TransferDraft,
-} from '../ui/transfer-form/transfer-form.component'
+} from '../../../shared/transaction-form/transfer-form.component'
+import { draftFromTransaction, draftToPatch } from '../ui/transaction-draft'
 import { SplitSheetComponent, type SplitSheetData } from './split.sheet'
 
 /**

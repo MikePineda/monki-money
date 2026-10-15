@@ -97,6 +97,35 @@ export function todayIn(timeZone: string, now: Date = new Date()): IsoDate {
   return format.format(now)
 }
 
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
+
+function dayIndex(date: IsoDate): number {
+  const match = ISO_DATE.exec(date)
+  if (!match) {
+    throw new RangeError(`Not a YYYY-MM-DD date: ${date}`)
+  }
+  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86_400_000
+}
+
+function fromDayIndex(index: number): IsoDate {
+  return new Date(index * 86_400_000).toISOString().slice(0, 10)
+}
+
+/** True for a real calendar date written 'YYYY-MM-DD' (no 30 February). */
+export function isIsoDate(value: string): boolean {
+  return ISO_DATE.test(value) && fromDayIndex(dayIndex(value)) === value
+}
+
+/** The calendar date `delta` days after `date` (negative goes back). */
+export function addDays(date: IsoDate, delta: number): IsoDate {
+  return fromDayIndex(dayIndex(date) + delta)
+}
+
+/** Whole days from `from` to `to`: positive when `to` is later. */
+export function daysBetween(from: IsoDate, to: IsoDate): number {
+  return dayIndex(to) - dayIndex(from)
+}
+
 /** The current month in a time zone. */
 export function currentMonthIn(timeZone: string, now: Date = new Date()): YearMonth {
   return monthOf(todayIn(timeZone, now))

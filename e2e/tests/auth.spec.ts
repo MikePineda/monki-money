@@ -32,6 +32,9 @@ test.describe('journey 1: login and session expiry', () => {
     await login.goto()
     await login.logIn(SEEDED_OWNER.email, SEEDED_OWNER.password)
     await expect(page).toHaveURL(/\/month$/)
+    // Let the month's own requests finish: a response still in flight would
+    // set the (cookie-store) session cookie again right after it is cleared.
+    await page.waitForLoadState('networkidle')
 
     // The session cookie disappears (expired or revoked elsewhere).
     await context.clearCookies()
