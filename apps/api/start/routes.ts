@@ -89,6 +89,14 @@ router
           .use(authenticated())
 
         /*
+         * Verified users without a household (never had one, or left it).
+         */
+        router
+          .post('households', [controllers.Households, 'store'])
+          .as('households.store')
+          .use([...authenticated(), middleware.verified()])
+
+        /*
          * Restore is the only household route open while the household is
          * scheduled for deletion.
          */

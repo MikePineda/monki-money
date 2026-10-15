@@ -1,12 +1,15 @@
 import { DateTime } from 'luxon'
-import type User from '#models/user'
+import User from '#models/user'
+import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type Household from '#models/household'
 import HouseholdMember from '#models/household_member'
 import { FieldError } from '#exceptions/field_error'
-import type { UpdateHouseholdInput } from '#services/households/dto'
+import HouseholdCreator from '#services/households/household_creator'
 import { canRestore, deletionDate } from '#domain/households/deletion_window'
+import type { NewHouseholdInput, UpdateHouseholdInput } from '#services/households/dto'
 import {
+  AlreadyInHousehold,
   HouseholdNotPendingDeletion,
   OwnerCannotLeave,
   RestoreWindowExpired,
@@ -17,7 +20,38 @@ import {
  * (30-day restore window; the purge job arrives with the worker). Callers
  * authorize first (HouseholdPolicy).
  */
+@inject()
 export default class HouseholdService {
+  constructor(protected creator: HouseholdCreator) {}
+
+  /**
+   * A household for a user who has none (left one, or never had one): owner
+   * membership, shared taxonomy in the household's locale, current
+   * household set. MVP rule "one user = one household": 409 when the user
+   * already has one. The user row is locked so two parallel requests cannot
+   * both create one.
+   */
+  async createFor(user: User, input: NewHouseholdInput) {
+    return db.transaction(async (trx) => {
+      const owner = await User.query({ client: trx }).where('id', user.id).forUpdate().firstOrFail()
+      const membership = await HouseholdMember.query({ client: trx })
+        .where('user_id', owner.id)
+        .first()
+      if (owner.currentHouseholdId !== null || membership) throw new AlreadyInHousehold()
+
+      return this.creator.create(
+        {
+          owner,
+          name: input.name,
+          locale: input.locale ?? owner.locale,
+          timezone: input.timezone,
+          currencyCode: input.currencyCode,
+        },
+        trx
+      )
+    })
+  }
+
   async update(household: Household, input: UpdateHouseholdInput) {
     if (input.name !== undefined) household.name = input.name
     if (input.locale !== undefined) household.locale = input.locale

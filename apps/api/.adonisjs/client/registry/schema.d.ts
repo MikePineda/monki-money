@@ -199,6 +199,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'households.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/households'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/household').createHouseholdValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/household').createHouseholdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/households_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/households_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'household.restore': {
     methods: ["POST"]
     pattern: '/api/v1/household/restore'

@@ -20,6 +20,7 @@ export type ScannedRoutes = {
     'auth.email.resend': { paramsTuple?: []; params?: {} }
     'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
     'me.update': { paramsTuple?: []; params?: {} }
+    'households.store': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.show': { paramsTuple?: []; params?: {} }
     'household.update': { paramsTuple?: []; params?: {} }
@@ -121,6 +122,7 @@ export type ScannedRoutes = {
     'auth.logout_all': { paramsTuple?: []; params?: {} }
     'auth.email.resend': { paramsTuple?: []; params?: {} }
     'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
+    'households.store': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
     'household.leave': { paramsTuple?: []; params?: {} }

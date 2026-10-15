@@ -32,6 +32,9 @@ export interface ApiDefinition {
   me: {
     update: typeof routes['me.update']
   }
+  households: {
+    store: typeof routes['households.store']
+  }
   household: {
     restore: typeof routes['household.restore']
     show: typeof routes['household.show']
