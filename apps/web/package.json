@@ -28,6 +28,8 @@
     "@jsverse/transloco": "8.4.0",
     "@monkimoney/shared": "*",
     "@tuyau/core": "1.2.2",
+    "d3-scale": "4.0.2",
+    "d3-shape": "3.2.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -38,6 +40,8 @@
     "@eslint/js": "^10.0.1",
     "@jsverse/transloco-keys-manager": "8.1.1",
     "@tailwindcss/postcss": "4.3.3",
+    "@types/d3-scale": "4.0.9",
+    "@types/d3-shape": "3.2.0",
     "angular-eslint": "22.6.0",
     "eslint": "^10.11.0",
     "jsdom": "^30.0.0",
