@@ -1,0 +1,32 @@
+{
+  "eyebrow": "Monthly summary",
+  "loading": "Loading the summary",
+  "generating": "Writing your summary",
+  "missing": {
+    "title": "Get your summary for {month}",
+    "body": "A short read of the month, written by AI from your totals.",
+    "action": "Generate summary"
+  },
+  "noActivity": "Nothing to summarise for {month} yet. Add or import transactions first.",
+  "future": "{month} has not started yet.",
+  "quota": "AI limit reached for this month",
+  "unavailable": "Summaries are not available right now",
+  "error": "The summary could not be loaded.",
+  "retry": "Try again",
+  "highlights": "Highlights",
+  "tone": {
+    "positive": "Good news:",
+    "neutral": "Note:",
+    "warning": "Worth a look:"
+  },
+  "notice": {
+    "noActivity": "There is nothing new to summarise. This is the last summary.",
+    "future": "This month has not started yet.",
+    "quota": "AI limit reached for this month. This is the last summary.",
+    "unavailable": "Summaries are not available right now. This is the last summary.",
+    "error": "The summary could not be regenerated. Try again later."
+  },
+  "updated": "Written by AI · Updated {time}",
+  "menu": "Summary options",
+  "regenerate": "Regenerate summary"
+}

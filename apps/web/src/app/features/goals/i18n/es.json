@@ -1,0 +1,160 @@
+{
+  "title": "Metas de ahorro",
+  "back": "Volver",
+  "add": "Nueva meta",
+  "loading": "Cargando metas",
+  "reorder": "Reordenar metas",
+  "reorderHint": "Usa las flechas para subir o bajar una meta, o arrástrala desde su asa.",
+  "filters": {
+    "label": "Mostrar metas",
+    "active": "Activas",
+    "reached": "Alcanzadas",
+    "archived": "Archivadas"
+  },
+  "error": {
+    "title": "No se cargaron las metas",
+    "body": "Revisa tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar"
+  },
+  "empty": {
+    "active": {
+      "title": "Aún no hay metas de ahorro",
+      "body": "Fija un objetivo y mira cuándo lo vas a lograr.",
+      "action": "Crear una meta"
+    },
+    "reached": {
+      "title": "Aún no hay metas alcanzadas",
+      "body": "Las metas que marques como alcanzadas aparecen aquí."
+    },
+    "archived": {
+      "title": "No hay metas archivadas",
+      "body": "Las metas que archives aparecen aquí."
+    }
+  },
+  "owner": {
+    "household": "Hogar",
+    "you": "Tú"
+  },
+  "card": {
+    "progress": "{saved} de {target}",
+    "percent": "{percent}%",
+    "progressLabel": "{name}: {percent}% ahorrado",
+    "projected": "Proyectada para {date}",
+    "needsPlan": "Necesita un plan",
+    "reached": "Alcanzada",
+    "archived": "Archivada",
+    "unknown": "Proyección no disponible",
+    "onTrack": "A tiempo",
+    "behind": "Atrasada",
+    "up": "Subir {name}",
+    "down": "Bajar {name}"
+  },
+  "form": {
+    "newTitle": "Nueva meta",
+    "editTitle": "Editar meta",
+    "name": "Nombre",
+    "target": "Monto objetivo",
+    "amountHint": "Toca para escribir el monto",
+    "targetDate": "Fecha objetivo",
+    "optional": "Opcional",
+    "clearDate": "Quitar fecha",
+    "saved": {
+      "label": "Ahorrado hasta ahora",
+      "account": "Seguir una cuenta",
+      "manual": "Escribirlo"
+    },
+    "account": "Cuenta",
+    "chooseAccount": "Elige una cuenta",
+    "balance": "Saldo {amount}",
+    "accountHint": "El saldo confirmado de la cuenta cuenta como ahorrado.",
+    "starting": "Monto ya ahorrado",
+    "contribution": {
+      "label": "Aportación mensual",
+      "estimate": "Que la app la estime",
+      "fixed": "Fijar un monto",
+      "estimateHint": "Usa tu ahorro promedio de los últimos 3 meses.",
+      "amount": "Monto mensual"
+    },
+    "owner": "De quién es la meta",
+    "create": "Crear meta",
+    "save": "Guardar cambios",
+    "cancel": "Cancelar",
+    "problems": {
+      "name": "Ponle un nombre a la meta.",
+      "targetCents": "Escribe un objetivo mayor a $0.00.",
+      "accountId": "Elige la cuenta a seguir."
+    }
+  },
+  "detail": {
+    "loading": "Cargando la meta",
+    "edit": "Editar meta",
+    "notFound": {
+      "title": "Esta meta ya no existe",
+      "body": "Quizá se eliminó desde otro dispositivo.",
+      "back": "Volver a metas"
+    },
+    "error": "No se cargó la meta.",
+    "retry": "Reintentar",
+    "eyebrow": "Ahorrado",
+    "of": "de {target}",
+    "remaining": "Faltan {amount}",
+    "reached": "Meta alcanzada",
+    "progressLabel": "{percent}% ahorrado",
+    "badge": {
+      "reached": "Alcanzada",
+      "archived": "Archivada"
+    },
+    "pace": {
+      "onTrack": "A tiempo para el {date}",
+      "behind": "Atrasada para el {date}"
+    },
+    "chart": {
+      "title": "Proyección",
+      "subtitle": "Estimado al ritmo actual"
+    },
+    "stats": {
+      "label": "Cifras de la meta",
+      "months": "Meses para la meta",
+      "monthsValue": "{count, plural, one {# mes} other {# meses}}",
+      "date": "Fecha proyectada",
+      "rate": "Ritmo mensual",
+      "required": "Necesario al mes",
+      "requiredBy": "Para lograrla antes del {date}",
+      "none": "Aún no"
+    },
+    "rateSource": {
+      "average": "De tus últimos 3 meses",
+      "contribution": "Tu aportación",
+      "none": "Aún no hay historial de ahorro"
+    },
+    "openEnded": {
+      "title": "Todavía sin fecha",
+      "noHistory": "Aún no hay historial de ahorro para estimar, así que la app no puede decir cuándo la vas a lograr.",
+      "spendingMore": "En tus últimos 3 meses gastaste más de lo que ganaste, así que a ese ritmo esta meta no se alcanza.",
+      "zeroContribution": "Tu aportación mensual es de $0.00, así que esta meta no se alcanza.",
+      "tooSlow": "A este ritmo mensual la meta queda a más de 100 años.",
+      "action": "Fijar una aportación mensual"
+    },
+    "actions": {
+      "label": "Acciones de la meta",
+      "reached": "Marcar como alcanzada",
+      "reopen": "Marcar como activa",
+      "archive": "Archivar",
+      "restore": "Restaurar",
+      "delete": "Eliminar meta"
+    },
+    "delete": {
+      "title": "¿Eliminar {name}?",
+      "body": "La meta se elimina para los dos. Tus movimientos se quedan como están.",
+      "confirm": "Eliminar meta",
+      "cancel": "Conservarla"
+    },
+    "toast": {
+      "saved": "Meta guardada",
+      "reached": "{name} marcada como alcanzada",
+      "archived": "{name} archivada",
+      "active": "{name} está activa otra vez",
+      "deleted": "{name} eliminada"
+    }
+  }
+}

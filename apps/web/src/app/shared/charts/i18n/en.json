@@ -26,6 +26,7 @@
     "actual": "Actual",
     "projected": "Projected (estimate)",
     "goal": "Goal {amount}",
+    "target": "Target {month}",
     "reaches": "Reaches the goal in {month} (estimate).",
     "reached": "Goal reached in {month}.",
     "beyond": "At this pace the goal is reached in {month}, after this chart ends.",

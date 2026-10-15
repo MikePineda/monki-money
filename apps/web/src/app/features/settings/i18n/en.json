@@ -52,6 +52,9 @@
   "categories": {
     "title": "Categories"
   },
+  "goals": {
+    "title": "Savings goals"
+  },
   "import": {
     "title": "Import bank CSV"
   },

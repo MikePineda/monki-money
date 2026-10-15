@@ -52,6 +52,9 @@
   "categories": {
     "title": "Categorías"
   },
+  "goals": {
+    "title": "Metas de ahorro"
+  },
   "import": {
     "title": "Importar CSV del banco"
   },

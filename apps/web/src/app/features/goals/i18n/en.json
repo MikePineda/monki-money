@@ -1,0 +1,160 @@
+{
+  "title": "Savings goals",
+  "back": "Back",
+  "add": "New goal",
+  "loading": "Loading goals",
+  "reorder": "Reorder goals",
+  "reorderHint": "Use the arrows to move a goal up or down, or drag it by its handle.",
+  "filters": {
+    "label": "Show goals",
+    "active": "Active",
+    "reached": "Reached",
+    "archived": "Archived"
+  },
+  "error": {
+    "title": "Goals did not load",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "empty": {
+    "active": {
+      "title": "No savings goals yet",
+      "body": "Set a target and see when you will get there.",
+      "action": "Create a goal"
+    },
+    "reached": {
+      "title": "No goals reached yet",
+      "body": "Goals you mark as reached show up here."
+    },
+    "archived": {
+      "title": "No archived goals",
+      "body": "Goals you archive show up here."
+    }
+  },
+  "owner": {
+    "household": "Household",
+    "you": "You"
+  },
+  "card": {
+    "progress": "{saved} of {target}",
+    "percent": "{percent}%",
+    "progressLabel": "{name}: {percent}% saved",
+    "projected": "Projected {date}",
+    "needsPlan": "Needs a plan",
+    "reached": "Reached",
+    "archived": "Archived",
+    "unknown": "Projection unavailable",
+    "onTrack": "On track",
+    "behind": "Behind",
+    "up": "Move {name} up",
+    "down": "Move {name} down"
+  },
+  "form": {
+    "newTitle": "New goal",
+    "editTitle": "Edit goal",
+    "name": "Name",
+    "target": "Target amount",
+    "amountHint": "Tap to enter the amount",
+    "targetDate": "Target date",
+    "optional": "Optional",
+    "clearDate": "Clear date",
+    "saved": {
+      "label": "Saved so far",
+      "account": "Track an account",
+      "manual": "Enter manually"
+    },
+    "account": "Account",
+    "chooseAccount": "Choose an account",
+    "balance": "Balance {amount}",
+    "accountHint": "The account's cleared balance counts as saved.",
+    "starting": "Amount already saved",
+    "contribution": {
+      "label": "Monthly contribution",
+      "estimate": "Let the app estimate it",
+      "fixed": "Set an amount",
+      "estimateHint": "Uses your average savings over the last 3 months.",
+      "amount": "Monthly amount"
+    },
+    "owner": "Whose goal",
+    "create": "Create goal",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "problems": {
+      "name": "Give the goal a name.",
+      "targetCents": "Enter a target above $0.00.",
+      "accountId": "Choose the account to track."
+    }
+  },
+  "detail": {
+    "loading": "Loading the goal",
+    "edit": "Edit goal",
+    "notFound": {
+      "title": "This goal no longer exists",
+      "body": "It may have been deleted on another device.",
+      "back": "Back to goals"
+    },
+    "error": "The goal did not load.",
+    "retry": "Try again",
+    "eyebrow": "Saved",
+    "of": "of {target}",
+    "remaining": "{amount} to go",
+    "reached": "Goal reached",
+    "progressLabel": "{percent}% saved",
+    "badge": {
+      "reached": "Reached",
+      "archived": "Archived"
+    },
+    "pace": {
+      "onTrack": "On track for {date}",
+      "behind": "Behind for {date}"
+    },
+    "chart": {
+      "title": "Projection",
+      "subtitle": "Estimate at the current pace"
+    },
+    "stats": {
+      "label": "Goal figures",
+      "months": "Months to goal",
+      "monthsValue": "{count, plural, one {# month} other {# months}}",
+      "date": "Projected date",
+      "rate": "Monthly rate",
+      "required": "Needed per month",
+      "requiredBy": "To reach it by {date}",
+      "none": "Not yet"
+    },
+    "rateSource": {
+      "average": "From your last 3 months",
+      "contribution": "Your contribution",
+      "none": "No saving history yet"
+    },
+    "openEnded": {
+      "title": "No date yet",
+      "noHistory": "There is no saving history to estimate from yet, so the app cannot say when you will get there.",
+      "spendingMore": "Over your last 3 months you spent more than you earned, so at that pace this goal is never reached.",
+      "zeroContribution": "Your monthly contribution is $0.00, so this goal is never reached.",
+      "tooSlow": "At this monthly rate the goal is more than 100 years away.",
+      "action": "Set a monthly contribution"
+    },
+    "actions": {
+      "label": "Goal actions",
+      "reached": "Mark as reached",
+      "reopen": "Mark as active",
+      "archive": "Archive",
+      "restore": "Restore",
+      "delete": "Delete goal"
+    },
+    "delete": {
+      "title": "Delete {name}?",
+      "body": "The goal is removed for both of you. Your transactions stay as they are.",
+      "confirm": "Delete goal",
+      "cancel": "Keep it"
+    },
+    "toast": {
+      "saved": "Goal saved",
+      "reached": "{name} marked as reached",
+      "archived": "{name} archived",
+      "active": "{name} is active again",
+      "deleted": "{name} deleted"
+    }
+  }
+}

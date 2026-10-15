@@ -63,6 +63,22 @@ is loaded or sent. E2E serves a stand-in for it (`e2e/support/turnstile.ts`).
 Shared (`packages/shared`): wire types and pure helpers used by both sides,
 compiled to `dist/` because Node does not load `.ts` from `node_modules`.
 
+Monthly summary card (web): the Month view's insights slot leads with
+`InsightSummaryCardComponent`, backed by a root `InsightsStore`
+(`features/month/data-access`) that caches one summary per month and
+language. Switching months reads the cache, a ledger change in the month
+(`MonthStore.revisionOf`) drops its entry, and a change of the user's saved
+locale (the language the API answers in) reads the other language. States:
+_loading_ (skeleton); _missing_ (404: "Get your summary for {month}" with one
+Generate button; nothing is generated without a tap); _generating_ (skeleton
+and "Writing your summary"); _ready_ (headline, the body through
+`domain/markdown-lite` rendered by templates only, never `innerHTML`,
+highlights as a status icon plus a tone word, "Written by AI · Updated {time}",
+and Regenerate (`force: true`) in an overflow sheet); quiet lines for 422
+`month`/`noActivity` or `future`, 402 (AI limit reached) and 503 (summaries
+off); and an error with Try again. A failed regenerate keeps the stored
+summary and says why under it. The two deterministic insight cards stay below.
+
 **Review before save (web).** Anything a machine proposes and a person
 confirms (the bank import, the receipt scanner's lines) uses the same
 pattern. `domain/import-row.ts` is the pure row state machine: a row's tone

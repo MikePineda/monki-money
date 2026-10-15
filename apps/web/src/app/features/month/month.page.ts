@@ -41,6 +41,7 @@ import { MonthPickerComponent } from '../../shared/ui/month-picker/month-picker.
 import type { Person } from '../../shared/ui/person-dot/person-dot.component'
 import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component'
 import { StatTileComponent } from '../../shared/ui/stat-tile/stat-tile.component'
+import { InsightSummaryCardComponent } from './ui/insight-summary/insight-summary-card.component'
 import { MonthHeroComponent } from './ui/month-hero.component'
 
 /**
@@ -98,7 +99,8 @@ function markColor(person: Person): ChartColor {
  * The Month view `/month/:ym?` (DESIGN.md, screen skeleton "Month"): month
  * strip, money spent as the hero with the change against the previous
  * month, three stat tiles with sparklines, spending by category group,
- * the 6-month trend, who paid, the top five expenses and two insights.
+ * the 6-month trend, who paid, the top five expenses, the AI-written
+ * summary (InsightSummaryCardComponent) and two deterministic insights.
  * Data comes from the MonthStore: switching months keeps the previous
  * frame at 60% opacity until the new one arrives; skeletons only on the
  * first load. A month without transactions shows an honest empty state.
@@ -112,6 +114,7 @@ function markColor(person: Person): ChartColor {
     CardComponent,
     ChartFrameComponent,
     EmptyStateComponent,
+    InsightSummaryCardComponent,
     ListRowComponent,
     MonthHeroComponent,
     MonthPickerComponent,
@@ -296,21 +299,20 @@ function markColor(person: Person): ChartColor {
               </section>
             }
 
-            @if (insights().length > 0) {
-              <section data-testid="month.insights" class="flex flex-col gap-4">
-                <h2 class="text-heading text-ink-1">{{ 'month.insights.title' | transloco }}</h2>
-                @for (insight of insights(); track insight.key) {
-                  <app-card
-                    data-testid="month.insight"
-                    [eyebrow]="'month.insights.eyebrow' | transloco"
-                  >
-                    <p class="text-body text-ink-1">
-                      {{ insight.key | transloco: insight.params }}
-                    </p>
-                  </app-card>
-                }
-              </section>
-            }
+            <section data-testid="month.insights" class="flex flex-col gap-4">
+              <h2 class="text-heading text-ink-1">{{ 'month.insights.title' | transloco }}</h2>
+              <app-insight-summary-card [month]="shownMonth()" />
+              @for (insight of insights(); track insight.key) {
+                <app-card
+                  data-testid="month.insight"
+                  [eyebrow]="'month.insights.eyebrow' | transloco"
+                >
+                  <p class="text-body text-ink-1">
+                    {{ insight.key | transloco: insight.params }}
+                  </p>
+                </app-card>
+              }
+            </section>
           }
         </div>
       }
