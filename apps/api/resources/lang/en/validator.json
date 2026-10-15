@@ -56,7 +56,8 @@
       "needsReview": "needs review",
       "uncategorized": "uncategorized",
       "months": "months",
-      "groupBy": "grouping"
+      "groupBy": "grouping",
+      "turnstileToken": "security check"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -97,7 +98,8 @@
       "splits.zeroLine": "Every split line needs an amount",
       "categoryId.split": "A split transaction takes its categories from its lines",
       "amountCents.splitSum": "Change the split lines together with the amount",
-      "toAccountId.sameAccount": "Choose two different accounts"
+      "toAccountId.sameAccount": "Choose two different accounts",
+      "turnstile": "Complete the security check and try again"
     }
   }
 }
