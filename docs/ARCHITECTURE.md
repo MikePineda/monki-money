@@ -1,0 +1,63 @@
+# Architecture
+
+monkimoney is one Docker image running one Node process: the AdonisJS 7 API,
+which also serves the Angular 22 PWA from the same origin. Postgres 17 is the
+only stateful dependency; files go to S3-compatible storage.
+
+```
+Phone (installed PWA) --HTTPS--> Cloudflare (proxy, WAF, cache rules)
+                                   |
+                                   v
+                     Traefik (Dokploy, Cloudflare-only allowlist)
+                                   |
+                                   v
+               monkimoney-web (Swarm service, 1 replica, start-first)
+               node: AdonisJS API  +  Angular build in build/public
+                     |                        |
+                     v                        v
+           monkimoney-db (Postgres 17,   Cloudflare R2 bucket
+           internal network only)        (CSV originals, private)
+```
+
+## Decisions
+
+| Topic           | Decision                                                                                                                                                                                                                                                           | Why                                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| One image       | `Dockerfile` stages `gitsha -> deps -> build -> prod-deps -> runtime`; the API serves `build/public` (the Angular build).                                                                                                                                          | One deploy unit, same origin, no CORS.                                                                                                                                                                             |
+| Stateless       | No volume on the app container. Sessions in the encrypted cookie store, files in S3/R2, logs to stdout, rate limits in the database.                                                                                                                               | Start-first updates and replicas need any task to be disposable.                                                                                                                                                   |
+| Sessions        | Single `web` session guard (httpOnly, `secure` in production, `sameSite: lax`, cookie `monkimoney_session`, 30 days). The cookie holds only the user id, a `session_version` and the CSRF secret.                                                                  | No tokens in localStorage. "Log out everywhere" and password changes bump `users.session_version`, which a middleware compares on every request. Redis is a config switch if server-side sessions are ever needed. |
+| Storage         | One Drive disk `files` on S3: R2 in production (`S3_REGION=auto`), MinIO locally and in CI, path-style. Empty `DRIVE_DISK` = parse in memory and do not persist.                                                                                                   | Stateless app; S3 does not block go-live.                                                                                                                                                                          |
+| Rate limiting   | `@adonisjs/limiter` with the `database` store (`memory` in tests).                                                                                                                                                                                                 | Works across replicas without Redis.                                                                                                                                                                               |
+| Migrations      | `MIGRATE_ON_START=true` in `docker/entrypoint.mjs`, additive migrations only.                                                                                                                                                                                      | Dokploy Applications have no pre-deploy hook. A failed migration means the task never turns healthy and Swarm rolls back. With replicas > 1, migrate out of band.                                                  |
+| Multi-household | `households` + `household_members` + `users.current_household_id`; every resource carries `household_id` and is loaded through a household scope. A resource from another household answers **404, never 403**. A parametrised test covers every route with `:id`. | 403 leaks existence; cross-tenant access is the number one real risk.                                                                                                                                              |
+| Contract        | The Tuyau registry generated from the routes is the API contract (see `docs/CONTRACTS.md`).                                                                                                                                                                        | The web typecheck breaks when the API changes shape.                                                                                                                                                               |
+| Versioning      | Conventional Commits + release-please (single root package). The image writes `.app-version` and `.git-sha`; `/api/health` reports both.                                                                                                                           | One version for api + web + shared because they ship as one image.                                                                                                                                                 |
+| CORS            | Disabled everywhere. Dev uses the `ng serve` proxy (`apps/web/proxy.conf.json`).                                                                                                                                                                                   | Same origin keeps cookies simple.                                                                                                                                                                                  |
+
+## Layout
+
+API (`apps/api`): thin controllers (validate, call a service, transform),
+services own use cases and DB transactions, `app/domain` is pure (no Lucid, no
+I/O, no implicit `now`), repositories and scopes for tenancy, one concept per
+file named after the concept. Web (`apps/web/src/app`): `core/` (API client,
+session, i18n, theme, PWA), `domain/` (pure, no Angular), `shared/ui`,
+`shared/charts`, `layouts/`, `features/<x>/{data-access,ui,feature}`.
+Shared (`packages/shared`): wire types and pure helpers used by both sides,
+compiled to `dist/` because Node does not load `.ts` from `node_modules`.
+
+## Runtime surface today
+
+| Route                  | Purpose                                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`      | Readiness: database + heap checks, `{ status, version, sha, checks }`, 503 when a check fails. Statuses only, no internals. |
+| `GET /api/health/live` | Liveness: `{ status: 'ok' }`, touches nothing.                                                                              |
+| `GET /api/v1/config`   | Public runtime config for the SPA.                                                                                          |
+| static `public/`       | Angular build with the PWA cache policy.                                                                                    |
+| `GET *` (last route)   | SPA fallback to `index.html`; unknown `/api/*` stays a JSON 404.                                                            |
+
+## Build info
+
+`.app-version` (from the root `package.json`) and `.git-sha` (from the
+`gitsha` stage, or the `GIT_SHA` build arg) are written next to the compiled
+API (`/app/apps/api/build` in the image). Non-empty `APP_VERSION` / `GIT_SHA`
+env vars override them; without either the API reports `dev` / `unknown`.

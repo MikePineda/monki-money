@@ -1,0 +1,16 @@
+# Backlog
+
+Ideas captured mid-session: one dated line each, newest at the bottom.
+Strategy and phases live in the plan; this is the inbox.
+
+- 2026-10-15 Private transactions between partners (`transactions.is_private`): the other member sees the amount in household totals but not merchant/note/category. Phase 2.
+- 2026-10-15 Backfill eight months of NAB history on day one (`node ace import:nab`, WP 3.5): raise its priority right after import lands.
+- 2026-10-15 Web Push on iOS works for installed PWAs since 16.4: "did you log anything today?" and "your monthly summary is ready" reminders (P2).
+- 2026-10-15 Recurring payments and "already committed this month" (rent, phone, gym) detected from merchant rules + periodicity (P2; also affects envelopes in P3).
+- 2026-10-15 Bank feeds for the SaaS (Australian CDR via aggregators such as Basiq or Frollo): design constraint only, the `BankCsvParser` strategy already allows a `source='feed'`.
+- 2026-10-15 Balances between the two partners (Splitwise style) from `paid_by_user_id`; decide later whether to show it.
+- 2026-10-15 Free-form tags on transactions (jsonb), e.g. a trip tag to see a holiday's total cost (P2).
+- 2026-10-15 Receipts by email (Resend inbound or Cloudflare Email Routing -> webhook) feeding the receipt scanner review list (P3).
+- 2026-10-15 Siri / Apple Shortcuts quick add through a personal-token endpoint (P3).
+- 2026-10-15 SaaS in Australia: own domain, Privacy Act (APPs) policy and retention, data residency (APAC), full `audit_log`, private analytics only if needed.
+- 2026-10-15 Real data never in the repo or in agents' context: synthetic fixtures with the real structure; real CSVs only in Downloads and the private bucket.
