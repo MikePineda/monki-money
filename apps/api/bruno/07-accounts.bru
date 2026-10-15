@@ -1,0 +1,22 @@
+meta {
+  name: Accounts
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/accounts
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+docs {
+  `accounts.index`: `Account[]` with `cards`, `clearedBalanceCents` and
+  `availableBalanceCents`. The smoke household has no accounts, so in `prod`
+  this is an empty list; it still proves the household-scoped read path.
+}

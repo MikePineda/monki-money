@@ -8,15 +8,16 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
  * swap it.
  */
 export default class CategoryUsage {
-  async referenceCount(category: Category): Promise<number> {
+  async referenceCount(category: Category, trx?: TransactionClientContract): Promise<number> {
+    const client = trx ?? db
     const [transactions, splits] = await Promise.all([
-      db
+      client
         .from('transactions')
         .where('household_id', category.householdId)
         .where('category_id', category.id)
         .count('* as total')
         .first(),
-      db
+      client
         .from('transaction_splits')
         .where('household_id', category.householdId)
         .where('category_id', category.id)

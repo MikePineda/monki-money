@@ -10,7 +10,7 @@ import { FieldError } from '#exceptions/field_error'
 import { findInHousehold } from '#repositories/scoped'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
 import LedgerReferences from '#services/ledger/ledger_references'
-import type { HouseholdRef } from '#models/mixins/household_scoped'
+import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { CreateTransferInput, UpdateTransferInput } from '#services/ledger/dto'
 
@@ -80,17 +80,24 @@ export default class TransferService {
     }
   }
 
-  /** Changes the transfer and rewrites both legs to match it. */
+  /**
+   * Changes the transfer and rewrites both legs from the row locked inside
+   * the DB transaction, so overlapping edits (amount vs memo) can never
+   * leave the legs disagreeing with the transfer.
+   */
   async update(household: Household, actor: User, transferId: number, input: UpdateTransferInput) {
-    const transfer = await findInHousehold(Transfer, household, transferId)
-    const { from, to } = await this.accounts(
-      household,
-      input.fromAccountId ?? transfer.fromAccountId,
-      input.toAccountId ?? transfer.toAccountId
-    )
-
     await db.transaction(async (trx) => {
-      transfer.useTransaction(trx)
+      const transfer = await Transfer.query({ client: trx })
+        .where('household_id', householdIdOf(household))
+        .where('id', transferId)
+        .forUpdate()
+        .firstOrFail()
+      const { from, to } = await this.accounts(
+        household,
+        input.fromAccountId ?? transfer.fromAccountId,
+        input.toAccountId ?? transfer.toAccountId
+      )
+
       transfer.merge({
         date: input.date ?? transfer.date,
         amountCents: input.amountCents ?? transfer.amountCents,
@@ -103,15 +110,18 @@ export default class TransferService {
       await this.rewriteLegs(transfer, from, to, actor, trx)
     })
 
-    return this.find(household, transfer.id)
+    return this.find(household, transferId)
   }
 
   /** Deletes the transfer and both legs. */
   async destroy(household: Household, transferId: number) {
-    const transfer = await findInHousehold(Transfer, household, transferId)
     await db.transaction(async (trx) => {
+      const transfer = await Transfer.query({ client: trx })
+        .where('household_id', householdIdOf(household))
+        .where('id', transferId)
+        .forUpdate()
+        .firstOrFail()
       await Transaction.query({ client: trx }).where('transfer_id', transfer.id).delete()
-      transfer.useTransaction(trx)
       await transfer.delete()
     })
   }

@@ -35,6 +35,38 @@ test.group('Accounts', () => {
     assert.deepEqual(everyday.cards, [])
   })
 
+  test('test_balance_counts_only_rows_after_the_opening_balance_date', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, household, accounts } = await createHousehold({
+      accounts: [
+        { name: 'Everyday', openingBalanceCents: 10_000, openingBalanceDate: '2026-10-05' },
+        { name: 'Cash', openingBalanceCents: 500 },
+      ],
+    })
+    const rows = { householdId: household.id, accountId: accounts[0].id }
+    // The opening balance is the balance at the end of its date: rows dated
+    // on or before it are already inside it.
+    await TransactionFactory.merge({ ...rows, date: '2026-10-04', amountCents: -1_000 }).create()
+    await TransactionFactory.merge({ ...rows, date: '2026-10-05', amountCents: -2_000 }).create()
+    await TransactionFactory.merge({ ...rows, date: '2026-10-06', amountCents: -300 }).create()
+    // Without a date, every row counts.
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[1].id,
+      date: '2020-01-01',
+      amountCents: -100,
+    }).create()
+
+    const response = await client.get('/api/v1/accounts').actingAs(owner)
+
+    const [everyday, cash] = response.body().data
+    assert.equal(everyday.clearedBalanceCents, 9_700)
+    assert.equal(everyday.availableBalanceCents, 9_700)
+    assert.equal(cash.clearedBalanceCents, 400)
+  })
+
   test('test_create_a_personal_account_with_an_opening_balance', async ({ client, assert }) => {
     const { owner, member, household } = await createHousehold({ users: 2 })
 

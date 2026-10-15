@@ -100,6 +100,7 @@ npm run e2e                                # Playwright vs docker-compose.test.y
 npm run verify:quick                       # lint + typecheck + test + build
 npm run verify                             # verify:quick + e2e (the PR gate)
 npm run codegen                            # regenerate the Tuyau registry after route changes
+npm run smoke:local                        # Bruno smoke (apps/api/bruno) vs npm run dev; smoke:prod after a deploy
 docker build --target runtime -t monkimoney:local .   # faithful prod rehearsal (ARM64)
 docker compose --profile tools up -d pgweb # DB browser on 127.0.0.1:8081
 ```

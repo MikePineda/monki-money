@@ -1,0 +1,55 @@
+meta {
+  type: collection
+}
+
+headers {
+  User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36
+  Accept: application/json
+}
+
+auth {
+  mode: none
+}
+
+script:pre-request {
+  // Production is read-only for this collection: GETs plus the smoke user's
+  // own login and logout. Any other write is skipped there (local only).
+  const method = req.getMethod().toUpperCase()
+  const url = req.getUrl().split('?')[0]
+  const authOnly = ['/api/v1/auth/login', '/api/v1/auth/logout'].some((path) => url.endsWith(path))
+  if (bru.getEnvName() === 'prod' && !['GET', 'HEAD'].includes(method) && !authOnly) {
+    console.log(`skipped in prod (writes are local only): ${method} ${url}`)
+    bru.runner.skipRequest()
+  }
+}
+
+script:post-response {
+  // CSRF: the API sets the XSRF-TOKEN cookie on every response (Shield).
+  // Keep the newest value in the runtime var `xsrfToken`; every POST, PUT,
+  // PATCH and DELETE sends it back as the X-XSRF-TOKEN header. Refreshing it
+  // after each response keeps it valid when login rotates the session.
+  const setCookie = [].concat(res.getHeader('set-cookie') || [])
+  const xsrf = setCookie
+    .map((cookie) => String(cookie).split(';')[0])
+    .find((pair) => pair.startsWith('XSRF-TOKEN='))
+  if (xsrf) {
+    bru.setVar('xsrfToken', decodeURIComponent(xsrf.slice('XSRF-TOKEN='.length)))
+  }
+}
+
+docs {
+  # monkimoney API: smoke collection and living docs
+
+  Run order is the `seq` of each request: probes, the CSRF handshake
+  (`03-config`), login as the smoke user, household reads, logout.
+
+  Rules every request follows (see README.md):
+
+  - A browser-like `User-Agent` (set here): Cloudflare's Browser Integrity
+    Check answers 403 to non-browser clients.
+  - CSRF: a GET first (the API sets the `XSRF-TOKEN` cookie), then every
+    write sends `X-XSRF-TOKEN: {{xsrfToken}}`. The cookie is captured by the
+    post-response script above.
+  - `prod` runs only reads plus login/logout as the smoke user (its own
+    "Smoke" household, no accounts). Writes are `local` only.
+}

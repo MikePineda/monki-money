@@ -1,0 +1,56 @@
+meta {
+  name: Log in (smoke user)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  X-XSRF-TOKEN: {{xsrfToken}}
+}
+
+body:json {
+  {
+    "email": "{{smokeEmail}}",
+    "password": "{{smokePassword}}"
+  }
+}
+
+script:pre-request {
+  // Fail fast with a clear message instead of a 422 from empty credentials.
+  for (const key of ['SMOKE_EMAIL', 'SMOKE_PASSWORD']) {
+    if (!bru.getProcessEnv(key)) {
+      throw new Error(`${key} is not set: export it or put it in apps/api/bruno/.env`)
+    }
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.user.emailVerifiedAt: isString
+  res.body.data.household: isDefined
+}
+
+tests {
+  test('logs in as the smoke user', () => {
+    expect(res.body.data.user.email).to.equal(bru.getProcessEnv('SMOKE_EMAIL').trim().toLowerCase())
+  })
+
+  test('lands in the Smoke household, never a real one', () => {
+    // With --bail a failure here stops the run before any household read.
+    expect(res.body.data.household && res.body.data.household.name).to.equal('Smoke')
+  })
+}
+
+docs {
+  `auth.login`: `{ email, password }` → `{ data: { user, household } }` and a
+  fresh session cookie (`monkimoney_session`). Needs `X-XSRF-TOKEN` (see
+  `03-config`). 5 failures per minute per IP + email, then 20 minutes
+  blocked (429): a wrong `SMOKE_PASSWORD` in a retry loop locks the smoke
+  user out.
+}

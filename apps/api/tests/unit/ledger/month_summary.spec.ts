@@ -7,6 +7,7 @@ const GROCERIES = { categoryId: 10, groupId: 1, groupKind: 'expense' as const }
 const RESTAURANTS = { categoryId: 11, groupId: 1, groupKind: 'expense' as const }
 const RENT = { categoryId: 20, groupId: 2, groupKind: 'expense' as const }
 const SALARY = { categoryId: 90, groupId: 9, groupKind: 'income' as const }
+const couple = (userId: number) => ({ userId, memberIds: new Set([1, 2]) })
 
 test.group('Reports: month summary', () => {
   test('test_transfer_is_excluded_from_expense_totals', ({ assert }) => {
@@ -155,8 +156,8 @@ test.group('Reports: month summary', () => {
     const gift = posting({ ...GROCERIES, amountCents: -20_000, isPrivate: true, paidByUserId: 1 })
     const postings = [gift, posting({ ...GROCERIES, amountCents: -1_000, paidByUserId: 2 })]
 
-    const partnerView = summarizeMonth(postingsFor(postings, 2), '2026-10')
-    const payerView = summarizeMonth(postingsFor(postings, 1), '2026-10')
+    const partnerView = summarizeMonth(postingsFor(postings, couple(2)), '2026-10')
+    const payerView = summarizeMonth(postingsFor(postings, couple(1)), '2026-10')
 
     // Same totals for both of them.
     assert.equal(partnerView.expenseCents, 21_000)
@@ -187,7 +188,7 @@ test.group('Reports: month summary', () => {
   test('test_joint_private_posting_belongs_to_its_creator', ({ assert }) => {
     const gift = posting({ isPrivate: true, paidByUserId: null, createdByUserId: 2 })
 
-    assert.isFalse(postingsFor([gift], 2)[0].hidden)
-    assert.isTrue(postingsFor([gift], 1)[0].hidden)
+    assert.isFalse(postingsFor([gift], couple(2))[0].hidden)
+    assert.isTrue(postingsFor([gift], couple(1))[0].hidden)
   })
 })

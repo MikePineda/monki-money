@@ -102,5 +102,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   SEED_USER2_PASSWORD: Env.schema.secret.optional(),
   SEED_USER2_CARD_SUFFIX: Env.schema.string.optional(),
   SEED_JOINT_ACCOUNT_NUMBER: Env.schema.string.optional(),
+  SMOKE_EMAIL: Env.schema.string.optional(),
   SMOKE_PASSWORD: Env.schema.secret.optional(),
 })

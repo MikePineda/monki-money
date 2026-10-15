@@ -9,12 +9,30 @@ const JSON_RENDERED_CODES = new Set(['E_BAD_CSRF_TOKEN'])
 /** Postgres unique_violation: a race lost against a concurrent insert. */
 const PG_UNIQUE_VIOLATION = '23505'
 
-function isUniqueViolation(error: unknown): error is Error & { status?: number; code: string } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: unknown }).code === PG_UNIQUE_VIOLATION
-  )
+/** Postgres foreign_key_violation: a delete raced an insert (or the reverse). */
+const PG_FOREIGN_KEY_VIOLATION = '23503'
+
+/** Deleted parent (the statement Knex prefixes to the message) -> its "in use" code. */
+const IN_USE_ON_DELETE: Array<[RegExp, string]> = [
+  [/^delete from "categories"/, 'E_CATEGORY_IN_USE'],
+  [/^delete from "accounts"/, 'E_ACCOUNT_IN_USE'],
+]
+
+function hasPgCode(
+  error: unknown,
+  code: string
+): error is Error & { status?: number; code: string } {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === code
+}
+
+function isUniqueViolation(error: unknown) {
+  return hasPgCode(error, PG_UNIQUE_VIOLATION)
+}
+
+/** 409 code for a foreign key race: "in use" when a parent delete lost it. */
+function foreignKeyConflictCode(error: Error) {
+  const match = IN_USE_ON_DELETE.find(([statement]) => statement.test(error.message))
+  return match ? match[1] : 'E_CONFLICT'
 }
 
 /** Extra client fields a domain error carries (`details`, see app/exceptions/errors.ts). */
@@ -38,7 +56,10 @@ function detailsOf(error: unknown): Record<string, unknown> {
  *   plus the error's `details` when it has them (`accountNumbers`, `line`...).
  *   Never the debug page: 4xx bodies are part of the contract.
  * - Postgres unique violations (a lost race the services could not
- *   pre-check) answer 409 `E_CONFLICT`, never the constraint name.
+ *   pre-check) answer 409 `E_CONFLICT`, never the constraint name. Foreign
+ *   key violations answer 409 too: `E_CATEGORY_IN_USE` / `E_ACCOUNT_IN_USE`
+ *   when deleting the parent lost a race against an insert, else
+ *   `E_CONFLICT`.
  * - 5xx: debug page in development; in production a generic translated
  *   `{ message, code: 'E_INTERNAL_SERVER_ERROR' }` (driver messages, table
  *   and constraint names never leave the server, they go to the logs).
@@ -56,6 +77,12 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return ctx.response
         .status(409)
         .send({ message: translate('E_CONFLICT', 'Conflict'), code: 'E_CONFLICT' })
+    }
+
+    if (hasPgCode(error, PG_FOREIGN_KEY_VIOLATION)) {
+      error.status = 409
+      const code = foreignKeyConflictCode(error)
+      return ctx.response.status(409).send({ message: translate(code, 'Conflict'), code })
     }
 
     if (error instanceof FieldError) {

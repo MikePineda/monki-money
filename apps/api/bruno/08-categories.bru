@@ -1,0 +1,35 @@
+meta {
+  name: Categories (tree)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/categories?tree=1
+  body: none
+  auth: none
+}
+
+params:query {
+  tree: 1
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+  res.body.data.length: gt 0
+}
+
+tests {
+  test('nests the categories under their groups', () => {
+    const group = res.body.data[0]
+    expect(group.name).to.be.a('string')
+    expect(group.categories).to.be.an('array')
+  })
+}
+
+docs {
+  `categories.index`: `Category[]`, or with `?tree=1` the category groups
+  with their `categories` nested. Every household is born with the shared
+  bilingual taxonomy, so the list is never empty.
+}
