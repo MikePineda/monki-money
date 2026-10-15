@@ -9,9 +9,11 @@ import { defineConfig, drivers } from '@adonisjs/core/hash'
  * Hashes carry their own parameters: changing these never breaks old ones.
  */
 export const PRODUCTION_SCRYPT = {
-  cost: 2 ** 17,
+  // OWASP's lower-memory equivalent of N=2^17/p=1: 64 MiB of native memory
+  // per hash instead of 128 MiB, so a burst of logins fits the 512 MB task.
+  cost: 2 ** 16,
   blockSize: 8,
-  parallelization: 1,
+  parallelization: 2,
   maxMemory: 256 * 1024 * 1024,
 }
 
