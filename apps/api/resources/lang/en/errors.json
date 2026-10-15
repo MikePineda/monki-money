@@ -27,5 +27,6 @@
   "E_CONFLICT": "This already exists. Reload and try again",
   "E_TRANSFER_LEG": "This movement is part of a transfer. Edit or delete the transfer instead",
   "E_TRANSACTION_PRIVATE": "This transaction is private",
-  "E_INTERNAL_SERVER_ERROR": "Something went wrong on our side. Try again in a moment"
+  "E_INTERNAL_SERVER_ERROR": "Something went wrong on our side. Try again in a moment",
+  "E_OWNER_CANNOT_LEAVE": "Owners cannot leave their household. Delete it instead"
 }

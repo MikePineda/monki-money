@@ -9,19 +9,26 @@ import { startWebSession } from '#services/auth/web_session'
 import { describeSession } from '#services/auth/current_session'
 import HouseholdTransformer from '#transformers/household_transformer'
 import MembershipTransformer from '#transformers/membership_transformer'
+import { TurnstileVerifier } from '#services/auth/turnstile_verifier'
 
 @inject()
 export default class SessionsController {
   constructor(
     protected login: LoginService,
-    protected profile: ProfileService
+    protected profile: ProfileService,
+    protected turnstile: TurnstileVerifier
   ) {}
 
-  /** POST /auth/login: throttled credential check, then a fresh session. */
+  /**
+   * POST /auth/login: bot check (when TURNSTILE_SECRET is set), throttled
+   * credential check, then a fresh session.
+   */
   async store(ctx: HttpContext) {
+    const ip = clientIp(ctx)
+    await this.turnstile.assertHuman(ctx.request.input('turnstileToken'), ip)
     const { email, password } = await ctx.request.validateUsing(loginValidator)
 
-    const user = await this.login.attempt(email, password, clientIp(ctx))
+    const user = await this.login.attempt(email, password, ip)
     await startWebSession(ctx, user)
 
     const { household } = await describeSession(user)

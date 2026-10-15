@@ -27,5 +27,6 @@
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
   "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
   "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
-  "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento"
+  "E_INTERNAL_SERVER_ERROR": "Algo falló de nuestro lado. Inténtalo de nuevo en un momento",
+  "E_OWNER_CANNOT_LEAVE": "Quien administra el hogar no puede salir de él. Bórralo en su lugar"
 }

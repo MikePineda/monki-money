@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 import { LOCALES, THEMES } from '@monkimoney/shared'
-import { email, newPassword } from '#validators/rules'
+import { email, newPassword, turnstileToken } from '#validators/rules'
 
 export const signupValidator = vine.create({
   fullName: vine.string().trim().minLength(1).maxLength(120),
@@ -8,19 +8,30 @@ export const signupValidator = vine.create({
   password: newPassword(),
   locale: vine.enum(LOCALES).optional(),
   householdName: vine.string().trim().minLength(1).maxLength(120).optional(),
+  turnstileToken: turnstileToken(),
 })
 
 export const loginValidator = vine.create({
   email: email(),
   password: vine.string().maxLength(128),
+  turnstileToken: turnstileToken(),
 })
 
 export const verifyEmailValidator = vine.create({
   token: vine.string().trim().minLength(1).maxLength(2048),
 })
 
+/** The 6-digit code from the verification mail. */
+export const verifyEmailCodeValidator = vine.create({
+  code: vine
+    .string()
+    .trim()
+    .regex(/^\d{6}$/),
+})
+
 export const forgotPasswordValidator = vine.create({
   email: email(),
+  turnstileToken: turnstileToken(),
 })
 
 export const resetPasswordValidator = vine.create({

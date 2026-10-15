@@ -8,6 +8,18 @@ export const updateHouseholdValidator = vine.create({
   timezone: timezone().optional(),
 })
 
+export const createHouseholdValidator = vine.create({
+  name: vine.string().trim().minLength(1).maxLength(120),
+  locale: vine.enum(LOCALES).optional(),
+  timezone: timezone().optional(),
+  currencyCode: vine
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+})
+
 export const deleteHouseholdValidator = vine.create({
   password: vine.string().maxLength(128),
 })

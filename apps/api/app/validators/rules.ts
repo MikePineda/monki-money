@@ -58,6 +58,13 @@ export const email = () => vine.string().trim().toLowerCase().email().maxLength(
 /** New password (scrypt-hashed). */
 export const newPassword = () => vine.string().minLength(10).maxLength(128)
 
+/**
+ * Cloudflare Turnstile widget token (sign-up, login, forgot password).
+ * Optional in the schema: the controllers check it first, and only when
+ * TURNSTILE_SECRET is set (app/services/auth/turnstile_verifier.ts).
+ */
+export const turnstileToken = () => vine.string().maxLength(2048).optional()
+
 /** Positive integer id (route params and foreign keys), within Postgres `integer`. */
 export const id = () => vine.number().withoutDecimals().positive().max(2_147_483_647)
 
