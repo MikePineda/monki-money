@@ -21,7 +21,8 @@ export interface ReceiptTransactionInput {
   accountId: number
   date: string
   amountCents: number
-  categoryId: number | null
+  /** One category, or `splits` (never both). */
+  categoryId?: number | null
   splits?: ReceiptSplit[]
   payee: string | null
   description: string | null
