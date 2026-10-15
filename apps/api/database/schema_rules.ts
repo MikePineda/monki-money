@@ -14,6 +14,16 @@ const shared = (name: string) => ({
   decorators: [{ name: '@column' }],
 })
 
+/** A jsonb column typed with a DTO of the LLM layer (app/llm/types.ts). */
+const llmJson = (tsType: string, name: string) => ({
+  tsType,
+  imports: [
+    { source: '#database/json_column', namedImports: ['jsonColumn'] },
+    { source: '#llm/types', typeImports: [name] },
+  ],
+  decorators: [{ name: '@jsonColumn' }],
+})
+
 export default {
   types: {
     date: { tsType: 'string', imports: [], decorators: [{ name: '@column' }] },
@@ -71,6 +81,19 @@ export default {
       columns: {
         purpose: shared('LlmPurpose'),
         status: shared('LlmUsageStatus'),
+      },
+    },
+    savings_goals: {
+      columns: {
+        status: shared('GoalStatus'),
+      },
+    },
+    monthly_insights: {
+      columns: {
+        locale: shared('Locale'),
+        // jsonb: stringified on write (see database/json_column.ts).
+        highlights: llmJson('InsightHighlight[]', 'InsightHighlight'),
+        input_json: llmJson('InsightInput', 'InsightInput'),
       },
     },
   },

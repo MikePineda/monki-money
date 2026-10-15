@@ -6,8 +6,9 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, LlmPurpose, LlmUsageStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, LlmPurpose, LlmUsageStatus, GoalStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
 import { jsonColumn } from '#database/json_column'
+import type { InsightHighlight, InsightInput } from '#llm/types'
 
 export class AccountCardSchema extends BaseModel {
   static $columns = ['accountId', 'cardSuffix', 'createdAt', 'id', 'label', 'updatedAt', 'userId'] as const
@@ -221,6 +222,72 @@ export class LlmUsageSchema extends BaseModel {
   declare purpose: LlmPurpose
   @column()
   declare status: LlmUsageStatus
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number | null
+}
+
+export class MonthlyInsightSchema extends BaseModel {
+  static $columns = ['bodyMarkdown', 'createdAt', 'generatedAt', 'generatedByUserId', 'headline', 'highlights', 'householdId', 'id', 'inputJson', 'locale', 'model', 'month', 'updatedAt'] as const
+  $columns = MonthlyInsightSchema.$columns
+  @column()
+  declare bodyMarkdown: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare generatedAt: DateTime
+  @column()
+  declare generatedByUserId: number | null
+  @column()
+  declare headline: string
+  @jsonColumn()
+  declare highlights: InsightHighlight[]
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @jsonColumn()
+  declare inputJson: InsightInput
+  @column()
+  declare locale: Locale
+  @column()
+  declare model: string
+  @column()
+  declare month: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class SavingsGoalSchema extends BaseModel {
+  static $columns = ['accountId', 'createdAt', 'createdByUserId', 'householdId', 'id', 'monthlyContributionCents', 'name', 'reachedAt', 'sortOrder', 'startingCents', 'status', 'targetCents', 'targetDate', 'updatedAt', 'userId'] as const
+  $columns = SavingsGoalSchema.$columns
+  @column()
+  declare accountId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare monthlyContributionCents: number | null
+  @column()
+  declare name: string
+  @column.dateTime()
+  declare reachedAt: DateTime | null
+  @column()
+  declare sortOrder: number
+  @column()
+  declare startingCents: number
+  @column()
+  declare status: GoalStatus
+  @column()
+  declare targetCents: number
+  @column()
+  declare targetDate: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
   @column()

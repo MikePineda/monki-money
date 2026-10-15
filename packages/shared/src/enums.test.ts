@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ENTRY_KINDS, LOCALES, POSTGRES_ENUMS, TRANSACTION_KINDS, isLocale } from './enums.ts'
+import {
+  ENTRY_KINDS,
+  GOAL_STATUSES,
+  LOCALES,
+  POSTGRES_ENUMS,
+  TRANSACTION_KINDS,
+  isLocale,
+} from './enums.ts'
 
 test('every Postgres enum has unique snake_case literals', () => {
   for (const [name, values] of Object.entries(POSTGRES_ENUMS)) {
@@ -35,4 +42,9 @@ test('the ledger enums are backed by native Postgres types', () => {
     [...POSTGRES_ENUMS.transaction_source],
     ['manual', 'import', 'receipt', 'telegram']
   )
+})
+
+test('goal statuses start active and are backed by a native Postgres type', () => {
+  assert.equal(GOAL_STATUSES[0], 'active')
+  assert.deepEqual([...POSTGRES_ENUMS.goal_status], ['active', 'reached', 'archived'])
 })

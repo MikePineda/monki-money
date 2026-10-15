@@ -118,11 +118,16 @@ export interface InsightInput {
 export const INSIGHT_TONES = ['positive', 'neutral', 'warning'] as const
 export type InsightTone = (typeof INSIGHT_TONES)[number]
 
+export interface InsightHighlight {
+  tone: InsightTone
+  text: string
+}
+
 export interface MonthlyInsight {
   headline: string
   /** Short Markdown body in the requested locale. */
   body: string
-  highlights: Array<{ tone: InsightTone; text: string }>
+  highlights: InsightHighlight[]
 }
 
 /* ------------------------------ results ------------------------------ */
