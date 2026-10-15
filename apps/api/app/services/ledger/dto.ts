@@ -35,11 +35,11 @@ export interface CreateTransactionInput {
   status?: TransactionStatus
   isPrivate?: boolean
   tags?: string[]
-  /*
-   * Internal fields (imports, receipts, bots). The HTTP validators never
-   * accept them.
-   */
+  /** Default 'manual'. Over HTTP only 'manual' or 'receipt' (a scanned draft). */
   source?: TransactionSource
+  /*
+   * Internal fields (imports, bots). The HTTP validators never accept them.
+   */
   bankDate?: string | null
   rawDescription?: string | null
   cardSuffix?: string | null

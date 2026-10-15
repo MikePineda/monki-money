@@ -3,7 +3,7 @@ import i18nManager from '@adonisjs/i18n/services/main'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { LlmProviderError } from '#llm/errors'
 import HttpExceptionHandler from '#exceptions/handler'
-import { InsightsUnavailable } from '#exceptions/errors'
+import { InsightsUnavailable, StorageUnavailable } from '#exceptions/errors'
 
 async function render(error: unknown, options: { debug: boolean; locale?: string }) {
   const ctx = await testUtils.createHttpContext()
@@ -54,6 +54,7 @@ test.group('Exception handler', () => {
     const cases = [
       [new InsightsUnavailable(), 'E_INSIGHTS_UNAVAILABLE'],
       [new LlmProviderError('upstream 529: overloaded', 529), 'E_LLM_UNAVAILABLE'],
+      [new StorageUnavailable('Object storage head failed: upstream'), 'E_STORAGE_UNAVAILABLE'],
     ] as const
 
     for (const [error, code] of cases) {

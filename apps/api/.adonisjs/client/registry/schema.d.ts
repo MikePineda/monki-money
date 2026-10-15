@@ -991,4 +991,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['apply']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'uploads.presign': {
+    methods: ["POST"]
+    pattern: '/api/v1/uploads/presign'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/uploads').presignUploadValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/uploads').presignUploadValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/uploads_controller').default['presign']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/uploads_controller').default['presign']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'receipts.scan': {
+    methods: ["POST"]
+    pattern: '/api/v1/receipts/scan'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }
