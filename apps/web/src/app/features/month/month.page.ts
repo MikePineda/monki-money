@@ -1,5 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core'
-import { Router, RouterLink, type Route } from '@angular/router'
+import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, provideTranslocoScope, translateSignal } from '@jsverse/transloco'
 import { HouseholdDirectory } from '../../core/household/household-directory.store'
 import { MonthStore } from '../../core/month/month.store'
@@ -92,11 +92,6 @@ function markColor(person: Person): ChartColor {
     default:
       return 'muted'
   }
-}
-
-/** True when the router knows a top-level or shell route with this path (import lands later). */
-function hasRoute(routes: readonly Route[], path: string): boolean {
-  return routes.some((route) => route.path === path || hasRoute(route.children ?? [], path))
 }
 
 /**
@@ -195,11 +190,14 @@ function hasRoute(routes: readonly Route[], path: string): boolean {
                 <a appButton variant="secondary" icon="plus" routerLink="/add">{{
                   'month.empty.add' | transloco
                 }}</a>
-                @if (canImport) {
-                  <a appButton variant="ghost" icon="file-up" routerLink="/import">{{
-                    'month.empty.import' | transloco
-                  }}</a>
-                }
+                <a
+                  appButton
+                  variant="ghost"
+                  icon="file-up"
+                  routerLink="/import"
+                  data-testid="month.empty.import"
+                  >{{ 'month.empty.import' | transloco }}</a
+                >
               </div>
             </app-empty-state>
           } @else {
@@ -328,7 +326,6 @@ export default class MonthPage {
   /** `/month/:ym`, bound by the router; missing or invalid means the current month. */
   readonly ym = input<string | undefined>(undefined)
 
-  protected readonly canImport = hasRoute(this.router.config, 'import')
   protected readonly current = this.store.current
   protected readonly expanded = signal<string[]>([])
 
