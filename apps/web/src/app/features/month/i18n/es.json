@@ -17,6 +17,22 @@
     "spent": "Gasto",
     "saved": "Ahorro neto"
   },
+  "committed": {
+    "title": "Comprometido este mes",
+    "paid": "Ya pagado",
+    "due": "Por pagar",
+    "free": "Libre tras pagos",
+    "listLabel": "Pagos de este mes",
+    "paidOn": "Pagado el {date}",
+    "dueOn": "Vence el {date}",
+    "nothingDue": "No vence nada más este mes.",
+    "manage": "Pagos recurrentes",
+    "hint": "Mira cuánto se llevan tus pagos fijos antes de gastar.",
+    "detect": "Detectar pagos recurrentes",
+    "detecting": "Buscando pagos recurrentes…",
+    "found": "{count, plural, one {Encontramos # pago recurrente} other {Encontramos # pagos recurrentes}}",
+    "noneFound": "Aún no hay pagos recurrentes: hacen falta unos tres pagos al mismo comercio."
+  },
   "spend": {
     "title": "Gasto por categoría",
     "subtitle": "{count, plural, one {# categoría} other {# categorías}}",

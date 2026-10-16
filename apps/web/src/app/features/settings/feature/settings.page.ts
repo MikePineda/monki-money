@@ -246,6 +246,9 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
         <a appSettingsRow data-testid="settings.categories" routerLink="/categories">
           {{ 'settings.categories.title' | transloco }}
         </a>
+        <a appSettingsRow data-testid="settings.recurring" routerLink="/recurring">
+          {{ 'settings.recurring.title' | transloco }}
+        </a>
         <a appSettingsRow data-testid="settings.goals" routerLink="/goals">
           {{ 'settings.goals.title' | transloco }}
         </a>

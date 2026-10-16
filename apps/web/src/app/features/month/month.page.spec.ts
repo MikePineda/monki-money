@@ -16,6 +16,7 @@ import { SessionStore } from '../../core/auth/session.store'
 import { AccountsApi } from '../../core/household/accounts.api'
 import { CategoriesApi } from '../../core/household/categories.api'
 import { HouseholdApi } from '../../core/household/household.api'
+import { RecurringApi } from '../../core/ledger/recurring.api'
 import { ReportsApi } from '../../core/ledger/reports.api'
 import { TransactionsApi } from '../../core/ledger/transactions.api'
 import { HOUSEHOLD_TIME_ZONE } from '../../core/platform/time-zone.token'
@@ -70,14 +71,41 @@ function busyMonth(month: YearMonth): MonthReport {
   } as Partial<MonthReport>)
 }
 
+/** Weekly rent paid twice this month and due twice more. */
+const COMMITTED: MonthReport['committed'] = {
+  paidCents: 100_000,
+  upcomingCents: 100_000,
+  recurringCount: 1,
+  items: [
+    {
+      id: 1,
+      payee: 'Harbour Lettings',
+      amountCents: 50_000,
+      dueDate: `${NOW}-06`,
+      paid: true,
+      categoryId: 10,
+    },
+    {
+      id: 1,
+      payee: 'Harbour Lettings',
+      amountCents: 50_000,
+      dueDate: `${NOW}-20`,
+      paid: false,
+      categoryId: 10,
+    },
+  ],
+}
+
 describe('MonthPage', () => {
   let reports: { month: ReturnType<typeof vi.fn>; trend: ReturnType<typeof vi.fn> }
+  let recurring: { detect: ReturnType<typeof vi.fn> }
 
   async function open(
     url = '/month',
     options: { report?: (month: YearMonth) => MonthReport; lang?: 'en' | 'es' } = {}
   ) {
     const lang = options.lang ?? 'en'
+    recurring = { detect: vi.fn(async () => ({ created: 1, updated: 0 })) }
     reports = {
       month: vi.fn(async (month: YearMonth) => (options.report ?? busyMonth)(month)),
       trend: vi.fn(async (month: YearMonth) => {
@@ -114,6 +142,7 @@ describe('MonthPage', () => {
           withComponentInputBinding()
         ),
         { provide: ReportsApi, useValue: reports },
+        { provide: RecurringApi, useValue: recurring },
         {
           provide: TransactionsApi,
           useValue: {
@@ -264,6 +293,54 @@ describe('MonthPage', () => {
     const { loader } = await open(`/month/${addMonths(NOW, 3)}`)
 
     expect(await (await loader.getHarness(MonthPickerHarness)).getSelectedValue()).toBe(NOW)
+  })
+
+  it('test_the_current_month_shows_what_the_recurring_payments_commit', async () => {
+    const { root } = await open('/month', {
+      report: (month) => ({ ...busyMonth(month), committed: COMMITTED }),
+    })
+
+    const card = root.querySelector('app-committed-card')
+    expect(card?.previousElementSibling?.getAttribute('data-testid')).toBe('month.stats')
+    expect(text(root, '[data-testid="month.committed.due"]')).toBe('Still due $1,000.00')
+    // 6,450 earned − 3,284.50 spent − 1,000 still due.
+    expect(text(root, '[data-testid="month.committed.free"]')).toBe('Free after bills $2,165.50')
+    expect(root.querySelectorAll('[data-testid="month.committed.item"]')).toHaveLength(2)
+  })
+
+  it('test_a_past_month_has_no_committed_card', async () => {
+    const { root } = await open(`/month/${PREVIOUS}`, {
+      report: (month) => ({ ...busyMonth(month), committed: COMMITTED }),
+    })
+
+    expect(root.querySelector('[data-testid="month.committed"]')).toBeNull()
+    expect(root.querySelector('[data-testid="month.committed.hint"]')).toBeNull()
+  })
+
+  it('test_detecting_recurring_payments_from_the_hint_reloads_the_month', async () => {
+    let detected = false
+    const { harness, root } = await open('/month', {
+      report: (month) => ({
+        ...aMonthReport(month),
+        ...(detected ? { committed: COMMITTED } : {}),
+      }),
+    })
+    expect(root.querySelector('[data-testid="month.empty"]')).not.toBeNull()
+    recurring.detect.mockImplementation(async () => {
+      detected = true
+      return { created: 1, updated: 0 }
+    })
+    const calls = reports.month.mock.calls.length
+
+    root.querySelector<HTMLButtonElement>('[data-testid="month.committed.detect"]')?.click()
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="month.committed"]')).not.toBeNull()
+    )
+    await harness.fixture.whenStable()
+    expect(recurring.detect).toHaveBeenCalledTimes(1)
+    expect(reports.month.mock.calls.length).toBeGreaterThan(calls)
+    expect(root.querySelector('[data-testid="month.committed.hint"]')).toBeNull()
   })
 
   it('test_copy_switches_to_spanish', async () => {

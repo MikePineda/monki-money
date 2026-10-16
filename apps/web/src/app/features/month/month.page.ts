@@ -1,8 +1,12 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
-import { TranslocoPipe, provideTranslocoScope, translateSignal } from '@jsverse/transloco'
+import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
+import { failureMessage } from '../../core/api/error-messages'
+import { toApiError } from '../../core/api/http-errors'
 import { HouseholdDirectory } from '../../core/household/household-directory.store'
+import { RecurringApi } from '../../core/ledger/recurring.api'
 import { MonthStore } from '../../core/month/month.store'
+import { ToastStore } from '../../core/ui/toast.store'
 import { formatDayMonth } from '../../domain/dates'
 import type { ChartColor } from '../../domain/charts/colors'
 import { groupHistories, monthInsights, type Insight } from '../../domain/insights'
@@ -41,6 +45,8 @@ import { MonthPickerComponent } from '../../shared/ui/month-picker/month-picker.
 import type { Person } from '../../shared/ui/person-dot/person-dot.component'
 import { SkeletonComponent } from '../../shared/ui/skeleton/skeleton.component'
 import { StatTileComponent } from '../../shared/ui/stat-tile/stat-tile.component'
+import { provideMonthScope } from './month.scope'
+import { CommittedCardComponent } from './ui/committed-card.component'
 import { InsightSummaryCardComponent } from './ui/insight-summary/insight-summary-card.component'
 import { MonthHeroComponent } from './ui/month-hero.component'
 
@@ -55,6 +61,7 @@ import { MonthHeroComponent } from './ui/month-hero.component'
  * t(month.spend.uncategorized, month.spend.private, month.spend.unknown, month.trend.series)
  * t(month.whoPaid.you, month.whoPaid.joint)
  * t(month.top.private, month.top.noPayee, month.top.uncategorized)
+ * t(month.committed.found, month.committed.noneFound)
  */
 const LABEL_KEYS = [
   'spend.uncategorized',
@@ -101,6 +108,9 @@ function markColor(person: Person): ChartColor {
  * month, three stat tiles with sparklines, spending by category group,
  * the 6-month trend, who paid, the top five expenses, the AI-written
  * summary (InsightSummaryCardComponent) and two deterministic insights.
+ * The current month also shows what the recurring payments commit
+ * (CommittedCardComponent, under the stat tiles or the empty state), or
+ * the hint to detect them.
  * Data comes from the MonthStore: switching months keeps the previous
  * frame at 60% opacity until the new one arrives; skeletons only on the
  * first load. A month without transactions shows an honest empty state.
@@ -113,6 +123,7 @@ function markColor(person: Person): ChartColor {
     ButtonComponent,
     CardComponent,
     ChartFrameComponent,
+    CommittedCardComponent,
     EmptyStateComponent,
     InsightSummaryCardComponent,
     ListRowComponent,
@@ -126,12 +137,7 @@ function markColor(person: Person): ChartColor {
     TranslocoPipe,
     TrendLineComponent,
   ],
-  providers: [
-    provideTranslocoScope({
-      scope: 'month',
-      loader: { en: () => import('./i18n/en.json'), es: () => import('./i18n/es.json') },
-    }),
-  ],
+  providers: [provideMonthScope()],
   template: `
     <h1 class="sr-only">{{ 'month.title' | transloco }}</h1>
     <header class="sticky top-0 z-10 border-b border-line bg-surface-0 px-3 py-1.5">
@@ -203,6 +209,15 @@ function markColor(person: Person): ChartColor {
                 >
               </div>
             </app-empty-state>
+            @if (isCurrent()) {
+              <app-committed-card
+                [committed]="report.committed"
+                [incomeCents]="report.incomeCents"
+                [expenseCents]="report.expenseCents"
+                [detecting]="detecting()"
+                (detect)="detectRecurring()"
+              />
+            }
           } @else {
             <section
               data-testid="month.stats"
@@ -231,6 +246,16 @@ function markColor(person: Person): ChartColor {
                 <app-stat-tile-sparkline [values]="sparklines().saved" />
               </app-stat-tile>
             </section>
+
+            @if (isCurrent()) {
+              <app-committed-card
+                [committed]="report.committed"
+                [incomeCents]="report.incomeCents"
+                [expenseCents]="report.expenseCents"
+                [detecting]="detecting()"
+                (detect)="detectRecurring()"
+              />
+            }
 
             <app-chart-frame
               data-testid="month.spend"
@@ -324,12 +349,16 @@ export default class MonthPage {
   private readonly directory = inject(HouseholdDirectory)
   private readonly router = inject(Router)
   private readonly locale = inject(APP_LOCALE)
+  private readonly recurring = inject(RecurringApi)
+  private readonly toasts = inject(ToastStore)
 
   /** `/month/:ym`, bound by the router; missing or invalid means the current month. */
   readonly ym = input<string | undefined>(undefined)
 
   protected readonly current = this.store.current
   protected readonly expanded = signal<string[]>([])
+  /** "Detect recurring payments" is on its way. */
+  protected readonly detecting = signal(false)
 
   private readonly labels = translateSignal(LABEL_KEYS)
   /** Words the charts and rows need, in the reader's language. */
@@ -368,6 +397,8 @@ export default class MonthPage {
     this.dimmed() ? 'reloading' : 'ready'
   )
   protected readonly isEmpty = computed(() => (this.report()?.transactionCount ?? 0) === 0)
+  /** "Committed this month" is about the month being lived, not past ones. */
+  protected readonly isCurrent = computed(() => this.shownMonth() === this.current())
 
   protected readonly monthName = computed(() => this.longName(this.shownMonth()))
 
@@ -499,6 +530,31 @@ export default class MonthPage {
 
   protected openTransaction(id: number): void {
     void this.router.navigate(['/transactions', id])
+  }
+
+  /** Looks for recurring payments in the ledger, says what it found and reloads the month. */
+  protected async detectRecurring(): Promise<void> {
+    if (this.detecting()) {
+      return
+    }
+    this.detecting.set(true)
+    try {
+      const { created } = await this.recurring.detect()
+      this.toasts.show(
+        created > 0
+          ? { messageKey: 'month.committed.found', params: { count: created }, status: 'good' }
+          : { messageKey: 'month.committed.noneFound' }
+      )
+      this.store.invalidate(this.current())
+    } catch (error) {
+      const apiError = toApiError(error)
+      if (apiError.kind !== 'unauthorized') {
+        const message = failureMessage(apiError)
+        this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
+      }
+    } finally {
+      this.detecting.set(false)
+    }
   }
 
   private longName(month: YearMonth): string {

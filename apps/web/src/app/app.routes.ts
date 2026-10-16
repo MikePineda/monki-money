@@ -58,6 +58,10 @@ export const routes: Routes = [
         path: 'categories',
         loadComponent: () => import('./features/categories/feature/categories.page'),
       },
+      {
+        path: 'recurring',
+        loadComponent: () => import('./features/recurring/feature/recurring.page'),
+      },
       { path: 'goals', loadComponent: () => import('./features/goals/feature/goals-list.page') },
       { path: 'goals/new', loadComponent: () => import('./features/goals/feature/goal-new.page') },
       {

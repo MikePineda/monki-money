@@ -17,6 +17,22 @@
     "spent": "Spent",
     "saved": "Net saved"
   },
+  "committed": {
+    "title": "Committed this month",
+    "paid": "Already paid",
+    "due": "Still due",
+    "free": "Free after bills",
+    "listLabel": "Bills this month",
+    "paidOn": "Paid {date}",
+    "dueOn": "Due {date}",
+    "nothingDue": "Nothing else falls due this month.",
+    "manage": "Recurring payments",
+    "hint": "See how much your bills take before you spend.",
+    "detect": "Detect recurring payments",
+    "detecting": "Looking for recurring payments…",
+    "found": "{count, plural, one {Found # recurring payment} other {Found # recurring payments}}",
+    "noneFound": "No recurring payments yet: it takes about three payments to the same merchant."
+  },
   "spend": {
     "title": "Spending by category",
     "subtitle": "{count, plural, one {# category} other {# categories}}",

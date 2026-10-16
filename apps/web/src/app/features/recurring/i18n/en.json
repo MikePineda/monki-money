@@ -1,0 +1,62 @@
+{
+  "title": "Recurring payments",
+  "back": "Back to settings",
+  "intro": "Bills that come back on their own: rent, phone, gym, subscriptions. The Month view counts what they still take this month.",
+  "loading": "Loading recurring payments",
+  "detect": "Detect again",
+  "detecting": "Looking…",
+  "add": "Add manually",
+  "error": {
+    "title": "Recurring payments did not load",
+    "body": "Check your connection and try again."
+  },
+  "empty": {
+    "title": "No recurring payments yet",
+    "body": "Detection needs about three payments to the same merchant. Import your bank’s CSV, or add one by hand.",
+    "detect": "Detect recurring payments"
+  },
+  "sections": {
+    "paused": "Paused",
+    "dismissed": "Dismissed"
+  },
+  "cadence": {
+    "weekly": "Weekly",
+    "fortnightly": "Fortnightly",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly"
+  },
+  "next": "Next {date}",
+  "noCategory": "No category",
+  "actions": {
+    "edit": "Edit",
+    "pause": "Pause",
+    "resume": "Resume",
+    "dismiss": "Not a bill",
+    "restore": "Restore"
+  },
+  "sheet": {
+    "addTitle": "Add a recurring payment",
+    "editTitle": "Edit {payee}",
+    "payee": "Merchant",
+    "payeeHint": "As it shows on your bank statement.",
+    "amount": "Usual amount",
+    "cadence": "How often",
+    "nextDate": "Next due date",
+    "category": "Category",
+    "person": "Who pays",
+    "save": "Save"
+  },
+  "people": {
+    "you": "You",
+    "joint": "Shared"
+  },
+  "toast": {
+    "found": "{count, plural, =0 {No new recurring payments} one {Found # recurring payment} other {Found # recurring payments}}",
+    "saved": "Saved {payee}",
+    "paused": "{payee} paused: it no longer counts as committed",
+    "resumed": "{payee} counts as committed again",
+    "dismissed": "{payee} dismissed: detection will not bring it back",
+    "restored": "{payee} restored"
+  }
+}

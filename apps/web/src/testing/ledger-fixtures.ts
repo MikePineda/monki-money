@@ -154,6 +154,7 @@ export function aMonthReport(month: YearMonth, overrides: Partial<MonthReport> =
     pendingCents: 0,
     transactionCount: 0,
     topMovers: [],
+    committed: { paidCents: 0, upcomingCents: 0, recurringCount: 0, items: [] },
     ...overrides,
   } as MonthReport
 }

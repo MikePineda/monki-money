@@ -52,6 +52,9 @@
   "categories": {
     "title": "Categories"
   },
+  "recurring": {
+    "title": "Recurring payments"
+  },
   "goals": {
     "title": "Savings goals"
   },

@@ -28,3 +28,5 @@ export type ImportBatchDetail = Data.ImportBatchDetail
 export type ImportRow = Data.ImportRow
 /** A merchant rule (`origin`: user, learned or system). */
 export type MerchantRule = Data.MerchantRule
+/** A recurring payment (rent, a subscription): detected from the ledger or typed by hand. */
+export type RecurringItem = Data.RecurringItem
