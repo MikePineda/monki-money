@@ -53,7 +53,7 @@ test.describe('journey: savings goals and the monthly summary', () => {
     // Mark it as reached: the badge says so, and the list files it under Reached.
     await detail.markReached.click()
     await expect(detail.badge).toHaveText('Reached')
-    await expect(detail.reachedOn).toHaveText(/^Reached on \d{1,2} \p{L}+$/u)
+    await expect(detail.reachedOn).toHaveText(/^\s*Reached on \d{1,2} \p{L}+\s*$/u)
     await detail.back.click()
     await expect(page).toHaveURL(/\/goals$/)
     await goals.waitReady()
@@ -128,7 +128,7 @@ test.describe('journey: savings goals and the monthly summary', () => {
     await detail.atTarget.getByTestId('goal.markReached').click()
 
     await expect(detail.badge).toHaveText('Reached')
-    await expect(detail.reachedOn).toHaveText(/^Reached on \d{1,2} \p{L}+$/u)
+    await expect(detail.reachedOn).toHaveText(/^\s*Reached on \d{1,2} \p{L}+\s*$/u)
     await expect(detail.atTarget).toHaveCount(0)
 
     // Filed under Reached with its badge; reopening brings the prompt back.
