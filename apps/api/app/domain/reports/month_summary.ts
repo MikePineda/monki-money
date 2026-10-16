@@ -114,10 +114,24 @@ export function byKindThenAmount<Line extends { kind: Flow; amountCents: number 
   }
 }
 
+/** What any set of postings adds up to: the month summary without its month. */
+export type PostingsSummary = Omit<MonthSummary, 'month' | 'from' | 'to'>
+
 export function summarizeMonth(postings: Posting[], month: Month): MonthSummary {
   const { from, to } = monthRange(month)
-  const inMonth = excludeTransfers(postings).filter((posting) => monthOf(posting.date) === month)
+  const inMonth = postings.filter((posting) => monthOf(posting.date) === month)
+  return { month, from, to, ...summarizePostings(inMonth) }
+}
 
+/**
+ * Totals and lines (by group, category and person) of `postings` with the
+ * month summary's rules: transfers never count, categorized postings follow
+ * their group (a refund reduces its category), split lines count per
+ * category, hidden postings go to the `private` bucket. Shared by the month
+ * summary and the per-tag report, so their numbers always agree.
+ */
+export function summarizePostings(postings: Posting[]): PostingsSummary {
+  const counted = excludeTransfers(postings)
   let incomeCents = 0
   let expenseCents = 0
   let uncategorizedCents = 0
@@ -127,7 +141,7 @@ export function summarizeMonth(postings: Posting[], month: Month): MonthSummary 
   const groups = new Map<string, Accumulator<GroupLine>>()
   const people = new Map<number | null, PersonLine>()
 
-  for (const posting of inMonth) {
+  for (const posting of counted) {
     const kind = flowOf(posting) ?? 'expense'
     const amountCents = flowAmount(posting, kind)
     transactions.add(posting.transactionId)
@@ -177,9 +191,6 @@ export function summarizeMonth(postings: Posting[], month: Month): MonthSummary 
   }
 
   return {
-    month,
-    from,
-    to,
     incomeCents,
     expenseCents,
     netCents: incomeCents - expenseCents,

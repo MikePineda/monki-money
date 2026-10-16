@@ -21,6 +21,8 @@
     "tags": "Etiquetas",
     "addTag": "Agregar etiqueta",
     "removeTag": "Quitar etiqueta {tag}",
+    "tagSuggestions": "Etiquetas recientes",
+    "addSuggestedTag": "Agregar etiqueta {tag}",
     "private": "Privado",
     "privateHint": "Tu pareja ve el monto, no el comercio, la nota ni la categoría.",
     "moreCategories": "Más",

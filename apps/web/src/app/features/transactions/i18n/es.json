@@ -16,7 +16,13 @@
     "monthTitle": "Mes",
     "accountTitle": "Cuenta",
     "personTitle": "Quién pagó",
-    "categoryTitle": "Categoría"
+    "categoryTitle": "Categoría",
+    "tag": "Etiqueta",
+    "allTags": "Cualquier etiqueta",
+    "tagTitle": "Etiqueta",
+    "tagCount": "{count, plural, one {# movimiento} other {# movimientos}}",
+    "noTags": "Aún no hay etiquetas: agrega una desde un movimiento.",
+    "allMonths": "Todos los meses"
   },
   "people": {
     "you": "Tú",
@@ -86,7 +92,8 @@
     "date": "Fecha",
     "memo": "Nota",
     "account": "Cuenta",
-    "paidBy": "Pagó"
+    "paidBy": "Pagó",
+    "tags": "Etiquetas"
   },
   "split": {
     "title": "Dividir {amount}",

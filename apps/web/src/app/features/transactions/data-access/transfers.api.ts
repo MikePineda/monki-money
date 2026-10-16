@@ -10,6 +10,8 @@ export interface TransferInput {
   date: string
   amountCents: number
   memo?: string | null
+  /** Written on both legs. */
+  tags?: string[]
 }
 
 /**

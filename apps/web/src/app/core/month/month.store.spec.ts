@@ -195,6 +195,17 @@ describe('MonthStore', () => {
     expect(september()).toBe(0)
   })
 
+  it('test_the_ledger_revision_moves_with_a_change_in_any_month', () => {
+    const store = setup()
+    expect(store.ledgerRevision()).toBe(0)
+
+    store.invalidate(OCT)
+    store.invalidate(AUG)
+    store.invalidate(OCT)
+
+    expect(store.ledgerRevision()).toBe(3)
+  })
+
   it('test_invalidate_of_a_date_reaches_its_month', () => {
     const store = setup()
     const revision = store.revision(SEP)
