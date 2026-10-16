@@ -25,10 +25,23 @@ export class SettingsPage {
   get logout() {
     return this.page.getByTestId('settings.logout')
   }
+  get categories() {
+    return this.page.getByTestId('settings.categories')
+  }
+  get goals() {
+    return this.page.getByTestId('settings.goals')
+  }
 
+  /**
+   * Opens the More tab once it has settled. The member list arrives after
+   * the page is drawn and pushes every row below it down: a click there
+   * while it lands can press one row and release on another, and the click
+   * then reaches neither link.
+   */
   async goto(): Promise<void> {
     await this.page.goto('/settings')
     await expect(this.profile).toBeVisible()
+    await expect(this.members.getByRole('listitem').first()).toBeVisible()
   }
 
   async chooseTheme(label: string): Promise<void> {
