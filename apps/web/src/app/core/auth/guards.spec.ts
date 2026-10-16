@@ -12,8 +12,8 @@ import {
 } from '@angular/router'
 import { firstValueFrom, isObservable } from 'rxjs'
 import { aMe, anAccount, httpError, type SessionKind } from '../../../testing/session-fixtures'
-import { AccountsApi } from '../household/accounts.api'
 import { LangStore } from '../i18n/lang.store'
+import { AccountsProbe } from './accounts-probe'
 import { ThemeStore } from '../theme/theme.store'
 import { AuthApi } from './auth.api'
 import {
@@ -56,7 +56,7 @@ describe('route guards', () => {
             config: config.config,
           },
         },
-        { provide: AccountsApi, useValue: accounts },
+        { provide: AccountsProbe, useValue: accounts },
         { provide: ThemeStore, useValue: { hydrate: () => undefined } },
         { provide: LangStore, useValue: { hydrate: () => undefined } },
       ],

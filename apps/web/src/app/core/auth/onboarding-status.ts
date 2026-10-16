@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core'
-import { AccountsApi } from '../household/accounts.api'
 import { WINDOW } from '../platform/window.token'
+import { AccountsProbe } from './accounts-probe'
 import {
   clearOnboardingProgress,
   readOnboardingProgress,
@@ -17,7 +17,7 @@ import { SessionStore } from './session.store'
 @Injectable({ providedIn: 'root' })
 export class OnboardingStatus {
   private readonly session = inject(SessionStore)
-  private readonly accounts = inject(AccountsApi)
+  private readonly accounts = inject(AccountsProbe)
   private readonly window = inject(WINDOW)
 
   /** Households known to be set up during this app run (saves a request per navigation). */

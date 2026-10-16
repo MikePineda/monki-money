@@ -20,6 +20,8 @@ export type ScannedRoutes = {
     'auth.email.resend': { paramsTuple?: []; params?: {} }
     'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
     'me.update': { paramsTuple?: []; params?: {} }
+    'me.notifications.show': { paramsTuple?: []; params?: {} }
+    'me.notifications.update': { paramsTuple?: []; params?: {} }
     'households.store': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.show': { paramsTuple?: []; params?: {} }
@@ -102,6 +104,8 @@ export type ScannedRoutes = {
     'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'uploads.presign': { paramsTuple?: []; params?: {} }
     'receipts.scan': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.store': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.destroy': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
@@ -110,6 +114,7 @@ export type ScannedRoutes = {
     'config.show': { paramsTuple?: []; params?: {} }
     'auth.invitations.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'auth.me': { paramsTuple?: []; params?: {} }
+    'me.notifications.show': { paramsTuple?: []; params?: {} }
     'household.show': { paramsTuple?: []; params?: {} }
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
@@ -145,6 +150,7 @@ export type ScannedRoutes = {
     'config.show': { paramsTuple?: []; params?: {} }
     'auth.invitations.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'auth.me': { paramsTuple?: []; params?: {} }
+    'me.notifications.show': { paramsTuple?: []; params?: {} }
     'household.show': { paramsTuple?: []; params?: {} }
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
@@ -213,9 +219,11 @@ export type ScannedRoutes = {
     'recurring.detect': { paramsTuple?: []; params?: {} }
     'uploads.presign': { paramsTuple?: []; params?: {} }
     'receipts.scan': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.store': { paramsTuple?: []; params?: {} }
   }
   PATCH: {
     'me.update': { paramsTuple?: []; params?: {} }
+    'me.notifications.update': { paramsTuple?: []; params?: {} }
     'household.update': { paramsTuple?: []; params?: {} }
     'accounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'category_groups.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -240,6 +248,7 @@ export type ScannedRoutes = {
     'goals.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'push.subscriptions.destroy': { paramsTuple?: []; params?: {} }
   }
   PUT: {
     'accounts.reorder': { paramsTuple?: []; params?: {} }

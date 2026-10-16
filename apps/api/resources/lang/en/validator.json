@@ -82,7 +82,13 @@
       "amountTolerancePct": "amount tolerance",
       "grossCents": "gross amount",
       "deductions": "deductions",
-      "transferId": "transfer"
+      "transferId": "transfer",
+      "endpoint": "push address",
+      "p256dh": "push key",
+      "auth": "push secret",
+      "reminderTime": "reminder time",
+      "summaryReady": "summary notification",
+      "dailyReminder": "daily reminder"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -160,7 +166,10 @@
       "byteSize.max": "The photo must be 10 MB or smaller",
       "key.mimetype": "Upload a JPEG, PNG or WebP photo",
       "key.fileSize": "The photo must be 10 MB or smaller",
-      "key.image": "This file is not a photo we can read. Take it again"
+      "key.image": "This file is not a photo we can read. Take it again",
+      "pushEndpoint": "The {field} is not a supported push service",
+      "pushKey": "The {field} is not a valid push key",
+      "reminderTime": "The {field} must be a time from 00:00 to 23:30"
     }
   }
 }

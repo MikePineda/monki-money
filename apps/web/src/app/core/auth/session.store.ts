@@ -1,14 +1,17 @@
 import { Injectable, computed, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import type { Household, User } from '../api/api-types'
-import { toApiError } from '../api/http-errors'
 import { SessionExpiry } from '../api/session-expiry'
+import { isClientErrorAnswer } from '../api/tuyau-error'
 import { LangStore } from '../i18n/lang.store'
 import { WINDOW } from '../platform/window.token'
 import { ThemeStore } from '../theme/theme.store'
 import { clearAppStorage } from './app-storage'
 import { AuthApi, type Me } from './auth.api'
 import { hasFlag, homePath, type SessionSnapshot } from './entitlements'
+
+/** The longest a logout waits for its `beforeLogout` hooks. */
+export const BEFORE_LOGOUT_MS = 3_000
 
 /**
  * Who is signed in, read from `GET /api/v1/auth/me` at boot and after every
@@ -32,6 +35,7 @@ export class SessionStore {
   private readonly _unreachable = signal(false)
   private readonly clearHooks = new Set<() => void>()
   private readonly logoutHooks = new Set<() => void>()
+  private readonly beforeLogoutHooks = new Set<() => Promise<unknown>>()
 
   readonly me = this._me.asReadonly()
   /** The boot call could not reach the API (offline or server error). */
@@ -76,9 +80,9 @@ export class SessionStore {
       this.set(await this.api.me())
       this._unreachable.set(false)
     } catch (error) {
-      const failure = toApiError(error)
       this._me.set(null)
-      this._unreachable.set(failure.kind === 'offline' || failure.kind === 'server')
+      // A 4xx (401 above all) is an answer; no network or a 5xx is not.
+      this._unreachable.set(!isClientErrorAnswer(error))
     }
   }
 
@@ -124,8 +128,23 @@ export class SessionStore {
     this.logoutHooks.add(hook)
   }
 
+  /**
+   * Work that needs the session still open on an explicit logout (forget
+   * this device for push): awaited before the API ends the session, best
+   * effort, never longer than BEFORE_LOGOUT_MS in all.
+   */
+  beforeLogout(hook: () => Promise<unknown>): void {
+    this.beforeLogoutHooks.add(hook)
+  }
+
   /** Ends this session on the server (best effort) and everywhere in the app. */
   async logout(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([
+      Promise.allSettled([...this.beforeLogoutHooks].map((hook) => Promise.resolve().then(hook))),
+      new Promise((resolve) => (timer = setTimeout(resolve, BEFORE_LOGOUT_MS))),
+    ])
+    clearTimeout(timer)
     try {
       await this.api.logout()
     } catch {

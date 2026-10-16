@@ -44,5 +44,19 @@
   },
   "insights": {
     "uncategorized": "Uncategorized"
+  },
+  "push": {
+    "summaryReady": {
+      "title": "Your {month} summary is ready",
+      "body": "See how {month} went in a minute."
+    },
+    "dailyReminder": {
+      "title": "Did you log anything today?",
+      "body": "A quick entry now keeps the month accurate."
+    },
+    "test": {
+      "title": "Notifications work",
+      "body": "This is a test from monkimoney."
+    }
   }
 }

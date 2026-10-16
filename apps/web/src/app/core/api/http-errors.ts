@@ -1,22 +1,6 @@
-/**
- * What Tuyau throws (TuyauHTTPError / TuyauNetworkError), recognised by shape
- * so this module does not pull the client into the initial bundle (the
- * client itself is loaded lazily, see api.ts).
- */
-export interface TuyauLikeError {
-  kind: 'http' | 'network'
-  status?: number
-  response?: unknown
-  rawResponse?: { headers?: { get(name: string): string | null } }
-}
+import { isTuyauError, type TuyauLikeError } from './tuyau-error'
 
-export function isTuyauError(error: unknown): error is TuyauLikeError {
-  if (!(error instanceof Error) || !('kind' in error)) {
-    return false
-  }
-  const { kind } = error as { kind: unknown }
-  return kind === 'http' || kind === 'network'
-}
+export { isTuyauError, type TuyauLikeError } from './tuyau-error'
 
 /**
  * What the UI needs to know about a failed API call. Screens switch on
