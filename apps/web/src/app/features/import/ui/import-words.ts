@@ -10,6 +10,7 @@ export type Translate = (key: string, params?: Record<string, string | number>) 
  * transloco-keys-manager:
  * t(import.status.auto, import.status.ready, import.status.review, import.status.new)
  * t(import.status.transfer, import.status.ignored, import.status.duplicate)
+ * t(import.row.duplicateOf, import.row.duplicateIgnored)
  * t(import.row.private, import.row.uncategorized, import.row.transferUnknown)
  * t(import.source.rule, import.source.bank, import.source.ai, import.source.aiConfidence)
  * t(import.row.split, import.row.transferTo, import.row.transferGuessed, import.row.matches)
@@ -40,6 +41,8 @@ export function importRowContext(
       transfer: t('import.status.transfer'),
       ignored: t('import.status.ignored'),
       duplicate: t('import.status.duplicate'),
+      duplicateOf: (date, amount) => t('import.row.duplicateOf', { date, amount }),
+      duplicateIgnored: t('import.row.duplicateIgnored'),
       private: t('import.row.private'),
       uncategorized: t('import.row.uncategorized'),
       transferUnknown: t('import.row.transferUnknown'),

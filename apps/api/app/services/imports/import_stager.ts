@@ -35,7 +35,8 @@ interface AccountPlan {
   account: Account
   rows: ParsedRow[]
   staged: StagedRow[]
-  existing: ReadonlySet<string>
+  /** Hashes already imported for the account, with the ledger row each became. */
+  existing: ReadonlyMap<string, number | null>
   resolved: ResolvedRow[]
   /** Dates of the ledger rows the matcher may link (for the opening date). */
   candidateDates: ReadonlyMap<number, string>
@@ -200,7 +201,7 @@ export default class ImportStager {
         .filter((other) => other !== plan)
         .flatMap((other) => other.staged.filter((row) => !other.existing.has(row.externalHash)))
       const context = await this.loader.context(household, plan.account.id, plan.staged, {
-        existingHashes: plan.existing,
+        existingHashes: new Set(plan.existing.keys()),
         rules,
         accounts: householdAccounts,
         otherStaged,
@@ -222,7 +223,8 @@ export default class ImportStager {
     file: { source: ImportSource; fileName: string | null; fileHash: string }
   ): Promise<ImportBatch> {
     const { account, rows } = plan
-    const stored = plan.resolved.filter((resolved) => resolved.resolution !== 'duplicate')
+    // Duplicates are stored too, settled: listed for the review, never confirmed.
+    const reviewable = plan.resolved.filter((resolved) => resolved.resolution !== 'duplicate')
     const bankDates = rows.map((row) => row.bankDate).sort()
     const asOf = bankDates.at(-1)!
 
@@ -234,7 +236,7 @@ export default class ImportStager {
       previous === null && account.openingBalanceDate === null && account.openingBalanceCents === 0
     const opening = firstImport ? openingBalanceCents(rows) : null
     // Matched ledger rows dated before the oldest bank row must count after the opening.
-    const matchedDates = stored.flatMap((resolved) =>
+    const matchedDates = reviewable.flatMap((resolved) =>
       resolved.matchTransactionId === null
         ? []
         : [plan.candidateDates.get(resolved.matchTransactionId) ?? resolved.row.date]
@@ -247,7 +249,7 @@ export default class ImportStager {
       opening: opening === null ? undefined : { cents: opening, date: addDays(earliest, -1) },
       client: trx,
     })
-    const projected = stored
+    const projected = reviewable
       .filter(addsToTheLedger)
       .reduce((total, resolved) => total + resolved.row.amountCents, ledger)
 
@@ -263,7 +265,7 @@ export default class ImportStager {
         dateFrom: bankDates[0],
         dateTo: asOf,
         rowCount: rows.length,
-        duplicateCount: plan.resolved.length - stored.length,
+        duplicateCount: plan.resolved.length - reviewable.length,
         // Rows are newest first: the first balance is the bank's latest.
         expectedBalanceCents: rows.find((row) => row.balanceCents !== null)?.balanceCents ?? null,
         computedBalanceCents: projected,
@@ -273,20 +275,20 @@ export default class ImportStager {
     )
 
     const now = new Date()
-    for (let offset = 0; offset < stored.length; offset += INSERT_CHUNK) {
+    for (let offset = 0; offset < plan.resolved.length; offset += INSERT_CHUNK) {
       await trx
         .insertQuery()
         .table('import_rows')
         .multiInsert(
-          stored
+          plan.resolved
             .slice(offset, offset + INSERT_CHUNK)
-            .map((resolved) => rowValues(batch, resolved, now))
+            .map((resolved) => rowValues(batch, resolved, now, plan.existing))
         )
     }
 
     await staleFlagged(plan, batch, trx)
     await this.bookkeeping.refreshCounts(batch, trx)
-    if (stored.length === 0) {
+    if (reviewable.length === 0) {
       // Nothing to review (a re-upload of rows already imported).
       batch.merge({ status: 'completed', completedAt: DateTime.now() })
       await batch.save()
@@ -344,9 +346,20 @@ function addsToTheLedger(resolved: ResolvedRow) {
   )
 }
 
-/** `ResolvedRow` -> `import_rows` columns (see docs/import-pipeline.md). */
-function rowValues(batch: ImportBatch, resolved: ResolvedRow, now: Date) {
+/**
+ * `ResolvedRow` -> `import_rows` columns (see docs/import-pipeline.md). A
+ * duplicate is settled at once (`confirmed_at`) and points at the ledger
+ * row its stored copy became (`match_transaction_id`), so the review shows
+ * what is already there.
+ */
+function rowValues(
+  batch: ImportBatch,
+  resolved: ResolvedRow,
+  now: Date,
+  existing: ReadonlyMap<string, number | null>
+) {
   const { row, suggestion, transfer } = resolved
+  const duplicate = resolved.resolution === 'duplicate'
   return {
     import_batch_id: batch.id,
     household_id: batch.householdId,
@@ -371,9 +384,12 @@ function rowValues(batch: ImportBatch, resolved: ResolvedRow, now: Date) {
     is_pending: row.isPending,
     is_future_dated: row.isFutureDated,
     resolution: resolved.resolution,
+    proposed_resolution: resolved.resolution,
     needs_review: resolved.needsReview,
     reasons: JSON.stringify(resolved.reasons),
-    match_transaction_id: resolved.matchTransactionId,
+    match_transaction_id: duplicate
+      ? (existing.get(row.externalHash) ?? null)
+      : resolved.matchTransactionId,
     match_score: resolved.matchScore,
     upgrades_pending: resolved.upgradesPendingTransaction,
     suggested_category_id: suggestion?.categoryId ?? null,
@@ -388,6 +404,7 @@ function rowValues(batch: ImportBatch, resolved: ResolvedRow, now: Date) {
     transfer_leg_transaction_id: transfer?.oppositeLeg?.transactionId ?? null,
     transfer_leg_hash: transfer?.oppositeLeg?.externalHash ?? null,
     suggested_paid_by_user_id: resolved.paidByUserId,
+    confirmed_at: duplicate ? now : null,
     created_at: now,
     updated_at: now,
   }

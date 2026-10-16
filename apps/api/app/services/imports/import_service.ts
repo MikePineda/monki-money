@@ -8,7 +8,7 @@ import db from '@adonisjs/lucid/services/db'
 import { findInHousehold } from '#repositories/scoped'
 import { DateTime } from 'luxon'
 import { ImportBatchClosed, ImportClassifyRunning } from '#exceptions/errors'
-import { CLASSIFY_CLAIM_MINUTES } from '#services/imports/import_classifier'
+import { CLASSIFY_CLAIM_MINUTES } from '#domain/importing/classify_run'
 import type { ImportResolution } from '@monkimoney/shared'
 import ImportStager from '#services/imports/import_stager'
 import ClassifyImportRowsJob from '#jobs/classify_import_rows_job'
@@ -21,6 +21,7 @@ import type {
   ConfirmMode,
   DecideInput,
   ImportListFilters,
+  RowChange,
   StageInput,
 } from '#services/imports/dto'
 
@@ -71,6 +72,11 @@ export default class ImportService {
 
   decide(household: Household, actor: User, batchId: number, rowId: number, input: DecideInput) {
     return this.decisions.decide(household, actor, batchId, rowId, input)
+  }
+
+  /** Several rows' decisions in one transaction (all or nothing). */
+  decideMany(household: Household, actor: User, batchId: number, changes: RowChange[]) {
+    return this.decisions.decideMany(household, actor, batchId, changes)
   }
 
   /**
@@ -131,7 +137,10 @@ export default class ImportService {
     return this.confirmer.confirm(household, actor, batchId, input, mode)
   }
 
-  /** Drops the rows still waiting (confirmed ones keep their hash) and closes the batch. */
+  /**
+   * Drops the rows still waiting (confirmed ones keep their hash, listed
+   * duplicates stay settled) and closes the batch.
+   */
   async cancel(household: Household, batchId: number) {
     const batch = await this.find(household, batchId)
     await db.transaction(async (trx) => {

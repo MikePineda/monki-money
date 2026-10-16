@@ -1,11 +1,13 @@
 {
   "pill": {
     "pending": "{count, plural, one {# pending} other {# pending}}",
-    "failed": "{count, plural, one {# failed} other {# failed}}"
+    "failed": "{count, plural, one {# failed} other {# failed}}",
+    "notPersisted": "not persisted"
   },
   "sheet": {
     "title": "Not synced yet",
     "body": "Saved on this phone. They sync by themselves when there is a connection.",
+    "notPersisted": "This phone could not store them (storage full or private browsing): they stay only until the app closes, so keep it open until they sync.",
     "retryAll": "Retry all",
     "status": {
       "pending": "Waiting to sync",
@@ -27,5 +29,13 @@
       "income": "Income",
       "transfer": "Transfer"
     }
+  },
+  "logout": {
+    "title": "Log out before they sync?",
+    "body": "{count, plural, one {# movement is waiting to sync and will be lost if you log out.} other {# movements are waiting to sync and will be lost if you log out.}}",
+    "stuck": "Not everything could sync. Check the connection and try again, or log out anyway.",
+    "sync": "Sync now",
+    "confirm": "Log out anyway",
+    "cancel": "Cancel"
   }
 }

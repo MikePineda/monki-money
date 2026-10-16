@@ -52,6 +52,9 @@
   "categories": {
     "title": "Categorías"
   },
+  "recurring": {
+    "title": "Pagos recurrentes"
+  },
   "goals": {
     "title": "Metas de ahorro"
   },

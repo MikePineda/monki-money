@@ -31,7 +31,10 @@ export interface ImportRowView {
   status: { icon: IconName; label: string; iconClass: string }
   /** A doubtful row's suggestion, offered inline with "Accept" ("Groceries ?"). */
   suggestion: string | null
-  /** The row can be ticked for a bulk action (never once confirmed, masked or a duplicate). */
+  /**
+   * The row can be ticked for a bulk action (never once confirmed, masked,
+   * a duplicate or a 0.00 row already ignored); ignored rows take "Restore".
+   */
   selectable: boolean
   checkLabel: string
 }
@@ -47,6 +50,10 @@ export interface ImportRowContext {
     transfer: string
     ignored: string
     duplicate: string
+    /** A duplicate: the ledger row it repeats, by its date and amount. */
+    duplicateOf: (date: string, amount: string) => string
+    /** A duplicate whose first copy was ignored (nothing in the ledger). */
+    duplicateIgnored: string
     private: string
     uncategorized: string
     transferUnknown: string
@@ -110,6 +117,19 @@ function whatItIs(row: ImportRow, context: ImportRowContext): string[] {
   const state = rowState(row)
   if (row.resolution === 'ignored' || row.resolution === 'superseded') {
     return []
+  }
+  if (row.resolution === 'duplicate') {
+    const copy = row.match?.transaction
+    if (!copy) {
+      return [labels.duplicateIgnored]
+    }
+    const kind: TransactionKind = copy.amountCents < 0 ? 'expense' : 'income'
+    return [
+      labels.duplicateOf(
+        formatWeekdayDate(copy.date, context.locale),
+        formatTransactionAmount(copy.amountCents, kind, context.locale)
+      ),
+    ]
   }
   if (
     row.resolution === 'transfer_leg' ||
@@ -182,7 +202,10 @@ export function importRowView(row: ImportRow, context: ImportRowContext): Import
     title,
     masked: row.isMasked,
     meta: [date, ...(row.isMasked ? [] : whatItIs(row, context))].join(' · '),
-    person: row.isMasked || tone === 'ignored' ? null : context.person(state.paidByUserId),
+    person:
+      row.isMasked || tone === 'ignored' || tone === 'duplicate'
+        ? null
+        : context.person(state.paidByUserId),
     personLabel: joint && transfer ? '' : context.personLabel(state.paidByUserId),
     amountCents: row.amountCents,
     kind,
@@ -195,7 +218,7 @@ export function importRowView(row: ImportRow, context: ImportRowContext): Import
     },
     suggestion,
     // Only rows a bulk action can still change: a confirmed row offers no checkbox.
-    selectable: tone !== 'ignored' && allowedActions(row).size > 0,
+    selectable: allowedActions(row).size > 0,
     checkLabel: context.labels.select(title, amountText),
   }
 }

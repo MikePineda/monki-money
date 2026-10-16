@@ -1,4 +1,5 @@
 import { isIsoDate, monthOf, type IsoDate, type YearMonth } from './month'
+import type { RecentEntry } from './quick-add-defaults'
 
 /**
  * The offline outbox: creates that could not reach the API yet, kept on the
@@ -14,6 +15,9 @@ import { isIsoDate, monthOf, type IsoDate, type YearMonth } from './month'
  *   with the server's message until the person retries, edits or discards it.
  * - `serialize`/`deserialize` carry a schema version; reading is tolerant: a
  *   corrupt entry is dropped and the rest survive, nothing ever throws.
+ * - The device copy is shared by every open tab: `reconcile` merges it with
+ *   what one tab holds, so neither tab drops the other's entries.
+ * - `queuedAsRecent` lets quick add rank what is queued like ledger rows.
  */
 
 export const OUTBOX_VERSION = 1
@@ -184,6 +188,84 @@ export function nextToSync(
 export function backoffMs(attempts: number): number {
   const exponent = Math.max(0, attempts - 1)
   return Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2 ** Math.min(exponent, 16))
+}
+
+/* ------------------------------------------------------------- two tabs */
+
+/**
+ * One tab's outbox against the device copy, which every open tab writes:
+ * the device copy wins (another tab may have queued, synced, edited or
+ * discarded entries since), except that an entry this tab is sending right
+ * now stays `syncing` (stored, it reads as `pending`). With `keepUnstored`
+ * (this tab's last write was refused, so the device copy is behind) this
+ * tab's entries the device does not have are kept after the stored ones;
+ * otherwise they were removed by another tab and go.
+ */
+export function reconcile(
+  stored: readonly OutboxEntry[],
+  local: readonly OutboxEntry[],
+  keepUnstored: boolean
+): OutboxEntry[] {
+  const sending = new Set(
+    local.filter((entry) => entry.status === 'syncing').map((entry) => entry.id)
+  )
+  const merged = stored.map((entry) =>
+    sending.has(entry.id) ? ({ ...entry, status: 'syncing' } as OutboxEntry) : entry
+  )
+  if (!keepUnstored) {
+    return merged
+  }
+  const known = new Set(stored.map((entry) => entry.id))
+  return [...merged, ...local.filter((entry) => !known.has(entry.id))]
+}
+
+/* ------------------------------------------------------------ rankings */
+
+/** Above any ledger id, so a queued entry wins a tie as the latest use. */
+const QUEUED_ID_CEILING = Number.MAX_SAFE_INTEGER
+
+/**
+ * Queued entries as ledger rows for quick add's rankings (categories,
+ * payees, transfer routes, the latest account), newest first like the API
+ * lists them, so an entry saved offline counts before it syncs. They have
+ * no server id: each gets one above any real row's, the newest highest
+ * (a transfer's two legs share it as their transfer id). The outbox is per
+ * person, so `createdByUserId` is its owner.
+ */
+export function queuedAsRecent(
+  entries: readonly OutboxEntry[],
+  createdByUserId: number | null
+): RecentEntry[] {
+  const rows: RecentEntry[] = []
+  entries.forEach((entry, index) => {
+    const id = QUEUED_ID_CEILING - (entries.length - 1 - index)
+    const base = { id, date: entry.payload.date, createdByUserId, payee: null, categoryId: null }
+    if (entry.kind === 'transfer') {
+      const { fromAccountId, toAccountId, amountCents } = entry.payload
+      rows.unshift(
+        {
+          ...base,
+          kind: 'transfer',
+          accountId: fromAccountId,
+          amountCents: -amountCents,
+          transferId: id,
+        },
+        { ...base, kind: 'transfer', accountId: toAccountId, amountCents, transferId: id }
+      )
+      return
+    }
+    const { kind, accountId, amountCents, categoryId, payee } = entry.payload
+    rows.unshift({
+      ...base,
+      kind,
+      accountId,
+      amountCents: kind === 'expense' ? -amountCents : amountCents,
+      categoryId,
+      payee,
+      transferId: null,
+    })
+  })
+  return rows
 }
 
 /* ----------------------------------------------------------- persistence */

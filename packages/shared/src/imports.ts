@@ -3,6 +3,13 @@
  * Amounts are integer cents.
  */
 
+/**
+ * Changes one `PATCH /imports/:id/rows` request carries at most: a request
+ * of that size stays well under the API's 1 MB JSON body limit (a change is
+ * ~70-200 bytes), and the web sends bigger bulk actions in several requests.
+ */
+export const MAX_BULK_ROW_CHANGES = 5_000
+
 /** A split line decided for an imported row (same rules as a transaction's split). */
 export interface ImportSplitLine {
   categoryId: number

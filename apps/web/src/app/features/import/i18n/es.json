@@ -102,6 +102,7 @@
       "label": "Movimientos seleccionados",
       "clear": "Quitar selección",
       "ignore": "Ignorar",
+      "restore": "Restaurar",
       "category": "Categoría",
       "accept": "Aceptar ({count})"
     },
@@ -145,6 +146,8 @@
     "transferGuessed": "Transferencia a {account} (cuenta supuesta)",
     "matches": "Coincide con {payee}",
     "possibleMatch": "¿{payee}?",
+    "duplicateOf": "Ya importado: {date}, {amount}",
+    "duplicateIgnored": "Ya importado e ignorado",
     "suggestion": "{category} ?",
     "select": "Seleccionar {title}, {amount}",
     "change": "Cambiar",
@@ -218,6 +221,8 @@
   },
   "toast": {
     "bulkDone": "{count, plural, one {# movimiento actualizado.} other {# movimientos actualizados.}}",
+    "undo": "Deshacer",
+    "undone": "Cambios deshechos.",
     "classifyRunning": "La IA ya está clasificando esta importación.",
     "classified": "Ya están las sugerencias de la IA.",
     "undecided": "Algunos movimientos todavía necesitan una decisión.",

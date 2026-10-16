@@ -29,7 +29,9 @@
     "undo": "Deshacer",
     "undone": "Eliminado",
     "queued": "Guardado sin conexión · se sincronizará",
-    "updated": "Movimiento actualizado · se sincronizará"
+    "queuedMemory": "Guardado sin conexión · mantén la app abierta hasta que se sincronice",
+    "updated": "Movimiento actualizado · se sincronizará",
+    "undoSynced": "Ya se sincronizó. Bórralo desde Movimientos."
   },
   "noAccounts": {
     "title": "Primero agrega una cuenta.",

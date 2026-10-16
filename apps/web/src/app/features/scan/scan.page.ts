@@ -35,7 +35,12 @@ import { ScanCaptureComponent } from './ui/scan-capture.component'
     >
       <app-toast-outlet class="fixed inset-x-0 top-[calc(var(--safe-top)+56px)] z-20" />
       @if (receipt(); as draft) {
-        <app-receipt-review [receipt]="draft" (saved)="leave()" (discarded)="store.reset()" />
+        <app-receipt-review
+          [receipt]="draft"
+          [photo]="store.reviewPhoto()"
+          (saved)="leave()"
+          (discarded)="store.reset()"
+        />
       } @else {
         <header class="flex h-14 shrink-0 items-center gap-1 pr-4 pl-1">
           <button

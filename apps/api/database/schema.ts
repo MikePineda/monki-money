@@ -6,7 +6,7 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, ImportSource, ImportBatchStatus, ImportRowDecision, ImportResolution, SuggestionSource, LlmPurpose, LlmUsageStatus, RuleMatchType, RuleOrigin, GoalStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, ImportSource, ImportBatchStatus, ImportRowDecision, ImportResolution, SuggestionSource, LlmPurpose, LlmUsageStatus, RuleMatchType, RuleOrigin, RecurringCadence, RecurringSource, RecurringStatus, GoalStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
 import { jsonColumn } from '#database/json_column'
 import type { InsightHighlight, InsightInput } from '#llm/types'
 
@@ -171,10 +171,12 @@ export class HouseholdSchema extends BaseModel {
 }
 
 export class ImportBatchSchema extends BaseModel {
-  static $columns = ['accountId', 'classifyStartedAt', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
+  static $columns = ['accountId', 'classifyFinishedAt', 'classifyStartedAt', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
   $columns = ImportBatchSchema.$columns
   @column()
   declare accountId: number
+  @column.dateTime()
+  declare classifyFinishedAt: DateTime | null
   @column.dateTime()
   declare classifyStartedAt: DateTime | null
   @column.dateTime()
@@ -228,7 +230,7 @@ export class ImportBatchSchema extends BaseModel {
 }
 
 export class ImportRowSchema extends BaseModel {
-  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
+  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'proposedResolution', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
   $columns = ImportRowSchema.$columns
   @column()
   declare accountId: number
@@ -286,6 +288,8 @@ export class ImportRowSchema extends BaseModel {
   declare occurrence: number
   @column()
   declare processedOn: string | null
+  @column()
+  declare proposedResolution: ImportResolution | null
   @jsonColumn()
   declare raw: Record<string, string>
   @jsonColumn()
@@ -481,6 +485,47 @@ export class PayslipSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare userId: number | null
+}
+
+export class RecurringItemSchema extends BaseModel {
+  static $columns = ['accountId', 'amountCents', 'amountTolerancePct', 'cadence', 'categoryId', 'createdAt', 'editedFields', 'householdId', 'id', 'lastPaidDate', 'merchantKey', 'nextExpectedDate', 'occurrences', 'paidByUserId', 'payee', 'source', 'status', 'updatedAt'] as const
+  $columns = RecurringItemSchema.$columns
+  @column()
+  declare accountId: number | null
+  @column()
+  declare amountCents: number
+  @column()
+  declare amountTolerancePct: number
+  @column()
+  declare cadence: RecurringCadence
+  @column()
+  declare categoryId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @jsonColumn()
+  declare editedFields: string[]
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare lastPaidDate: string | null
+  @column()
+  declare merchantKey: string
+  @column()
+  declare nextExpectedDate: string
+  @column()
+  declare occurrences: number
+  @column()
+  declare paidByUserId: number | null
+  @column()
+  declare payee: string
+  @column()
+  declare source: RecurringSource
+  @column()
+  declare status: RecurringStatus
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class SavingsGoalSchema extends BaseModel {

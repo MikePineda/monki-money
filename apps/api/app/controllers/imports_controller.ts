@@ -52,12 +52,21 @@ export default class ImportsController {
     return ctx.serialize(ImportBatchTransformer.transform(batches))
   }
 
-  /** GET /imports/:id: the batch with its rows (`?resolution=` filters them). */
+  /**
+   * GET /imports/:id: the batch with its rows (`?resolution=` filters them);
+   * `?rows=0` answers the batch alone (classify polling, the result screen).
+   */
   async show(ctx: HttpContext) {
-    const { params, resolution } = await ctx.request.validateUsing(showImportValidator)
-    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
+    const {
+      params,
+      resolution,
+      rows: withRows,
+    } = await ctx.request.validateUsing(showImportValidator)
 
     const batch = await this.imports.find(ctx.household, params.id)
+    if (withRows === false) return ctx.serialize(ImportBatchTransformer.transform(batch))
+
+    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
     const rows = await this.imports.rows(batch, { resolution })
 
     return ctx.serialize(ImportBatchDetailTransformer.transform(batch, rows, viewer))

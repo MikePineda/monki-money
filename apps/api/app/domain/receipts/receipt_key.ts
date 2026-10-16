@@ -4,11 +4,17 @@
  * (the client never chooses a key), the household id in the path is what
  * scoping checks, and the top-level `receipts/` prefix is what the bucket's
  * one-day lifecycle rule expires (bank CSVs live under `imports/`).
+ *
+ * The photo types the client may upload (and the 10 MB limit) are shared
+ * with the web, which checks them before asking for a presigned URL.
  */
+import {
+  RECEIPT_UPLOAD_TYPES,
+  isReceiptUploadType,
+  type ReceiptUploadType,
+} from '@monkimoney/shared'
 
-/** Photo types the client may upload (it re-encodes before uploading). */
-export const RECEIPT_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
-export type ReceiptUploadType = (typeof RECEIPT_UPLOAD_TYPES)[number]
+export { RECEIPT_UPLOAD_TYPES, isReceiptUploadType, type ReceiptUploadType }
 
 /** Every receipt photo lives under this prefix (lifecycle rule `expire-receipts`). */
 export const RECEIPTS_PREFIX = 'receipts/'
@@ -24,10 +30,6 @@ const KEY_PATTERN =
   /^receipts\/([1-9]\d{0,9})\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp)$/
 
 const MAX_ID = 2_147_483_647
-
-export function isReceiptUploadType(value: unknown): value is ReceiptUploadType {
-  return typeof value === 'string' && (RECEIPT_UPLOAD_TYPES as readonly string[]).includes(value)
-}
 
 /** The key for a new receipt photo; `id` is a fresh uuid chosen by the caller. */
 export function receiptKey(householdId: number, id: string, contentType: ReceiptUploadType) {

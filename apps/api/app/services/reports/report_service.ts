@@ -9,6 +9,7 @@ import { findInHousehold } from '#repositories/scoped'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { summarizeMonth } from '#domain/reports/month_summary'
 import AccountBalances from '#services/accounts/account_balances'
+import CommittedReportBuilder from '#services/recurring/committed_report'
 import PostingsRepository from '#repositories/postings_repository'
 import { assertMemberOf } from '#services/households/membership_lookup'
 import {
@@ -23,6 +24,7 @@ import {
   currentMonth,
   monthRange,
   previousMonths,
+  todayIn,
   type Month,
 } from '#domain/calendar/month'
 
@@ -51,27 +53,43 @@ export default class ReportService {
   constructor(
     protected postings: PostingsRepository,
     protected balancesOfAccounts: AccountBalances,
+    protected committedReport: CommittedReportBuilder,
     protected clock: Clock
   ) {}
 
-  /** Where the money went in a month, plus the categories that moved the most vs the month before. */
+  /**
+   * Where the money went in a month, the categories that moved the most vs
+   * the month before, and what the recurring payments commit in it
+   * (`committed`: already paid, still due until the end of the month).
+   */
   async month(household: Household, viewer: User, input: MonthReportInput = {}) {
     if (input.paidByUserId !== undefined) {
       await assertMemberOf(household, input.paidByUserId, 'paidByUserId')
     }
-    const month = input.month ?? this.currentMonth(household)
+    const now = this.clock.now()
+    const month = input.month ?? currentMonth(now, household.timezone)
     const previous = addMonths(month, -1)
+    const reader = await privacyViewer(household, viewer)
 
     let postings = postingsFor(
       await this.postings.between(household, monthRange(previous).from, monthRange(month).to),
-      await privacyViewer(household, viewer)
+      reader
     )
     if (input.paidByUserId !== undefined) {
       postings = postings.filter((posting) => posting.paidByUserId === input.paidByUserId)
     }
 
     const summary = summarizeMonth(postings, month)
-    return { ...summary, topMovers: topMovers(summarizeMonth(postings, previous), summary) }
+    const committed = await this.committedReport.forMonth(household, reader, {
+      month,
+      today: todayIn(now, household.timezone),
+      paidByUserId: input.paidByUserId,
+    })
+    return {
+      ...summary,
+      topMovers: topMovers(summarizeMonth(postings, previous), summary),
+      committed,
+    }
   }
 
   /** Income/expense/net per month and one series per group (or category). */

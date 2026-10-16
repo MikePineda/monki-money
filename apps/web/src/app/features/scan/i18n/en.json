@@ -19,6 +19,9 @@
     "problem": {
       "notImage": "This file is not a photo. Choose a photo of the receipt.",
       "unreadablePhoto": "This photo could not be opened. Try another one.",
+      "unsupportedFormat": "This browser cannot open {format} photos. Choose a JPEG or PNG, or take the photo with the camera button.",
+      "tooLarge": "This photo is too large to upload (10 MB at most), even reduced. Try another one.",
+      "wrongType": "This photo cannot be uploaded in its format. Choose a JPEG, PNG or WebP photo.",
       "offline": "No connection. Scanning needs the internet, so try again when you are back online.",
       "quota": "AI limit reached for this month. You can still add the expense by hand.",
       "unavailable": "Scanning is not available right now.",
@@ -41,6 +44,16 @@
       "high": "Read clearly. Check the details before saving.",
       "medium": "Some parts were hard to read. Check the amount and the date.",
       "low": "Hard to read. Check every field before saving."
+    },
+    "currency": {
+      "message": "This receipt is in {currency}. It will be saved in {home} with the amounts as you type them, without converting.",
+      "continue": "Continue",
+      "cancel": "Cancel"
+    },
+    "photo": {
+      "show": "Show photo",
+      "hide": "Hide photo",
+      "alt": "The scanned receipt"
     },
     "split": "Split by lines",
     "splitHint": "Give each line of the receipt its own category.",

@@ -87,3 +87,19 @@ export function checkImageFile(file: { size: number; type: string }): ImageFileP
   }
   return null
 }
+
+/** Formats every browser opens: failing to decode one of them means a damaged file. */
+const COMMON_FORMATS: ReadonlySet<string> = new Set(['JPEG', 'JPG', 'PNG', 'WEBP', 'GIF', 'BMP'])
+
+/**
+ * The format to name when no decoder could open a photo ("HEIC"), read from
+ * its type or, when the picker left that blank or generic, from the file
+ * name's extension. Null for the formats every browser opens (the file is
+ * damaged, not unsupported) and when nothing says what the file is.
+ */
+export function undecodableFormat(file: { type: string; name?: string }): string | null {
+  const fromType = /^image\/(?:x-)?([a-z0-9.-]+)/i.exec(file.type.trim())?.[1]
+  const fromName = /\.([a-z0-9]{2,5})$/i.exec(file.name ?? '')?.[1]
+  const format = (fromType ?? fromName)?.toUpperCase() ?? null
+  return format !== null && !COMMON_FORMATS.has(format) ? format : null
+}

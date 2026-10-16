@@ -498,6 +498,12 @@ const routes = {
     tokens: [{"old":"/api/v1/imports/:id/cancel","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/cancel","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"cancel","end":""}],
     types: placeholder as Registry['imports.cancel']['types'],
   },
+  'imports.rows.bulk': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/imports/:id/rows',
+    tokens: [{"old":"/api/v1/imports/:id/rows","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/rows","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/rows","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/rows","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/rows","type":0,"val":"rows","end":""}],
+    types: placeholder as Registry['imports.rows.bulk']['types'],
+  },
   'imports.rows.update': {
     methods: ["PATCH"],
     pattern: '/api/v1/imports/:id/rows/:rowId',
@@ -533,6 +539,42 @@ const routes = {
     pattern: '/api/v1/rules/:id/apply',
     tokens: [{"old":"/api/v1/rules/:id/apply","type":0,"val":"api","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"v1","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"rules","end":""},{"old":"/api/v1/rules/:id/apply","type":1,"val":"id","end":""},{"old":"/api/v1/rules/:id/apply","type":0,"val":"apply","end":""}],
     types: placeholder as Registry['rules.apply']['types'],
+  },
+  'recurring.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/recurring',
+    tokens: [{"old":"/api/v1/recurring","type":0,"val":"api","end":""},{"old":"/api/v1/recurring","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring","type":0,"val":"recurring","end":""}],
+    types: placeholder as Registry['recurring.index']['types'],
+  },
+  'recurring.merchants': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/recurring/merchants',
+    tokens: [{"old":"/api/v1/recurring/merchants","type":0,"val":"api","end":""},{"old":"/api/v1/recurring/merchants","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring/merchants","type":0,"val":"recurring","end":""},{"old":"/api/v1/recurring/merchants","type":0,"val":"merchants","end":""}],
+    types: placeholder as Registry['recurring.merchants']['types'],
+  },
+  'recurring.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/recurring',
+    tokens: [{"old":"/api/v1/recurring","type":0,"val":"api","end":""},{"old":"/api/v1/recurring","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring","type":0,"val":"recurring","end":""}],
+    types: placeholder as Registry['recurring.store']['types'],
+  },
+  'recurring.detect': {
+    methods: ["POST"],
+    pattern: '/api/v1/recurring/detect',
+    tokens: [{"old":"/api/v1/recurring/detect","type":0,"val":"api","end":""},{"old":"/api/v1/recurring/detect","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring/detect","type":0,"val":"recurring","end":""},{"old":"/api/v1/recurring/detect","type":0,"val":"detect","end":""}],
+    types: placeholder as Registry['recurring.detect']['types'],
+  },
+  'recurring.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/recurring/:id',
+    tokens: [{"old":"/api/v1/recurring/:id","type":0,"val":"api","end":""},{"old":"/api/v1/recurring/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring/:id","type":0,"val":"recurring","end":""},{"old":"/api/v1/recurring/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['recurring.update']['types'],
+  },
+  'recurring.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/recurring/:id',
+    tokens: [{"old":"/api/v1/recurring/:id","type":0,"val":"api","end":""},{"old":"/api/v1/recurring/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring/:id","type":0,"val":"recurring","end":""},{"old":"/api/v1/recurring/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['recurring.destroy']['types'],
   },
   'uploads.presign': {
     methods: ["POST"],

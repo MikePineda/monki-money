@@ -26,6 +26,15 @@ export class ScanPage {
   get saveButton() {
     return this.page.getByTestId('scan.review.save')
   }
+  /** The reduced photo shown next to the fields once "Show photo" is on. */
+  get photo() {
+    return this.page.getByTestId('scan.review.photo')
+  }
+
+  async showPhoto(): Promise<void> {
+    await this.page.getByTestId('scan.review.photoToggle').click()
+    await expect(this.photo).toBeVisible()
+  }
 
   async goto(): Promise<void> {
     await this.page.goto('/scan')

@@ -78,8 +78,30 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
+/** This device's localStorage, except that every write fails like a full quota or private mode. */
+function refusingWrites(): Storage {
+  const refuse = () => {
+    throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+  }
+  return {
+    get length() {
+      return localStorage.length
+    },
+    key: (index: number) => localStorage.key(index),
+    getItem: (key: string) => localStorage.getItem(key),
+    setItem: refuse,
+    removeItem: refuse,
+    clear: refuse,
+  }
+}
+
 describe('OutboxStore', () => {
-  let api: { quick: ReturnType<typeof vi.fn>; transfer: ReturnType<typeof vi.fn> }
+  let api: {
+    quick: ReturnType<typeof vi.fn>
+    transfer: ReturnType<typeof vi.fn>
+    remove: ReturnType<typeof vi.fn>
+    removeTransfer: ReturnType<typeof vi.fn>
+  }
   let months: { invalidate: ReturnType<typeof vi.fn> }
   let user: WritableSignal<User | null>
   let clearHooks: (() => void)[]
@@ -90,6 +112,8 @@ describe('OutboxStore', () => {
     api = {
       quick: vi.fn(async () => aTransaction()),
       transfer: vi.fn(async () => ({ id: 7, legs: [] })),
+      remove: vi.fn(async () => undefined),
+      removeTransfer: vi.fn(async () => undefined),
     }
     months = { invalidate: vi.fn() }
     user = signal(options.signedIn === false ? null : aUser({ id: 1 }))
@@ -131,6 +155,24 @@ describe('OutboxStore', () => {
   function goOnline(): void {
     view.navigator.onLine = true
     view.dispatchEvent(new Event('online'))
+  }
+
+  /** Another tab of the app writes this person's outbox (and, unless told otherwise, says so). */
+  function otherTabWrites(entries: OutboxEntry[], options: { event?: boolean } = {}): void {
+    const key = `${OUTBOX_KEY}1`
+    const raw = entries.length > 0 ? serialize(entries) : null
+    if (raw === null) {
+      localStorage.removeItem(key)
+    } else {
+      localStorage.setItem(key, raw)
+    }
+    if (options.event !== false) {
+      view.dispatchEvent(new StorageEvent('storage', { key, newValue: raw }))
+    }
+  }
+
+  function ids(entries: readonly OutboxEntry[]): string[] {
+    return entries.map((entry) => entry.id)
   }
 
   /** Lets a flush started by an event or a timer run to its end. */
@@ -473,6 +515,243 @@ describe('OutboxStore', () => {
       await store.release(item.payload.clientId)
 
       expect(api.quick).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('two tabs', () => {
+    it('test_two_tabs_do_not_lose_each_others_queued_entries', () => {
+      const store = setup({ online: false })
+      const mine = anExpense()
+      store.enqueue(mine)
+
+      // The other tab queues its own entry on top of what it read.
+      const theirs = anExpense()
+      otherTabWrites(enqueueEntry(stored(), theirs, NOW))
+      expect(ids(store.entries())).toEqual([mine.payload.clientId, theirs.payload.clientId])
+
+      const next = anExpense()
+      store.enqueue(next)
+
+      expect(ids(stored())).toEqual([
+        mine.payload.clientId,
+        theirs.payload.clientId,
+        next.payload.clientId,
+      ])
+    })
+
+    it('test_a_write_from_another_tab_survives_even_before_its_event_arrives', () => {
+      const store = setup({ online: false })
+      const mine = anExpense()
+      store.enqueue(mine)
+      const theirs = anExpense()
+      otherTabWrites(enqueueEntry(stored(), theirs, NOW), { event: false })
+
+      const next = anExpense()
+      store.enqueue(next)
+
+      expect(ids(stored())).toEqual([
+        mine.payload.clientId,
+        theirs.payload.clientId,
+        next.payload.clientId,
+      ])
+      expect(ids(store.entries())).toEqual(ids(stored()))
+    })
+
+    it('test_an_entry_the_other_tab_synced_leaves_this_tab_too', () => {
+      const store = setup({ online: false })
+      const first = anExpense()
+      const second = anExpense()
+      store.enqueue(first)
+      store.enqueue(second)
+
+      otherTabWrites(stored().filter((entry) => entry.id !== first.payload.clientId))
+
+      expect(ids(store.entries())).toEqual([second.payload.clientId])
+      expect(store.pendingCount()).toBe(1)
+    })
+
+    it('test_the_other_tab_emptying_the_outbox_hides_it_here', () => {
+      const store = setup({ online: false })
+      store.enqueue(anExpense())
+
+      otherTabWrites([])
+
+      expect(store.entries()).toEqual([])
+    })
+
+    it('test_an_entry_this_tab_is_sending_stays_syncing_when_the_other_tab_writes', async () => {
+      const store = setup({ online: false })
+      const sending = anExpense()
+      store.enqueue(sending)
+      const answer = deferred<unknown>()
+      api.quick.mockReturnValueOnce(answer.promise)
+      const flushing = store.flush()
+      await vi.waitFor(() => expect(api.quick).toHaveBeenCalled())
+
+      const theirs = anExpense()
+      otherTabWrites(enqueueEntry(stored(), theirs, NOW))
+      expect(store.entries().map((entry) => entry.status)).toEqual(['syncing', 'pending'])
+
+      answer.resolve(aTransaction())
+      await flushing
+      expect(ids(stored())).not.toContain(sending.payload.clientId)
+    })
+
+    it('test_storage_events_for_other_keys_are_ignored', () => {
+      const store = setup({ online: false })
+      store.enqueue(anExpense())
+      const before = store.entries()
+
+      view.dispatchEvent(new StorageEvent('storage', { key: 'theme', newValue: 'dark' }))
+
+      expect(store.entries()).toBe(before)
+    })
+  })
+
+  describe('a device that refuses the write', () => {
+    it('test_an_entry_the_device_cannot_store_stays_in_memory_and_says_so', () => {
+      const store = setup({ online: false })
+      view.localStorage = refusingWrites()
+      const item = anExpense()
+
+      store.enqueue(item)
+
+      expect(ids(store.entries())).toEqual([item.payload.clientId])
+      expect(store.pendingCount()).toBe(1)
+      expect(store.isPersisted()).toBe(false)
+      expect(stored()).toEqual([])
+    })
+
+    it('test_once_the_device_stores_again_the_whole_queue_is_written', () => {
+      const store = setup({ online: false })
+      const device = view.localStorage
+      view.localStorage = refusingWrites()
+      const lost = anExpense()
+      store.enqueue(lost)
+
+      view.localStorage = device
+      const next = anExpense()
+      store.enqueue(next)
+
+      expect(ids(stored())).toEqual([lost.payload.clientId, next.payload.clientId])
+      expect(store.isPersisted()).toBe(true)
+    })
+
+    it('test_another_tabs_write_keeps_the_entries_only_in_memory_here', () => {
+      const store = setup({ online: false })
+      const device = view.localStorage
+      view.localStorage = refusingWrites()
+      const unsaved = anExpense()
+      store.enqueue(unsaved)
+      view.localStorage = device
+
+      const theirs = anExpense()
+      otherTabWrites(enqueueEntry([], theirs, NOW))
+
+      expect(ids(store.entries())).toEqual([theirs.payload.clientId, unsaved.payload.clientId])
+    })
+
+    it('test_a_new_session_starts_persisted', () => {
+      const store = setup({ online: false })
+      view.localStorage = refusingWrites()
+      store.enqueue(anExpense())
+      expect(store.isPersisted()).toBe(false)
+
+      for (const hook of clearHooks) hook()
+
+      expect(store.isPersisted()).toBe(true)
+    })
+  })
+
+  describe('undo', () => {
+    it('test_undo_removes_an_entry_that_is_still_queued', async () => {
+      const store = setup({ online: false })
+      const item = anExpense()
+      store.enqueue(item)
+
+      await expect(store.undo(item.payload.clientId)).resolves.toBe('removed')
+
+      expect(store.entries()).toEqual([])
+      expect(localStorage.getItem(`${OUTBOX_KEY}1`)).toBeNull()
+      expect(api.quick).not.toHaveBeenCalled()
+      expect(api.remove).not.toHaveBeenCalled()
+    })
+
+    it('test_undo_after_the_entry_synced_deletes_the_row_it_created', async () => {
+      const store = setup({ online: false })
+      const item = anExpense({ date: '2026-10-02' })
+      store.enqueue(item)
+      api.quick.mockResolvedValueOnce(aTransaction({ id: 501 }))
+      await store.flush()
+      months.invalidate.mockClear()
+
+      await expect(store.undo(item.payload.clientId)).resolves.toBe('removed')
+
+      expect(api.remove).toHaveBeenCalledWith(501)
+      expect(months.invalidate).toHaveBeenCalledWith('2026-10')
+    })
+
+    it('test_undo_after_a_transfer_synced_deletes_the_transfer', async () => {
+      const store = setup({ online: false })
+      const item = aTransfer()
+      store.enqueue(item)
+      await store.flush()
+
+      await store.undo(item.payload.clientId)
+
+      expect(api.removeTransfer).toHaveBeenCalledWith(7)
+      expect(api.remove).not.toHaveBeenCalled()
+    })
+
+    it('test_undo_while_the_entry_is_syncing_waits_for_it_then_deletes_the_row', async () => {
+      const store = setup({ online: false })
+      const item = anExpense()
+      store.enqueue(item)
+      const answer = deferred<unknown>()
+      api.quick.mockReturnValueOnce(answer.promise)
+      const flushing = store.flush()
+      await vi.waitFor(() => expect(store.entries()[0]?.status).toBe('syncing'))
+
+      const undoing = store.undo(item.payload.clientId)
+      answer.resolve(aTransaction({ id: 502 }))
+      await flushing
+
+      await expect(undoing).resolves.toBe('removed')
+      expect(api.remove).toHaveBeenCalledWith(502)
+    })
+
+    it('test_undo_twice_deletes_the_row_once', async () => {
+      const store = setup({ online: false })
+      const item = anExpense()
+      store.enqueue(item)
+      api.quick.mockResolvedValueOnce(aTransaction({ id: 503 }))
+      await store.flush()
+
+      await store.undo(item.payload.clientId)
+      await expect(store.undo(item.payload.clientId)).resolves.toBe('missing')
+
+      expect(api.remove).toHaveBeenCalledTimes(1)
+    })
+
+    it('test_undo_of_an_entry_this_tab_never_had_answers_missing', async () => {
+      const store = setup({ online: false })
+
+      await expect(store.undo('00000000-0000-4000-8000-999999999999')).resolves.toBe('missing')
+      expect(api.remove).not.toHaveBeenCalled()
+    })
+
+    it('test_a_failed_delete_lets_the_undo_be_tried_again', async () => {
+      const store = setup({ online: false })
+      const item = anExpense()
+      store.enqueue(item)
+      api.quick.mockResolvedValueOnce(aTransaction({ id: 504 }))
+      await store.flush()
+      api.remove.mockRejectedValueOnce(networkError())
+
+      await expect(store.undo(item.payload.clientId)).rejects.toBeTruthy()
+      await expect(store.undo(item.payload.clientId)).resolves.toBe('removed')
+
+      expect(api.remove).toHaveBeenCalledTimes(2)
     })
   })
 })

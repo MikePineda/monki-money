@@ -41,8 +41,7 @@ export const routes: Routes = [
     runGuardsAndResolvers: 'always',
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'month' },
-      { path: 'month', loadComponent: () => import('./features/month/month.page') },
-      { path: 'month/:ym', loadComponent: () => import('./features/month/month.page') },
+      { path: 'month', loadChildren: () => import('./features/month/month.routes') },
       {
         path: 'transactions',
         loadComponent: () => import('./features/transactions/feature/list.page'),
@@ -57,6 +56,10 @@ export const routes: Routes = [
       {
         path: 'categories',
         loadComponent: () => import('./features/categories/feature/categories.page'),
+      },
+      {
+        path: 'recurring',
+        loadComponent: () => import('./features/recurring/feature/recurring.page'),
       },
       // One lazy entry per feature with several screens keeps the initial bundle small.
       { path: 'goals', loadChildren: () => import('./features/goals/goals.routes') },

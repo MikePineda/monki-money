@@ -28,7 +28,7 @@ export function privateOwnerId(subject: PrivacySubject): number | null {
 }
 
 /** True when `subject` is private and its owner still belongs to the household. */
-function hasPrivateOwner(subject: PrivacySubject, memberIds: ReadonlySet<number>): boolean {
+export function hasPrivateOwner(subject: PrivacySubject, memberIds: ReadonlySet<number>): boolean {
   if (!subject.isPrivate) return false
   const owner = privateOwnerId(subject)
   return owner !== null && memberIds.has(owner)

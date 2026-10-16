@@ -31,6 +31,14 @@ export function nabFixture(name: string): Buffer {
   return readFileSync(new URL(`../fixtures/nab/${name}`, import.meta.url))
 }
 
+/** Data lines of a fixture in tests/fixtures/nab (header dropped), to build partial uploads. */
+export function fixtureLines(name: string): string[] {
+  return nabFixture(name)
+    .toString('utf8')
+    .split(/\r?\n/)
+    .filter((line) => line !== '' && line !== NAB_HEADER)
+}
+
 /** A NAB-shaped CSV from data lines (header included unless overridden). */
 export function nabCsv(
   lines: string[],

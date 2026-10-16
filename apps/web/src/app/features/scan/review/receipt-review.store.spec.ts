@@ -244,4 +244,53 @@ describe('ReceiptReviewStore', () => {
     await expect(store.save()).resolves.toBe(false)
     expect(api.save).not.toHaveBeenCalled()
   })
+
+  describe('currency', () => {
+    it('test_a_receipt_in_another_currency_waits_until_the_person_continues', async () => {
+      const store = setup()
+      await store.start(aReceipt({ currencyCode: 'USD' }))
+
+      expect(store.foreignCurrency()).toBe('USD')
+      expect(store.householdCurrency()).toBe('AUD')
+      expect(store.currencyPending()).toBe(true)
+      expect(store.canSave()).toBe(false)
+
+      store.continueInHouseholdCurrency()
+
+      expect(store.currencyPending()).toBe(false)
+      expect(store.canSave()).toBe(true)
+    })
+
+    it('test_continuing_saves_the_amounts_as_typed_without_converting', async () => {
+      const store = setup()
+      await store.start(aReceipt({ currencyCode: 'USD', totalCents: 1999 }))
+      store.continueInHouseholdCurrency()
+
+      await store.save()
+
+      expect(api.save).toHaveBeenCalledWith(expect.objectContaining({ amountCents: 1999 }))
+    })
+
+    it('test_a_receipt_in_the_households_currency_or_without_one_saves_directly', async () => {
+      const store = setup()
+      await store.start(aReceipt({ currencyCode: 'AUD' }))
+      expect(store.foreignCurrency()).toBeNull()
+      expect(store.canSave()).toBe(true)
+
+      await store.start(aReceipt({ currencyCode: null }))
+      expect(store.currencyPending()).toBe(false)
+      expect(store.canSave()).toBe(true)
+    })
+
+    it('test_each_new_receipt_asks_again', async () => {
+      const store = setup()
+      await store.start(aReceipt({ currencyCode: 'USD' }))
+      store.continueInHouseholdCurrency()
+
+      await store.start(aReceipt({ currencyCode: 'EUR' }))
+
+      expect(store.foreignCurrency()).toBe('EUR')
+      expect(store.currencyPending()).toBe(true)
+    })
+  })
 })
