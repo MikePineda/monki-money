@@ -70,6 +70,8 @@
     "archive": "Archivar cuenta",
     "restore": "Restaurar cuenta",
     "archived": "Archivadas",
+    "balance": "Saldo",
+    "available": "Disponible {amount}",
     "atLimit": "Llegaste al límite de cuentas de tu plan. Archiva una para agregar otra.",
     "limit": "Tu plan permite {max} cuentas.",
     "empty": {
@@ -92,7 +94,12 @@
       "institution": "Banco o proveedor",
       "optional": "Opcional.",
       "kind": "Tipo",
-      "owner": "Dueño"
+      "owner": "Dueño",
+      "openingBalance": "Saldo inicial",
+      "owes": "Debe dinero",
+      "owesHint": "Una tarjeta o un préstamo con deuda: el saldo es negativo.",
+      "openingDate": "Fecha del saldo inicial",
+      "openingHelp": "Lo que tenía la cuenta en esta fecha, antes del primer movimiento registrado en la app. La conciliación de importaciones parte de él."
     },
     "cards": {
       "sheetTitle": "Agregar una tarjeta",
