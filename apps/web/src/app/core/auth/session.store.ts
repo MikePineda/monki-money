@@ -46,6 +46,9 @@ export class SessionStore {
   readonly membership = computed(() => this._me()?.membership ?? null)
   readonly entitlements = computed(() => this._me()?.entitlements ?? null)
   readonly flags = computed(() => this._me()?.flags ?? [])
+  /** The household's members by name and colour (join order); the partner is the other one. */
+  readonly members = computed(() => this._me()?.members ?? [])
+  readonly partner = computed(() => this._me()?.partner ?? null)
 
   readonly isAuthenticated = computed(() => this._me() !== null)
   readonly isVerified = computed(() => Boolean(this._me()?.user.emailVerifiedAt))
@@ -83,6 +86,18 @@ export class SessionStore {
       this._me.set(null)
       // A 4xx (401 above all) is an answer; no network or a 5xx is not.
       this._unreachable.set(!isClientErrorAnswer(error))
+    }
+  }
+
+  /**
+   * Re-reads `/auth/me` on a screen that names the members (a partner who
+   * joined since the app opened); a failure keeps the session as it is.
+   */
+  async refresh(): Promise<void> {
+    try {
+      this.set(await this.api.me())
+    } catch {
+      // Offline or failing: the session stays; a 401 already ended it (SessionExpiry).
     }
   }
 

@@ -12,6 +12,7 @@ import type { ChartColor } from '../../domain/charts/colors'
 import { groupHistories, monthInsights, type Insight } from '../../domain/insights'
 import { formatMoney } from '../../domain/money'
 import {
+  addMonths,
   compareYearMonth,
   isYearMonth,
   label as monthLabel,
@@ -60,7 +61,7 @@ import { MonthHeroComponent } from './ui/month-hero.component'
  * t(month.insights.spendAboveAverage, month.insights.spendBelowAverage)
  * t(month.spend.uncategorized, month.spend.private, month.spend.unknown, month.trend.series)
  * t(month.whoPaid.you, month.whoPaid.joint)
- * t(month.top.private, month.top.noPayee, month.top.uncategorized)
+ * t(month.top.private, month.top.noPayee, month.top.uncategorized, month.top.split)
  * t(month.committed.found, month.committed.noneFound)
  */
 const LABEL_KEYS = [
@@ -73,6 +74,7 @@ const LABEL_KEYS = [
   'top.private',
   'top.noPayee',
   'top.uncategorized',
+  'top.split',
 ]
 
 interface TopRow {
@@ -82,7 +84,6 @@ interface TopRow {
   meta: string[]
   person: Person
   amountCents: number
-  kind: 'expense' | 'income' | 'transfer'
 }
 
 interface InsightText {
@@ -316,7 +317,7 @@ function markColor(person: Person): ChartColor {
                       [meta]="row.meta"
                       [person]="row.person"
                       [amountCents]="row.amountCents"
-                      [kind]="row.kind"
+                      kind="expense"
                       (pressed)="openTransaction(row.id)"
                     />
                   }
@@ -373,6 +374,7 @@ export default class MonthPage {
       privateRow = '',
       noPayee = '',
       uncategorizedRow = '',
+      splitRow = '',
     ] = this.labels()
     return {
       uncategorized,
@@ -384,6 +386,7 @@ export default class MonthPage {
       privateRow,
       noPayee,
       uncategorizedRow,
+      splitRow,
     }
   })
 
@@ -403,10 +406,10 @@ export default class MonthPage {
   protected readonly monthName = computed(() => this.longName(this.shownMonth()))
 
   private readonly totals = computed(() => this.frame()?.trend.totals ?? [])
+  /** Against the previous calendar month, which the month report carries. */
   protected readonly delta = computed(() => {
-    const previous = this.totals().at(-2)
     const report = this.report()
-    return report && previous ? spendDelta(report.expenseCents, previous.expenseCents) : null
+    return report ? spendDelta(report.expenseCents, report.previous.expenseCents) : null
   })
   protected readonly deltaKey = computed(() => {
     const delta = this.delta()
@@ -417,14 +420,11 @@ export default class MonthPage {
       delta.direction
     ]
   })
-  protected readonly deltaParams = computed(() => {
-    const previous = this.totals().at(-2)
-    return {
-      percent: this.delta()?.percent ?? 0,
-      month: previous ? this.longName(previous.month as YearMonth) : '',
-      amount: formatMoney(previous?.expenseCents ?? 0, this.locale()),
-    }
-  })
+  protected readonly deltaParams = computed(() => ({
+    percent: this.delta()?.percent ?? 0,
+    month: this.longName(addMonths(this.shownMonth(), -1)),
+    amount: formatMoney(this.report()?.previous.expenseCents ?? 0, this.locale()),
+  }))
 
   protected readonly sparklines = computed(() => ({
     income: totalsSeries(this.totals(), 'incomeCents'),
@@ -478,12 +478,14 @@ export default class MonthPage {
   })
 
   protected readonly topRows = computed<TopRow[]>(() =>
-    (this.frame()?.top ?? []).map((row) => {
+    (this.report()?.topExpenses ?? []).map((row) => {
       const text = this.text()
       const entry = this.directory.category(row.categoryId)
       const category = row.isMasked
         ? text.privateRow
-        : (entry?.category.name ?? text.uncategorizedRow)
+        : row.isSplit
+          ? text.splitRow
+          : (entry?.category.name ?? text.uncategorizedRow)
       return {
         id: row.id,
         icon: row.isMasked ? 'lock' : categoryIcon(entry?.category ?? null),
@@ -491,7 +493,6 @@ export default class MonthPage {
         meta: [category, formatDayMonth(row.date, this.locale())],
         person: this.directory.personOf(row.paidByUserId),
         amountCents: row.amountCents,
-        kind: row.kind,
       }
     })
   )

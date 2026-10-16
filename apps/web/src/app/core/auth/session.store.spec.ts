@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { Router, provideRouter } from '@angular/router'
-import { aMe, httpError, networkError } from '../../../testing/session-fixtures'
+import { COUPLE, aMe, httpError, networkError } from '../../../testing/session-fixtures'
 import { SessionExpiry } from '../api/session-expiry'
 import { LangStore } from '../i18n/lang.store'
 import { ThemeStore } from '../theme/theme.store'
@@ -61,6 +61,40 @@ describe('SessionStore', () => {
     expect(store.hasFlag('beta')).toBe(false)
     expect(store.household()?.timezone).toBe('Australia/Brisbane')
     expect(store.homePath()).toBe('/month')
+  })
+
+  it('test_bootstrap_brings_the_members_names_and_the_partner', async () => {
+    const store = setup(async () => aMe('member'))
+
+    await store.load()
+
+    expect(store.members().map((member) => [member.id, member.displayName])).toEqual([
+      [1, 'Sam Rivera'],
+      [2, 'Alex Chen'],
+    ])
+    expect(store.partner()?.displayName).toBe('Sam Rivera')
+
+    store.clear()
+    expect(store.members()).toEqual([])
+    expect(store.partner()).toBeNull()
+  })
+
+  it('test_refresh_brings_a_partner_who_joined_and_keeps_the_session_on_failure', async () => {
+    let answer = aMe('owner')
+    const store = setup(async () => answer)
+    await store.load()
+    expect(store.partner()).toBeNull()
+
+    answer = aMe('owner', [], COUPLE)
+    await store.refresh()
+    expect(store.partner()?.displayName).toBe('Alex Chen')
+
+    // A failed refresh is not a logout: the session stays as it was.
+    api.me.mockRejectedValueOnce(networkError())
+    await store.refresh()
+    expect(store.isAuthenticated()).toBe(true)
+    expect(store.unreachable()).toBe(false)
+    expect(store.partner()?.displayName).toBe('Alex Chen')
   })
 
   it('test_bootstrap_applies_the_users_theme_and_language', async () => {

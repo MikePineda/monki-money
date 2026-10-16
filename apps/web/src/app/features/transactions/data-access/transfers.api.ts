@@ -22,6 +22,12 @@ export interface TransferInput {
 export class TransfersApi {
   private readonly api = inject(API)
 
+  /** Both legs (masked for the reader) and the memo in one call. */
+  async show(id: number): Promise<Transfer> {
+    const { data } = await (await this.api()).request('transfers.show', { params: { id } })
+    return data
+  }
+
   async create(body: TransferInput): Promise<Transfer> {
     const { data } = await (await this.api()).request('transfers.store', { body })
     return data

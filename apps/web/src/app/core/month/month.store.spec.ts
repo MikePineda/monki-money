@@ -1,12 +1,11 @@
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
-import { aMonthReport, aTransaction, aTrendReport } from '../../../testing/ledger-fixtures'
+import { aMonthReport, aTrendReport } from '../../../testing/ledger-fixtures'
 import { networkError } from '../../../testing/session-fixtures'
 import { currentMonthIn, type YearMonth } from '../../domain/month'
 import { SessionStore } from '../auth/session.store'
 import { ReportsApi } from '../ledger/reports.api'
-import { TransactionsApi } from '../ledger/transactions.api'
 import { HOUSEHOLD_TIME_ZONE } from '../platform/time-zone.token'
 import { MONTH_CACHE_SIZE, MonthStore, coversMonth } from './month.store'
 
@@ -25,7 +24,6 @@ describe('coversMonth', () => {
 
 describe('MonthStore', () => {
   let reports: { month: ReturnType<typeof vi.fn>; trend: ReturnType<typeof vi.fn> }
-  let transactions: { list: ReturnType<typeof vi.fn> }
   let clearHooks: (() => void)[]
 
   function setup() {
@@ -35,13 +33,11 @@ describe('MonthStore', () => {
       ),
       trend: vi.fn(async (month: YearMonth) => aTrendReport(month)),
     }
-    transactions = { list: vi.fn(async () => [aTransaction()]) }
     clearHooks = []
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         { provide: ReportsApi, useValue: reports },
-        { provide: TransactionsApi, useValue: transactions },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
         {
           provide: SessionStore,
@@ -60,7 +56,7 @@ describe('MonthStore', () => {
     await TestBed.inject(ApplicationRef).whenStable()
   }
 
-  it('test_loads_the_selected_month_with_its_trend_and_top_expenses', async () => {
+  it('test_loads_the_selected_month_with_two_calls_its_report_and_trend', async () => {
     const store = setup()
 
     await settle()
@@ -68,13 +64,19 @@ describe('MonthStore', () => {
     expect(store.status()).toBe('ready')
     expect(store.frame()?.month).toBe(OCT)
     expect(store.frame()?.report.expenseCents).toBe(1000)
-    expect(reports.trend).toHaveBeenCalledWith(OCT, 6)
-    expect(transactions.list).toHaveBeenCalledWith({
-      month: OCT,
-      kind: 'expense',
-      sort: 'amount',
-      perPage: 5,
-    })
+    expect(reports.month).toHaveBeenCalledExactlyOnceWith(OCT)
+    // The report carries the delta, the top five and the summary flag.
+    expect(reports.trend).toHaveBeenCalledExactlyOnceWith(OCT, 6)
+  })
+
+  it('test_cached_returns_the_snapshot_of_a_loaded_month', async () => {
+    const store = setup()
+    expect(store.cached(OCT)).toBeUndefined()
+
+    await settle()
+
+    expect(store.cached(OCT)?.report.month).toBe(OCT)
+    expect(store.cached(SEP)).toBeUndefined()
   })
 
   it('test_a_cached_month_is_served_without_another_request', async () => {

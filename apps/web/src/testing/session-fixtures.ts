@@ -1,5 +1,13 @@
+import { computed, signal, type WritableSignal } from '@angular/core'
 import { TuyauHTTPError, TuyauNetworkError } from '@tuyau/core/client'
-import type { Account, Household, Member, Membership, User } from '../app/core/api/api-types'
+import type {
+  Account,
+  Household,
+  Member,
+  MemberSummary,
+  Membership,
+  User,
+} from '../app/core/api/api-types'
 import type { Me } from '../app/core/auth/auth.api'
 
 /** Synthetic wire objects for specs (never real people). */
@@ -59,6 +67,17 @@ export function aMember(overrides: Partial<Member> = {}): Member {
   }
 }
 
+/** A member as `GET /auth/me` lists them (Sam, the owner, unless overridden). */
+export function aMemberSummary(overrides: Partial<MemberSummary> = {}): MemberSummary {
+  return { id: 1, displayName: 'Sam Rivera', color: null, role: 'owner', ...overrides }
+}
+
+/** Sam (user 1, owner) and Alex (user 2, member), in join order. */
+export const COUPLE: readonly MemberSummary[] = [
+  aMemberSummary(),
+  aMemberSummary({ id: 2, displayName: 'Alex Chen', role: 'member' }),
+]
+
 export function anAccount(overrides: Partial<Account> = {}): Account {
   return {
     id: 1,
@@ -82,8 +101,53 @@ export function anAccount(overrides: Partial<Account> = {}): Account {
 
 export type SessionKind = 'owner' | 'member' | 'unverified' | 'noHousehold' | 'pendingDeletion'
 
-/** A `GET /auth/me` body for the common session shapes. */
-export function aMe(kind: SessionKind = 'owner', flags: string[] = []): Me {
+/**
+ * A `GET /auth/me` body for the common session shapes. The members are Sam
+ * alone, or the {@link COUPLE} for a member's session, unless `members`
+ * says otherwise; the partner is the first member who is not the user.
+ */
+export function aMe(
+  kind: SessionKind = 'owner',
+  flags: string[] = [],
+  members?: readonly MemberSummary[]
+): Me {
+  const me = baseMe(kind, flags)
+  const people = [
+    ...(members ?? (kind === 'member' ? COUPLE : me.household ? COUPLE.slice(0, 1) : [])),
+  ]
+  return {
+    ...me,
+    members: people,
+    partner: people.find((person) => person.id !== me.user.id) ?? null,
+  }
+}
+
+/**
+ * A stand-in SessionStore for page specs: Sam (user 1) signed in with the
+ * {@link COUPLE} as the household's members (what the MembersStore reads
+ * from `GET /auth/me`), clear hooks ignored. `user` or `members` change them.
+ */
+export function aSessionStub(options: { user?: User; members?: readonly MemberSummary[] } = {}) {
+  const base = aMe('owner', [], options.members ?? COUPLE)
+  return sessionStubOf(signal<Me | null>(options.user ? { ...base, user: options.user } : base))
+}
+
+/**
+ * The SessionStore signals derived from one `GET /auth/me` body, for specs
+ * that change it. `refresh` re-reads nothing unless a spec replaces it.
+ */
+export function sessionStubOf(me: WritableSignal<Me | null>) {
+  return {
+    me,
+    user: computed(() => me()?.user ?? null),
+    members: computed(() => me()?.members ?? []),
+    partner: computed(() => me()?.partner ?? null),
+    refresh: async (): Promise<void> => undefined,
+    onClear: () => undefined,
+  }
+}
+
+function baseMe(kind: SessionKind, flags: string[]): Omit<Me, 'members' | 'partner'> {
   const entitlements = { llmCallsPerMonth: 200, maxAccounts: 6, maxMembers: 2, importsPerMonth: 30 }
   switch (kind) {
     case 'unverified':

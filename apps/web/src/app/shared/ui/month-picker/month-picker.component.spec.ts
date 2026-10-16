@@ -1,8 +1,10 @@
 import { Component, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
+import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import type { YearMonth } from '../../../domain/month'
 import { APP_LOCALE } from '../app-locale.token'
+import { BottomSheetService } from '../bottom-sheet/bottom-sheet.service'
 import { MonthPickerComponent } from './month-picker.component'
 import { MonthPickerHarness } from './month-picker.harness'
 
@@ -17,20 +19,28 @@ const ym = (value: string) => value as YearMonth
       [past]="3"
       [future]="1"
       [(selected)]="selected"
-      (yearGrid)="yearGridRequests.update((n) => n + 1)"
     />
   `,
 })
 class Host {
   readonly current = ym('2026-01')
   readonly selected = signal(ym('2026-01'))
-  readonly yearGridRequests = signal(0)
+}
+
+/** The year grid sheet, rendered in the overlay outside the fixture. */
+function yearGrid(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="monthPicker.yearGrid"]')
+}
+
+function gridMonth(month: string): HTMLButtonElement | null {
+  return yearGrid()?.querySelector<HTMLButtonElement>(`button[data-month="${month}"]`) ?? null
 }
 
 describe('MonthPickerComponent', () => {
   async function setup(locale = 'en-AU') {
     TestBed.configureTestingModule({
-      providers: [{ provide: APP_LOCALE, useValue: signal(locale) }],
+      imports: [i18nTesting()],
+      providers: [i18nTestingProviders(), { provide: APP_LOCALE, useValue: signal(locale) }],
     })
     const fixture = TestBed.createComponent(Host)
     const picker = await TestbedHarnessEnvironment.loader(fixture).getHarness(MonthPickerHarness)
@@ -61,12 +71,50 @@ describe('MonthPickerComponent', () => {
     expect(await picker.getSelected()).toBe('Dec 2025')
   })
 
-  it('test_tapping_the_selected_month_asks_for_the_year_grid', async () => {
-    const { picker, host } = await setup()
+  afterEach(() => TestBed.inject(BottomSheetService).closeAll())
+
+  it('test_tapping_the_selected_month_opens_the_year_grid', async () => {
+    const { picker, host, fixture } = await setup()
 
     await picker.select('2026-01')
+    await fixture.whenStable()
 
-    expect(host.yearGridRequests()).toBe(1)
+    const grid = yearGrid()
+    expect(grid?.textContent).toContain('Choose a month')
+    // This year and the two before it, newest first, twelve months each.
+    expect(
+      [...(grid?.querySelectorAll('h3') ?? [])].map((year) => year.textContent?.trim())
+    ).toEqual(['2026', '2025', '2024'])
+    expect(grid?.querySelectorAll('button[data-month]')).toHaveLength(36)
+    expect(gridMonth('2026-01')?.getAttribute('aria-current')).toBe('date')
+    expect(gridMonth('2026-02')?.disabled).toBe(true)
+    expect(gridMonth('2024-03')?.textContent?.trim()).toBe('Mar')
+    expect(host.selected()).toBe('2026-01')
+  })
+
+  it('test_picking_a_month_in_the_year_grid_selects_it_and_the_strip_follows', async () => {
+    const { picker, host, fixture } = await setup()
+    await picker.select('2026-01')
+    await fixture.whenStable()
+
+    gridMonth('2024-03')?.click()
+    await fixture.whenStable()
+
+    expect(host.selected()).toBe('2024-03')
+    expect(yearGrid()).toBeNull()
+    // Older than the months the strip offers: the strip reaches back to it.
+    expect(await picker.getSelectedValue()).toBe('2024-03')
+    expect(await picker.getSelected()).toBe('Mar 2024')
+  })
+
+  it('test_dismissing_the_year_grid_keeps_the_month', async () => {
+    const { picker, host, fixture } = await setup()
+    await picker.select('2026-01')
+    await fixture.whenStable()
+
+    TestBed.inject(BottomSheetService).closeAll()
+    await fixture.whenStable()
+
     expect(host.selected()).toBe('2026-01')
   })
 

@@ -27,7 +27,17 @@ export default class TransfersController {
     )
   }
 
-  /** PATCH /transfers/:id: both legs follow. */
+  /** GET /transfers/:id: both legs (masked for the reader) and the memo in one call. */
+  async show(ctx: HttpContext) {
+    const { params } = await ctx.request.validateUsing(transferParamsValidator)
+    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
+
+    const transfer = await this.transfers.find(ctx.household, params.id)
+
+    return ctx.serialize(TransferTransformer.transform(transfer, viewer))
+  }
+
+  /** PATCH /transfers/:id: both legs follow (403 for the partner's private one). */
   async update(ctx: HttpContext) {
     const { params, ...payload } = await ctx.request.validateUsing(updateTransferValidator)
     const user = ctx.auth.getUserOrFail()
@@ -39,11 +49,11 @@ export default class TransfersController {
     )
   }
 
-  /** DELETE /transfers/:id: removes both legs. */
+  /** DELETE /transfers/:id: removes both legs (403 for the partner's private one). */
   async destroy(ctx: HttpContext) {
     const { params } = await ctx.request.validateUsing(transferParamsValidator)
 
-    await this.transfers.destroy(ctx.household, params.id)
+    await this.transfers.destroy(ctx.household, ctx.auth.getUserOrFail(), params.id)
 
     return ctx.response.noContent()
   }

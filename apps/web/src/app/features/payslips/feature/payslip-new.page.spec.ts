@@ -9,12 +9,11 @@ import {
   aPayslip,
   aPayslipCategoryTree,
 } from '../../../../testing/payslip-fixtures'
-import { aMember, aUser, anAccount, validationError } from '../../../../testing/session-fixtures'
+import { anAccount, aSessionStub, validationError } from '../../../../testing/session-fixtures'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { CategoriesApi } from '../../../core/household/categories.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { MonthStore } from '../../../core/month/month.store'
 import { CLOCK } from '../../../core/platform/clock.token'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
@@ -78,19 +77,7 @@ describe('PayslipNewPage', () => {
           },
         },
         { provide: CategoriesApi, useValue: { tree: async () => aPayslipCategoryTree() } },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
         { provide: CLOCK, useValue: () => new Date('2026-10-16T02:00:00Z') },

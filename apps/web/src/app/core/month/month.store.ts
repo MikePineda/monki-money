@@ -8,25 +8,25 @@ import {
   type IsoDate,
   type YearMonth,
 } from '../../domain/month'
-import type { Transaction } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
 import { ReportsApi, type MonthReport, type TrendReport } from '../ledger/reports.api'
-import { TransactionsApi } from '../ledger/transactions.api'
 import { HOUSEHOLD_TIME_ZONE } from '../platform/time-zone.token'
 
 /** Months kept in memory (DESIGN.md, Month: switching back is instant). */
 export const MONTH_CACHE_SIZE = 6
 /** The trend line, the sparklines and the insights' averages read this many months. */
 export const TREND_MONTHS = 6
-export const TOP_TRANSACTIONS = 5
 
-/** Everything the Month view draws for one month. */
+/**
+ * Everything the Month view draws for one month, in two calls: the month
+ * report (totals, lines, the previous month for the delta, the five
+ * largest expenses, whether its AI summary is stored, what is committed)
+ * and the 6-month trend.
+ */
 export interface MonthSnapshot {
   month: YearMonth
   report: MonthReport
   trend: TrendReport
-  /** The month's largest expenses, biggest first. */
-  top: Transaction[]
 }
 
 /**
@@ -63,7 +63,6 @@ export function coversMonth(month: YearMonth, changed: YearMonth): boolean {
 @Injectable({ providedIn: 'root' })
 export class MonthStore {
   private readonly reports = inject(ReportsApi)
-  private readonly transactions = inject(TransactionsApi)
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
 
   private readonly cache = new Map<YearMonth, MonthSnapshot>()
@@ -148,6 +147,11 @@ export class MonthStore {
     this.invalidate(monthOf(date))
   }
 
+  /** The snapshot of `month` while it is in memory (not a reactive read). */
+  cached(month: YearMonth): MonthSnapshot | undefined {
+    return this.cache.get(month)
+  }
+
   /** Fetches the selected month again (after an error, or on demand). */
   retry(): void {
     this.cache.delete(this.selectedMonth())
@@ -179,12 +183,11 @@ export class MonthStore {
       this.lastLoaded.set(cached)
       return cached
     }
-    const [report, trend, top] = await Promise.all([
+    const [report, trend] = await Promise.all([
       this.reports.month(month),
       this.reports.trend(month, TREND_MONTHS),
-      this.transactions.list({ month, kind: 'expense', sort: 'amount', perPage: TOP_TRANSACTIONS }),
     ])
-    const snapshot: MonthSnapshot = { month, report, trend, top }
+    const snapshot: MonthSnapshot = { month, report, trend }
     if (!abortSignal.aborted) {
       this.remember(snapshot)
       this.lastLoaded.set(snapshot)

@@ -1,4 +1,6 @@
+import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
+import MonthlyInsight from '#models/monthly_insight'
 import { postingsFor } from '#domain/ledger/privacy'
 import { createHousehold } from '#tests/helpers/household'
 import { summarizeMonth } from '#domain/reports/month_summary'
@@ -96,7 +98,11 @@ test.group('Reports', () => {
     const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
 
     response.assertStatus(200)
-    const { topMovers, committed, ...summary } = response.body().data
+    const { topMovers, committed, previous, topExpenses, insight, ...summary } =
+      response.body().data
+    assert.exists(previous)
+    assert.isArray(topExpenses)
+    assert.exists(insight)
     // No recurring payments yet: nothing committed.
     assert.deepEqual(committed, { paidCents: 0, upcomingCents: 0, recurringCount: 0, items: [] })
     // Hand-computed totals.
@@ -165,6 +171,169 @@ test.group('Reports', () => {
       .get(`/api/v1/reports/month?month=2026-10&paidByUserId=${member.id}`)
       .actingAs(owner)
     assert.include(onlyMember.body().data, { expenseCents: 11_500, incomeCents: 300_000 })
+  })
+
+  test('test_month_report_carries_the_previous_month_totals', async ({ client, assert }) => {
+    const { owner } = await seededLedger()
+
+    const october = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
+    const november = await client.get('/api/v1/reports/month?month=2026-11').actingAs(owner)
+
+    october.assertStatus(200)
+    // September had one 99.99 grocery expense and nothing else.
+    assert.deepEqual(october.body().data.previous, {
+      incomeCents: 0,
+      expenseCents: 9_999,
+      netCents: -9_999,
+    })
+    // November's previous month is October, with the same rules as its own totals.
+    assert.deepEqual(november.body().data.previous, {
+      incomeCents: 300_000,
+      expenseCents: 65_500,
+      netCents: 234_500,
+    })
+  })
+
+  test('test_previous_month_totals_follow_the_payer_filter', async ({ client, assert }) => {
+    const { owner } = await seededLedger()
+
+    const response = await client
+      .get(`/api/v1/reports/month?month=2026-11&paidByUserId=${owner.id}`)
+      .actingAs(owner)
+
+    // October paid by the owner: 80.00 groceries less the 20.00 refund.
+    assert.deepEqual(response.body().data.previous, {
+      incomeCents: 0,
+      expenseCents: 6_000,
+      netCents: -6_000,
+    })
+  })
+
+  test('test_month_report_lists_the_five_largest_expenses_of_the_month', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household, accounts } = await createHousehold({
+      users: 2,
+      taxonomy: true,
+      accounts: [{ name: 'Everyday' }, { name: 'Savings' }],
+    })
+    const groceries = await categoryBySlug(household.id, 'groceries')
+    const base = { householdId: household.id, accountId: accounts[0].id, createdByUserId: owner.id }
+    const expense = (date: string, amountCents: number, extra: Record<string, unknown> = {}) =>
+      TransactionFactory.merge({ ...base, date, amountCents, ...extra }).create()
+
+    const rent = await expense('2026-10-01', -48_000, {
+      payee: 'Landlord',
+      description: 'October rent',
+      paidByUserId: null,
+    })
+    const groceryRun = await expense('2026-10-02', -8_000, {
+      payee: 'Corner Grocer',
+      categoryId: groceries.id,
+      paidByUserId: owner.id,
+    })
+    const receipt = await TransactionFactory.merge({
+      ...base,
+      date: '2026-10-11',
+      amountCents: -10_000,
+      payee: 'Supermarket',
+      paidByUserId: member.id,
+    })
+      .apply('split')
+      .create()
+    const coffee = await expense('2026-10-20', -1_500, { paidByUserId: member.id })
+    const snack = await expense('2026-10-21', -300, { paidByUserId: owner.id })
+    // Smaller than the five above: left out.
+    await expense('2026-10-22', -200, { paidByUserId: owner.id })
+    // Never expenses of October: income, a transfer, September.
+    await TransactionFactory.merge({ ...base, date: '2026-10-15', amountCents: 300_000 })
+      .apply('income')
+      .create()
+    await TransferFactory.merge({
+      householdId: household.id,
+      fromAccountId: accounts[0].id,
+      toAccountId: accounts[1].id,
+      date: '2026-10-12',
+      amountCents: 90_000,
+    }).create()
+    await expense('2026-09-30', -99_999)
+
+    const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
+
+    response.assertStatus(200)
+    const top = response.body().data.topExpenses
+    assert.deepEqual(
+      top.map((row: any) => row.id),
+      [rent.id, receipt.id, groceryRun.id, coffee.id, snack.id]
+    )
+    assert.deepEqual(top[0], {
+      id: rent.id,
+      date: '2026-10-01',
+      payee: 'Landlord',
+      description: 'October rent',
+      amountCents: -48_000,
+      categoryId: null,
+      isSplit: false,
+      paidByUserId: null,
+      isMasked: false,
+    })
+    assert.include(top[1], { isSplit: true, categoryId: null, amountCents: -10_000 })
+    assert.include(top[2], { categoryId: groceries.id, paidByUserId: owner.id })
+
+    const memberOnly = await client
+      .get(`/api/v1/reports/month?month=2026-10&paidByUserId=${member.id}`)
+      .actingAs(owner)
+    assert.deepEqual(
+      memberOnly.body().data.topExpenses.map((row: any) => row.id),
+      [receipt.id, coffee.id]
+    )
+  })
+
+  test('test_month_report_says_whether_the_readers_summary_is_stored', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household } = await seededLedger()
+    await member.merge({ locale: 'es' }).save()
+    const generatedAt = DateTime.fromISO('2026-11-01T08:00:00Z')
+    await MonthlyInsight.create({
+      householdId: household.id,
+      month: '2026-10',
+      locale: 'en',
+      headline: 'October in short',
+      bodyMarkdown: 'Body',
+      highlights: [],
+      inputJson: {
+        month: '2026-10',
+        currencyCode: 'AUD',
+        totals: { incomeCents: 0, expenseCents: 0, netCents: 0 },
+        byCategory: [],
+      },
+      model: 'fake',
+      generatedAt,
+    })
+
+    const english = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
+    const spanish = await client.get('/api/v1/reports/month?month=2026-10').actingAs(member)
+    const september = await client.get('/api/v1/reports/month?month=2026-09').actingAs(owner)
+
+    assert.deepEqual(english.body().data.insight, {
+      available: true,
+      generatedAt: '2026-11-01T08:00:00.000Z',
+      locale: 'en',
+    })
+    // Stored in English only: the Spanish reader would have to generate theirs.
+    assert.deepEqual(spanish.body().data.insight, {
+      available: false,
+      generatedAt: null,
+      locale: 'es',
+    })
+    assert.deepEqual(september.body().data.insight, {
+      available: false,
+      generatedAt: null,
+      locale: 'en',
+    })
   })
 
   test('test_month_report_rejects_a_payer_from_another_household', async ({ client }) => {

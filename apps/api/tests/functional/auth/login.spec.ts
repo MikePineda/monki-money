@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import User from '#models/user'
+import HouseholdMember from '#models/household_member'
 import limiter from '@adonisjs/limiter/services/main'
 import { createHousehold } from '#tests/helpers/household'
 import { FACTORY_PASSWORD, UserFactory } from '#database/factories/user_factory'
@@ -145,6 +146,60 @@ test.group('Auth / login and sessions', (group) => {
         flags: [],
       },
     })
+  })
+
+  test('test_me_lists_the_members_and_the_partner_by_name_and_colour', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household } = await createHousehold({ users: 2 })
+    await HouseholdMember.query()
+      .where('household_id', household.id)
+      .where('user_id', member.id)
+      .update({ display_name: 'Jo' })
+    const [ownerRow, memberRow] = await HouseholdMember.query()
+      .where('household_id', household.id)
+      .orderBy('joined_at')
+      .orderBy('id')
+
+    const response = await client.get('/api/v1/auth/me').actingAs(owner)
+
+    response.assertStatus(200)
+    const { members, partner } = response.body().data
+    // In the order of GET /household/members; the display name falls back to the full name.
+    assert.deepEqual(members, [
+      { id: owner.id, displayName: owner.fullName, color: ownerRow.color, role: 'owner' },
+      { id: member.id, displayName: 'Jo', color: memberRow.color, role: 'member' },
+    ])
+    assert.deepEqual(partner, members[1])
+    // Names and colours only: emails stay behind GET /household/members.
+    assert.notInclude(JSON.stringify(response.body()), member.email)
+
+    const theirs = await client.get('/api/v1/auth/me').actingAs(member)
+    assert.deepEqual(theirs.body().data.partner, {
+      id: owner.id,
+      displayName: owner.fullName,
+      color: ownerRow.color,
+      role: 'owner',
+    })
+  })
+
+  test('test_me_has_no_partner_alone_or_without_a_household', async ({ client, assert }) => {
+    const { owner } = await createHousehold()
+    const homeless = await UserFactory.create()
+
+    const alone = await client.get('/api/v1/auth/me').actingAs(owner)
+    const outside = await client.get('/api/v1/auth/me').actingAs(homeless)
+
+    assert.deepEqual(
+      alone.body().data.members.map((row: any) => [row.id, row.role]),
+      [[owner.id, 'owner']]
+    )
+    assert.isNull(alone.body().data.partner)
+    outside.assertStatus(200)
+    assert.deepEqual(outside.body().data.members, [])
+    assert.isNull(outside.body().data.partner)
+    assert.isNull(outside.body().data.household)
   })
 
   test('test_authenticated_routes_are_throttled_per_user', async ({ client }) => {

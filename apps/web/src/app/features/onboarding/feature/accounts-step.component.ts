@@ -1,11 +1,10 @@
 import { Component, Injector, OnInit, computed, inject, output, signal } from '@angular/core'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
-import type { Account, Member } from '../../../core/api/api-types'
+import type { Account } from '../../../core/api/api-types'
 import { failureMessage, type Message } from '../../../core/api/error-messages'
 import { hasStatus, toApiError } from '../../../core/api/http-errors'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import {
   ACCOUNT_PRESETS,
   matchesPreset,
@@ -152,7 +151,6 @@ interface PresetChip {
 export class AccountsStepComponent implements OnInit {
   private readonly session = inject(SessionStore)
   private readonly accountsApi = inject(AccountsApi)
-  private readonly households = inject(HouseholdApi)
   private readonly sheets = inject(BottomSheetService)
   private readonly injector = inject(Injector)
 
@@ -161,7 +159,6 @@ export class AccountsStepComponent implements OnInit {
   private readonly labels = translateSignal(LABEL_KEYS)
 
   protected readonly accounts = signal<Account[]>([])
-  private readonly members = signal<Member[]>([])
   protected readonly loading = signal(true)
   protected readonly busy = signal(false)
   protected readonly failure = signal<Message | null>(null)
@@ -169,9 +166,8 @@ export class AccountsStepComponent implements OnInit {
   protected readonly canContinue = computed(() => this.accounts().length > 0 && !this.busy())
 
   private readonly youId = computed(() => this.session.user()?.id ?? 0)
-  protected readonly partner = computed(
-    () => this.members().find((member) => member.userId !== this.youId()) ?? null
-  )
+  /** The other member, from the session (`GET /auth/me`), once they joined. */
+  protected readonly partner = this.session.partner
 
   protected readonly presetChips = computed<PresetChip[]>(() => {
     const [cash = ''] = this.labels()
@@ -200,19 +196,17 @@ export class AccountsStepComponent implements OnInit {
     const partner = this.partner()
     return [
       { value: 'you', label: you },
-      ...(partner ? [{ value: 'partner' as const, label: firstName(partner.fullName) }] : []),
+      ...(partner ? [{ value: 'partner' as const, label: firstName(partner.displayName) }] : []),
       { value: 'joint', label: joint },
     ]
   })
 
   async ngOnInit(): Promise<void> {
+    // A partner may have accepted the invitation since the app opened.
+    void this.session.refresh()
     try {
-      const [accounts, members] = await Promise.all([
-        this.accountsApi.list(),
-        this.households.members(),
-      ])
+      const accounts = await this.accountsApi.list()
       this.accounts.set(accounts.filter((account) => account.isActive))
-      this.members.set(members)
     } catch (error) {
       this.failure.set(failureMessage(toApiError(error)))
     } finally {
@@ -264,7 +258,7 @@ export class AccountsStepComponent implements OnInit {
   protected async setOwner(account: Account, choice: OwnerChoice): Promise<void> {
     await this.run(async () => {
       const updated = await this.accountsApi.update(account.id, {
-        ownerUserId: ownerUserIdFor(choice, this.youId(), this.partner()?.userId ?? null),
+        ownerUserId: ownerUserIdFor(choice, this.youId(), this.partner()?.id ?? null),
       })
       this.accounts.update((list) => list.map((item) => (item.id === updated.id ? updated : item)))
     })

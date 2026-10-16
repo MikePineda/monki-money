@@ -8,7 +8,9 @@ import Transaction from '#models/transaction'
 import db from '@adonisjs/lucid/services/db'
 import { defaultPayer } from '#domain/ledger/payer'
 import { FieldError } from '#exceptions/field_error'
-import { PayslipLineReadOnly } from '#exceptions/errors'
+import { isHiddenFrom } from '#domain/ledger/privacy'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
+import { PayslipLineReadOnly, PrivateTransaction } from '#exceptions/errors'
 import { findInHousehold } from '#repositories/scoped'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
 import LedgerReferences from '#services/ledger/ledger_references'
@@ -106,15 +108,12 @@ export default class TransferService {
    * the DB transaction, so overlapping edits (amount vs memo) can never
    * leave the legs disagreeing with the transfer. The amount and source
    * account of a transfer a payslip links belong to the payslip (it is
-   * its net): changing them answers 409 `E_PAYSLIP_LINE`.
+   * its net): changing them answers 409 `E_PAYSLIP_LINE`. A leg that is the
+   * partner's private row makes the whole transfer theirs to change (403).
    */
   async update(household: Household, actor: User, transferId: number, input: UpdateTransferInput) {
     await db.transaction(async (trx) => {
-      const transfer = await Transfer.query({ client: trx })
-        .where('household_id', householdIdOf(household))
-        .where('id', transferId)
-        .forUpdate()
-        .firstOrFail()
+      const transfer = await this.lockForWrite(household, actor, transferId, trx)
       const movesTheNet =
         (input.amountCents !== undefined && input.amountCents !== transfer.amountCents) ||
         (input.fromAccountId !== undefined && input.fromAccountId !== transfer.fromAccountId)
@@ -145,17 +144,37 @@ export default class TransferService {
     return this.find(household, transferId)
   }
 
-  /** Deletes the transfer and both legs. */
-  async destroy(household: Household, transferId: number) {
+  /** Deletes the transfer and both legs (403 when a leg is the partner's private row). */
+  async destroy(household: Household, actor: User, transferId: number) {
     await db.transaction(async (trx) => {
-      const transfer = await Transfer.query({ client: trx })
-        .where('household_id', householdIdOf(household))
-        .where('id', transferId)
-        .forUpdate()
-        .firstOrFail()
+      const transfer = await this.lockForWrite(household, actor, transferId, trx)
       await Transaction.query({ client: trx }).where('transfer_id', transfer.id).delete()
       await transfer.delete()
     })
+  }
+
+  /**
+   * The transfer locked inside `trx` (404 across households); 403
+   * `E_TRANSACTION_PRIVATE` when either leg is a private row whose details
+   * `actor` may not see, like a private transaction's own update.
+   */
+  protected async lockForWrite(
+    household: HouseholdRef,
+    actor: User,
+    transferId: number,
+    trx: TransactionClientContract
+  ) {
+    const transfer = await Transfer.query({ client: trx })
+      .where('household_id', householdIdOf(household))
+      .where('id', transferId)
+      .forUpdate()
+      .firstOrFail()
+    const legs = await Transaction.query({ client: trx })
+      .where('transfer_id', transfer.id)
+      .select('id', 'is_private', 'paid_by_user_id', 'created_by_user_id')
+    const viewer = await privacyViewer(household, actor)
+    if (legs.some((leg) => isHiddenFrom(leg, viewer))) throw new PrivateTransaction()
+    return transfer
   }
 
   protected async findByClientId(household: HouseholdRef, clientId: string) {

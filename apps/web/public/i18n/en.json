@@ -35,6 +35,9 @@
       "delete": "Delete",
       "clearHint": "Hold to clear"
     },
+    "yearGrid": {
+      "title": "Choose a month"
+    },
     "sheet": {
       "close": "Close"
     },

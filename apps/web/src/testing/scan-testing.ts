@@ -3,7 +3,6 @@ import type { Mock } from 'vitest'
 import { SessionStore } from '../app/core/auth/session.store'
 import { AccountsApi } from '../app/core/household/accounts.api'
 import { CategoriesApi } from '../app/core/household/categories.api'
-import { HouseholdApi } from '../app/core/household/household.api'
 import { MonthStore } from '../app/core/month/month.store'
 import { tagsStoreStub } from './tag-fixtures'
 import { ImageOptimizer } from '../app/core/platform/image-optimizer'
@@ -13,7 +12,7 @@ import type { ReceiptDraft } from '../app/domain/receipt-draft'
 import { ReceiptsApi } from '../app/features/scan/data-access/receipts.api'
 import { APP_LOCALE } from '../app/shared/ui/app-locale.token'
 import { aCategoryTree, aTransaction } from './ledger-fixtures'
-import { aHousehold, aMember, aUser, anAccount } from './session-fixtures'
+import { aHousehold, aSessionStub, anAccount } from './session-fixtures'
 
 /** A scanned receipt like the fake model's (Groceries is category 20 in aCategoryTree). */
 export function aReceipt(overrides: Partial<ReceiptDraft> = {}): ReceiptDraft {
@@ -81,21 +80,8 @@ export function scanTestingProviders(options: ScanTestingOptions): Provider[] {
     },
     { provide: CategoriesApi, useValue: { tree: vi.fn(async () => aCategoryTree()) } },
     {
-      provide: HouseholdApi,
-      useValue: {
-        members: vi.fn(async () => [
-          aMember({ userId: 1 }),
-          aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-        ]),
-      },
-    },
-    {
       provide: SessionStore,
-      useValue: {
-        user: signal(aUser({ id: 1 })),
-        household: signal(aHousehold()),
-        onClear: () => undefined,
-      },
+      useValue: { ...aSessionStub(), household: signal(aHousehold()) },
     },
     {
       provide: ImageOptimizer,

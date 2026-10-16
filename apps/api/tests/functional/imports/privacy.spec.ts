@@ -58,6 +58,47 @@ test.group('Imports: privacy', (group) => {
     assert.equal(visible.match.transaction.payee, 'FreshCo Market Northvale')
   })
 
+  test('test_an_own_private_row_turned_into_a_leg_lends_its_tags_to_no_visible_leg', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const secret = await client
+      .post('/api/v1/transactions')
+      .json({
+        accountId: home.savings.id,
+        kind: 'income',
+        date: '2026-07-31',
+        amountCents: 75_000,
+        payee: 'Ring fund',
+        isPrivate: true,
+        tags: ['ring'],
+      })
+      .actingAs(home.owner)
+    const secretId = secret.body().data.id
+
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batchId = upload.body().data[0].id
+    const detail = await client.get(`/api/v1/imports/${batchId}`).actingAs(home.owner)
+    const [row] = rowsStartingWith(detail.body().data.rows, 'ONLINE A1000000001')
+    assert.include(row.transfer, { accountId: home.savings.id, legTransactionId: secretId })
+
+    const confirm = await client.post(`/api/v1/imports/${batchId}/confirm`).actingAs(home.owner)
+    confirm.assertStatus(200)
+
+    const reused = await Transaction.findOrFail(secretId)
+    assert.include(reused.serialize(), { kind: 'transfer', isPrivate: true })
+    assert.deepEqual(reused.tags, ['ring'])
+    const transfer = await client
+      .get(`/api/v1/transfers/${reused.transferId}`)
+      .actingAs(home.member)
+    transfer.assertStatus(200)
+    // The new Everyday leg is not private: it must not carry the private row's tags.
+    assert.notInclude(JSON.stringify(transfer.body()), 'ring')
+    const everyday = transfer.body().data.legs.find((leg: any) => leg.id !== secretId)
+    assert.deepEqual(everyday.tags, [])
+  })
+
   test('test_partners_private_transaction_is_never_a_transfer_leg', async ({ client, assert }) => {
     const home = await nabHousehold()
     const secret = await client

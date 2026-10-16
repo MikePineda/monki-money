@@ -18,7 +18,7 @@ export interface CategoryEntry {
 /**
  * The household's reference data that quick add and the Month view label
  * everything with: the accounts, plus the shared category tree
- * (CategoriesStore) and members (MembersStore). Loaded once per session
+ * (CategoriesStore) and members (MembersStore, from the session). Loaded once per session
  * (`load()` is idempotent and shares an in-flight request) and dropped on
  * logout. People are words in the UI ("You" and the partner's own name);
  * only `personOf` maps them to the person marks.
@@ -78,7 +78,6 @@ export class HouseholdDirectory {
     this.pending = Promise.all([
       this.accountsApi.list(),
       force ? this.categories.reload() : this.categories.load(),
-      this.members.load(),
     ])
       .then(([accounts]) => {
         this._accounts.set(accounts)

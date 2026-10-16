@@ -1,14 +1,9 @@
 import { inject } from '@adonisjs/core'
-import { isLocale } from '@monkimoney/shared'
 import type { HttpContext } from '@adonisjs/core/http'
+import { requestLocale } from '#services/http/request_locale'
 import InsightService from '#services/insights/insight_service'
 import MonthlyInsightTransformer from '#transformers/monthly_insight_transformer'
 import { generateInsightValidator, insightParamsValidator } from '#validators/insights'
-
-/** The request's language (user -> Accept-Language -> household -> default). */
-function localeOf(ctx: HttpContext) {
-  return isLocale(ctx.i18n.locale) ? ctx.i18n.locale : 'en'
-}
 
 /** LLM-written monthly summaries of the current household, in the reader's language. */
 @inject()
@@ -19,7 +14,7 @@ export default class InsightsController {
   async show(ctx: HttpContext) {
     const { params } = await ctx.request.validateUsing(insightParamsValidator)
 
-    const insight = await this.insights.find(ctx.household, params.month, localeOf(ctx))
+    const insight = await this.insights.find(ctx.household, params.month, requestLocale(ctx))
 
     return ctx.serialize(MonthlyInsightTransformer.transform(insight))
   }
@@ -32,7 +27,7 @@ export default class InsightsController {
       ctx.household,
       ctx.auth.getUserOrFail(),
       params.month,
-      localeOf(ctx),
+      requestLocale(ctx),
       { force }
     )
 

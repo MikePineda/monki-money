@@ -13,7 +13,6 @@ import { AccountsApi } from './core/household/accounts.api'
 import { CategoriesApi } from './core/household/categories.api'
 import { HouseholdApi } from './core/household/household.api'
 import { ReportsApi } from './core/ledger/reports.api'
-import { TransactionsApi as LedgerTransactionsApi } from './core/ledger/transactions.api'
 import { TransactionsApi } from './features/transactions/data-access/transactions.api'
 import { aCategoryTree, aMonthReport, aTrendReport } from '../testing/ledger-fixtures'
 import type { YearMonth } from './domain/month'
@@ -63,7 +62,6 @@ describe('app routes', () => {
             trend: async (month: YearMonth) => aTrendReport(month),
           },
         },
-        { provide: LedgerTransactionsApi, useValue: { list: async () => [] } },
         {
           provide: TransactionsApi,
           useValue: { list: async () => ({ rows: [], page: 1, lastPage: 1, total: 0 }) },

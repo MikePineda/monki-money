@@ -4,7 +4,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 /**
  * Layer rules for src/app (plan, "Convenciones para agentes"):
  * - domain/ is pure TypeScript: no Angular, no RxJS, nothing outside domain/
- *   except the DOM-free math packages listed in DOMAIN_PACKAGES;
+ *   except the pure packages listed in DOMAIN_PACKAGES;
  * - d3 stays behind domain/charts, so the charts chunk is the only one that
  *   carries it, and the eager app (core, layouts, shared/ui) never pulls in
  *   charts at all;
@@ -15,8 +15,12 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
  */
 const appRoot = join(process.cwd(), 'src/app')
 
-/** Pure, DOM-free packages domain/ may import (chart scales and paths). */
-const DOMAIN_PACKAGES = ['d3-scale', 'd3-shape']
+/**
+ * Pure, DOM-free packages domain/ may import: chart scales and paths, and
+ * the helpers the API shares (quick add's ranking weights and text keys,
+ * so both halves of a ranking agree).
+ */
+const DOMAIN_PACKAGES = ['d3-scale', 'd3-shape', '@monkimoney/shared']
 
 interface SourceFile {
   path: string

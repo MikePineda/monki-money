@@ -72,16 +72,6 @@ export class TransactionsApi {
     }
   }
 
-  /** Both legs of a transfer, found among that day's transfer rows. */
-  async transferLegs(transferId: number, date: string): Promise<Transaction[]> {
-    const body = await (
-      await this.api()
-    ).request('transactions.index', {
-      query: { kind: 'transfer', from: date, to: date, perPage: 100 },
-    })
-    return body.data.filter((row) => row.transferId === transferId)
-  }
-
   async show(id: number): Promise<Transaction> {
     const { data } = await (await this.api()).request('transactions.show', { params: { id } })
     return data

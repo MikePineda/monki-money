@@ -59,7 +59,8 @@
     "viewAll": "View all",
     "private": "Private",
     "noPayee": "No merchant",
-    "uncategorized": "Uncategorised"
+    "uncategorized": "Uncategorised",
+    "split": "Split"
   },
   "insights": {
     "title": "Observations",

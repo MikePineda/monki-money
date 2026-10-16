@@ -1,16 +1,15 @@
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { aTransaction, aTransferPair, aCategoryTree } from '../../../testing/ledger-fixtures'
-import { aMember, aUser, anAccount, httpError } from '../../../testing/session-fixtures'
+import { aUser, anAccount, httpError } from '../../../testing/session-fixtures'
 import { SessionStore } from '../../core/auth/session.store'
 import { AccountsApi } from '../../core/household/accounts.api'
 import { CategoriesApi } from '../../core/household/categories.api'
-import { HouseholdApi } from '../../core/household/household.api'
 import { MonthStore } from '../../core/month/month.store'
 import { HOUSEHOLD_TIME_ZONE } from '../../core/platform/time-zone.token'
 import { ToastStore } from '../../core/ui/toast.store'
 import type { YearMonth } from '../../domain/month'
-import type { Transaction } from '../../core/api/api-types'
+import type { Transaction, Transfer } from '../../core/api/api-types'
 import { TransactionsApi, type TransactionPage } from './data-access/transactions.api'
 import { TransfersApi } from './data-access/transfers.api'
 import { TransactionsStore } from './transactions.store'
@@ -26,10 +25,10 @@ async function settle(): Promise<void> {
 
 describe('TransactionsStore', () => {
   let api: Record<
-    'list' | 'show' | 'create' | 'update' | 'remove' | 'updateSplits' | 'transferLegs',
+    'list' | 'show' | 'create' | 'update' | 'remove' | 'updateSplits',
     ReturnType<typeof vi.fn>
   >
-  let transfers: Record<'create' | 'update' | 'remove', ReturnType<typeof vi.fn>>
+  let transfers: Record<'show' | 'create' | 'update' | 'remove', ReturnType<typeof vi.fn>>
 
   function setup(pages: TransactionPage[] = [page([aTransaction({ id: 1 })])]) {
     api = {
@@ -39,9 +38,20 @@ describe('TransactionsStore', () => {
       update: vi.fn(),
       remove: vi.fn(async () => undefined),
       updateSplits: vi.fn(),
-      transferLegs: vi.fn(async () => []),
     }
     transfers = {
+      show: vi.fn(async (id: number) => {
+        const [out, incoming] = aTransferPair(id)
+        return {
+          id,
+          date: out.date,
+          amountCents: 50000,
+          fromAccountId: 1,
+          toAccountId: 2,
+          memo: 'Rainy day',
+          legs: [out, incoming],
+        } as unknown as Transfer
+      }),
       create: vi.fn(async () => ({ id: 77 })),
       update: vi.fn(),
       remove: vi.fn(async () => undefined),
@@ -53,10 +63,6 @@ describe('TransactionsStore', () => {
         { provide: TransfersApi, useValue: transfers },
         { provide: AccountsApi, useValue: { list: vi.fn(async () => [anAccount({ id: 1 })]) } },
         { provide: CategoriesApi, useValue: { tree: vi.fn(async () => aCategoryTree()) } },
-        {
-          provide: HouseholdApi,
-          useValue: { members: vi.fn(async () => [aMember({ userId: 1 })]) },
-        },
         { provide: SessionStore, useValue: { onClear: () => undefined, user: () => aUser() } },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
       ],
@@ -182,6 +188,49 @@ describe('TransactionsStore', () => {
     expect(transfers.create).toHaveBeenCalledWith(
       expect.objectContaining({ tags: ['Bali 2027'], amountCents: 50000 })
     )
+  })
+
+  it('test_a_leg_whose_partner_is_not_listed_reads_its_transfer_in_one_call', async () => {
+    // Filtered by the source account: only the outgoing leg is on screen.
+    const [out] = aTransferPair(9)
+    const store = setup([page([out])])
+    await settle()
+
+    const details = await store.transferOf(out)
+
+    expect(transfers.show).toHaveBeenCalledExactlyOnceWith(9)
+    expect(details).toMatchObject({
+      transferId: 9,
+      fromAccountId: 1,
+      toAccountId: 2,
+      amountCents: 50000,
+      memo: 'Rainy day',
+    })
+  })
+
+  it('test_a_transfer_with_both_legs_listed_needs_no_request', async () => {
+    const store = setup([page(aTransferPair(9))])
+    await settle()
+
+    const details = await store.transferOf(store.rows()[0] as Transaction)
+
+    expect(transfers.show).not.toHaveBeenCalled()
+    expect(details).toMatchObject({ fromAccountId: 1, toAccountId: 2 })
+  })
+
+  it('test_the_joint_filter_asks_for_rows_without_a_payer', async () => {
+    const store = setup()
+    await settle()
+
+    store.setPaidBy('joint')
+    await settle()
+
+    expect(api.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ paidBy: 'joint' }),
+      expect.anything()
+    )
+    expect(api.list.mock.lastCall?.[0]).not.toHaveProperty('paidByUserId')
+    expect(store.hasNarrowingFilters()).toBe(true)
   })
 
   it('test_load_more_fetches_only_the_next_page_and_appends_it', async () => {

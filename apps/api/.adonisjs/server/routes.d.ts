@@ -56,12 +56,14 @@ export type ScannedRoutes = {
     'transactions.index': { paramsTuple?: []; params?: {} }
     'transactions.store': { paramsTuple?: []; params?: {} }
     'transactions.quick': { paramsTuple?: []; params?: {} }
+    'transactions.suggestions': { paramsTuple?: []; params?: {} }
     'transactions.bulkCategorize': { paramsTuple?: []; params?: {} }
     'transactions.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.splits.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.store': { paramsTuple?: []; params?: {} }
+    'transfers.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'payslips.index': { paramsTuple?: []; params?: {} }
@@ -124,7 +126,9 @@ export type ScannedRoutes = {
     'category_groups.index': { paramsTuple?: []; params?: {} }
     'categories.index': { paramsTuple?: []; params?: {} }
     'transactions.index': { paramsTuple?: []; params?: {} }
+    'transactions.suggestions': { paramsTuple?: []; params?: {} }
     'transactions.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'transfers.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'payslips.index': { paramsTuple?: []; params?: {} }
     'payslips.candidates': { paramsTuple?: []; params?: {} }
     'reports.month': { paramsTuple?: []; params?: {} }
@@ -160,7 +164,9 @@ export type ScannedRoutes = {
     'category_groups.index': { paramsTuple?: []; params?: {} }
     'categories.index': { paramsTuple?: []; params?: {} }
     'transactions.index': { paramsTuple?: []; params?: {} }
+    'transactions.suggestions': { paramsTuple?: []; params?: {} }
     'transactions.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'transfers.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'payslips.index': { paramsTuple?: []; params?: {} }
     'payslips.candidates': { paramsTuple?: []; params?: {} }
     'reports.month': { paramsTuple?: []; params?: {} }

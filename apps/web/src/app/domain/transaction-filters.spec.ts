@@ -22,7 +22,7 @@ describe('toListQuery', () => {
     const filters: TransactionFilters = {
       month: october,
       accountId: 3,
-      paidByUserId: 7,
+      paidBy: 7,
       category: { type: 'category', id: 12 },
       q: '  woolworths ',
       tag: 'Bali 2027',
@@ -38,6 +38,18 @@ describe('toListQuery', () => {
       page: 2,
       perPage: 25,
     })
+  })
+
+  it('test_joint_asks_for_rows_without_a_payer', () => {
+    const filters: TransactionFilters = { ...initialFilters(october), paidBy: 'joint' }
+
+    expect(toListQuery(filters, 1)).toEqual({
+      month: '2026-10',
+      paidBy: 'joint',
+      page: 1,
+      perPage: 50,
+    })
+    expect(hasNarrowingFilters(filters)).toBe(true)
   })
 
   it('test_a_tag_over_every_month_sends_no_month', () => {
@@ -70,7 +82,7 @@ describe('hasNarrowingFilters and clearFilters', () => {
     const filters: TransactionFilters = {
       month: october,
       accountId: 3,
-      paidByUserId: 7,
+      paidBy: 7,
       category: { type: 'uncategorized' },
       q: 'x',
       tag: 'Bali',

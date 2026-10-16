@@ -59,7 +59,8 @@
     "viewAll": "Ver todo",
     "private": "Privado",
     "noPayee": "Sin comercio",
-    "uncategorized": "Sin categoría"
+    "uncategorized": "Sin categoría",
+    "split": "Dividido"
   },
   "insights": {
     "title": "Observaciones",

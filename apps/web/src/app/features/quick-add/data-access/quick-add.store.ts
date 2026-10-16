@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
+import type { TransactionSuggestions } from '@monkimoney/shared'
 import { failureMessage } from '../../../core/api/error-messages'
 import type { Transaction } from '../../../core/api/api-types'
 import { toApiError } from '../../../core/api/http-errors'
@@ -47,12 +48,13 @@ import {
   transferDraftValid,
   type TransferDraft,
 } from '../../../shared/transaction-form/transfer-form.component'
+import { SuggestionsStore } from './suggestions.store'
 
 export type QuickKind = 'expense' | 'income' | 'transfer'
 export type LoadState = 'loading' | 'ready' | 'error'
 
-/** Rows read to rank categories, routes and payees (newest first). */
-export const RECENT_ROWS = 100
+/** Transfer routes offered as presets. */
+const PRESET_COUNT = 3
 /** Payees offered as suggestions (the form filters them by what is typed). */
 const PAYEE_SUGGESTIONS = 20
 
@@ -135,11 +137,13 @@ function toRecentEntry(row: LedgerRow): RecentEntry {
  * - After a save: a haptic tick, "Saved · Undo" (undo deletes it), the
  *   draft clears, the outbox gets a chance to sync, and the screen stays on
  *   /add for the next one.
- * - The rankings (category tiles, payees, routes, the latest account) read
- *   the recent ledger rows plus what waits in the outbox, so an entry saved
- *   offline counts before it syncs.
+ * - The rankings (category tiles, payees, routes, the latest account) are
+ *   the server's (`GET /transactions/suggestions`, over this person's and
+ *   the household's latest rows) plus what waits in the outbox and what was
+ *   saved since the screen opened, so an entry saved offline counts before
+ *   it syncs.
  * - Offline it still opens with the accounts and categories already loaded
- *   this session (the recent rows that rank the defaults are skipped).
+ *   this session and the last rankings it got (SuggestionsStore), or none.
  * - `/add?outbox=<id>` edits a queued entry: the drafts open with its
  *   values, the outbox holds it meanwhile, and saving replaces it (same
  *   client id) instead of posting.
@@ -153,6 +157,7 @@ export class QuickAddStore {
   private readonly window = inject(WINDOW)
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
   private readonly outbox = inject(OutboxStore)
+  private readonly suggestionsStore = inject(SuggestionsStore)
   readonly directory = inject(HouseholdDirectory)
 
   /* ----------------------------------------------------------- the drafts */
@@ -172,6 +177,9 @@ export class QuickAddStore {
   /** The queued entry being edited (`/add?outbox=<id>`), if any. */
   readonly editing = signal<string | null>(null)
 
+  /** The server's rankings, as of when the screen opened. */
+  private readonly suggestions = signal<TransactionSuggestions | null>(null)
+  /** Rows saved since the screen opened (the server's rankings predate them). */
   private readonly recent = signal<RecentEntry[]>([])
   /** The "Saved · Undo" toast of the last save, while it may still be on screen. */
   private savedToast: number | null = null
@@ -179,7 +187,7 @@ export class QuickAddStore {
   readonly today = computed(() => todayIn(this.timeZone()))
   readonly youId = computed(() => this.session.user()?.id ?? null)
 
-  /** What the rankings read: queued entries (newest first), then the recent ledger rows. */
+  /** What the rankings add to the server's: queued entries (newest first), then rows saved here. */
   private readonly ranking = computed(() => [
     ...queuedAsRecent(this.outbox.entries(), this.youId()),
     ...this.recent(),
@@ -207,7 +215,9 @@ export class QuickAddStore {
       this.ranking(),
       kind,
       this.today(),
-      candidates.map((entry) => entry.category)
+      candidates.map((entry) => entry.category),
+      QUICK_CATEGORY_COUNT,
+      this.suggestions()?.categories[kind] ?? []
     )
     const selected = this.entry().categoryId
     if (selected !== null && !ids.includes(selected)) {
@@ -221,7 +231,13 @@ export class QuickAddStore {
 
   /** The most used transfer routes ("→ Savings"). */
   readonly presets = computed<TransferPair[]>(() =>
-    transferPresets(this.ranking(), this.directory.accounts(), this.today())
+    transferPresets(
+      this.ranking(),
+      this.directory.accounts(),
+      this.today(),
+      PRESET_COUNT,
+      this.suggestions()?.routes ?? []
+    )
   )
 
   /** Recent payees of this kind, most used first (the form filters them as one types). */
@@ -229,7 +245,14 @@ export class QuickAddStore {
     const kind = this.kind()
     return kind === 'transfer'
       ? []
-      : payeeSuggestions(this.ranking(), kind, '', this.today(), PAYEE_SUGGESTIONS)
+      : payeeSuggestions(
+          this.ranking(),
+          kind,
+          '',
+          this.today(),
+          PAYEE_SUGGESTIONS,
+          this.suggestions()?.payees[kind] ?? []
+        )
   })
 
   readonly canSave = computed(() => {
@@ -262,8 +285,9 @@ export class QuickAddStore {
   /* ------------------------------------------------------------- loading */
 
   /**
-   * Loads the household's accounts, categories, members and recent rows,
-   * then applies the defaults, or the values of the queued entry to edit.
+   * Loads the household's accounts and categories and the server's
+   * rankings, then applies the defaults, or the values of the queued entry
+   * to edit.
    */
   async init(requestedKind: unknown, outboxId?: unknown): Promise<void> {
     if (isQuickKind(requestedKind)) {
@@ -272,12 +296,12 @@ export class QuickAddStore {
     this.loadState.set('loading')
     const loadedBefore = this.directory.status() === 'ready'
     try {
-      const [, rows] = await Promise.all([
+      const [, suggestions] = await Promise.all([
         this.directory.load(),
-        // Recent rows only rank the defaults: offline, quick add opens without them.
-        this.api.list({ perPage: RECENT_ROWS, sort: '-date' }).catch(() => []),
+        // Rankings only order the defaults: offline, quick add opens with the cached ones or none.
+        this.suggestionsStore.load(),
       ])
-      this.recent.set(rows.map(toRecentEntry))
+      this.suggestions.set(suggestions)
       this.applyDefaults()
       if (typeof outboxId === 'string') {
         this.edit(outboxId)
@@ -301,7 +325,8 @@ export class QuickAddStore {
             youId,
             this.ranking(),
             this.directory.accounts(),
-            this.storedAccount(youId)
+            this.storedAccount(youId),
+            this.suggestions()?.lastAccountId ?? null
           )
     const pair = defaultTransferPair(this.directory.accounts(), this.presets(), accountId)
     const today = this.today()

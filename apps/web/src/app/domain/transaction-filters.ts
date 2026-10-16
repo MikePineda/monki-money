@@ -7,12 +7,15 @@ import type { YearMonth } from './month'
 
 export type CategoryFilter = { type: 'category'; id: number } | { type: 'uncategorized' }
 
+/** Who paid: a member's user id, or `joint` for the rows "both of us" paid. */
+export type PayerFilter = number | 'joint'
+
 export interface TransactionFilters {
   /** The month on screen; null = every month (only ever set alongside a tag). */
   month: YearMonth | null
   accountId: number | null
-  /** Who paid; the API cannot filter joint rows on their own. */
-  paidByUserId: number | null
+  /** Who paid; null = everyone. */
+  paidBy: PayerFilter | null
   category: CategoryFilter | null
   q: string
   /** Only rows carrying this exact tag. */
@@ -28,6 +31,7 @@ export interface TransactionListQuery {
   categoryId?: number[]
   uncategorized?: true
   paidByUserId?: number
+  paidBy?: 'joint'
   q?: string
   tag?: string
   page: number
@@ -35,7 +39,7 @@ export interface TransactionListQuery {
 }
 
 export function initialFilters(month: YearMonth | null): TransactionFilters {
-  return { month, accountId: null, paidByUserId: null, category: null, q: '', tag: null }
+  return { month, accountId: null, paidBy: null, category: null, q: '', tag: null }
 }
 
 export function toListQuery(
@@ -48,8 +52,10 @@ export function toListQuery(
   if (filters.accountId !== null) {
     query.accountId = [filters.accountId]
   }
-  if (filters.paidByUserId !== null) {
-    query.paidByUserId = filters.paidByUserId
+  if (filters.paidBy === 'joint') {
+    query.paidBy = 'joint'
+  } else if (filters.paidBy !== null) {
+    query.paidByUserId = filters.paidBy
   }
   if (filters.category?.type === 'category') {
     query.categoryId = [filters.category.id]
@@ -70,7 +76,7 @@ export function toListQuery(
 export function hasNarrowingFilters(filters: TransactionFilters): boolean {
   return (
     filters.accountId !== null ||
-    filters.paidByUserId !== null ||
+    filters.paidBy !== null ||
     filters.category !== null ||
     filters.q.trim() !== '' ||
     filters.tag !== null

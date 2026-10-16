@@ -16,6 +16,7 @@ import type ImportBatchDetailTransformer from '#transformers/import_batch_detail
 import type ImportBatchTransformer from '#transformers/import_batch_transformer'
 import type ImportRowTransformer from '#transformers/import_row_transformer'
 import type InvitationTransformer from '#transformers/invitation_transformer'
+import type MemberSummaryTransformer from '#transformers/member_summary_transformer'
 import type MemberTransformer from '#transformers/member_transformer'
 import type MembershipTransformer from '#transformers/membership_transformer'
 import type MerchantRuleTransformer from '#transformers/merchant_rule_transformer'
@@ -72,6 +73,10 @@ export namespace Data {
   export type Invitation = InferData<InvitationTransformer>
   export namespace Invitation {
     export type Variants = InferVariants<InvitationTransformer>
+  }
+  export type MemberSummary = InferData<MemberSummaryTransformer>
+  export namespace MemberSummary {
+    export type Variants = InferVariants<MemberSummaryTransformer>
   }
   export type Member = InferData<MemberTransformer>
   export namespace Member {

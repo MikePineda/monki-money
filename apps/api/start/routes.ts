@@ -213,6 +213,9 @@ router
                 router.post('/', [controllers.Transactions, 'store']).as('store')
                 router.post('quick', [controllers.Transactions, 'quick']).as('quick')
                 router
+                  .get('suggestions', [controllers.Transactions, 'suggestions'])
+                  .as('suggestions')
+                router
                   .post('bulk-categorize', [controllers.Transactions, 'bulkCategorize'])
                   .as('bulkCategorize')
                 router.get(':id', [controllers.Transactions, 'show']).where('id', id).as('show')
@@ -235,6 +238,7 @@ router
             router
               .group(() => {
                 router.post('/', [controllers.Transfers, 'store']).as('store')
+                router.get(':id', [controllers.Transfers, 'show']).where('id', id).as('show')
                 router.patch(':id', [controllers.Transfers, 'update']).where('id', id).as('update')
                 router
                   .delete(':id', [controllers.Transfers, 'destroy'])

@@ -50,7 +50,7 @@ describe('InsightSummaryCardComponent', () => {
         { provide: InsightsApi, useValue: api },
         {
           provide: MonthStore,
-          useValue: { revisionOf: () => 0, current: signal(OCT) },
+          useValue: { revisionOf: () => 0, cached: () => undefined, current: signal(OCT) },
         },
         {
           provide: SessionStore,

@@ -4,7 +4,12 @@ import Account from '#models/account'
 import Category from '#models/category'
 import { inject } from '@adonisjs/core'
 import type Household from '#models/household'
+import Transaction from '#models/transaction'
+import type { Locale } from '@monkimoney/shared'
 import { postingsFor } from '#domain/ledger/privacy'
+import { isoTimestamp } from '#domain/time/iso_timestamp'
+import { storedInsight } from '#services/insights/insight_service'
+import { largestExpenses, type LargestExpense } from '#domain/reports/top_expenses'
 import { findInHousehold } from '#repositories/scoped'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { summarizeMonth } from '#domain/reports/month_summary'
@@ -33,6 +38,8 @@ export interface MonthReportInput {
   month?: Month
   /** Only what this member paid. */
   paidByUserId?: number
+  /** The reader's language: `insight` says whether their summary is stored. Default: the household's. */
+  locale?: Locale
 }
 
 export interface TrendReportInput {
@@ -46,7 +53,9 @@ export interface TrendReportInput {
 /**
  * Reports read postings (app/repositories/postings_repository.ts), mask
  * the partner's private ones for the reader and hand them to the pure
- * functions of app/domain/reports. No report has its own SQL.
+ * functions of app/domain/reports. No report has its own SQL (the month's
+ * largest expenses, picked from postings, only read their payee and notes
+ * by id).
  */
 @inject()
 export default class ReportService {
@@ -58,9 +67,12 @@ export default class ReportService {
   ) {}
 
   /**
-   * Where the money went in a month, the categories that moved the most vs
-   * the month before, and what the recurring payments commit in it
-   * (`committed`: already paid, still due until the end of the month).
+   * Where the money went in a month, the previous month's totals (same
+   * rules and payer filter), the categories that moved the most vs the
+   * month before, its five largest expenses, whether the reader's monthly
+   * summary is stored (`insight`), and what the recurring payments commit
+   * in it (`committed`: already paid, still due until the end of the
+   * month). One call draws the Month view but its 6-month trend.
    */
   async month(household: Household, viewer: User, input: MonthReportInput = {}) {
     if (input.paidByUserId !== undefined) {
@@ -80,16 +92,63 @@ export default class ReportService {
     }
 
     const summary = summarizeMonth(postings, month)
-    const committed = await this.committedReport.forMonth(household, reader, {
-      month,
-      today: todayIn(now, household.timezone),
-      paidByUserId: input.paidByUserId,
-    })
+    const before = summarizeMonth(postings, previous)
+    const locale = input.locale ?? household.locale
+    const [committed, topExpenses, insight] = await Promise.all([
+      this.committedReport.forMonth(household, reader, {
+        month,
+        today: todayIn(now, household.timezone),
+        paidByUserId: input.paidByUserId,
+      }),
+      this.describe(household, largestExpenses(postings, month)),
+      storedInsight(household, month, locale).select('generated_at').first(),
+    ])
     return {
       ...summary,
-      topMovers: topMovers(summarizeMonth(postings, previous), summary),
+      previous: {
+        incomeCents: before.incomeCents,
+        expenseCents: before.expenseCents,
+        netCents: before.netCents,
+      },
+      topMovers: topMovers(before, summary),
+      topExpenses,
+      // The language the flag is about, so a client that switched language can tell.
+      insight: {
+        available: insight !== null,
+        generatedAt: isoTimestamp(insight?.generatedAt ?? null),
+        locale,
+      },
       committed,
     }
+  }
+
+  /**
+   * The month's largest expenses with their payee and notes, masked like
+   * the transaction resource when the reader may not see them.
+   */
+  protected async describe(household: Household, expenses: LargestExpense[]) {
+    const ids = expenses.map((expense) => expense.transactionId)
+    const rows = ids.length
+      ? await Transaction.query()
+          .withScopes((scopes) => scopes.forHousehold(household))
+          .whereIn('id', ids)
+          .select('id', 'payee', 'description')
+      : []
+    const text = new Map(rows.map((row) => [row.id, row]))
+    return expenses.map((expense) => {
+      const row = expense.hidden ? undefined : text.get(expense.transactionId)
+      return {
+        id: expense.transactionId,
+        date: expense.date,
+        payee: row?.payee ?? null,
+        description: row?.description ?? null,
+        amountCents: expense.amountCents,
+        categoryId: expense.categoryId,
+        isSplit: expense.isSplit,
+        paidByUserId: expense.paidByUserId,
+        isMasked: expense.hidden,
+      }
+    })
   }
 
   /** Income/expense/net per month and one series per group (or category). */

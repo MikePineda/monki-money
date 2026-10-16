@@ -6,11 +6,10 @@ import { RouterTestingHarness } from '@angular/router/testing'
 import { aGoal } from '../../../../testing/goal-fixtures'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aCategoryTree } from '../../../../testing/ledger-fixtures'
-import { aMember, aUser, anAccount, validationError } from '../../../../testing/session-fixtures'
+import { anAccount, aSessionStub, validationError } from '../../../../testing/session-fixtures'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { CategoriesApi } from '../../../core/household/categories.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { AmountKeypadHarness } from '../../../shared/ui/amount-keypad/amount-keypad.harness'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { SegmentedControlHarness } from '../../../shared/ui/segmented-control/segmented-control.harness'
@@ -38,19 +37,7 @@ describe('GoalNewPage', () => {
         { provide: GoalsApi, useValue: api },
         { provide: AccountsApi, useValue: { list: async () => [anAccount()] } },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
       ],
     })

@@ -1,13 +1,12 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
-import type { Account, AccountCard, Member } from '../../../core/api/api-types'
+import type { Account, AccountCard } from '../../../core/api/api-types'
 import { failureMessage } from '../../../core/api/error-messages'
 import { hasStatus, toApiError } from '../../../core/api/http-errors'
 import { canAddAccount } from '../../../core/auth/entitlements'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { ToastStore } from '../../../core/ui/toast.store'
 import {
   ownerChoiceOf,
@@ -213,7 +212,6 @@ interface AccountRow {
 export default class AccountsPage implements OnInit {
   private readonly session = inject(SessionStore)
   private readonly accountsApi = inject(AccountsApi)
-  private readonly households = inject(HouseholdApi)
   private readonly sheets = inject(BottomSheetService)
   private readonly toasts = inject(ToastStore)
   private readonly transloco = inject(TranslocoService)
@@ -224,14 +222,13 @@ export default class AccountsPage implements OnInit {
   private readonly kindLabels = translateSignal(Object.values(KIND_KEYS))
 
   protected readonly accounts = signal<Account[]>([])
-  private readonly members = signal<Member[]>([])
   protected readonly loading = signal(true)
   protected readonly busy = signal(false)
 
   private readonly youId = computed(() => this.session.user()?.id ?? 0)
-  private readonly partner = computed(
-    () => this.members().find((member) => member.userId !== this.youId()) ?? null
-  )
+  /** Names and colours come with the session (`GET /auth/me`). */
+  private readonly members = this.session.members
+  private readonly partner = this.session.partner
 
   private readonly kinds = computed(() => {
     const labels = this.kindLabels()
@@ -246,7 +243,7 @@ export default class AccountsPage implements OnInit {
     const partner = this.partner()
     return [
       { value: 'you', label: you },
-      ...(partner ? [{ value: 'partner' as const, label: firstName(partner.fullName) }] : []),
+      ...(partner ? [{ value: 'partner' as const, label: firstName(partner.displayName) }] : []),
       { value: 'joint', label: joint },
     ]
   })
@@ -266,13 +263,10 @@ export default class AccountsPage implements OnInit {
   )
 
   async ngOnInit(): Promise<void> {
+    // The names come from the session: pick up a partner who joined since the app opened.
+    void this.session.refresh()
     try {
-      const [accounts, members] = await Promise.all([
-        this.accountsApi.list(),
-        this.households.members(),
-      ])
-      this.accounts.set(accounts)
-      this.members.set(members)
+      this.accounts.set(await this.accountsApi.list())
     } catch (error) {
       this.showFailure(error)
     } finally {
@@ -321,8 +315,8 @@ export default class AccountsPage implements OnInit {
 
   protected addCard(account: Account): void {
     const holders = this.members().map((member) => ({
-      value: member.userId,
-      label: firstName(member.fullName),
+      value: member.id,
+      label: firstName(member.displayName),
     }))
     this.sheets
       .open<CardSheetResult>(CardSheetComponent, { data: { holders }, injector: this.injector })
@@ -386,11 +380,11 @@ export default class AccountsPage implements OnInit {
   }
 
   private memberName(userId: number): string {
-    return this.members().find((member) => member.userId === userId)?.fullName ?? ''
+    return this.members().find((member) => member.id === userId)?.displayName ?? ''
   }
 
   private ownerId(choice: OwnerChoice): number | null {
-    return ownerUserIdFor(choice, this.youId(), this.partner()?.userId ?? null)
+    return ownerUserIdFor(choice, this.youId(), this.partner()?.id ?? null)
   }
 
   private replace(account: Account): void {
