@@ -12,7 +12,8 @@ export type Translate = (key: string, params?: Record<string, string | number>) 
  * t(import.status.transfer, import.status.ignored, import.status.duplicate)
  * t(import.row.private, import.row.uncategorized, import.row.transferUnknown)
  * t(import.source.rule, import.source.bank, import.source.ai, import.source.aiConfidence)
- * t(import.row.split, import.row.transferTo, import.row.matches, import.row.possibleMatch)
+ * t(import.row.split, import.row.transferTo, import.row.transferGuessed, import.row.matches)
+ * t(import.row.possibleMatch)
  * t(import.row.suggestion, import.row.select, import.people.you, import.people.joint)
  */
 export function importRowContext(
@@ -50,6 +51,7 @@ export function importRowContext(
       },
       split: (count) => t('import.row.split', { count }),
       transferTo: (account) => t('import.row.transferTo', { account }),
+      transferGuessed: (account) => t('import.row.transferGuessed', { account }),
       matches: (payee) => t('import.row.matches', { payee }),
       possibleMatch: (payee) => t('import.row.possibleMatch', { payee }),
       suggestion: (category) => t('import.row.suggestion', { category }),
