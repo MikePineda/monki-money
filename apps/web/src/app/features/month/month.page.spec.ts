@@ -83,6 +83,7 @@ const COMMITTED: MonthReport['committed'] = {
       amountCents: 50_000,
       dueDate: `${NOW}-06`,
       paid: true,
+      overdue: false,
       categoryId: 10,
     },
     {
@@ -91,6 +92,7 @@ const COMMITTED: MonthReport['committed'] = {
       amountCents: 50_000,
       dueDate: `${NOW}-20`,
       paid: false,
+      overdue: false,
       categoryId: 10,
     },
   ],

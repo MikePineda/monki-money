@@ -15,6 +15,7 @@ export function aRecurringItem(overrides: Partial<RecurringItem> = {}): Recurrin
     lastPaidDate: '2026-10-13',
     nextExpectedDate: '2026-10-20',
     status: 'active',
+    pausedByDetection: false,
     source: 'detected',
     occurrences: 4,
     createdAt: '2026-10-16T00:00:00.000Z',

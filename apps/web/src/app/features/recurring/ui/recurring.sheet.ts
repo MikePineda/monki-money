@@ -11,6 +11,9 @@ import {
   RECURRING_CADENCES,
   draftFrom,
   draftProblems,
+  pickSuggestion,
+  suggestionsFor,
+  type MerchantSuggestion,
   type RecurringDraft,
 } from '../../../domain/recurring'
 import { categoryIcon } from '../../../shared/icons/category-icons'
@@ -82,8 +85,34 @@ export interface RecurringSheetData {
           [hint]="'recurring.sheet.payeeHint' | transloco"
           [error]="errors()['payee'] ?? ''"
           [value]="draft().payee"
-          (valueChange)="patch({ payee: $event })"
+          (valueChange)="typePayee($event)"
         />
+
+        @if (suggestions().length > 0) {
+          <div class="flex flex-col gap-1" data-testid="recurring.sheet.suggestions">
+            <span class="text-label text-ink-2">{{
+              'recurring.sheet.suggestions' | transloco
+            }}</span>
+            <ul class="-mx-4 flex flex-col">
+              @for (merchant of suggestions(); track merchant.merchantKey) {
+                <li>
+                  <button
+                    type="button"
+                    class="flex min-h-12 w-full flex-col px-4 py-1.5 text-left active:bg-surface-2"
+                    data-testid="recurring.sheet.suggestion"
+                    (click)="pick(merchant)"
+                  >
+                    <span class="truncate text-body text-ink-1">{{ merchant.payee }}</span>
+                    <span class="truncate text-caption text-ink-3">{{
+                      'recurring.sheet.suggestionMeta'
+                        | transloco: { amount: money(merchant.amountCents), count: merchant.count }
+                    }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
 
         <div class="flex flex-col gap-2">
           <span id="recurring-sheet-amount-label" class="text-label text-ink-2">{{
@@ -225,6 +254,18 @@ export class RecurringSheetComponent {
   protected readonly amountText = computed(() =>
     formatMoney(this.draft().amountCents, this.locale())
   )
+  /** Adding by hand: the merchants paid lately that match what is typed, until one is picked. */
+  protected readonly suggestions = computed(() =>
+    this.data.item || this.draft().merchantKey
+      ? []
+      : suggestionsFor(this.store.merchants(), this.draft().payee)
+  )
+
+  constructor() {
+    if (!this.data.item) {
+      void this.store.loadMerchants()
+    }
+  }
   protected readonly categoryName = computed(
     () => this.directory.category(this.draft().categoryId)?.category.name ?? ''
   )
@@ -249,6 +290,23 @@ export class RecurringSheetComponent {
         Object.fromEntries(Object.entries(errors).filter(([field]) => !touched.includes(field)))
       )
     }
+  }
+
+  /** Typing another name forgets the merchant picked from the suggestions. */
+  protected typePayee(payee: string): void {
+    this.patch({
+      payee,
+      merchantKey: payee === this.draft().payee ? this.draft().merchantKey : null,
+    })
+  }
+
+  protected pick(merchant: MerchantSuggestion): void {
+    this.draft.set(pickSuggestion(this.draft(), merchant))
+    this.errors.set({})
+  }
+
+  protected money(cents: number): string {
+    return formatMoney(cents, this.locale())
   }
 
   protected onDate(event: Event): void {

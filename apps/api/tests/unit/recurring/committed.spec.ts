@@ -133,6 +133,19 @@ test.group('Recurring: committed this month', () => {
     ])
   })
 
+  test('test_a_payment_paid_late_pays_the_due_date_it_missed', ({ assert }) => {
+    // October 6's rent paid on October 11, five days late; October 13 on time.
+    const committed = committedInMonth([rent()], [paid('2026-10-11'), paid('2026-10-13')], OCTOBER)
+
+    assert.deepEqual(marks(committed), [
+      '2026-10-11 P',
+      '2026-10-13 P',
+      '2026-10-20 D',
+      '2026-10-27 D',
+    ])
+    assert.equal(committed.upcomingCents, 100_000, 'no overdue October 6 counted on top')
+  })
+
   test('test_a_payment_outside_the_tolerance_does_not_count_as_paid', ({ assert }) => {
     // A $1,299 handset at the phone company is not the $65 bill.
     const phone = rent({

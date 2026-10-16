@@ -20,7 +20,7 @@ const PHONE = aRecurringItem({
 const GYM = aRecurringItem({ id: 3, payee: 'Pulse Gym', status: 'paused' })
 
 describe('RecurringStore', () => {
-  let api: Record<'list' | 'create' | 'update' | 'remove' | 'detect', Mock>
+  let api: Record<'list' | 'create' | 'update' | 'remove' | 'detect' | 'merchants', Mock>
   let months: { invalidate: Mock; current: () => string }
 
   async function setup(items: RecurringItem[] = [aRecurringItem(), PHONE, GYM]) {
@@ -33,6 +33,7 @@ describe('RecurringStore', () => {
       })),
       remove: vi.fn(async () => undefined),
       detect: vi.fn(async () => ({ created: 2, updated: 1 })),
+      merchants: vi.fn(async () => []),
     }
     months = { invalidate: vi.fn(), current: signal('2026-10') }
     TestBed.configureTestingModule({
@@ -108,6 +109,7 @@ describe('RecurringStore', () => {
       nextExpectedDate: '2026-10-20',
       categoryId: 10,
       paidByUserId: 2,
+      merchantKey: null,
     })
     await settled()
 
@@ -126,10 +128,18 @@ describe('RecurringStore', () => {
       nextExpectedDate: '2026-10-28',
       categoryId: null,
       paidByUserId: null,
+      merchantKey: null,
     }
 
     await expect(store.save(undefined, draft)).resolves.toBeNull()
-    expect(api.create).toHaveBeenCalledWith({ ...draft, payee: 'Telco One' })
+    expect(api.create).toHaveBeenCalledWith({
+      payee: 'Telco One',
+      cadence: 'monthly',
+      amountCents: 6_500,
+      nextExpectedDate: '2026-10-28',
+      categoryId: null,
+      paidByUserId: null,
+    })
 
     api.create.mockRejectedValueOnce(
       validationError({ payee: 'This merchant already has a recurring payment' })
@@ -143,8 +153,27 @@ describe('RecurringStore', () => {
     const store = await setup()
     const item = aRecurringItem()
 
-    await expect(store.save(item, { ...item })).resolves.toBeNull()
+    await expect(store.save(item, { ...item, merchantKey: null })).resolves.toBeNull()
 
     expect(api.update).not.toHaveBeenCalled()
+  })
+
+  it('test_merchants_to_offer_load_on_demand_and_never_fail_the_sheet', async () => {
+    const store = await setup()
+    const merchant = {
+      merchantKey: 'telco one',
+      payee: 'Telco One',
+      amountCents: 6_500,
+      lastPaidDate: '2026-10-03',
+      count: 3,
+    }
+    api.merchants.mockResolvedValueOnce([merchant])
+
+    await store.loadMerchants()
+    expect(store.merchants()).toEqual([merchant])
+
+    api.merchants.mockRejectedValueOnce(httpError(500))
+    await store.loadMerchants()
+    expect(store.merchants()).toEqual([])
   })
 })

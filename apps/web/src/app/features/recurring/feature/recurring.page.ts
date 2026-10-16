@@ -23,7 +23,7 @@ import { RecurringSheetComponent, type RecurringSheetData } from '../ui/recurrin
 
 /**
  * Keys read from TypeScript:
- * t(recurring.next, recurring.noCategory)
+ * t(recurring.next, recurring.noCategory, recurring.pausedByDetection)
  * t(recurring.actions.edit, recurring.actions.pause, recurring.actions.resume)
  * t(recurring.actions.dismiss, recurring.actions.restore)
  */
@@ -282,9 +282,7 @@ export default class RecurringPage {
     const category = directory.category(item.categoryId)
     const meta = [
       this.t(`recurring.cadence.${item.cadence}`),
-      item.status === 'dismissed'
-        ? ''
-        : this.t('recurring.next', { date: formatDayMonth(item.nextExpectedDate, this.locale()) }),
+      this.whenOf(item),
       category?.category.name ?? this.t('recurring.noCategory'),
     ]
     return {
@@ -294,6 +292,19 @@ export default class RecurringPage {
       amount: formatMoney(item.amountCents, this.locale()),
       person: directory.personOf(item.paidByUserId),
     }
+  }
+
+  /** "Next 20 Oct"; why detection paused it; nothing once dismissed. */
+  private whenOf(item: RecurringItem): string {
+    if (item.status === 'dismissed') {
+      return ''
+    }
+    if (item.pausedByDetection && item.lastPaidDate) {
+      return this.t('recurring.pausedByDetection', {
+        date: formatDayMonth(item.lastPaidDate, this.locale()),
+      })
+    }
+    return this.t('recurring.next', { date: formatDayMonth(item.nextExpectedDate, this.locale()) })
   }
 
   private t(key: string, params?: Record<string, string | number>): string {

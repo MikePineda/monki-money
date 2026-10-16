@@ -28,6 +28,7 @@
   },
   "next": "Próximo {date}",
   "noCategory": "Sin categoría",
+  "pausedByDetection": "En pausa: sin pagos desde el {date}",
   "actions": {
     "edit": "Editar",
     "pause": "Pausar",
@@ -40,6 +41,8 @@
     "editTitle": "Editar {payee}",
     "payee": "Comercio",
     "payeeHint": "Como aparece en tu estado de cuenta.",
+    "suggestions": "Pagados hace poco",
+    "suggestionMeta": "{amount} · {count, plural, one {# pago} other {# pagos}}",
     "amount": "Monto habitual",
     "cadence": "Cada cuánto",
     "nextDate": "Próxima fecha de pago",

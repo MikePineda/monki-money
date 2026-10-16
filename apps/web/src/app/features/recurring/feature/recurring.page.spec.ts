@@ -33,7 +33,7 @@ const GYM = aRecurringItem({
 const CLUB = aRecurringItem({ id: 4, payee: 'Wine Club', status: 'dismissed' })
 
 describe('RecurringPage', () => {
-  let api: Record<'list' | 'create' | 'update' | 'remove' | 'detect', Mock>
+  let api: Record<'list' | 'create' | 'update' | 'remove' | 'detect' | 'merchants', Mock>
 
   async function open(items: RecurringItem[] = [aRecurringItem(), PHONE, GYM, CLUB]) {
     api = {
@@ -45,6 +45,22 @@ describe('RecurringPage', () => {
       })),
       remove: vi.fn(async () => undefined),
       detect: vi.fn(async () => ({ created: 1, updated: 0 })),
+      merchants: vi.fn(async () => [
+        {
+          merchantKey: 'rent harbour lettings',
+          payee: 'Rent',
+          amountCents: 50_000,
+          lastPaidDate: '2026-10-13',
+          count: 4,
+        },
+        {
+          merchantKey: 'telco one',
+          payee: 'Telco One',
+          amountCents: 6_500,
+          lastPaidDate: '2026-10-03',
+          count: 3,
+        },
+      ]),
     }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -221,6 +237,66 @@ describe('RecurringPage', () => {
         categoryId: null,
         paidByUserId: null,
       })
+    )
+  })
+
+  it('test_adding_one_offers_the_merchants_paid_lately_and_keys_it_like_the_bank', async () => {
+    const { root, settle } = await open()
+
+    root.querySelector<HTMLButtonElement>('[data-testid="recurring.add"]')?.click()
+    await vi.waitFor(() =>
+      expect(sheet().querySelectorAll('[data-testid="recurring.sheet.suggestion"]')).toHaveLength(2)
+    )
+    expect(sheet().textContent).toContain('$500.00 · 4 payments')
+
+    // Typing narrows them; picking one fills the name and the usual amount.
+    const payee = sheet().querySelector<HTMLInputElement>(
+      '[data-testid="recurring.sheet.payee"] input'
+    )
+    payee!.value = 'harb'
+    payee!.dispatchEvent(new Event('input'))
+    await settle()
+    const offered = sheet().querySelectorAll<HTMLButtonElement>(
+      '[data-testid="recurring.sheet.suggestion"]'
+    )
+    expect(offered).toHaveLength(1)
+    offered[0].click()
+    await settle()
+    expect(sheet().querySelector('[data-testid="recurring.sheet.suggestions"]')).toBeNull()
+    expect(text(sheet(), '[data-testid="recurring.sheet.amount"]')).toBe('$500.00')
+    sheet().querySelector<HTMLButtonElement>('[data-cadence="weekly"]')?.click()
+    await settle()
+    sheet().querySelector<HTMLButtonElement>('[data-testid="recurring.sheet.save"]')?.click()
+
+    await vi.waitFor(() =>
+      expect(api.create).toHaveBeenCalledWith({
+        payee: 'Rent',
+        merchantKey: 'rent harbour lettings',
+        cadence: 'weekly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-10-16',
+        categoryId: null,
+        paidByUserId: null,
+      })
+    )
+  })
+
+  it('test_an_item_paused_by_detection_says_since_when_nothing_was_paid', async () => {
+    const lapsed = aRecurringItem({
+      id: 5,
+      payee: 'Old Streaming',
+      cadence: 'monthly',
+      status: 'paused',
+      pausedByDetection: true,
+      lastPaidDate: '2026-06-05',
+      categoryId: null,
+    })
+    const { root } = await open([aRecurringItem(), lapsed])
+
+    await vi.waitFor(() =>
+      expect(text(rows(root, 'recurring.paused')[0], '[data-testid="recurring.meta"]')).toBe(
+        'Monthly · Paused: no payment since 5 June · No category'
+      )
     )
   })
 

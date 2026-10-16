@@ -13,7 +13,7 @@ import { provideMonthScope } from '../month.scope'
 
 /**
  * Keys picked at runtime, declared for transloco-keys-manager:
- * t(month.committed.paidOn, month.committed.dueOn)
+ * t(month.committed.paidOn, month.committed.dueOn, month.committed.overdueOn)
  * t(month.committed.detect, month.committed.detecting)
  */
 
@@ -21,6 +21,12 @@ interface CommittedRow {
   key: string
   payee: string
   paid: boolean
+  overdue: boolean
+  /** Icon and its colour: ticked when paid, a warning when overdue. */
+  icon: 'circle-check' | 'triangle-alert' | 'calendar'
+  tone: string
+  /** "Paid 6 Oct", "Overdue · due 13 Oct" or "Due 20 Oct" (key and date). */
+  whenKey: string
   date: string
   amount: string
 }
@@ -71,14 +77,30 @@ interface CommittedRow {
           </div>
           <div class="flex flex-col gap-0.5" data-testid="month.committed.free">
             <dt class="text-caption text-ink-3">{{ 'month.committed.free' | transloco }}</dt>
-            <dd
-              class="text-body font-semibold tnum"
-              [class]="figures().freeCents < 0 ? 'text-status-critical' : 'text-ink-1'"
-            >
-              {{ money(figures().freeCents) }}
-            </dd>
+            @let free = figures().freeCents;
+            @if (free === null) {
+              <dd class="text-body font-semibold text-ink-3" aria-describedby="committed-free-hint">
+                —
+              </dd>
+            } @else {
+              <dd
+                class="text-body font-semibold tnum"
+                [class]="free < 0 ? 'text-status-critical' : 'text-ink-1'"
+              >
+                {{ money(free) }}
+              </dd>
+            }
           </div>
         </dl>
+        @if (figures().freeCents === null) {
+          <p
+            id="committed-free-hint"
+            class="text-caption text-ink-3"
+            data-testid="month.committed.noIncome"
+          >
+            {{ 'month.committed.freeNoIncome' | transloco }}
+          </p>
+        }
 
         @if (rows().length > 0) {
           <ul
@@ -90,17 +112,16 @@ interface CommittedRow {
                 class="flex min-h-12 items-center gap-3 px-4 py-1.5"
                 data-testid="month.committed.item"
                 [attr.data-paid]="row.paid"
+                [attr.data-overdue]="row.overdue"
               >
-                <app-icon
-                  [name]="row.paid ? 'circle-check' : 'calendar'"
-                  [class]="row.paid ? 'text-status-good' : 'text-ink-3'"
-                />
+                <app-icon [name]="row.icon" [class]="row.tone" />
                 <span class="flex min-w-0 flex-1 flex-col">
                   <span class="truncate text-body text-ink-1">{{ row.payee }}</span>
-                  <span class="text-caption text-ink-3">{{
-                    (row.paid ? 'month.committed.paidOn' : 'month.committed.dueOn')
-                      | transloco: { date: row.date }
-                  }}</span>
+                  <span
+                    class="text-caption"
+                    [class]="row.overdue ? 'text-status-warning' : 'text-ink-3'"
+                    >{{ row.whenKey | transloco: { date: row.date } }}</span
+                  >
                 </span>
                 <span class="shrink-0 text-body tnum text-ink-1">{{ row.amount }}</span>
               </li>
@@ -146,6 +167,14 @@ export class CommittedCardComponent {
       key: `${index}:${item.id}:${item.dueDate}`,
       payee: item.payee,
       paid: item.paid,
+      overdue: item.overdue,
+      icon: item.paid ? 'circle-check' : item.overdue ? 'triangle-alert' : 'calendar',
+      tone: item.paid ? 'text-status-good' : item.overdue ? 'text-status-warning' : 'text-ink-3',
+      whenKey: item.paid
+        ? 'month.committed.paidOn'
+        : item.overdue
+          ? 'month.committed.overdueOn'
+          : 'month.committed.dueOn',
       date: formatDayMonth(item.dueDate, this.locale()),
       amount: formatMoney(item.amountCents, this.locale()),
     }))

@@ -72,10 +72,8 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 Tags screen has no date range yet (`GET /tags` and `GET /tags/:tag` take `from`/`to`), and Movements cannot tag several selected rows at once (a bulk tag like bulk categorize).
 - 2026-10-16 The web initial bundle is 349.9 kB, a hair under its 350 kB warning: one more eager route entry crosses it. Goals and tags now load their screens through one `loadChildren` entry each; new multi-screen features should do the same.
 - 2026-10-16 MembersStore and CategoriesStore (web, core/household) share the TagsStore race fixed in the tags review: a request in flight at logout lands after `onClear` and refills the previous household's members or categories. Guard them with the same session counter.
-- 2026-10-16 Recurring: yearly payments can only be added by hand (detection reads twelve months and needs three payments); widen the window for yearly patterns.
-- 2026-10-16 Recurring: a due date already past and still unpaid this month is not counted as still due (often a bill not imported yet); an "overdue" flag on the committed lines, counted in "Free after bills", would show it.
-- 2026-10-16 Recurring: one item per merchant key, so two subscriptions at one merchant (two plans of one streaming service) form one irregular group and are never detected; sub-group by amount.
-- 2026-10-16 Recurring: a manual item's merchant key comes from the payee typed, so it only matches ledger rows with that same key; let a person link an item to a transaction (or pick the key) when the bank text names the merchant differently.
-- 2026-10-16 Recurring: paid lines pair payments with due dates by count, earliest first, not by date proximity; a late payment for last month's due date covers this month's first one.
 - 2026-10-16 Recurring screen: no delete (the API has `DELETE /recurring/:id`); dismissing covers "not a bill", and a hand-made item can only be dismissed.
 - 2026-10-16 Month view: the "Committed this month" card shows on the current month only; past months could show what the recurring payments took.
+- 2026-10-16 Recurring: yearly payments need three payments, so two years of history; a yearly bill seen twice is only found once it is paid a third time (or added by hand).
+- 2026-10-16 Recurring: one item per merchant key, so two plans at one merchant (two phone lines, $65 and $45) are neither detected nor told apart; sub-group by amount and allow several items per key.
+- 2026-10-16 Recurring: an item typed by hand only matches rows whose bank key or payee key is its key; the add sheet now offers the merchants paid lately (with their real keys), but a typed name that matches neither stays unpaid until the person renames the rows or picks the suggestion.

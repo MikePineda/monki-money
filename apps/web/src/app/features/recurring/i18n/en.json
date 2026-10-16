@@ -28,6 +28,7 @@
   },
   "next": "Next {date}",
   "noCategory": "No category",
+  "pausedByDetection": "Paused: no payment since {date}",
   "actions": {
     "edit": "Edit",
     "pause": "Pause",
@@ -40,6 +41,8 @@
     "editTitle": "Edit {payee}",
     "payee": "Merchant",
     "payeeHint": "As it shows on your bank statement.",
+    "suggestions": "Paid lately",
+    "suggestionMeta": "{amount} · {count, plural, one {# payment} other {# payments}}",
     "amount": "Usual amount",
     "cadence": "How often",
     "nextDate": "Next due date",

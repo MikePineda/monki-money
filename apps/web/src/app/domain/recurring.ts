@@ -1,8 +1,11 @@
+import { matchesSearch } from './text'
+
 /**
  * Recurring payments on the client: the add/edit draft and the API body it
- * becomes, what each row offers by status, and the three figures of the
- * Month view's "Committed this month" card. Pure: no Angular, and the wire
- * shapes are restated structurally so domain stays free of core.
+ * becomes, the merchants offered while adding one, what each row offers by
+ * status, and the three figures of the Month view's "Committed this month"
+ * card. Pure: no Angular, and the wire shapes are restated structurally so
+ * domain stays free of core.
  */
 
 /** How often a payment falls due, shortest first (the API's `RECURRING_CADENCES`). */
@@ -33,7 +36,48 @@ export interface RecurringFields {
 export type RecurringPatch = Partial<RecurringFields> & { status?: RecurringStatus }
 
 /** What the add/edit sheet edits. */
-export type RecurringDraft = RecurringFields
+export interface RecurringDraft extends RecurringFields {
+  /**
+   * The merchant key of the suggestion the payee came from, so the item
+   * matches the bank's rows; null = typed, keyed by the payee itself.
+   */
+  merchantKey: string | null
+}
+
+/** A merchant the household paid lately (`GET /recurring/merchants`). */
+export interface MerchantSuggestion {
+  merchantKey: string
+  payee: string
+  amountCents: number
+  lastPaidDate: string
+  count: number
+}
+
+/** At most this many suggestions show under the merchant field. */
+export const MAX_SHOWN_SUGGESTIONS = 5
+
+/** The suggestions matching what was typed (all of them, most paid first, while empty). */
+export function suggestionsFor(
+  merchants: readonly MerchantSuggestion[],
+  typed: string
+): MerchantSuggestion[] {
+  return merchants
+    .filter((merchant) => matchesSearch(`${merchant.payee} ${merchant.merchantKey}`, typed))
+    .slice(0, MAX_SHOWN_SUGGESTIONS)
+}
+
+/** The draft once a suggestion is picked: its name and key, and its last amount if none yet. */
+export function pickSuggestion(
+  draft: RecurringDraft,
+  merchant: MerchantSuggestion
+): RecurringDraft {
+  return {
+    ...draft,
+    payee: merchant.payee,
+    merchantKey: merchant.merchantKey,
+    amountCents: draft.amountCents > 0 ? draft.amountCents : merchant.amountCents,
+  }
+}
 
 /** A field the draft cannot be saved without. */
 export type DraftProblem = 'payee' | 'amountCents' | 'nextExpectedDate'
@@ -49,6 +93,7 @@ export function draftFrom(item: RecurringFields | undefined, today: string): Rec
     nextExpectedDate: item?.nextExpectedDate ?? today,
     categoryId: item?.categoryId ?? null,
     paidByUserId: item?.paidByUserId ?? null,
+    merchantKey: null,
   }
 }
 
@@ -67,10 +112,25 @@ export function draftProblems(draft: RecurringDraft): DraftProblem[] {
   return problems
 }
 
-/** The new item's body. */
-export function createBody(draft: RecurringDraft): RecurringFields {
-  return { ...draft, payee: draft.payee.trim() }
+/** The new item's body: the suggestion's merchant key when one was picked. */
+export function createBody(draft: RecurringDraft): RecurringFields & { merchantKey?: string } {
+  const { merchantKey, ...fields } = draft
+  return {
+    ...fields,
+    payee: fields.payee.trim(),
+    ...(merchantKey ? { merchantKey } : {}),
+  }
 }
+
+/** What an edit may change (the merchant key is fixed once the item exists). */
+const EDITABLE = [
+  'payee',
+  'cadence',
+  'amountCents',
+  'nextExpectedDate',
+  'categoryId',
+  'paidByUserId',
+] as const satisfies readonly (keyof RecurringFields)[]
 
 /**
  * Only the fields the draft changed: the API remembers every field it
@@ -79,7 +139,7 @@ export function createBody(draft: RecurringDraft): RecurringFields {
 export function patchOf(item: RecurringFields, draft: RecurringDraft): RecurringPatch {
   const next = createBody(draft)
   const patch: Record<string, unknown> = {}
-  for (const key of Object.keys(next) as (keyof RecurringFields)[]) {
+  for (const key of EDITABLE) {
     if (next[key] !== item[key]) {
       patch[key] = next[key]
     }
@@ -137,7 +197,8 @@ export interface CommittedFigures {
   paidCents: number
   dueCents: number
   /** Income − spent − still due: what is left once every bill of the month is paid. */
-  freeCents: number
+  /** null while no income came in this month (there is nothing to be free of yet). */
+  freeCents: number | null
 }
 
 export function committedFigures(month: {
@@ -148,6 +209,9 @@ export function committedFigures(month: {
   return {
     paidCents: month.committed.paidCents,
     dueCents: month.committed.upcomingCents,
-    freeCents: month.incomeCents - month.expenseCents - month.committed.upcomingCents,
+    freeCents:
+      month.incomeCents === 0
+        ? null
+        : month.incomeCents - month.expenseCents - month.committed.upcomingCents,
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core'
 import { API } from '../api/api'
 import type { RecurringItem } from '../api/api-types'
-import type { RecurringFields, RecurringPatch } from '../../domain/recurring'
+import type { MerchantSuggestion, RecurringFields, RecurringPatch } from '../../domain/recurring'
 
 /**
  * Data access for the household's recurring payments (rent, phone, gym,
@@ -18,8 +18,17 @@ export class RecurringApi {
     return data
   }
 
-  /** `POST /recurring`: one typed by hand (its merchant comes from the payee). */
-  async create(body: RecurringFields): Promise<RecurringItem> {
+  /** `GET /recurring/merchants`: merchants paid lately that no item tracks, most paid first. */
+  async merchants(): Promise<MerchantSuggestion[]> {
+    const { data } = await (await this.api()).request('recurring.merchants', {})
+    return data
+  }
+
+  /**
+   * `POST /recurring`: one added by hand, keyed by a suggestion's
+   * `merchantKey` when one was picked, else by the payee.
+   */
+  async create(body: RecurringFields & { merchantKey?: string }): Promise<RecurringItem> {
     const { data } = await (await this.api()).request('recurring.store', { body })
     return data
   }

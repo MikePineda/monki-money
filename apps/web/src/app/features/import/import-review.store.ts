@@ -373,8 +373,14 @@ export class ImportReviewStore {
     })
   }
 
-  /** Every month the file's dates cover (its rows may land anywhere in between). */
+  /**
+   * Every month the file's dates cover (its rows may land anywhere in
+   * between), and the current month: confirming runs recurring payment
+   * detection, which changes what the current month counts as committed
+   * even when the file is about older months.
+   */
   private invalidateMonths(): void {
+    const current = this.months.current()
     const batch = this.batch()
     const dates = this.rows().map((row) => row.date)
     const from = [batch?.dateFrom, ...dates].filter((date): date is string => !!date).sort()[0]
@@ -382,11 +388,12 @@ export class ImportReviewStore {
       .filter((date): date is string => !!date)
       .sort()
       .at(-1)
-    if (!from || !to) {
-      return
-    }
-    for (const month of monthRange(monthOf(from), monthOf(to))) {
+    const covered = from && to ? monthRange(monthOf(from), monthOf(to)) : []
+    for (const month of covered) {
       this.months.invalidate(month)
+    }
+    if (!covered.includes(current)) {
+      this.months.invalidate(current)
     }
   }
 

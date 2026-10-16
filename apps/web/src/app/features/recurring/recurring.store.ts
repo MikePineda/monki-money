@@ -9,6 +9,7 @@ import { ToastStore } from '../../core/ui/toast.store'
 import {
   createBody,
   patchOf,
+  type MerchantSuggestion,
   sectionsOf,
   statusAfter,
   type RecurringAction,
@@ -49,6 +50,8 @@ export class RecurringStore {
   readonly failed = computed(() => this.list.status() === 'error')
   /** "Detect again" is running. */
   readonly detecting = signal(false)
+  /** Merchants paid lately, offered while adding an item by hand (loaded on demand). */
+  readonly merchants = signal<MerchantSuggestion[]>([])
 
   constructor() {
     void this.directory.load().catch(() => undefined)
@@ -56,6 +59,15 @@ export class RecurringStore {
 
   retry(): void {
     this.list.reload()
+  }
+
+  /** Loads the merchants to offer; without them the sheet simply offers none. */
+  async loadMerchants(): Promise<void> {
+    try {
+      this.merchants.set(await this.api.merchants())
+    } catch {
+      this.merchants.set([])
+    }
   }
 
   async detect(): Promise<void> {

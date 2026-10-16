@@ -16,8 +16,10 @@ import { PAYMENT_WINDOW_DAYS, dueDatesBetween, stepsByDays } from '#domain/recur
  *   is the item's key and its amount is within the item's tolerance.
  * - A due date is paid when one of those payments lands within the
  *   cadence's payment window of it (PAYMENT_WINDOW_DAYS), closest pairs
- *   first. Payments are read from a window before the month, so a late
- *   payment for last month's due date never pays one of this month's.
+ *   first; a payment left over then pays the latest unpaid due date before
+ *   it within twice the window (paid late). Payments are read from before
+ *   the month, so a late payment for last month's due date never pays one
+ *   of this month's.
  * - Current month: every due date of the month nobody paid is still due,
  *   flagged `overdue` when it is already past (often a bill whose bank
  *   export has not been imported yet). A past month has nothing still due;
@@ -86,7 +88,11 @@ function dayOfMonth(item: CommittedItem): number | undefined {
   return nextDay === endOfMonth && lastPaidDay > nextDay ? lastPaidDay : undefined
 }
 
-/** Payments paired with due dates, closest first, each within the payment window. */
+/**
+ * Payments paired with due dates: closest first within the payment window,
+ * then a payment left over pays the latest unpaid due date before it within
+ * twice the window (paid late, never early).
+ */
 function pairs(dueDates: string[], payments: MerchantPayment[], windowDays: number) {
   const candidates = dueDates.flatMap((dueDate, due) =>
     payments.map((payment, paid) => ({
@@ -104,6 +110,17 @@ function pairs(dueDates: string[], payments: MerchantPayment[], windowDays: numb
     covered.add(pair.due)
     used.add(pair.paid)
   }
+  payments.forEach((payment, paid) => {
+    if (used.has(paid)) return
+    const late = dueDates
+      .map((dueDate, due) => ({ due, lateBy: daysBetween(dueDate, payment.date) }))
+      .filter(({ due, lateBy }) => !covered.has(due) && lateBy >= 0 && lateBy <= windowDays * 2)
+      .sort((a, b) => a.lateBy - b.lateBy)[0]
+    if (late) {
+      covered.add(late.due)
+      used.add(paid)
+    }
+  })
   return covered
 }
 

@@ -16,16 +16,17 @@ function committed(overrides: Partial<Committed> = {}): Committed {
     upcomingCents: 106_500,
     recurringCount: 2,
     items: [
-      { ...RENT, dueDate: '2026-10-06', paid: true },
-      { ...RENT, dueDate: '2026-10-13', paid: true },
-      { ...RENT, dueDate: '2026-10-20', paid: false },
-      { ...RENT, dueDate: '2026-10-27', paid: false },
+      { ...RENT, dueDate: '2026-10-06', paid: true, overdue: false },
+      { ...RENT, dueDate: '2026-10-13', paid: true, overdue: false },
+      { ...RENT, dueDate: '2026-10-20', paid: false, overdue: false },
+      { ...RENT, dueDate: '2026-10-27', paid: false, overdue: false },
       {
         id: 2,
         payee: 'Telco One',
         amountCents: 6_500,
         dueDate: '2026-10-28',
         paid: false,
+        overdue: false,
         categoryId: null,
       },
     ],
@@ -110,11 +111,41 @@ describe('CommittedCardComponent', () => {
   })
 
   it('test_free_after_bills_turns_critical_when_bills_take_more_than_is_left', async () => {
-    const { root } = await render(committed(), { incomeCents: 0, expenseCents: 0 })
+    const { root } = await render(committed(), { incomeCents: 100_000, expenseCents: 50_000 })
 
     const free = root.querySelector('[data-testid="month.committed.free"] dd')
-    expect(free?.textContent?.trim()).toBe('−$1,065.00')
+    expect(free?.textContent?.trim()).toBe('−$565.00')
     expect(free?.className).toContain('text-status-critical')
+  })
+
+  it('test_free_after_bills_waits_for_the_months_income', async () => {
+    const { root } = await render(committed(), { incomeCents: 0, expenseCents: 30_000 })
+
+    const free = root.querySelector('[data-testid="month.committed.free"] dd')
+    expect(free?.textContent?.trim()).toBe('—')
+    expect(free?.className).not.toContain('text-status-critical')
+    expect(text(root, '[data-testid="month.committed.noIncome"]')).toBe(
+      'Free after bills shows once income arrives this month.'
+    )
+  })
+
+  it('test_an_unpaid_past_due_date_shows_as_overdue', async () => {
+    const { root } = await render(
+      committed({
+        paidCents: 0,
+        upcomingCents: 100_000,
+        items: [
+          { ...RENT, dueDate: '2026-10-13', paid: false, overdue: true },
+          { ...RENT, dueDate: '2026-10-20', paid: false, overdue: false },
+        ],
+      })
+    )
+
+    const rows = [...root.querySelectorAll('[data-testid="month.committed.item"]')]
+    expect(rows.map((row) => row.getAttribute('data-overdue'))).toEqual(['true', 'false'])
+    expect(rows[0].textContent).toContain('Overdue · due 13 Oct')
+    expect(rows[0].querySelector('svg')?.getAttribute('data-icon')).toBe('triangle-alert')
+    expect(rows[1].textContent).toContain('Due 20 Oct')
   })
 
   it('test_nothing_left_to_pay_says_so', async () => {
