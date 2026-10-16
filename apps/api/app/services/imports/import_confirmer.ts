@@ -425,6 +425,8 @@ export default class ImportConfirmer {
       .where('account_id', otherAccountId)
       .where('amount_cents', -row.amountCents)
       .whereNot('kind', 'transfer')
+      // A payslip's row is never a transfer leg (staging never offers one).
+      .whereNull('payslip_id')
       .forUpdate()
       .first()
     return leg

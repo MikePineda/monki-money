@@ -1,11 +1,27 @@
 import { Injectable, inject } from '@angular/core'
+import type { RuleMatchType } from '@monkimoney/shared'
 import { API } from '../../../core/api/api'
 import type { MerchantRule } from '../../../core/api/api-types'
 
 /**
- * Data access for merchant rules (`/rules`). Rules are created by the
- * import and transaction flows (`applyToFuture`); this screen lists them,
- * deletes them and applies one to the transactions still in review.
+ * The body of `POST /rules` (all optional on `PATCH /rules/:id`). Exactly
+ * one of `categoryId` / `transferAccountId` is set; `paidByUserId` and
+ * `payeeOverride` null mean "leave it as imported".
+ */
+export interface RuleInput {
+  matchType: RuleMatchType
+  pattern: string
+  categoryId?: number | null
+  transferAccountId?: number | null
+  paidByUserId?: number | null
+  payeeOverride?: string | null
+  priority?: number
+}
+
+/**
+ * Data access for merchant rules (`/rules`). Rules are learned by the
+ * import and transaction flows (`applyToFuture`) or typed by a person on
+ * the rules screen, which also edits, deletes and applies them.
  */
 @Injectable({ providedIn: 'root' })
 export class RulesApi {
@@ -14,6 +30,21 @@ export class RulesApi {
   /** Every rule, highest priority first. */
   async list(): Promise<MerchantRule[]> {
     const { data } = await (await this.api()).request('rules.index', {})
+    return data
+  }
+
+  /** A rule typed by a person (`origin: 'user'`). */
+  async create(body: RuleInput): Promise<MerchantRule> {
+    const { data } = await (await this.api()).request('rules.store', { body })
+    return data
+  }
+
+  /**
+   * Changes some fields; the rule becomes the person's (`origin: 'user'`),
+   * except a bank default, which stays `system` (its pattern is locked).
+   */
+  async update(id: number, body: Partial<RuleInput>): Promise<MerchantRule> {
+    const { data } = await (await this.api()).request('rules.update', { params: { id }, body })
     return data
   }
 

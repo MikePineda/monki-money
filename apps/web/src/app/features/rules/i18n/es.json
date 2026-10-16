@@ -1,7 +1,8 @@
 {
   "title": "Reglas de comercios",
   "back": "Volver a ajustes",
-  "intro": "Las reglas ordenan los movimientos importados según el comercio. Se aprenden al confirmar una importación o al cambiar una categoría para el futuro.",
+  "intro": "Las reglas ordenan los movimientos importados según el comercio. Se aprenden al confirmar una importación o al cambiar una categoría para el futuro, y puedes escribir las tuyas.",
+  "new": "Nueva regla",
   "loading": "Cargando las reglas",
   "error": {
     "title": "No se pudieron cargar las reglas.",
@@ -9,7 +10,7 @@
   },
   "empty": {
     "title": "Aún no hay reglas.",
-    "body": "Aparecen conforme confirmas importaciones.",
+    "body": "Aparecen conforme confirmas importaciones, o escribe una tú.",
     "action": "Importar un CSV del banco"
   },
   "hits": "{count, plural, =0 {Sin coincidencias aún} one {# coincidencia} other {# coincidencias}}",
@@ -27,6 +28,7 @@
   },
   "actions": {
     "title": "Regla “{pattern}”",
+    "edit": "Editar regla",
     "apply": "Aplicar a movimientos por revisar",
     "delete": "Eliminar regla"
   },
@@ -38,6 +40,49 @@
   },
   "toast": {
     "deleted": "Regla eliminada.",
-    "applied": "{count, plural, =0 {Ningún movimiento por revisar coincidió con esta regla.} one {# movimiento categorizado.} other {# movimientos categorizados.}}"
+    "applied": "{count, plural, =0 {Ningún movimiento por revisar coincidió con esta regla.} one {# movimiento categorizado.} other {# movimientos categorizados.}}",
+    "saved": "Regla guardada.",
+    "savedApply": "Regla guardada. ¿Aplicarla a los movimientos por revisar?",
+    "apply": "Aplicar"
+  },
+  "form": {
+    "newTitle": "Nueva regla",
+    "editTitle": "Editar regla",
+    "matchType": "Cómo coincide",
+    "matchHelp": {
+      "merchant": "El nombre del comercio, sin importar mayúsculas ni números.",
+      "contains": "Cualquier descripción del banco que contenga este texto.",
+      "regex": "Una expresión regular sobre la descripción del banco, para casos avanzados."
+    },
+    "pattern": "Texto a buscar",
+    "locked": "Una regla del banco: sigue buscando “{pattern}” tal como lo escribe el banco. Puedes cambiar lo que hace.",
+    "target": "Qué hace",
+    "targets": {
+      "category": "Categoría",
+      "transfer": "Transferencia"
+    },
+    "chooseCategory": "Elige una categoría",
+    "chooseAccount": "Elige una cuenta",
+    "categoryTitle": "Categoría",
+    "accountTitle": "Transferir a la cuenta",
+    "paidBy": "Pagó",
+    "paidByHint": "Opcional. Quién paga los movimientos que coinciden.",
+    "defaultPayer": "Como se importe",
+    "you": "Tú",
+    "payee": "Mostrar como",
+    "payeeHint": "Opcional. El nombre que reciben los movimientos que coinciden.",
+    "more": "Más",
+    "priority": "Prioridad",
+    "priorityValue": "Prioridad {priority}",
+    "priorityHint": "Si varias reglas de Contiene o Patrón coinciden, gana la de mayor prioridad.",
+    "raisePriority": "Subir prioridad",
+    "lowerPriority": "Bajar prioridad",
+    "save": "Guardar regla",
+    "problems": {
+      "patternRequired": "Escribe el texto a buscar.",
+      "patternTooLong": "Usa {max} caracteres o menos.",
+      "targetRequired": "Elige una categoría o una cuenta de transferencia.",
+      "payeeTooLong": "Usa {max} caracteres o menos."
+    }
   }
 }

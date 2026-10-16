@@ -73,6 +73,8 @@
     "archive": "Archive account",
     "restore": "Restore account",
     "archived": "Archived",
+    "balance": "Balance",
+    "available": "Available {amount}",
     "atLimit": "Your plan’s account limit is reached. Archive one to add another.",
     "limit": "Your plan allows {max} accounts.",
     "empty": {
@@ -95,7 +97,12 @@
       "institution": "Bank or provider",
       "optional": "Optional.",
       "kind": "Kind",
-      "owner": "Owner"
+      "owner": "Owner",
+      "openingBalance": "Opening balance",
+      "owes": "Owes money",
+      "owesHint": "A card or loan in debt: the balance is negative.",
+      "openingDate": "Opening balance date",
+      "openingHelp": "What the account held on this date, before the first movement recorded in the app. Import reconciliation starts from it."
     },
     "cards": {
       "sheetTitle": "Add a card",
@@ -104,7 +111,8 @@
       "holder": "Who carries it",
       "add": "Add card",
       "remove": "Remove card"
-    }
+    },
+    "payslips": "Payslips"
   },
   "upgrade": {
     "row": "Plans",

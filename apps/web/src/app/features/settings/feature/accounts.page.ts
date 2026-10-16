@@ -15,8 +15,11 @@ import {
   type AccountKind,
   type OwnerChoice,
 } from '../../../domain/account-presets'
+import { formatMoney } from '../../../domain/money'
 import { firstName } from '../../../domain/people'
 import { IconComponent } from '../../../shared/icons/icon.component'
+import { AmountDisplayComponent } from '../../../shared/ui/amount-display/amount-display.component'
+import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { CardComponent } from '../../../shared/ui/card/card.component'
@@ -55,17 +58,24 @@ const ADD_TITLE_KEY = 'settings.accounts.add'
 interface AccountRow {
   account: Account
   meta: string
+  /** The available balance ("$1,200.00") when pending movements make it differ; else null. */
+  available: string | null
   cards: { card: AccountCard; label: string }[]
 }
 
 /**
- * The household's accounts: list, create, edit, archive (and restore), owner
- * (you, the partner or joint) and, on joint accounts, the cards each person
- * carries (so imports know who paid).
+ * The household's accounts: list with each one's cleared balance (and the
+ * available one under it while pending movements make them differ), create,
+ * edit (opening balance and its date included), archive (and restore),
+ * owner (you, the partner or joint) and, on joint accounts, the cards each
+ * person carries (so imports know who paid). A save shows the balance the
+ * API answers with, so a new opening balance moves it at once. A wallet
+ * account (an umbrella service's) links to its payslips.
  */
 @Component({
   selector: 'app-accounts-page',
   imports: [
+    AmountDisplayComponent,
     ButtonComponent,
     CardComponent,
     EmptyStateComponent,
@@ -108,8 +118,30 @@ interface AccountRow {
                 <span class="truncate text-body text-ink-1">{{ row.account.name }}</span>
                 <span class="truncate text-caption text-ink-3">{{ row.meta }}</span>
               </span>
-              <app-icon name="pencil" class="text-ink-2" />
+              <span class="flex shrink-0 flex-col items-end">
+                <span data-testid="accounts.balance">
+                  <span class="sr-only">{{ 'settings.accounts.balance' | transloco }}</span>
+                  <app-amount-display [cents]="row.account.clearedBalanceCents" />
+                </span>
+                @if (row.available; as amount) {
+                  <span
+                    class="text-caption whitespace-nowrap text-ink-3 tnum"
+                    data-testid="accounts.available"
+                    >{{ 'settings.accounts.available' | transloco: { amount } }}</span
+                  >
+                }
+              </span>
+              <app-icon name="pencil" class="shrink-0 text-ink-2" />
             </button>
+            @if (row.account.kind === 'wallet') {
+              <a
+                appSettingsRow
+                data-testid="accounts.payslips"
+                [routerLink]="['/settings/accounts', row.account.id, 'payslips']"
+              >
+                {{ 'settings.accounts.payslips' | transloco }}
+              </a>
+            }
             @if (row.account.isJoint) {
               @for (item of row.cards; track item.card.id) {
                 <div class="flex h-12 items-center gap-2 border-t border-line pr-1 pl-4">
@@ -186,6 +218,7 @@ export default class AccountsPage implements OnInit {
   private readonly toasts = inject(ToastStore)
   private readonly transloco = inject(TranslocoService)
   private readonly injector = inject(Injector)
+  private readonly locale = inject(APP_LOCALE)
 
   private readonly ownerLabels = translateSignal(OWNER_KEYS)
   private readonly kindLabels = translateSignal(Object.values(KIND_KEYS))
@@ -273,6 +306,8 @@ export default class AccountsPage implements OnInit {
         institution: account.institution,
         kind: account.kind,
         owner: ownerChoiceOf(account.ownerUserId, this.youId()),
+        openingBalanceCents: account.openingBalanceCents,
+        openingBalanceDate: account.openingBalanceDate,
       },
       isActive: account.isActive,
       kinds: this.kinds(),
@@ -334,6 +369,10 @@ export default class AccountsPage implements OnInit {
     return {
       account,
       meta: [kind, owner].filter(Boolean).join(' · '),
+      available:
+        account.availableBalanceCents === account.clearedBalanceCents
+          ? null
+          : formatMoney(account.availableBalanceCents, this.locale()),
       cards: account.cards.map((card) => ({
         card,
         label: [

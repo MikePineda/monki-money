@@ -5,6 +5,7 @@ import type Account from '#models/account'
 import Category from '#models/category'
 import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
+import Payslip from '#models/payslip'
 import SavingsGoal from '#models/savings_goal'
 import RecurringItem from '#models/recurring_item'
 import MonthlyInsight from '#models/monthly_insight'
@@ -38,12 +39,15 @@ interface Victim {
   invitation: Invitation
   transaction: Transaction
   transfer: Transfer
+  payslip: Payslip
   goal: SavingsGoal
   insight: MonthlyInsight
   batch: ImportBatch
   row: ImportRow
   rule: MerchantRule
   recurringItem: RecurringItem
+  /** One of the bank defaults seeded with the taxonomy (`origin = 'system'`). */
+  systemRule: MerchantRule
   /** An uploaded receipt photo, still in (fake) storage. */
   receiptKey: string
 }
@@ -155,6 +159,11 @@ const cases: IsolationCase[] = [
     url: (v) => `/api/v1/transfers/${v.transfer.id}`,
   },
   {
+    route: 'payslips.destroy',
+    method: 'delete',
+    url: (v) => `/api/v1/payslips/${v.payslip.id}`,
+  },
+  {
     route: 'reports.category',
     method: 'get',
     url: (v) => `/api/v1/reports/category/${v.category.id}`,
@@ -216,6 +225,13 @@ const cases: IsolationCase[] = [
     route: 'rules.update',
     method: 'patch',
     url: (v) => `/api/v1/rules/${v.rule.id}`,
+    body: { pattern: 'HIJACKED' },
+  },
+  {
+    // A bank default: the 404 comes before its pattern lock (a 422 would leak the id).
+    route: 'rules.update',
+    method: 'patch',
+    url: (v) => `/api/v1/rules/${v.systemRule.id}`,
     body: { pattern: 'HIJACKED' },
   },
   { route: 'rules.destroy', method: 'delete', url: (v) => `/api/v1/rules/${v.rule.id}` },
@@ -316,6 +332,26 @@ async function victimHousehold(): Promise<Victim> {
     toAccountId: household.accounts[1].id,
     memo: 'Victim memo',
   }).create()
+  const payslip = await Payslip.create({
+    householdId: household.household.id,
+    accountId: account.id,
+    userId: household.owner.id,
+    date: transfer.date,
+    grossCents: transfer.amountCents + 1_000,
+    netCents: transfer.amountCents,
+    transferId: transfer.id,
+    memo: 'Victim payslip',
+  })
+  await TransactionFactory.apply('income')
+    .merge({
+      householdId: household.household.id,
+      accountId: account.id,
+      amountCents: payslip.grossCents,
+      date: payslip.date,
+      payslipId: payslip.id,
+      payee: null,
+    })
+    .create()
   const goal = await SavingsGoal.create({
     householdId: household.household.id,
     name: 'Victim goal',
@@ -357,6 +393,11 @@ async function victimHousehold(): Promise<Victim> {
     categoryId: category.id,
     accountId: account.id,
   })
+  const systemRule = await MerchantRule.query()
+    .where('household_id', household.household.id)
+    .where('origin', 'system')
+    .orderBy('id')
+    .firstOrFail()
   return {
     household,
     account,
@@ -366,12 +407,14 @@ async function victimHousehold(): Promise<Victim> {
     invitation,
     transaction,
     transfer,
+    payslip,
     goal,
     insight,
     batch,
     row,
     rule,
     recurringItem,
+    systemRule,
     receiptKey: receiptKey(household.household.id, randomUUID(), 'image/jpeg'),
   }
 }
@@ -424,6 +467,9 @@ test.group('Tenant isolation', () => {
       await victim.transfer.refresh()
       assert.equal(victim.transfer.memo, 'Victim memo')
       assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
+      await victim.payslip.refresh()
+      assert.equal(victim.payslip.transferId, victim.transfer.id)
+      assert.lengthOf(await Transaction.query().where('payslip_id', victim.payslip.id), 1)
       await victim.goal.refresh()
       assert.include(victim.goal.serialize(), { name: 'Victim goal', status: 'active' })
       await victim.insight.refresh()
@@ -445,6 +491,9 @@ test.group('Tenant isolation', () => {
         status: 'active',
         amountCents: 50_000,
       })
+      const { pattern, origin } = victim.systemRule
+      await victim.systemRule.refresh()
+      assert.include(victim.systemRule.serialize(), { pattern, origin })
       assert.isTrue(storage.has(victim.receiptKey), 'the photo was neither read nor deleted')
       assert.deepEqual(storage.deleted, [])
     })
@@ -521,6 +570,16 @@ test.group('Tenant isolation', () => {
     assert.deepEqual(detected.body().data, { created: 0, updated: 0 })
     await victim.recurringItem.refresh()
     assert.equal(victim.recurringItem.status, 'active')
+    const payslips = await client.get('/api/v1/payslips').actingAs(attacker.owner)
+    assert.deepEqual(payslips.body().data, [])
+    const victimPayslips = await client
+      .get(`/api/v1/payslips?accountId=${victim.account.id}`)
+      .actingAs(attacker.owner)
+    assert.deepEqual(victimPayslips.body().data, [])
+    const candidates = await client
+      .get(`/api/v1/payslips/candidates?accountId=${victim.account.id}`)
+      .actingAs(attacker.owner)
+    assert.deepEqual(candidates.body().data, [])
   })
 
   test('test_foreign_ids_in_ledger_bodies_are_rejected_with_422', async ({ client, assert }) => {
@@ -539,6 +598,14 @@ test.group('Tenant isolation', () => {
       toAccountId: attacker.accounts[1].id,
     }).create()
     const entry = { kind: 'expense', date: '2026-10-01', amountCents: 100 }
+    const payslip = (overrides: Record<string, unknown>) => ({
+      accountId: attacker.accounts[0].id,
+      date: '2026-10-01',
+      grossCents: ownTransfer.amountCents + 100,
+      deductions: [{ categoryId: ownCategory.id, amountCents: 100 }],
+      transferId: ownTransfer.id,
+      ...overrides,
+    })
 
     const requests: Array<[() => any, string]> = [
       [
@@ -645,6 +712,32 @@ test.group('Tenant isolation', () => {
             .json({ toAccountId: victim.account.id }),
         'toAccountId',
       ],
+      [
+        () => client.post('/api/v1/payslips').json(payslip({ accountId: victim.account.id })),
+        'accountId',
+      ],
+      [
+        () => client.post('/api/v1/payslips').json(payslip({ transferId: victim.transfer.id })),
+        'transferId',
+      ],
+      [
+        () =>
+          client
+            .post('/api/v1/payslips')
+            .json(payslip({ transferId: undefined, toAccountId: victim.account.id })),
+        'toAccountId',
+      ],
+      [
+        () =>
+          client
+            .post('/api/v1/payslips')
+            .json(payslip({ deductions: [{ categoryId: victim.category.id, amountCents: 100 }] })),
+        'deductions',
+      ],
+      [
+        () => client.post('/api/v1/payslips').json(payslip({ userId: victim.household.owner.id })),
+        'userId',
+      ],
     ]
 
     for (const [request, field] of requests) {
@@ -655,7 +748,9 @@ test.group('Tenant isolation', () => {
 
     await victim.transaction.refresh()
     assert.equal(victim.transaction.categoryId, victim.category.id)
-    assert.lengthOf(await Transaction.query().where('account_id', victim.account.id), 2)
+    // The victim's movement, its transfer leg and its payslip's gross row.
+    assert.lengthOf(await Transaction.query().where('account_id', victim.account.id), 3)
+    assert.lengthOf(await Payslip.query().where('household_id', attacker.household.id), 0)
   })
 
   test('test_foreign_ids_in_a_body_are_rejected_with_422', async ({ client }) => {

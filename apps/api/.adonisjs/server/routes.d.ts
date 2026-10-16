@@ -61,6 +61,10 @@ export type ScannedRoutes = {
     'transfers.store': { paramsTuple?: []; params?: {} }
     'transfers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'payslips.index': { paramsTuple?: []; params?: {} }
+    'payslips.store': { paramsTuple?: []; params?: {} }
+    'payslips.candidates': { paramsTuple?: []; params?: {} }
+    'payslips.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.month': { paramsTuple?: []; params?: {} }
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -111,6 +115,8 @@ export type ScannedRoutes = {
     'categories.index': { paramsTuple?: []; params?: {} }
     'transactions.index': { paramsTuple?: []; params?: {} }
     'transactions.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'payslips.index': { paramsTuple?: []; params?: {} }
+    'payslips.candidates': { paramsTuple?: []; params?: {} }
     'reports.month': { paramsTuple?: []; params?: {} }
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -141,6 +147,8 @@ export type ScannedRoutes = {
     'categories.index': { paramsTuple?: []; params?: {} }
     'transactions.index': { paramsTuple?: []; params?: {} }
     'transactions.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'payslips.index': { paramsTuple?: []; params?: {} }
+    'payslips.candidates': { paramsTuple?: []; params?: {} }
     'reports.month': { paramsTuple?: []; params?: {} }
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -180,6 +188,7 @@ export type ScannedRoutes = {
     'transactions.quick': { paramsTuple?: []; params?: {} }
     'transactions.bulkCategorize': { paramsTuple?: []; params?: {} }
     'transfers.store': { paramsTuple?: []; params?: {} }
+    'payslips.store': { paramsTuple?: []; params?: {} }
     'goals.store': { paramsTuple?: []; params?: {} }
     'insights.generate': { paramsTuple: [ParamValue]; params: {'month': ParamValue} }
     'imports.store': { paramsTuple?: []; params?: {} }
@@ -214,6 +223,7 @@ export type ScannedRoutes = {
     'categories.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'payslips.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

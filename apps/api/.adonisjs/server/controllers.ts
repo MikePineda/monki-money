@@ -19,6 +19,7 @@ export const controllers = {
   Insights: () => import('#controllers/insights_controller'),
   InvitationAcceptance: () => import('#controllers/invitation_acceptance_controller'),
   PasswordReset: () => import('#controllers/password_reset_controller'),
+  Payslips: () => import('#controllers/payslips_controller'),
   Profile: () => import('#controllers/profile_controller'),
   PublicConfig: () => import('#controllers/public_config_controller'),
   Receipts: () => import('#controllers/receipts_controller'),

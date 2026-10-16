@@ -235,6 +235,23 @@ router
               .prefix('transfers')
               .as('transfers')
 
+            /*
+             * Payslips: a payout's gross and deductions in the account it
+             * arrived in, linked to the transfer of the net. No update.
+             */
+            router
+              .group(() => {
+                router.get('/', [controllers.Payslips, 'index']).as('index')
+                router.post('/', [controllers.Payslips, 'store']).as('store')
+                router.get('candidates', [controllers.Payslips, 'candidates']).as('candidates')
+                router
+                  .delete(':id', [controllers.Payslips, 'destroy'])
+                  .where('id', id)
+                  .as('destroy')
+              })
+              .prefix('payslips')
+              .as('payslips')
+
             router
               .group(() => {
                 router.get('month', [controllers.Reports, 'month']).as('month')

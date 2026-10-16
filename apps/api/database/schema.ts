@@ -452,6 +452,37 @@ export class MonthlyInsightSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class PayslipSchema extends BaseModel {
+  static $columns = ['accountId', 'clientId', 'createdAt', 'createdByUserId', 'date', 'grossCents', 'householdId', 'id', 'memo', 'netCents', 'transferId', 'updatedAt', 'userId'] as const
+  $columns = PayslipSchema.$columns
+  @column()
+  declare accountId: number
+  @column()
+  declare clientId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: number | null
+  @column()
+  declare date: string
+  @column()
+  declare grossCents: number
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare memo: string | null
+  @column()
+  declare netCents: number
+  @column()
+  declare transferId: number | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number | null
+}
+
 export class RecurringItemSchema extends BaseModel {
   static $columns = ['accountId', 'amountCents', 'amountTolerancePct', 'cadence', 'categoryId', 'createdAt', 'editedFields', 'householdId', 'id', 'lastPaidDate', 'merchantKey', 'nextExpectedDate', 'occurrences', 'paidByUserId', 'payee', 'source', 'status', 'updatedAt'] as const
   $columns = RecurringItemSchema.$columns
@@ -552,7 +583,7 @@ export class TransactionSplitSchema extends BaseModel {
 }
 
 export class TransactionSchema extends BaseModel {
-  static $columns = ['accountId', 'amountCents', 'bankDate', 'cardSuffix', 'categoryId', 'clientId', 'createdAt', 'createdByUserId', 'currencyCode', 'date', 'description', 'householdId', 'id', 'isPrivate', 'isSplit', 'kind', 'needsReview', 'paidByUserId', 'payee', 'rawDescription', 'source', 'status', 'tags', 'transferId', 'updatedAt', 'updatedByUserId'] as const
+  static $columns = ['accountId', 'amountCents', 'bankDate', 'cardSuffix', 'categoryId', 'clientId', 'createdAt', 'createdByUserId', 'currencyCode', 'date', 'description', 'householdId', 'id', 'isPrivate', 'isSplit', 'kind', 'needsReview', 'paidByUserId', 'payee', 'payslipId', 'rawDescription', 'source', 'status', 'tags', 'transferId', 'updatedAt', 'updatedByUserId'] as const
   $columns = TransactionSchema.$columns
   @column()
   declare accountId: number
@@ -592,6 +623,8 @@ export class TransactionSchema extends BaseModel {
   declare paidByUserId: number | null
   @column()
   declare payee: string | null
+  @column()
+  declare payslipId: number | null
   @column()
   declare rawDescription: string | null
   @column()
