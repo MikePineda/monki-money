@@ -305,7 +305,8 @@ export default class ImportConfirmer {
   /**
    * Both legs of a transfer: this account's from the row, the other one
    * reused (a standalone movement there, or the other account's row of the
-   * same upload) or created. Returns this account's leg.
+   * same upload) or created. Returns this account's leg. Legs to an
+   * account the importer guessed and nobody checked stay in review.
    */
   protected async transfer(
     household: Household,
@@ -316,6 +317,7 @@ export default class ImportConfirmer {
     trx: TransactionClientContract
   ) {
     const other = await this.decisions.transferAccount(household, row, effective.transferAccountId!)
+    const unsure = isGuessedTransfer(row, effective)
     const outgoing = row.amountCents < 0
     const transfer = await Transfer.create(
       {
@@ -334,7 +336,7 @@ export default class ImportConfirmer {
     const leg = await Transaction.create(
       {
         ...this.bankFields(row),
-        ...transferLeg(household, transfer, actor),
+        ...transferLeg(household, transfer, actor, unsure),
         accountId: account.id,
         amountCents: row.amountCents,
         currencyCode: account.currencyCode,
@@ -354,7 +356,7 @@ export default class ImportConfirmer {
         transferId: transfer.id,
         categoryId: null,
         isSplit: false,
-        needsReview: false,
+        needsReview: unsure,
         updatedByUserId: actor.id,
       })
       await existing.save()
@@ -368,7 +370,7 @@ export default class ImportConfirmer {
           ? this.bankFields(staged)
           : { date: row.date, bankDate: null, rawDescription: null, cardSuffix: null }),
         ...(staged ? {} : { status: 'cleared' as const }),
-        ...transferLeg(household, transfer, actor),
+        ...transferLeg(household, transfer, actor, unsure),
         accountId: other.id,
         amountCents: -row.amountCents,
         currencyCode: other.currencyCode,
@@ -509,8 +511,11 @@ function assertOneRowPerMatch(selected: Applied[]) {
   }
 }
 
-/** Kind, link and authorship of a transfer leg. */
-function transferLeg(household: Household, transfer: Transfer, actor: User) {
+/**
+ * Kind, link and authorship of a transfer leg. `needsReview` when the other
+ * account was the importer's guess and nobody checked it.
+ */
+function transferLeg(household: Household, transfer: Transfer, actor: User, needsReview: boolean) {
   return {
     householdId: household.id,
     kind: 'transfer' as const,
@@ -520,7 +525,7 @@ function transferLeg(household: Household, transfer: Transfer, actor: User) {
     description: null,
     categoryId: null,
     isSplit: false,
-    needsReview: false,
+    needsReview,
     createdByUserId: actor.id,
     updatedByUserId: actor.id,
   }

@@ -4,6 +4,7 @@ import ImportNab from '#commands/import_nab'
 import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
 import MerchantRule from '#models/merchant_rule'
+import Transaction from '#models/transaction'
 import type { ApiClient } from '@japa/api-client'
 import ace from '@adonisjs/core/services/ace'
 import app from '@adonisjs/core/services/app'
@@ -299,10 +300,44 @@ test.group('Imports: transfers to linked accounts', (group) => {
     // NAB's own memo follows the person's rule: spending, not a transfer.
     assert.include(row(BANK_MEMO), { resolution: 'new', transfer: null })
     assert.include(row(BANK_MEMO).suggestion, { source: 'rule', categoryId: category.id })
+    // A typed memo for that holder is not guessed into savings: a person decides.
     for (const prefix of FREE_MEMOS) {
-      assert.include(row(prefix), { resolution: 'transfer_leg', needsReview: true }, prefix)
+      assert.include(row(prefix), { resolution: 'needs_confirmation' }, prefix)
+      assert.include(row(prefix).transfer, { accountId: null, signal: 'bank_category' })
+      assert.include(row(prefix).reasons, 'transfer_destination_unknown')
     }
 
+    const confirm = await client
+      .post(`/api/v1/imports/${batch.id}/confirm`)
+      .json({
+        decisions: [
+          {
+            rowId: row(HOLIDAY_MEMO).id,
+            resolution: 'transfer_leg',
+            transferAccountId: home.savings.id,
+          },
+          { rowId: row(SHORT_MEMO).id, resolution: 'new', categoryId: category.id },
+        ],
+      })
+      .actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    await spending.refresh()
+    assert.include(spending.serialize(), {
+      categoryId: category.id,
+      transferAccountId: null,
+      origin: 'user',
+    })
+  })
+
+  test('test_a_guessed_transfer_confirmed_blind_stays_flagged_in_the_ledger', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const { batch, row } = await stage(client, home.owner, nabFixture(FIXTURE))
+
+    // The holiday transfer is accepted explicitly; the `xd` one is confirmed as guessed.
     const confirm = await client
       .post(`/api/v1/imports/${batch.id}/confirm`)
       .json({
@@ -317,12 +352,28 @@ test.group('Imports: transfers to linked accounts', (group) => {
       .actingAs(home.owner)
 
     confirm.assertStatus(200)
-    await spending.refresh()
-    assert.include(spending.serialize(), {
-      categoryId: category.id,
-      transferAccountId: null,
-      origin: 'user',
-    })
+    const legsOf = async (prefix: string) => {
+      const stored = await ImportRow.findOrFail(row(prefix).id)
+      const leg = await Transaction.findOrFail(stored.transactionId!)
+      return Transaction.query().where('transfer_id', leg.transferId!).orderBy('id')
+    }
+    const blind = await legsOf(SHORT_MEMO)
+    assert.sameMembers(
+      blind.map((leg) => leg.accountId),
+      [home.everyday.id, home.savings.id]
+    )
+    assert.isTrue(
+      blind.every((leg) => leg.needsReview),
+      'both legs of a guess nobody checked'
+    )
+    for (const prefix of [HOLIDAY_MEMO, BANK_MEMO]) {
+      const legs = await legsOf(prefix)
+      assert.lengthOf(legs, 2, prefix)
+      assert.isTrue(
+        legs.every((leg) => !leg.needsReview),
+        prefix
+      )
+    }
   })
 
   test('test_an_over_long_holder_is_confirmed_without_a_holder_rule', async ({

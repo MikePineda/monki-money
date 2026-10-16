@@ -60,19 +60,14 @@ function transferTarget(rule: MerchantRule | null | undefined, row: TransferSubj
   return accountId !== null && accountId !== row.accountId ? accountId : null
 }
 
-/**
- * The learned rule of the linked holder the row names (bank signal
- * required). A rule on that key that names a category says the holder's
- * movements are spending or income: it sends nothing anywhere.
- */
+/** The household's rule on the key of the linked holder the row names (bank signal required). */
 function holderRule(row: TransferSubject, rules: readonly MerchantRule[]): MerchantRule | null {
   const key = linkedHolderKey(row)
   if (key === null) return null
   const rule = rules.find(
     (candidate) => candidate.matchType === 'merchant' && candidate.pattern === key
   )
-  if (!rule || rule.categoryId !== null || transferTarget(rule, row) === null) return null
-  return rule
+  return rule ?? null
 }
 
 /**
@@ -88,8 +83,9 @@ function holderRule(row: TransferSubject, rules: readonly MerchantRule[]): Merch
  *    rule of the linked holder names (`linkedHolderKey`: the memo the
  *    person typed varies, the holder does not); as a `guessed` proposal,
  *    the only other account at the same institution when it is a savings
- *    or transaction account of the same owner (`onlyInternalTransferCounterpart`).
- *    When none decides, the review screen asks for it.
+ *    or transaction account of the same owner (`onlyInternalTransferCounterpart`),
+ *    unless the holder's rule names a category. When none decides, the
+ *    review screen asks for it.
  *
  * Transfers to or from other people (PayID "hot pot", NAB's `Transfers
  * in/out`) carry neither signal: they are spending/income with the person
@@ -129,10 +125,16 @@ export function detectTransfer(
     }
   }
 
+  // A holder rule naming a category calls the holder's movements spending
+  // or income: no account is proposed, a person decides.
   const holder = holderRule(row, context.rules)
-  if (holder) return byRule(holder, holder.transferAccountId!)
+  const holderSpends = holder !== null && holder.categoryId !== null
+  const holderAccountId = holderSpends ? null : transferTarget(holder, row)
+  if (holder && holderAccountId !== null) return byRule(holder, holderAccountId)
 
-  const only = onlyInternalTransferCounterpart(row.accountId, context.accounts)
+  const only = holderSpends
+    ? null
+    : onlyInternalTransferCounterpart(row.accountId, context.accounts)
   return {
     signal,
     direction,

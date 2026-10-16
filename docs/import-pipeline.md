@@ -58,12 +58,13 @@ hashes, so re-importing is all `duplicate` (ignored rows included: an
    (`linkedHolderKey`: a `merchant` rule whose pattern is the key NAB's own
    memo gives the holder, `linked acc trns smith jo`, so a typed memo such as
    `ONLINE <ref> Honeymoon SMITH JO` reaches it too; a rule on that key that
-   names a category sends nothing), else a guess: the only other active
+   names a category sends nothing and blocks the guess, so a person decides), else a guess: the only other active
    account at the same institution, when it is a savings/transaction account
    that is joint or has the importing account's owner (a card or loan at the
    bank, or a partner's personal account, means no guess). A guess is a
    `transfer_leg` with `needsReview` and the reason
-   `transfer_destination_guessed`, never auto-confirmed. Known
+   `transfer_destination_guessed`, never auto-confirmed; confirmed without a
+   decision, both legs keep `needs_review`. Known
    account -> `transfer_leg` (no leg in the ledger: confirm creates it), unknown
    -> `needs_confirmation`. PayID to friends (`Transfers in/out`) are spending/income,
    even when the person shares a linked holder's name.

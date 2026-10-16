@@ -366,18 +366,24 @@ test.group('Importing / transfer detector', () => {
     })
   })
 
-  test('test_a_holder_rule_naming_a_category_sends_nothing', ({ assert }) => {
+  test('test_a_holder_rule_naming_a_category_blocks_the_guess', ({ assert }) => {
+    const pocketMoney = freeMemo('Pocket money', 'SMITH KID')
     const spending = merchantRule({
       id: 50,
       pattern: 'linked acc trns smith kid',
       categoryId: 77,
-      transferAccountId: SECOND_SAVINGS,
+      transferAccountId: null,
     })
-    const pocketMoney = freeMemo('Pocket money', 'SMITH KID')
+    const spendingWithAccount = { ...spending, transferAccountId: SECOND_SAVINGS }
 
-    assert.deepEqual(detectTransfer(pocketMoney, noLegs([spending], TWO_SAVINGS)), UNKNOWN)
-    const onlySavings = detectTransfer(pocketMoney, noLegs([spending], ACCOUNTS))
-    assert.include(onlySavings, { counterpartAccountId: SAVINGS, ruleId: null, guessed: true })
+    // The household calls this holder's movements spending: a person decides, nothing is guessed.
+    for (const rule of [spending, spendingWithAccount]) {
+      assert.deepEqual(detectTransfer(pocketMoney, noLegs([rule], ACCOUNTS)), UNKNOWN)
+      assert.deepEqual(detectTransfer(pocketMoney, noLegs([rule], TWO_SAVINGS)), UNKNOWN)
+    }
+    // Another holder's spending rule does not block this holder's guess.
+    const otherKid = { ...spending, pattern: 'linked acc trns smith ben' }
+    assert.isTrue(detectTransfer(pocketMoney, noLegs([otherKid], ACCOUNTS))?.guessed)
   })
 
   test('test_ambiguous_counterpart_still_needs_confirmation', ({ assert }) => {
@@ -431,6 +437,14 @@ test.group('Importing / transfer detector', () => {
     assert.isNull(
       linkedHolderKey(bankRow('ONLINE C1000000010 Monthly saving', 'Internal transfers'))
     )
+  })
+
+  test('test_a_holder_without_latin_letters_has_no_key', ({ assert }) => {
+    // The merchant key keeps Latin letters only: every such holder would share `linked acc trns`.
+    const cyrillic = freeMemo('Rent', 'ИВАНОВ ИВ')
+    assert.isNull(linkedHolderKey(cyrillic))
+    const anyHolder = holderRule(42, 'linked acc trns', SECOND_SAVINGS)
+    assert.isNull(detectTransfer(cyrillic, noLegs([anyHolder], TWO_SAVINGS))?.ruleId)
   })
 
   test('test_an_over_long_holder_has_no_key', ({ assert }) => {

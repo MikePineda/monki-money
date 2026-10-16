@@ -40,18 +40,20 @@ export function bankTransferSignal(row: LinkedTransferSubject): BankTransferSign
  * that memo match the rule like any merchant rule; rows whose memo the
  * person replaced reach it through the transfer detector, and only with the
  * bank's signal, so a payment to someone sharing the name never does. Null
- * when the row has no bank signal, names no holder, or the key would not
- * fit a rule pattern.
+ * when the row has no bank signal, names no holder, the holder leaves
+ * nothing in a merchant key (non-Latin letters only: every such holder
+ * would share `linked acc trns`), or the key would not fit a rule pattern.
  */
 export function linkedHolderKey(row: LinkedTransferSubject): string | null {
   if (bankTransferSignal(row) === null) return null
   const holder = linkedAccountHolder(row.details)
   if (holder === null) return null
+  if (merchantFullKey({ nabMerchant: null, description: holder }) === '') return null
   const key = merchantFullKey({
     nabMerchant: null,
     description: `${LINKED_ACCOUNT_MEMO_TEXT} ${holder}`,
   })
-  return key === '' || key.length > MAX_PATTERN_LENGTH ? null : key
+  return key.length > MAX_PATTERN_LENGTH ? null : key
 }
 
 /**
