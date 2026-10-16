@@ -91,6 +91,22 @@ describe('rankCategories', () => {
     expect(rankCategories(recent, 'expense', TODAY, EXPENSE_CATEGORIES)).not.toContain(999)
   })
 
+  it('test_server_scores_rank_and_queued_entries_add_to_them', () => {
+    const base = [
+      { categoryId: 12, score: 2, lastDate: '2026-10-10' },
+      { categoryId: 14, score: 1.5, lastDate: '2026-10-12' },
+      // Hidden since, or of another kind: not a candidate.
+      { categoryId: 999, score: 9, lastDate: TODAY },
+    ]
+    // Two uses waiting in the outbox today (weight 1 each) put 14 ahead.
+    const queued = [entry({ categoryId: 14 }), entry({ categoryId: 14 })]
+
+    expect(rankCategories([], 'expense', TODAY, EXPENSE_CATEGORIES, 3, base)).toEqual([12, 14, 10])
+    expect(rankCategories(queued, 'expense', TODAY, EXPENSE_CATEGORIES, 3, base)).toEqual([
+      14, 12, 10,
+    ])
+  })
+
   it('test_returns_at_most_the_limit', () => {
     expect(rankCategories([], 'expense', TODAY, EXPENSE_CATEGORIES, 3)).toEqual([10, 11, 12])
     expect(rankCategories([], 'expense', TODAY, EXPENSE_CATEGORIES.slice(0, 2))).toEqual([10, 11])
@@ -139,6 +155,17 @@ describe('defaultAccountFor', () => {
     expect(defaultAccountFor(7, [], [{ id: 3, isActive: false }, ...accounts], null)).toBe(1)
   })
 
+  it('test_the_server_last_account_comes_after_this_device_and_the_queue', () => {
+    expect(defaultAccountFor(7, [], accounts, null, 2)).toBe(2)
+    // Archived since: the first active one.
+    expect(defaultAccountFor(7, [], accounts, null, 3)).toBe(1)
+    // A queued entry is newer than anything on the server.
+    expect(
+      defaultAccountFor(7, [entry({ accountId: 1, createdByUserId: 7 })], accounts, null, 2)
+    ).toBe(1)
+    expect(defaultAccountFor(7, [], accounts, 1, 2)).toBe(1)
+  })
+
   it('test_no_active_account_means_none', () => {
     expect(defaultAccountFor(7, [], [{ id: 3, isActive: false }], null)).toBeNull()
   })
@@ -177,6 +204,22 @@ describe('transferPresets', () => {
     const recent = legs(1, 1, 9)
 
     expect(transferPresets(recent, active, TODAY)).toEqual([])
+  })
+
+  it('test_server_routes_merge_with_queued_transfers', () => {
+    const base = [
+      { fromAccountId: 1, toAccountId: 2, score: 1.2, lastDate: '2026-10-01' },
+      // Account 9 was archived since.
+      { fromAccountId: 2, toAccountId: 9, score: 5, lastDate: TODAY },
+    ]
+
+    expect(transferPresets([], active, TODAY, 3, base)).toEqual([
+      { fromAccountId: 1, toAccountId: 2 },
+    ])
+    expect(transferPresets([...legs(7, 4, 1), ...legs(8, 4, 1)], active, TODAY, 3, base)).toEqual([
+      { fromAccountId: 4, toAccountId: 1 },
+      { fromAccountId: 1, toAccountId: 2 },
+    ])
   })
 
   it('test_limits_the_number_of_presets', () => {
@@ -245,6 +288,19 @@ describe('payeeSuggestions', () => {
     const recent = [entry({ payee: 'Coles' }), entry({ payee: 'Coles Express' })]
 
     expect(payeeSuggestions(recent, 'expense', 'coles', TODAY)).toEqual(['Coles Express'])
+  })
+
+  it('test_server_payees_merge_with_queued_ones_by_their_key', () => {
+    const base = [
+      { payee: 'Kmart', score: 2.5, lastDate: '2026-10-10' },
+      { payee: 'Café Nero', score: 1, lastDate: '2026-10-01' },
+    ]
+    const queued = [entry({ payee: 'cafe nero' }), entry({ payee: 'CAFE NERO' })]
+
+    expect(payeeSuggestions([], 'expense', '', TODAY, 4, base)).toEqual(['Kmart', 'Café Nero'])
+    // 1 + 2 queued uses today beat Kmart; the newest spelling (queued first) shows.
+    expect(payeeSuggestions(queued, 'expense', '', TODAY, 4, base)).toEqual(['cafe nero', 'Kmart'])
+    expect(payeeSuggestions([], 'expense', 'caf', TODAY, 4, base)).toEqual(['Café Nero'])
   })
 
   it('test_keeps_to_the_same_kind_and_limit', () => {

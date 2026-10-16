@@ -1,11 +1,24 @@
 /**
- * Defaults for quick add, computed from the household's recent ledger rows.
- * Pure: no Angular. Every ranking mixes frequency and recency: each use adds
- * a weight that halves every {@link RECENCY_HALF_LIFE_DAYS} days, so a
- * category used three times last week beats one used five times in June.
+ * Defaults for quick add. Pure: no Angular. The server ranks what it has
+ * (`GET /transactions/suggestions`: categories, payees and transfer routes
+ * with their scores, the last account used); these functions add what the
+ * server cannot know yet (entries waiting in the offline outbox, rows
+ * saved since the screen opened) with the same weights, `recencyWeight`
+ * from `@monkimoney/shared`: each use adds a weight that halves every
+ * {@link RECENCY_HALF_LIFE_DAYS} days, so a category used three times last
+ * week beats one used five times in June.
  */
-import { daysBetween, type IsoDate } from './month'
+import {
+  recencyWeight,
+  type CategorySuggestion,
+  type PayeeSuggestion,
+  type RouteSuggestion,
+  type ScoredUse,
+} from '@monkimoney/shared'
+import type { IsoDate } from './month'
 import { matchesSearch, normalizeForSearch } from './text'
+
+export { RECENCY_HALF_LIFE_DAYS, recencyWeight } from '@monkimoney/shared'
 
 export type EntryKind = 'expense' | 'income'
 export type LedgerKind = EntryKind | 'transfer'
@@ -34,22 +47,30 @@ export interface TransferPair {
   toAccountId: number
 }
 
-/** A use this many days old weighs half as much as one made today. */
-export const RECENCY_HALF_LIFE_DAYS = 30
-
 /** Tiles in the quick-add grid before the eighth one, "More". */
 export const QUICK_CATEGORY_COUNT = 7
-
-/** 1 for today, 0.5 a half-life ago; future dates count as today. */
-export function recencyWeight(date: IsoDate, today: IsoDate): number {
-  const age = Math.max(0, daysBetween(date, today))
-  return Math.pow(0.5, age / RECENCY_HALF_LIFE_DAYS)
-}
 
 interface Score {
   score: number
   lastDate: IsoDate
   lastId: number
+}
+
+/**
+ * Starts the scores from the server's ranking; its order breaks ties
+ * between server entries, and any local use of the same day wins them.
+ */
+function seed<Use extends ScoredUse>(
+  scores: Map<string, Score>,
+  base: readonly Use[],
+  keyOf: (use: Use) => string | null
+): void {
+  base.forEach((use, index) => {
+    const key = keyOf(use)
+    if (key !== null && !scores.has(key)) {
+      scores.set(key, { score: use.score, lastDate: use.lastDate, lastId: -(index + 1) })
+    }
+  })
 }
 
 /** Adds one use to a running score, remembering the latest use for tie-breaks. */
@@ -74,18 +95,21 @@ function compareScores(a: Score, b: Score): number {
 
 /**
  * The categories for the quick-add grid: the candidates (the visible
- * categories of that kind, in their default order) ranked by use, and the
- * unused ones after them in their default order.
+ * categories of that kind, in their default order) ranked by use (the
+ * server's scores in `base` plus the local `recent` rows), and the unused
+ * ones after them in their default order.
  */
 export function rankCategories(
   recent: readonly RecentEntry[],
   kind: EntryKind,
   today: IsoDate,
   candidates: readonly { id: number }[],
-  limit = QUICK_CATEGORY_COUNT
+  limit = QUICK_CATEGORY_COUNT,
+  base: readonly CategorySuggestion[] = []
 ): number[] {
   const allowed = new Set(candidates.map((candidate) => candidate.id))
   const scores = new Map<string, Score>()
+  seed(scores, base, (use) => (allowed.has(use.categoryId) ? String(use.categoryId) : null))
   for (const row of recent) {
     if (row.kind === kind && row.categoryId !== null && allowed.has(row.categoryId)) {
       addUse(scores, String(row.categoryId), row, today)
@@ -101,13 +125,16 @@ export function rankCategories(
 /**
  * The account quick add opens with, for one person: the one they used last
  * on this device (when still active), else the latest expense or income they
- * entered, else the first active account; null when there is none.
+ * entered among `recent` (queued, or saved since the screen opened), else the
+ * last one the server saw them use (`lastAccountId`), else the first active
+ * account; null when there is none.
  */
 export function defaultAccountFor(
   userId: number,
   recent: readonly RecentEntry[],
   accounts: readonly ActiveFlag[],
-  stored: number | null
+  stored: number | null,
+  lastAccountId: number | null = null
 ): number | null {
   const active = new Set(
     accounts.filter((account) => account.isActive).map((account) => account.id)
@@ -128,19 +155,24 @@ export function defaultAccountFor(
   if (latest) {
     return latest.accountId
   }
+  if (lastAccountId !== null && active.has(lastAccountId)) {
+    return lastAccountId
+  }
   return accounts.find((account) => account.isActive)?.id ?? null
 }
 
 /**
- * The most used transfer routes ("→ Savings"), read from transfer legs: the
- * negative leg is the source, the positive one the destination. Routes that
- * touch an inactive account are skipped.
+ * The most used transfer routes ("→ Savings"): the server's in `base`, plus
+ * the ones read from local transfer legs (the negative leg is the source,
+ * the positive one the destination). Routes that touch an inactive account
+ * are skipped.
  */
 export function transferPresets(
   recent: readonly RecentEntry[],
   accounts: readonly ActiveFlag[],
   today: IsoDate,
-  limit = 3
+  limit = 3,
+  base: readonly RouteSuggestion[] = []
 ): TransferPair[] {
   const active = new Set(
     accounts.filter((account) => account.isActive).map((account) => account.id)
@@ -152,6 +184,11 @@ export function transferPresets(
     }
   }
   const scores = new Map<string, Score>()
+  seed(scores, base, (route) =>
+    active.has(route.fromAccountId) && active.has(route.toAccountId)
+      ? `${route.fromAccountId}>${route.toAccountId}`
+      : null
+  )
   for (const legs of byTransfer.values()) {
     const from = legs.find((leg) => leg.amountCents < 0)
     const to = legs.find((leg) => leg.amountCents > 0)
@@ -191,20 +228,24 @@ export function defaultTransferPair(
 }
 
 /**
- * Recent payees for the merchant field: ranked by use, matched against what
- * was typed (accents and case ignored), without the exact text already typed.
- * The spelling shown is the first one listed (the API lists newest first).
+ * Recent payees for the merchant field: ranked by use (the server's scores
+ * in `base` plus the local rows), matched against what was typed (accents
+ * and case ignored), without the exact text already typed. The spelling
+ * shown is the newest: the first local row listed (newest first), else the
+ * server's.
  */
 export function payeeSuggestions(
   recent: readonly RecentEntry[],
   kind: EntryKind,
   query: string,
   today: IsoDate,
-  limit = 4
+  limit = 4,
+  base: readonly PayeeSuggestion[] = []
 ): string[] {
   const typed = normalizeForSearch(query)
   const scores = new Map<string, Score>()
   const spelling = new Map<string, string>()
+  seed(scores, base, (use) => normalizeForSearch(use.payee))
   for (const row of recent) {
     const payee = row.payee?.trim()
     if (row.kind !== kind || !payee) {
@@ -214,6 +255,12 @@ export function payeeSuggestions(
     addUse(scores, key, row, today)
     if (!spelling.has(key)) {
       spelling.set(key, payee)
+    }
+  }
+  for (const use of base) {
+    const key = normalizeForSearch(use.payee)
+    if (!spelling.has(key)) {
+      spelling.set(key, use.payee)
     }
   }
   return [...scores.entries()]

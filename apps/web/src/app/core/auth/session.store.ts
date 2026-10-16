@@ -42,6 +42,9 @@ export class SessionStore {
   readonly membership = computed(() => this._me()?.membership ?? null)
   readonly entitlements = computed(() => this._me()?.entitlements ?? null)
   readonly flags = computed(() => this._me()?.flags ?? [])
+  /** The household's members by name and colour (join order); the partner is the other one. */
+  readonly members = computed(() => this._me()?.members ?? [])
+  readonly partner = computed(() => this._me()?.partner ?? null)
 
   readonly isAuthenticated = computed(() => this._me() !== null)
   readonly isVerified = computed(() => Boolean(this._me()?.user.emailVerifiedAt))

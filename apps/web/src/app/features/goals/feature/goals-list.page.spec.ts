@@ -8,10 +8,9 @@ import {
   anOpenEndedProjection,
 } from '../../../../testing/goal-fixtures'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import { aMember, aUser, networkError } from '../../../../testing/session-fixtures'
+import { aSessionStub, networkError } from '../../../../testing/session-fixtures'
 import type { GoalWithProjection } from '../../../core/api/api-types'
 import { SessionStore } from '../../../core/auth/session.store'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { CLOCK } from '../../../core/platform/clock.token'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
@@ -71,19 +70,7 @@ describe('GoalsListPage', () => {
           withComponentInputBinding()
         ),
         { provide: GoalsApi, useValue: api },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
         { provide: CLOCK, useValue: () => new Date('2026-11-20T00:00:00.000Z') },

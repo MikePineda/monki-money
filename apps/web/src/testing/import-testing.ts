@@ -4,14 +4,13 @@ import type { ImportRow } from '../app/core/api/api-types'
 import { SessionStore } from '../app/core/auth/session.store'
 import { AccountsApi } from '../app/core/household/accounts.api'
 import { CategoriesApi } from '../app/core/household/categories.api'
-import { HouseholdApi } from '../app/core/household/household.api'
 import { MonthStore } from '../app/core/month/month.store'
 import { HOUSEHOLD_TIME_ZONE } from '../app/core/platform/time-zone.token'
 import { ImportsApi } from '../app/features/import/data-access/imports.api'
 import { APP_LOCALE } from '../app/shared/ui/app-locale.token'
 import { anImportBatch, anImportDetail } from './import-fixtures'
 import { aCategoryTree } from './ledger-fixtures'
-import { aMember, aUser, anAccount } from './session-fixtures'
+import { anAccount, aSessionStub } from './session-fixtures'
 
 export type ImportsApiMock = Record<
   | 'upload'
@@ -125,19 +124,7 @@ export function importTestingProviders(options: ImportTestingOptions): Provider[
       },
     },
     { provide: CategoriesApi, useValue: { tree: vi.fn(async () => aCategoryTree()) } },
-    {
-      provide: HouseholdApi,
-      useValue: {
-        members: vi.fn(async () => [
-          aMember({ userId: 1 }),
-          aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-        ]),
-      },
-    },
-    {
-      provide: SessionStore,
-      useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-    },
+    { provide: SessionStore, useValue: aSessionStub() },
     { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
     { provide: APP_LOCALE, useValue: signal('en-AU') },
   ]

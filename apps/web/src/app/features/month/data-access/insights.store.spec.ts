@@ -4,6 +4,7 @@ import { aGeneratedInsight, anInsight } from '../../../../testing/insight-fixtur
 import { aUser, httpError, networkError } from '../../../../testing/session-fixtures'
 import { SessionStore } from '../../../core/auth/session.store'
 import { LangStore } from '../../../core/i18n/lang.store'
+import type { MonthReport } from '../../../core/ledger/reports.api'
 import { MonthStore } from '../../../core/month/month.store'
 import type { YearMonth } from '../../../domain/month'
 import { InsightsApi } from './insights.api'
@@ -18,7 +19,10 @@ describe('InsightsStore', () => {
   let user: ReturnType<typeof signal<ReturnType<typeof aUser>>>
   let clearHooks: (() => void)[]
 
-  function setup(options: { stored?: boolean } = {}) {
+  /** `flags`: what the month report (in the MonthStore's memory) says about each month's summary. */
+  function setup(
+    options: { stored?: boolean; flags?: Record<string, MonthReport['insight']> } = {}
+  ) {
     api = {
       show: vi.fn(async (month: string) =>
         options.stored === false ? null : anInsight({ month, headline: `Summary of ${month}` })
@@ -35,7 +39,13 @@ describe('InsightsStore', () => {
         { provide: InsightsApi, useValue: api },
         {
           provide: MonthStore,
-          useValue: { revisionOf: (month: string) => revisions().get(month) ?? 0 },
+          useValue: {
+            revisionOf: (month: string) => revisions().get(month) ?? 0,
+            cached: (month: string) => {
+              const insight = options.flags?.[month]
+              return insight ? { month, report: { insight } } : undefined
+            },
+          },
         },
         {
           provide: SessionStore,
@@ -75,6 +85,35 @@ describe('InsightsStore', () => {
     await settle()
 
     expect(store.view()).toEqual({ status: 'missing' })
+  })
+
+  it('test_a_month_the_report_says_has_no_summary_skips_the_request', async () => {
+    const store = setup({ flags: { [OCT]: { available: false, generatedAt: null, locale: 'en' } } })
+
+    await settle()
+
+    expect(store.view()).toEqual({ status: 'missing' })
+    expect(api.show).not.toHaveBeenCalled()
+  })
+
+  it('test_a_month_the_report_says_has_a_summary_reads_it', async () => {
+    const store = setup({
+      flags: { [OCT]: { available: true, generatedAt: '2026-11-01T08:00:00.000Z', locale: 'en' } },
+    })
+
+    await settle()
+
+    expect(api.show).toHaveBeenCalledExactlyOnceWith(OCT)
+    expect(headline(store)).toBe('Summary of 2026-10')
+  })
+
+  it('test_a_report_flag_about_another_language_still_asks_the_api', async () => {
+    const store = setup({ flags: { [OCT]: { available: false, generatedAt: null, locale: 'es' } } })
+
+    await settle()
+
+    expect(api.show).toHaveBeenCalledExactlyOnceWith(OCT)
+    expect(headline(store)).toBe('Summary of 2026-10')
   })
 
   it('test_generating_shows_progress_then_the_new_summary', async () => {

@@ -12,12 +12,11 @@ import {
 } from '../../../../testing/goal-fixtures'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aCategoryTree } from '../../../../testing/ledger-fixtures'
-import { aMember, aUser, anAccount, httpError } from '../../../../testing/session-fixtures'
+import { anAccount, aSessionStub, httpError } from '../../../../testing/session-fixtures'
 import type { Goal } from '../../../core/api/api-types'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { CategoriesApi } from '../../../core/household/categories.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { CLOCK } from '../../../core/platform/clock.token'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
@@ -65,19 +64,7 @@ describe('GoalDetailPage', () => {
         { provide: GoalsApi, useValue: api },
         { provide: AccountsApi, useValue: { list: async () => [anAccount()] } },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
         { provide: CLOCK, useValue: () => new Date('2026-11-20T00:00:00.000Z') },

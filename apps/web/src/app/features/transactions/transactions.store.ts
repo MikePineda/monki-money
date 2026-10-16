@@ -23,6 +23,7 @@ import {
   initialFilters,
   toListQuery,
   type CategoryFilter,
+  type PayerFilter,
   type TransactionFilters,
 } from '../../domain/transaction-filters'
 import { groupByDay, recentPayees } from '../../domain/transaction-list'
@@ -116,8 +117,9 @@ export class TransactionsStore {
     this.patchNarrow({ accountId })
   }
 
-  setPaidBy(paidByUserId: number | null): void {
-    this.patchNarrow({ paidByUserId })
+  /** A member's rows, the joint ones (`'joint'`), or everyone's (null). */
+  setPaidBy(paidBy: PayerFilter | null): void {
+    this.patchNarrow({ paidBy })
   }
 
   setCategory(category: CategoryFilter | null): void {
@@ -203,7 +205,6 @@ export class TransactionsStore {
 
   constructor() {
     void this.categories.load().catch(() => undefined)
-    void this.members.load().catch(() => undefined)
   }
 
   loadMore(): void {
@@ -221,20 +222,32 @@ export class TransactionsStore {
     return this.rows().find((row) => row.id === id) ?? (await this.api.show(id))
   }
 
-  /** Both sides of a transfer, from the loaded legs or the API. */
+  /**
+   * Both sides of a transfer: from the loaded legs when the list has both,
+   * else in one call (`GET /transfers/:id`, both legs and the memo).
+   */
   async transferOf(leg: Transaction): Promise<TransferDetails> {
     const transferId = leg.transferId as number
-    let legs = this.rows().filter((row) => row.transferId === transferId)
-    if (legs.length < 2) {
-      legs = await this.api.transferLegs(transferId, leg.date)
+    const listed = this.rows().filter((row) => row.transferId === transferId)
+    if (listed.length < 2) {
+      const transfer = await this.transfersApi.show(transferId)
+      return {
+        transferId,
+        date: transfer.date,
+        amountCents: transfer.amountCents,
+        fromAccountId: transfer.fromAccountId,
+        toAccountId: transfer.toAccountId,
+        memo: transfer.memo,
+        tags: [...leg.tags],
+      }
     }
-    const outgoing = legs.find((row) => row.amountCents < 0) ?? (leg.amountCents < 0 ? leg : null)
-    const incoming = legs.find((row) => row.amountCents > 0) ?? (leg.amountCents > 0 ? leg : null)
+    const outgoing = listed.find((row) => row.amountCents < 0) ?? leg
+    const incoming = listed.find((row) => row.amountCents > 0) ?? null
     return {
       transferId,
       date: leg.date,
       amountCents: Math.abs(leg.amountCents),
-      fromAccountId: outgoing?.accountId ?? leg.accountId,
+      fromAccountId: outgoing.accountId,
       toAccountId: incoming?.accountId ?? null,
       memo: leg.description,
       tags: [...leg.tags],
@@ -333,8 +346,8 @@ export class TransactionsStore {
   /* ------------------------------------------------------------ internals */
 
   private blankNarrow(): NarrowFilters {
-    const { accountId, paidByUserId, category, q, tag } = initialFilters(this.months.current())
-    return { accountId, paidByUserId, category, q, tag }
+    const { accountId, paidBy, category, q, tag } = initialFilters(this.months.current())
+    return { accountId, paidBy, category, q, tag }
   }
 
   private async loadPages(params: ListParams, signal: AbortSignal): Promise<ListState> {

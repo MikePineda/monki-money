@@ -9,6 +9,8 @@ export type User = Data.User
 export type Household = Data.Household
 export type Membership = Data.Membership
 export type Member = Data.Member
+/** A member by name and colour only (`GET /auth/me` `members`/`partner`; `id` is the user id). */
+export type MemberSummary = Data.MemberSummary
 export type Invitation = Data.Invitation
 export type Account = Data.Account
 export type AccountCard = Data.AccountCard

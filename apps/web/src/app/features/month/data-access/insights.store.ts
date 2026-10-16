@@ -36,6 +36,7 @@ interface CacheEntry {
 
 interface LoadParams {
   month: YearMonth
+  locale: string
   key: string
   revision: number
 }
@@ -61,7 +62,9 @@ function failureOf(error: unknown): GenerateFailure {
 
 /**
  * The LLM-written summary of the month on the Month view. One summary per
- * month and language, cached in memory: switching months reads the cache,
+ * month and language, cached in memory: `GET /insights/:month` is asked
+ * only when the month report (`insight`) does not say there is none in
+ * this language. Switching months reads the cache,
  * a ledger change in that month (`MonthStore.revisionOf`) drops its entry
  * so the next read asks the API again, and a language change (the user's
  * saved locale, which the API answers in) reads the other language's
@@ -96,9 +99,11 @@ export class InsightsStore {
         return undefined
       }
       this.attempt()
+      const locale = this.locale()
       return {
         month,
-        key: keyOf(month, this.locale()),
+        locale,
+        key: keyOf(month, locale),
         revision: this.months.revisionOf(month),
       }
     },
@@ -175,10 +180,18 @@ export class InsightsStore {
     return Promise.resolve()
   }
 
-  private async load({ month, key, revision }: LoadParams): Promise<InsightView> {
+  private async load({ month, locale, key, revision }: LoadParams): Promise<InsightView> {
     const cached = this.cache.get(key)
     if (cached && cached.revision === revision) {
       return cached.view
+    }
+    // The month report already says whether one is stored in this language:
+    // no request that can only answer 404.
+    const stored = this.months.cached(month)?.report.insight
+    if (stored && stored.locale === locale && !stored.available) {
+      const view: InsightView = { status: 'missing' }
+      this.remember(key, revision, view)
+      return view
     }
     try {
       const insight = await this.api.show(month)

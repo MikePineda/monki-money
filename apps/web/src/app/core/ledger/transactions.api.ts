@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core'
+import type { TransactionSuggestions } from '@monkimoney/shared'
 import { API } from '../api/api'
 import type { Transaction, Transfer } from '../api/api-types'
 
@@ -31,26 +32,17 @@ export interface TransferInput {
   memo?: string | null
 }
 
-/** `GET /transactions` filters (see docs/CONTRACTS.md). */
-export interface TransactionQuery {
-  month?: string
-  kind?: 'expense' | 'income' | 'transfer'
-  sort?: 'date' | '-date' | 'amount' | '-amount'
-  page?: number
-  perPage?: number
-}
-
 /**
- * Data access for ledger rows and transfers (quick add, the month's top
- * transactions, undo). Thin: every method is one typed Tuyau call.
+ * Data access for quick add: its server rankings, saving, undo. Thin:
+ * every method is one typed Tuyau call.
  */
 @Injectable({ providedIn: 'root' })
 export class TransactionsApi {
   private readonly api = inject(API)
 
-  /** One page of rows (newest first unless `sort` says otherwise). */
-  async list(query: TransactionQuery = {}): Promise<Transaction[]> {
-    const { data } = await (await this.api()).request('transactions.index', { query })
+  /** `GET /transactions/suggestions`: categories, payees, routes and the last account, ranked. */
+  async suggestions(): Promise<TransactionSuggestions> {
+    const { data } = await (await this.api()).request('transactions.suggestions', {})
     return data
   }
 

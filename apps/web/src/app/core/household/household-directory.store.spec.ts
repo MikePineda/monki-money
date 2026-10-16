@@ -1,20 +1,19 @@
 import { signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { aCategoryTree } from '../../../testing/ledger-fixtures'
-import { aMember, aUser, anAccount } from '../../../testing/session-fixtures'
+import { aMe, aMemberSummary, anAccount, sessionStubOf } from '../../../testing/session-fixtures'
 import type { CategoryTree } from '../../domain/category-tree'
-import type { Member } from '../api/api-types'
+import type { MemberSummary } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
 import { AccountsApi } from './accounts.api'
 import { CategoriesApi } from './categories.api'
-import { HouseholdApi } from './household.api'
 import { HouseholdDirectory } from './household-directory.store'
 
 describe('HouseholdDirectory', () => {
   let accounts: { list: ReturnType<typeof vi.fn> }
   let clearHooks: (() => void)[]
 
-  function setup(members: Member[], tree: CategoryTree = aCategoryTree()) {
+  function setup(members: MemberSummary[], tree: CategoryTree = aCategoryTree()) {
     accounts = {
       list: vi.fn(async () => [
         anAccount({ id: 1 }),
@@ -26,11 +25,10 @@ describe('HouseholdDirectory', () => {
       providers: [
         { provide: AccountsApi, useValue: accounts },
         { provide: CategoriesApi, useValue: { tree: async () => tree } },
-        { provide: HouseholdApi, useValue: { members: async () => members } },
         {
           provide: SessionStore,
           useValue: {
-            user: signal(aUser({ id: 1 })),
+            ...sessionStubOf(signal(aMe('owner', [], members))),
             onClear: (hook: () => void) => clearHooks.push(hook),
           },
         },
@@ -39,8 +37,8 @@ describe('HouseholdDirectory', () => {
     return TestBed.inject(HouseholdDirectory)
   }
 
-  const you = aMember({ userId: 1, fullName: 'Sam Rivera' })
-  const partner = aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' })
+  const you = aMemberSummary({ id: 1, displayName: 'Sam Rivera' })
+  const partner = aMemberSummary({ id: 2, displayName: 'Alex Chen', role: 'member' })
 
   it('test_loads_once_and_shares_the_request', async () => {
     const directory = setup([you, partner])

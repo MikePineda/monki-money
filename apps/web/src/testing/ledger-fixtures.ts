@@ -153,10 +153,31 @@ export function aMonthReport(month: YearMonth, overrides: Partial<MonthReport> =
     uncategorizedCents: 0,
     pendingCents: 0,
     transactionCount: 0,
+    previous: { incomeCents: 0, expenseCents: 0, netCents: 0 },
     topMovers: [],
+    topExpenses: [],
+    insight: { available: false, generatedAt: null, locale: 'en' },
     committed: { paidCents: 0, upcomingCents: 0, recurringCount: 0, items: [] },
     ...overrides,
   } as MonthReport
+}
+
+type TopExpense = MonthReport['topExpenses'][number]
+
+/** One of the month report's largest expenses (paid by user 1, unless overridden). */
+export function aTopExpense(overrides: Partial<TopExpense> = {}): TopExpense {
+  return {
+    id: overrides.id ?? nextId++,
+    date: '2026-10-15',
+    payee: 'Corner Grocer',
+    description: null,
+    amountCents: -4820,
+    categoryId: 11,
+    isSplit: false,
+    paidByUserId: 1,
+    isMasked: false,
+    ...overrides,
+  }
 }
 
 /** A six-month trend ending at `month`; `spent` lists the expense totals oldest first. */

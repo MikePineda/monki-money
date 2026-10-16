@@ -1,39 +1,29 @@
+import { signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
-import { aMember, aUser } from '../../../testing/session-fixtures'
+import { COUPLE, aMe, aMemberSummary, sessionStubOf } from '../../../testing/session-fixtures'
+import type { Me } from '../auth/auth.api'
 import { SessionStore } from '../auth/session.store'
 import { HouseholdApi } from './household.api'
 import { MembersStore } from './members.store'
 
 describe('MembersStore', () => {
+  let me: ReturnType<typeof signal<Me | null>>
   let api: { members: ReturnType<typeof vi.fn> }
-  let clearHooks: (() => void)[]
 
-  function createStore(youId = 2): MembersStore {
-    clearHooks = []
-    api = {
-      members: vi.fn(async () => [
-        aMember({ id: 100, userId: 1, fullName: 'Sam Rivera', role: 'owner' }),
-        aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-      ]),
-    }
+  function createStore(kind: 'owner' | 'member' = 'member'): MembersStore {
+    me = signal<Me | null>(aMe(kind, [], COUPLE))
+    api = { members: vi.fn(async () => []) }
     TestBed.configureTestingModule({
       providers: [
         { provide: HouseholdApi, useValue: api },
-        {
-          provide: SessionStore,
-          useValue: {
-            user: () => aUser({ id: youId }),
-            onClear: (hook: () => void) => clearHooks.push(hook),
-          },
-        },
+        { provide: SessionStore, useValue: sessionStubOf(me) },
       ],
     })
     return TestBed.inject(MembersStore)
   }
 
-  it('test_people_keep_the_member_order_for_their_mark', async () => {
+  it('test_people_keep_the_member_order_for_their_mark', () => {
     const store = createStore()
-    await store.load()
 
     expect(store.people()).toEqual([
       { userId: 1, person: 'a', isYou: false, name: 'Sam' },
@@ -41,33 +31,47 @@ describe('MembersStore', () => {
     ])
   })
 
-  it('test_joint_and_unknown_payers_get_the_shared_mark', async () => {
+  it('test_names_come_from_the_session_without_a_request', () => {
     const store = createStore()
-    await store.load()
+
+    expect(store.partner()?.name).toBe('Sam')
+    // GET /auth/me already carried them: GET /household/members is for Settings only.
+    expect(api.members).not.toHaveBeenCalled()
+  })
+
+  it('test_joint_and_unknown_payers_get_the_shared_mark', () => {
+    const store = createStore()
 
     expect(store.personOf(1)).toBe('a')
     expect(store.personOf(null)).toBe('joint')
     expect(store.personOf(99)).toBe('joint')
   })
 
-  it('test_partner_is_the_other_member', async () => {
-    const store = createStore(1)
-    await store.load()
+  it('test_partner_is_the_other_member', () => {
+    const store = createStore('owner')
 
     expect(store.partner()?.name).toBe('Alex')
     expect(store.you()?.userId).toBe(1)
   })
 
-  it('test_load_calls_the_api_once_and_logout_forgets_the_members', async () => {
-    const store = createStore()
-    await Promise.all([store.load(), store.load()])
-    await store.load()
+  it('test_a_display_name_wins_and_shows_by_its_first_word', () => {
+    const store = createStore('owner')
 
-    expect(api.members).toHaveBeenCalledTimes(1)
+    me.set(
+      aMe('owner', [], [aMemberSummary(), aMemberSummary({ id: 2, displayName: 'Jo Bloggs' })])
+    )
 
-    clearHooks.forEach((hook) => hook())
+    expect(store.find(2)?.name).toBe('Jo')
+  })
+
+  it('test_a_new_session_or_logout_changes_the_people_at_once', () => {
+    const store = createStore('owner')
+
+    me.set(aMe('owner'))
+    expect(store.people().map((person) => person.userId)).toEqual([1])
+    expect(store.partner()).toBeNull()
+
+    me.set(null)
     expect(store.people()).toEqual([])
-    await store.load()
-    expect(api.members).toHaveBeenCalledTimes(2)
   })
 })

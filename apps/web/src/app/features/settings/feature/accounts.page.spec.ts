@@ -4,11 +4,10 @@ import { provideRouter } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import type { Mock } from 'vitest'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import { aMember, aUser, anAccount } from '../../../../testing/session-fixtures'
+import { aSessionStub, anAccount } from '../../../../testing/session-fixtures'
 import type { Account } from '../../../core/api/api-types'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi, type AccountInput } from '../../../core/household/accounts.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import AccountsPage from './accounts.page'
@@ -47,18 +46,9 @@ describe('AccountsPage', () => {
         provideRouter([{ path: 'settings/accounts', component: AccountsPage }]),
         { provide: AccountsApi, useValue: api },
         {
-          provide: HouseholdApi,
-          useValue: {
-            members: vi.fn(async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ]),
-          },
-        },
-        {
           provide: SessionStore,
           useValue: {
-            user: signal(aUser({ id: 1 })),
+            ...aSessionStub(),
             entitlements: signal({
               llmCallsPerMonth: 200,
               maxAccounts: 6,

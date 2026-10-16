@@ -7,18 +7,17 @@ import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing
 import { tagsStoreStub } from '../../../testing/tag-fixtures'
 import { aCategoryTree, aTransaction } from '../../../testing/ledger-fixtures'
 import {
-  aMember,
-  aUser,
   anAccount,
+  aSessionStub,
   httpError,
   networkError,
   validationError,
 } from '../../../testing/session-fixtures'
+import type { TransactionSuggestions } from '@monkimoney/shared'
 import type { Transaction } from '../../core/api/api-types'
 import { SessionStore } from '../../core/auth/session.store'
 import { AccountsApi } from '../../core/household/accounts.api'
 import { CategoriesApi } from '../../core/household/categories.api'
-import { HouseholdApi } from '../../core/household/household.api'
 import {
   TransactionsApi,
   type QuickEntryInput,
@@ -45,6 +44,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 describe('QuickAddPage', () => {
   let api: {
     list: ReturnType<typeof vi.fn>
+    suggestions: ReturnType<typeof vi.fn>
     quick: ReturnType<typeof vi.fn<(body: QuickEntryInput) => Promise<Transaction>>>
     transfer: ReturnType<typeof vi.fn<(body: TransferInput) => Promise<unknown>>>
     remove: ReturnType<typeof vi.fn>
@@ -65,17 +65,32 @@ describe('QuickAddPage', () => {
   /** Entries the fake outbox holds (for editing a queued entry). */
   let queued: OutboxEntry[] = []
 
+  /** What the server ranks for quick add (`GET /transactions/suggestions`); nothing by default. */
+  function someSuggestions(
+    overrides: Partial<TransactionSuggestions> = {}
+  ): TransactionSuggestions {
+    return {
+      asOf: todayIn(TZ),
+      categories: { expense: [], income: [] },
+      payees: { expense: [], income: [] },
+      routes: [],
+      lastAccountId: null,
+      ...overrides,
+    }
+  }
+
   async function open(
     url = '/add',
-    recent: Transaction[] = [],
-    options: { listFails?: boolean } = {}
+    suggestions: TransactionSuggestions = someSuggestions(),
+    options: { suggestionsFail?: boolean } = {}
   ) {
     api = {
-      list: vi.fn(async () => {
-        if (options.listFails) {
+      list: vi.fn(async () => []),
+      suggestions: vi.fn(async () => {
+        if (options.suggestionsFail) {
           throw networkError()
         }
-        return recent
+        return suggestions
       }),
       quick: vi.fn(async (body: QuickEntryInput) =>
         aTransaction({
@@ -138,19 +153,7 @@ describe('QuickAddPage', () => {
           },
         },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1, fullName: 'Sam Rivera' }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => TZ },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
       ],
@@ -232,10 +235,32 @@ describe('QuickAddPage', () => {
     expect(scan.getAttribute('aria-label')).toBe('Scan a receipt')
   })
 
-  it('test_without_a_stored_account_the_latest_own_entry_picks_it', async () => {
-    const { root } = await open('/add', [aTransaction({ accountId: 2, createdByUserId: 1 })])
+  it('test_without_a_stored_account_the_last_one_the_server_saw_picks_it', async () => {
+    const { root } = await open('/add', someSuggestions({ lastAccountId: 2 }))
 
     expect(text(root, 'transactions.form.account')).toBe('Savings')
+  })
+
+  it('test_the_server_ranks_the_tiles_payees_and_routes_without_reading_the_ledger', async () => {
+    const { root, harness } = await open(
+      '/add',
+      someSuggestions({
+        // Groceries (20) is last in the default order.
+        categories: { expense: [{ categoryId: 20, score: 3, lastDate: todayIn(TZ) }], income: [] },
+        payees: { expense: [{ payee: 'Bakery', score: 2, lastDate: todayIn(TZ) }], income: [] },
+        routes: [{ fromAccountId: 2, toAccountId: 1, score: 1, lastDate: todayIn(TZ) }],
+      })
+    )
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+
+    const tiles = [
+      ...root.querySelectorAll('[data-testid="transactions.form.categoryGrid"] [data-category]'),
+    ]
+    expect(tiles[0]?.getAttribute('data-category')).toBe('20')
+    expect(store?.payees()).toEqual(['Bakery'])
+    expect(store?.presets()).toEqual([{ fromAccountId: 2, toAccountId: 1 }])
+    expect(api.suggestions).toHaveBeenCalledTimes(1)
+    expect(api.list).not.toHaveBeenCalled()
   })
 
   it('test_the_manifest_type_opens_on_that_kind', async () => {
@@ -245,8 +270,8 @@ describe('QuickAddPage', () => {
     expect(text(root, 'quickAdd.title')).toBe('Add income')
   })
 
-  it('test_offline_it_opens_with_the_loaded_accounts_even_without_recent_rows', async () => {
-    const { root } = await open('/add', [], { listFails: true })
+  it('test_offline_it_opens_with_the_loaded_accounts_even_without_suggestions', async () => {
+    const { root } = await open('/add', someSuggestions(), { suggestionsFail: true })
 
     expect(text(root, 'transactions.form.account')).toBe('Everyday')
     expect(root.querySelector('[data-testid="quickAdd.loadError"]')).toBeNull()
@@ -458,13 +483,55 @@ describe('QuickAddPage', () => {
       },
       NOW
     )
-    const { root, harness } = await open('/add', [], { listFails: true })
+    const { root, harness } = await open('/add', someSuggestions(), { suggestionsFail: true })
 
     const tiles = [
       ...root.querySelectorAll('[data-testid="transactions.form.categoryGrid"] [data-category]'),
     ]
     expect(tiles[0]?.getAttribute('data-category')).toBe('20')
     expect(harness.routeDebugElement?.injector.get(QuickAddStore).payees()).toEqual(['Bakery'])
+  })
+
+  it('test_a_queued_entry_adds_to_the_server_ranking', async () => {
+    queued = enqueue(
+      [],
+      {
+        kind: 'transaction',
+        payload: {
+          clientId: '00000000-0000-4000-8000-000000000046',
+          kind: 'expense',
+          accountId: 1,
+          date: todayIn(TZ),
+          amountCents: 850,
+          categoryId: 20,
+          payee: 'Bakery',
+          description: null,
+          paidByUserId: 1,
+          isPrivate: false,
+          tags: [],
+        },
+      },
+      NOW
+    )
+    const { harness } = await open(
+      '/add',
+      someSuggestions({
+        categories: {
+          expense: [{ categoryId: 11, score: 0.5, lastDate: '2026-09-15' }],
+          income: [],
+        },
+        payees: { expense: [{ payee: 'Kmart', score: 0.5, lastDate: '2026-09-15' }], income: [] },
+      })
+    )
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+
+    expect(
+      store
+        ?.categoryTiles()
+        .map((tile) => tile.category.id)
+        .slice(0, 2)
+    ).toEqual([20, 11])
+    expect(store?.payees()).toEqual(['Bakery', 'Kmart'])
   })
 
   it('test_an_expense_queued_on_this_screen_feeds_the_ranking_at_once', async () => {

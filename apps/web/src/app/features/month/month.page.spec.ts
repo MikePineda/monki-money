@@ -7,18 +7,16 @@ import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing
 import {
   aCategoryTree,
   aMonthReport,
-  aTransaction,
+  aTopExpense,
   aTrendReport,
 } from '../../../testing/ledger-fixtures'
-import { aMember, aUser, anAccount } from '../../../testing/session-fixtures'
-import type { MonthReport } from '../../core/ledger/reports.api'
+import { anAccount, aSessionStub } from '../../../testing/session-fixtures'
+import type { MonthReport, TrendReport } from '../../core/ledger/reports.api'
 import { SessionStore } from '../../core/auth/session.store'
 import { AccountsApi } from '../../core/household/accounts.api'
 import { CategoriesApi } from '../../core/household/categories.api'
-import { HouseholdApi } from '../../core/household/household.api'
 import { RecurringApi } from '../../core/ledger/recurring.api'
 import { ReportsApi } from '../../core/ledger/reports.api'
-import { TransactionsApi } from '../../core/ledger/transactions.api'
 import { HOUSEHOLD_TIME_ZONE } from '../../core/platform/time-zone.token'
 import { addMonths, currentMonthIn, type YearMonth } from '../../domain/month'
 import { BarListHarness } from '../../shared/charts/bar-list/bar-list.harness'
@@ -38,6 +36,25 @@ function busyMonth(month: YearMonth): MonthReport {
     expenseCents: 328_450,
     netCents: 316_550,
     transactionCount: 42,
+    previous: { incomeCents: 600_000, expenseCents: 357_120, netCents: 242_880 },
+    topExpenses: [
+      aTopExpense({
+        id: 1,
+        payee: 'Landlord Pty',
+        categoryId: 10,
+        amountCents: -162_000,
+        date: `${month}-01`,
+      }),
+      aTopExpense({
+        id: 2,
+        payee: null,
+        categoryId: null,
+        isMasked: true,
+        paidByUserId: 2,
+        amountCents: -6_000,
+        date: `${month}-03`,
+      }),
+    ],
     byGroup: [
       { bucket: 'group', groupId: 1, kind: 'expense', amountCents: 162_000, count: 1 },
       { bucket: 'group', groupId: 2, kind: 'expense', amountCents: 150_450, count: 30 },
@@ -101,16 +118,25 @@ const COMMITTED: MonthReport['committed'] = {
 describe('MonthPage', () => {
   let reports: { month: ReturnType<typeof vi.fn>; trend: ReturnType<typeof vi.fn> }
   let recurring: { detect: ReturnType<typeof vi.fn> }
+  let insights: { show: ReturnType<typeof vi.fn>; generate: ReturnType<typeof vi.fn> }
 
   async function open(
     url = '/month',
-    options: { report?: (month: YearMonth) => MonthReport; lang?: 'en' | 'es' } = {}
+    options: {
+      report?: (month: YearMonth) => MonthReport
+      trend?: (month: YearMonth) => TrendReport
+      lang?: 'en' | 'es'
+    } = {}
   ) {
     const lang = options.lang ?? 'en'
     recurring = { detect: vi.fn(async () => ({ created: 1, updated: 0 })) }
+    insights = { show: vi.fn(async () => null), generate: vi.fn() }
     reports = {
       month: vi.fn(async (month: YearMonth) => (options.report ?? busyMonth)(month)),
       trend: vi.fn(async (month: YearMonth) => {
+        if (options.trend) {
+          return options.trend(month)
+        }
         const trend = aTrendReport(month, [300_000, 320_000, 310_000, 300_000, 357_120, 328_450])
         return {
           ...trend,
@@ -145,44 +171,10 @@ describe('MonthPage', () => {
         ),
         { provide: ReportsApi, useValue: reports },
         { provide: RecurringApi, useValue: recurring },
-        {
-          provide: TransactionsApi,
-          useValue: {
-            list: async () => [
-              aTransaction({
-                id: 1,
-                payee: 'Landlord Pty',
-                categoryId: 10,
-                amountCents: -162_000,
-                date: `${NOW}-01`,
-              }),
-              aTransaction({
-                id: 2,
-                payee: null,
-                isMasked: true,
-                paidByUserId: 2,
-                amountCents: -6_000,
-                date: `${NOW}-03`,
-              }),
-            ],
-          },
-        },
-        { provide: InsightsApi, useValue: { show: async () => null, generate: vi.fn() } },
+        { provide: InsightsApi, useValue: insights },
         { provide: AccountsApi, useValue: { list: async () => [anAccount()] } },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: HOUSEHOLD_TIME_ZONE, useValue: () => TZ },
         { provide: APP_LOCALE, useValue: signal(lang === 'es' ? 'es-MX' : 'en-AU') },
       ],
@@ -214,6 +206,37 @@ describe('MonthPage', () => {
     )
   })
 
+  it('test_the_delta_comes_from_the_month_report_not_the_trend', async () => {
+    // A trend with nothing before this month: the report still knows last month.
+    const { root } = await open('/month', {
+      trend: (month) => aTrendReport(month, [328_450]),
+    })
+
+    expect(text(root, '[data-testid="month.delta"]')).toMatch(/^8% less than \w+ \(\$3,571\.20\)$/)
+  })
+
+  it('test_the_month_view_needs_only_the_report_and_the_trend', async () => {
+    const { harness } = await open()
+    await harness.fixture.whenStable()
+
+    expect(reports.month).toHaveBeenCalledExactlyOnceWith(NOW)
+    expect(reports.trend).toHaveBeenCalledTimes(1)
+    // The top five come with the report, and it says no summary is stored yet.
+    expect(insights.show).not.toHaveBeenCalled()
+  })
+
+  it('test_a_stored_summary_is_read_when_the_report_says_there_is_one', async () => {
+    const { harness } = await open(`/month/${PREVIOUS}`, {
+      report: (month) => ({
+        ...busyMonth(month),
+        insight: { available: true, generatedAt: '2026-10-01T08:00:00.000Z', locale: 'en' },
+      }),
+    })
+    await harness.fixture.whenStable()
+
+    expect(insights.show).toHaveBeenCalledExactlyOnceWith(PREVIOUS)
+  })
+
   it('test_stat_tiles_show_income_spent_and_net_saved', async () => {
     const { root } = await open()
 
@@ -243,6 +266,28 @@ describe('MonthPage', () => {
       expect.stringContaining('Private'),
     ])
     expect(rows[0]?.textContent).toContain('Rent')
+  })
+
+  it('test_a_split_top_expense_says_split_instead_of_a_category', async () => {
+    const { root } = await open('/month', {
+      report: (month) => ({
+        ...busyMonth(month),
+        topExpenses: [
+          aTopExpense({
+            id: 7,
+            payee: 'Big W',
+            categoryId: null,
+            isSplit: true,
+            amountCents: -9_000,
+          }),
+        ],
+      }),
+    })
+
+    const row = root.querySelector('[data-testid="month.top"] app-list-row')
+    expect(row?.textContent).toContain('Big W')
+    expect(row?.textContent).toContain('Split')
+    expect(row?.textContent).not.toContain('Uncategorised')
   })
 
   it('test_two_deterministic_insights', async () => {

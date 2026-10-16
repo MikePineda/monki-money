@@ -63,6 +63,22 @@ describe('SessionStore', () => {
     expect(store.homePath()).toBe('/month')
   })
 
+  it('test_bootstrap_brings_the_members_names_and_the_partner', async () => {
+    const store = setup(async () => aMe('member'))
+
+    await store.load()
+
+    expect(store.members().map((member) => [member.id, member.displayName])).toEqual([
+      [1, 'Sam Rivera'],
+      [2, 'Alex Chen'],
+    ])
+    expect(store.partner()?.displayName).toBe('Sam Rivera')
+
+    store.clear()
+    expect(store.members()).toEqual([])
+    expect(store.partner()).toBeNull()
+  })
+
   it('test_bootstrap_applies_the_users_theme_and_language', async () => {
     const me = aMe()
     me.user.theme = 'dark'

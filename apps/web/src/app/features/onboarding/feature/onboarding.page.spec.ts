@@ -4,7 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import { aHousehold, aMember, aUser, anAccount } from '../../../../testing/session-fixtures'
+import { aHousehold, aMe, anAccount, sessionStubOf } from '../../../../testing/session-fixtures'
 import type { Account } from '../../../core/api/api-types'
 import { ONBOARDING_KEY } from '../../../core/auth/onboarding-progress'
 import { SessionStore } from '../../../core/auth/session.store'
@@ -25,7 +25,6 @@ describe('OnboardingPage', () => {
     created = []
     households = {
       update: vi.fn(async (body: object) => ({ ...aHousehold(), ...body })),
-      members: vi.fn(async () => [aMember()]),
       invite: vi.fn(async () => ({})),
     }
     accounts = {
@@ -51,7 +50,8 @@ describe('OnboardingPage', () => {
           provide: SessionStore,
           useValue: {
             household,
-            user: signal(aUser()),
+            // A household of one: no partner to own an account yet.
+            ...sessionStubOf(signal(aMe('owner'))),
             entitlements: signal(null),
             patchHousehold: (next: ReturnType<typeof aHousehold>) => household.set(next),
             onClear: () => undefined,

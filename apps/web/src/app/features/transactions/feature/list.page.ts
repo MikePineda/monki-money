@@ -25,7 +25,7 @@ import {
   yearOf,
   type YearMonth,
 } from '../../../domain/month'
-import type { CategoryFilter } from '../../../domain/transaction-filters'
+import type { CategoryFilter, PayerFilter } from '../../../domain/transaction-filters'
 import { relativeDay, type ListItem } from '../../../domain/transaction-list'
 import { categoryIcon } from '../../../shared/icons/category-icons'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
@@ -374,8 +374,12 @@ export default class TransactionsPage {
       {
         id: 'person',
         label:
-          filters.paidByUserId === null ? (words[8] ?? '') : this.personName(filters.paidByUserId),
-        active: filters.paidByUserId !== null,
+          filters.paidBy === null
+            ? (words[8] ?? '')
+            : filters.paidBy === 'joint'
+              ? (words[6] ?? '')
+              : this.personName(filters.paidBy),
+        active: filters.paidBy !== null,
       },
       { id: 'category', label: category ?? words[9] ?? '', active: filters.category !== null },
       { id: 'tag', label: filters.tag ?? words[12] ?? '', active: filters.tag !== null },
@@ -546,23 +550,25 @@ export default class TransactionsPage {
     })
   }
 
+  /** Everyone, you, the partner, or what "both of us" paid. */
   private choosePerson(): void {
     const words = this.words()
-    const options: SelectOption<number | null>[] = [
+    const options: SelectOption<PayerFilter | null>[] = [
       { value: null, label: words[8] ?? '', icon: 'users' },
       ...this.store.members.people().map((person) => ({
-        value: person.userId as number | null,
+        value: person.userId as PayerFilter | null,
         label: person.isYou ? (words[5] ?? '') : person.name,
         person: person.person as Person,
       })),
+      { value: 'joint', label: words[6] ?? '', person: 'joint' },
     ]
     openSelectSheet(this.sheets, {
       title: this.t(KEYS.personTitle),
       options,
-      selected: this.store.filters().paidByUserId,
-    }).subscribe((userId) => {
-      if (userId !== undefined) {
-        this.store.setPaidBy(userId)
+      selected: this.store.filters().paidBy,
+    }).subscribe((paidBy) => {
+      if (paidBy !== undefined) {
+        this.store.setPaidBy(paidBy)
       }
     })
   }

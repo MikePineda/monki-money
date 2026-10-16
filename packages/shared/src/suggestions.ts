@@ -25,9 +25,9 @@ export function recencyWeight(date: string, today: string): number {
   return Math.pow(0.5, age / RECENCY_HALF_LIFE_DAYS)
 }
 
-/** The key two spellings of one payee share: case, accents and spacing ignored. */
-export function payeeKey(payee: string): string {
-  return payee
+/** How text is compared (payees, searches): case, accents and spacing ignored. */
+export function normalizeForSearch(text: string): string {
+  return text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()

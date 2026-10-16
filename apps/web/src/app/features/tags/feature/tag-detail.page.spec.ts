@@ -4,12 +4,11 @@ import { provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aCategoryTree } from '../../../../testing/ledger-fixtures'
-import { aMember, aUser, anAccount, httpError } from '../../../../testing/session-fixtures'
+import { anAccount, aSessionStub, httpError } from '../../../../testing/session-fixtures'
 import { aTagDetail } from '../../../../testing/tag-fixtures'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { CategoriesApi } from '../../../core/household/categories.api'
-import { HouseholdApi } from '../../../core/household/household.api'
 import { TagsApi, type TagDetail } from '../../../core/ledger/tags.api'
 import { MonthStore } from '../../../core/month/month.store'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
@@ -46,19 +45,7 @@ describe('TagDetailPage', () => {
         { provide: MonthStore, useValue: { ledgerRevision: signal(0) } },
         { provide: AccountsApi, useValue: { list: async () => [anAccount()] } },
         { provide: CategoriesApi, useValue: { tree: async () => aCategoryTree() } },
-        {
-          provide: HouseholdApi,
-          useValue: {
-            members: async () => [
-              aMember({ userId: 1 }),
-              aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
-            ],
-          },
-        },
-        {
-          provide: SessionStore,
-          useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
-        },
+        { provide: SessionStore, useValue: aSessionStub() },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
       ],
     })

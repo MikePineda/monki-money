@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { RECENCY_HALF_LIFE_DAYS, payeeKey, recencyWeight, roundScore } from './suggestions.ts'
+import {
+  RECENCY_HALF_LIFE_DAYS,
+  normalizeForSearch,
+  recencyWeight,
+  roundScore,
+} from './suggestions.ts'
 
 test('a use made today weighs one and halves every thirty days', () => {
   assert.equal(RECENCY_HALF_LIFE_DAYS, 30)
@@ -14,8 +19,8 @@ test('a use dated in the future counts as today', () => {
 })
 
 test('two spellings of a payee share one key', () => {
-  assert.equal(payeeKey('  Café   Nero '), 'cafe nero')
-  assert.equal(payeeKey('CAFÉ NERO'), payeeKey('cafe nero'))
+  assert.equal(normalizeForSearch('  Café   Nero '), 'cafe nero')
+  assert.equal(normalizeForSearch('CAFÉ NERO'), normalizeForSearch('cafe nero'))
 })
 
 test('scores travel with four decimals', () => {

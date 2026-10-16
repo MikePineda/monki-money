@@ -1,5 +1,5 @@
 import {
-  payeeKey,
+  normalizeForSearch,
   recencyWeight,
   roundScore,
   type CategorySuggestion,
@@ -82,7 +82,7 @@ function payeesOf(rows: SuggestionRow[], kind: 'expense' | 'income', today: stri
   for (const row of rows) {
     const payee = row.payee?.trim()
     if (row.kind !== kind || !payee) continue
-    const key = payeeKey(payee)
+    const key = normalizeForSearch(payee)
     const before = scores.get(key)?.lastId
     addUse(scores, key, row, today)
     if (scores.get(key)?.lastId !== before) spelling.set(key, payee)

@@ -174,10 +174,6 @@ export default class GoalsListPage {
   protected readonly reorderMode = signal(false)
   private readonly ownerWords = translateSignal(OWNER_KEYS)
 
-  constructor() {
-    void this.members.load().catch(() => undefined)
-  }
-
   /** "Household", "You" or the partner's first name. */
   protected ownerLabel(userId: number | null): string {
     const [household = '', you = ''] = this.ownerWords()

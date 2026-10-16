@@ -1,17 +1,13 @@
 import { Injectable, inject } from '@angular/core'
-import type { Entitlements, HealthReport, Locale, PublicConfig, Theme } from '@monkimoney/shared'
+import type { HealthReport, Locale, PublicConfig, Theme } from '@monkimoney/shared'
 import { API } from '../api/api'
-import type { Household, Membership, User } from '../api/api-types'
-import { unwrapData } from '../api/unwrap'
 
-/** `GET /auth/me`: who is signed in, their household (if any) and what it may do. */
-export interface Me {
-  user: User
-  household: Household | null
-  membership: Membership | null
-  entitlements: Entitlements | null
-  flags: string[]
-}
+/**
+ * `GET /auth/me`: who is signed in, their household (if any), what it may
+ * do, and its members' names and colours (`partner`: the other member, or
+ * null), typed from the registry.
+ */
+export type Me = Awaited<ReturnType<AuthApi['me']>>
 
 /** The Cloudflare Turnstile token, sent only while the API asks for the check. */
 export interface BotCheck {
@@ -56,8 +52,9 @@ export interface AcceptInvitationInput {
 export class AuthApi {
   private readonly api = inject(API)
 
-  async me(): Promise<Me> {
-    return unwrapData<Me>(await (await this.api()).request('auth.me', {}))
+  async me() {
+    const { data } = await (await this.api()).request('auth.me', {})
+    return data
   }
 
   async login(body: LoginInput): Promise<void> {
