@@ -1,0 +1,76 @@
+{
+  "title": "Payslips",
+  "back": "Back",
+  "add": "New payslip",
+  "loading": "Loading payslips",
+  "editHint": "To change a payslip, delete it and record it again.",
+  "error": {
+    "title": "Payslips did not load",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "empty": {
+    "title": "No payslips yet",
+    "body": "Record each payout as its gross, the tax withheld and the service fee, linked to the transfer to your bank.",
+    "action": "Record a payslip"
+  },
+  "card": {
+    "gross": "Gross",
+    "deductions": "Deductions",
+    "net": "Net",
+    "to": "To {account}",
+    "unlinked": "Not linked to a transfer",
+    "joint": "Joint",
+    "you": "You",
+    "noCategory": "No category",
+    "private": "Private",
+    "delete": "Delete the payslip of {date}"
+  },
+  "delete": {
+    "title": "Delete this payslip?",
+    "body": "Its gross and deductions leave your ledger. The transfer to your bank stays, ready to link again.",
+    "confirm": "Delete payslip",
+    "cancel": "Keep it"
+  },
+  "deleted": "Payslip deleted",
+  "saved": "Payslip saved",
+  "form": {
+    "newTitle": "New payslip",
+    "payout": "Transfer to your bank",
+    "payoutHint": "The movement that took the net out of this account.",
+    "candidate": "{date} · {amount} · to {account}",
+    "noCandidates": "No transfer out of this account is waiting for a payslip.",
+    "later": "No transfer yet",
+    "laterHint": "A transfer of the net to the account you choose is recorded too.",
+    "toAccount": "Destination account",
+    "chooseAccount": "Choose an account",
+    "net": "Net received",
+    "gross": "Gross amount",
+    "tax": "Tax withheld",
+    "fee": "Service fee",
+    "feeHint": "The rest: gross minus tax minus net.",
+    "extra": "Another deduction",
+    "addLine": "Add another deduction",
+    "removeLine": "Remove this deduction",
+    "chooseCategory": "Choose a category",
+    "lineMemo": "Note for this deduction",
+    "person": "Who earned it",
+    "you": "You",
+    "joint": "Joint",
+    "date": "Date",
+    "memo": "Note",
+    "optional": "Optional",
+    "amountHint": "Tap to enter the amount",
+    "save": "Save payslip",
+    "problems": {
+      "transferId": "Choose the transfer, or No transfer yet",
+      "toAccountId": "Choose where the net went",
+      "netCents": "Enter what reached the bank",
+      "grossCents": "Enter the gross amount",
+      "deductions": "The deductions are more than the gross minus the net",
+      "taxCategory": "Choose a category for the tax",
+      "feeCategory": "Choose a category for the fee",
+      "extra": "Enter an amount and a category, or remove the line"
+    }
+  }
+}

@@ -101,7 +101,8 @@
       "holder": "Who carries it",
       "add": "Add card",
       "remove": "Remove card"
-    }
+    },
+    "payslips": "Payslips"
   },
   "upgrade": {
     "row": "Plans",

@@ -13,6 +13,7 @@ import {
 } from '../../../domain/goals'
 import { formatMoney } from '../../../domain/money'
 import { IconComponent } from '../../../shared/icons/icon.component'
+import { AmountFieldComponent } from '../../../shared/ui/amount-field/amount-field.component'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonComponent } from '../../../shared/ui/button/button.component'
@@ -23,7 +24,6 @@ import {
 } from '../../../shared/ui/segmented-control/segmented-control.component'
 import { openSelectSheet } from '../../../shared/ui/select-sheet/select-sheet.component'
 import { TextFieldComponent } from '../../../shared/ui/text-field/text-field.component'
-import { GoalAmountFieldComponent } from './goal-amount-field.component'
 
 /** Which money field has the keypad open. */
 export type GoalKeypad = 'target' | 'starting' | 'contribution'
@@ -62,10 +62,10 @@ const PROBLEM_KEYS = PROBLEMS.map((problem) => `form.problems.${problem}`)
 @Component({
   selector: 'app-goal-form',
   imports: [
+    AmountFieldComponent,
     ButtonComponent,
     ChipComponent,
     FormField,
-    GoalAmountFieldComponent,
     IconComponent,
     SegmentedControlComponent,
     TextFieldComponent,
@@ -81,7 +81,7 @@ const PROBLEM_KEYS = PROBLEMS.map((problem) => `form.problems.${problem}`)
         [error]="errorFor('name')"
       />
 
-      <app-goal-amount-field
+      <app-amount-field
         testId="goals.form.target"
         [label]="'goals.form.target' | transloco"
         [cents]="draft().targetCents"
@@ -159,7 +159,7 @@ const PROBLEM_KEYS = PROBLEMS.map((problem) => `form.problems.${problem}`)
             }
           </div>
         } @else {
-          <app-goal-amount-field
+          <app-amount-field
             testId="goals.form.starting"
             [label]="'goals.form.starting' | transloco"
             [cents]="draft().startingCents"
@@ -183,7 +183,7 @@ const PROBLEM_KEYS = PROBLEMS.map((problem) => `form.problems.${problem}`)
           (valueChange)="setContribution($event)"
         />
         @if (draft().contribution === 'fixed') {
-          <app-goal-amount-field
+          <app-amount-field
             testId="goals.form.monthly"
             [label]="'goals.form.contribution.amount' | transloco"
             [cents]="draft().monthlyContributionCents"

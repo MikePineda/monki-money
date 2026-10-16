@@ -18,6 +18,8 @@ export type TransactionSplit = Data.TransactionSplit
 export type Transfer = Data.Transfer
 /** A savings goal (`userId` null = the household's). */
 export type Goal = Data.Goal
+/** A payout recorded as its gross and deductions, linked to the transfer of the net. */
+export type Payslip = Data.Payslip
 /** The LLM-written summary of a month, in the reader's language. */
 export type MonthlyInsight = Data.MonthlyInsight
 /** A bank import batch (one account of one upload) with its counts and reconciliation. */
