@@ -31,7 +31,7 @@ export function aBrowserSubscription(endpoint = anEndpoint()) {
     keys: {
       p256dh:
         'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
-      auth: 'tBHItJI5svbpez7KI4CCXg',
+      auth: 'tBHItJI5svbpez7KI4CCXg', // gitleaks:allow
     },
   }
 }

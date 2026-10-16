@@ -7,3 +7,12 @@
 35d643b93fe6590539c66e3d9f0d1901ab61e40f:apps/web/src/app/domain/invitation-link.spec.ts:generic-api-key:3
 35d643b93fe6590539c66e3d9f0d1901ab61e40f:apps/web/src/app/features/onboarding/feature/create-household.page.spec.ts:generic-api-key:27
 b684efdc829f2831da03f282e891ca81c75b9ba9:apps/api/tests/unit/llm/anthropic_compatible_provider.spec.ts:generic-api-key:9
+# Synthetic Web Push subscription keys in tests (commits before the inline gitleaks:allow comments)
+12cca50b1fa9cf693ef6d286846883b06ee9dd24:apps/web/src/app/core/push/push.service.spec.ts:generic-api-key:11
+12cca50b1fa9cf693ef6d286846883b06ee9dd24:apps/web/src/app/domain/push.spec.ts:generic-api-key:4
+1d8c7a72868f199e8cb3295b5f8e9ceb2c896621:apps/api/tests/functional/push/push_subscriptions.spec.ts:generic-api-key:49
+1d8c7a72868f199e8cb3295b5f8e9ceb2c896621:apps/api/tests/functional/push/push_subscriptions.spec.ts:generic-api-key:58
+1d8c7a72868f199e8cb3295b5f8e9ceb2c896621:apps/api/tests/helpers/push.ts:generic-api-key:34
+3f0fec2c2524fbcfa286967dfa58c424a22d96de:apps/api/tests/functional/push/push_subscriptions.spec.ts:generic-api-key:51
+3f0fec2c2524fbcfa286967dfa58c424a22d96de:apps/api/tests/functional/push/push_subscriptions.spec.ts:generic-api-key:60
+3f0fec2c2524fbcfa286967dfa58c424a22d96de:apps/api/tests/unit/push/web_push_sender.spec.ts:generic-api-key:14

@@ -2,7 +2,7 @@ import { base64UrlToBytes, isAppPath, notificationUrl, sameServerKey } from './p
 
 /** A 65-byte P-256 public key in URL-safe base64, as `GET /config` serves it. */
 const KEY =
-  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
+  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' // gitleaks:allow
 
 describe('push', () => {
   it('test_a_url_safe_base64_key_decodes_to_its_bytes', () => {

@@ -48,7 +48,7 @@ test.group('Push subscriptions', () => {
     const { household, owner } = await createHousehold()
     const existing = await subscribeDevice(owner, household, { failures: 4 })
     const renewed = aBrowserSubscription(existing.endpoint)
-    renewed.keys.auth = 'bmV3LWF1dGgtc2VjcmV0IQ'
+    renewed.keys.auth = 'bmV3LWF1dGgtc2VjcmV0IQ' // gitleaks:allow
 
     const response = await client.post('/api/v1/push/subscriptions').json(renewed).actingAs(owner)
 
@@ -57,7 +57,7 @@ test.group('Push subscriptions', () => {
     assert.lengthOf(devices, 1)
     assert.include(devices[0].serialize(), {
       id: existing.id,
-      auth: 'bmV3LWF1dGgtc2VjcmV0IQ',
+      auth: 'bmV3LWF1dGgtc2VjcmV0IQ', // gitleaks:allow
       failures: 0,
     })
   })

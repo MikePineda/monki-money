@@ -10,8 +10,8 @@ const PAYLOAD = {
   tag: 'daily-reminder',
 }
 const KEYS = {
-  p256dh: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
-  auth: 'tBHItJI5svbpez7KI4CCXg',
+  p256dh: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', // gitleaks:allow
+  auth: 'tBHItJI5svbpez7KI4CCXg', // gitleaks:allow
 }
 
 function vapid() {
