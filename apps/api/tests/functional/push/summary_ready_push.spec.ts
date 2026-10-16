@@ -138,6 +138,37 @@ test.group('Summary ready push', (group) => {
     assert.lengthOf(push.to(partnerPhone.endpoint), 1)
   })
 
+  test('test_a_partial_summary_the_scheduler_replaces_on_the_first_is_announced', async ({
+    assert,
+    cleanup,
+  }) => {
+    const push = fakePush(cleanup)
+    const { household, owner, accounts, ownerPhone } = await couple()
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      createdByUserId: owner.id,
+      date: '2026-09-03',
+      amountCents: -8_000,
+    }).create()
+    // Tapped on the 20th: covers 1-20 September, not announced.
+    await scheduledSummary(household.id, {
+      byUserId: owner.id,
+      generatedAt: DateTime.fromISO('2026-09-20T10:00:00+10:00'),
+    })
+    const scheduler = new Scheduler(
+      [await app.container.make(MonthlyInsightsJob), await app.container.make(SummaryReadyJob)],
+      () => FIRST_OF_OCTOBER,
+      { info: () => undefined, warn: () => undefined, error: () => undefined }
+    )
+
+    await scheduler.tick()
+
+    const [replaced] = await MonthlyInsight.query().where('household_id', household.id)
+    assert.isNull(replaced.generatedByUserId, 'written by the scheduler now')
+    assert.lengthOf(push.to(ownerPhone.endpoint), 1)
+  })
+
   test('test_a_member_who_turned_the_summary_off_or_has_no_device_gets_nothing', async ({
     assert,
     cleanup,
