@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, resource, signal } from '@angular/core'
+import { Component, computed, inject, input, resource, signal, untracked } from '@angular/core'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { TranslocoPipe } from '@jsverse/transloco'
 import { failureMessage } from '../../../core/api/error-messages'
@@ -6,6 +6,7 @@ import { toApiError } from '../../../core/api/http-errors'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { MembersStore } from '../../../core/household/members.store'
 import { MonthStore } from '../../../core/month/month.store'
+import { newClientId } from '../../../core/platform/client-id'
 import { CLOCK } from '../../../core/platform/clock.token'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { ToastStore } from '../../../core/ui/toast.store'
@@ -143,25 +144,35 @@ export default class PayslipNewPage {
       : 'loading'
   })
 
-  /** The draft the form starts from, once the account and categories are known. */
+  /**
+   * The draft the form starts from, built once the account and categories
+   * are known. Only the directory's readiness is tracked: a later reload of
+   * the household's accounts or categories must never rebuild it, or the
+   * form's `linkedSignal` would wipe what was typed.
+   */
   protected readonly initial = computed<PayslipDraft | null>(() => {
     if (!this.directoryReady.hasValue()) {
       return null
     }
+    return untracked(() => this.startingDraft())
+  })
+
+  protected retry(): void {
+    this.attempt.update((value) => value + 1)
+  }
+
+  private startingDraft(): PayslipDraft {
     const account = this.account()
     const youId = this.directory.youId() ?? 0
     const bySlug = (slug: string) =>
       this.expenseCategories().find((entry) => entry.category.slug === slug)?.category.id ?? null
     return emptyPayslipDraft({
+      clientId: newClientId(),
       date: todayIn(this.timeZone(), this.clock()),
       person: account ? ownerChoiceOf(account.ownerUserId, youId) : 'you',
       taxCategoryId: bySlug(TAX_SLUG),
       feeCategoryId: bySlug(FEE_SLUG),
     })
-  })
-
-  protected retry(): void {
-    this.attempt.update((value) => value + 1)
   }
 
   protected async save(draft: PayslipDraft): Promise<void> {

@@ -24,6 +24,7 @@ const payout: PayoutCandidate = {
 
 function blank(): PayslipDraft {
   return emptyPayslipDraft({
+    clientId: 'draft-1',
     date: '2026-10-16',
     person: 'you',
     taxCategoryId: TAXES,
@@ -41,6 +42,7 @@ describe('payslip draft', () => {
   it('test_a_new_draft_waits_for_a_payout_and_defaults_the_categories', () => {
     const draft = blank()
 
+    expect(draft.clientId).toBe('draft-1')
     expect(draft.source).toBe('transfer')
     expect(draft.transferId).toBeNull()
     expect(draft.tax.categoryId).toBe(TAXES)
@@ -104,6 +106,7 @@ describe('payslip draft', () => {
     const body = payslipPayload({ ...typical(), memo: '  August invoice ' }, 9, PEOPLE)
 
     expect(body).toEqual({
+      clientId: 'draft-1',
       accountId: 9,
       date: '2026-08-31',
       userId: 1,
@@ -128,6 +131,7 @@ describe('payslip draft', () => {
 
     // 5,000.00 - 1,250.00 - 3,750.00 leaves no fee: only the tax line goes.
     expect(payslipPayload(draft, 9, PEOPLE)).toEqual({
+      clientId: 'draft-1',
       accountId: 9,
       date: '2026-08-31',
       userId: null,

@@ -12,6 +12,7 @@ import {
 import { aMember, aUser, anAccount, validationError } from '../../../../testing/session-fixtures'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
+import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { CategoriesApi } from '../../../core/household/categories.api'
 import { HouseholdApi } from '../../../core/household/household.api'
 import { MonthStore } from '../../../core/month/month.store'
@@ -136,6 +137,7 @@ describe('PayslipNewPage', () => {
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/settings/accounts/3/payslips'))
     expect(api.candidates).toHaveBeenCalledWith(3)
     expect(api.create).toHaveBeenCalledWith({
+      clientId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       accountId: 3,
       date: '2026-08-31',
       userId: 1,
@@ -149,6 +151,19 @@ describe('PayslipNewPage', () => {
     })
     expect(month.invalidateDate).toHaveBeenCalledWith('2026-08-31')
     expect(toasts.show).toHaveBeenCalledWith({ messageKey: 'payslips.saved', status: 'good' })
+  })
+
+  it('test_a_household_reload_while_typing_keeps_the_draft', async () => {
+    const { click, type, text, harness } = await open()
+    await click('payslips.form.candidate.70')
+    await type('gross', '5', '0', '0', '0', '00')
+
+    // Any screen may refresh the accounts and categories behind the scenes.
+    await TestBed.inject(HouseholdDirectory).load(true)
+    await harness.fixture.whenStable()
+
+    expect(text('payslips.form.gross')).toBe('$5,000.00')
+    expect(text('payslips.form.fee')).toBe('$1,300.00')
   })
 
   it('test_the_person_defaults_to_the_wallet_owner', async () => {

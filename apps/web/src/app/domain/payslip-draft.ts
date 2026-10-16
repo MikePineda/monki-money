@@ -29,6 +29,8 @@ export interface DeductionDraft {
 
 /** What the form edits. Amounts are positive integer cents. */
 export interface PayslipDraft {
+  /** Idempotency key, one per draft: a save sent twice records one payslip. */
+  clientId: string
   source: PayoutSource
   transferId: number | null
   /** With no transfer yet: where the API sends the net. */
@@ -61,6 +63,7 @@ export type PayslipProblem =
 
 /** `POST /payslips` */
 export interface PayslipBody {
+  clientId: string
   accountId: number
   date: string
   userId: number | null
@@ -72,6 +75,7 @@ export interface PayslipBody {
 }
 
 export interface PayslipDraftDefaults {
+  clientId: string
   date: string
   person: OwnerChoice
   taxCategoryId: number | null
@@ -80,6 +84,7 @@ export interface PayslipDraftDefaults {
 
 export function emptyPayslipDraft(defaults: PayslipDraftDefaults): PayslipDraft {
   return {
+    clientId: defaults.clientId,
     source: 'transfer',
     transferId: null,
     toAccountId: null,
@@ -164,6 +169,7 @@ export function payslipPayload(
   people: { youId: number; partnerId: number | null }
 ): PayslipBody {
   return {
+    clientId: draft.clientId,
     accountId,
     date: draft.date,
     userId: ownerUserIdFor(draft.person, people.youId, people.partnerId),
