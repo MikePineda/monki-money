@@ -1,10 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  DEFAULT_NOTIFICATION_SETTINGS,
-  isReminderTime,
-  reminderMinutes,
-} from './notifications.ts'
+import { DEFAULT_NOTIFICATION_SETTINGS, isReminderTime, reminderMinutes } from './notifications.ts'
 
 test('the summary is on and the daily reminder off at 20:00 by default', () => {
   assert.deepEqual(DEFAULT_NOTIFICATION_SETTINGS, {
