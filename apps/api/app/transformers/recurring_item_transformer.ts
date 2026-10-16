@@ -1,11 +1,13 @@
 import type RecurringItem from '#models/recurring_item'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
+import { pausedByDetection } from '#domain/recurring/redetection'
 
 /**
  * A recurring payment. `amountCents` is the typical amount (positive);
  * `merchantKey` is what payments match (fixed at creation, `payee` is only
- * its name); `paidByUserId` null = joint.
+ * its name); `paidByUserId` null = joint. `pausedByDetection`: paused
+ * because its payments stopped (a person did not pause it).
  */
 export default class RecurringItemTransformer extends BaseTransformer<RecurringItem> {
   toObject() {
@@ -23,6 +25,7 @@ export default class RecurringItemTransformer extends BaseTransformer<RecurringI
       lastPaidDate: item.lastPaidDate,
       nextExpectedDate: item.nextExpectedDate,
       status: item.status,
+      pausedByDetection: pausedByDetection(item),
       source: item.source,
       occurrences: item.occurrences,
       createdAt: isoTimestamp(item.createdAt)!,

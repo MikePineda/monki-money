@@ -1,7 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import type { Payment } from '#domain/recurring/detection'
 import type { PrivacySubject } from '#domain/ledger/privacy'
-import { transactionMerchantKey } from '#domain/recurring/merchant_key'
+import { payeeMerchantKey, transactionMerchantKey } from '#domain/recurring/merchant_key'
 import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
 
 type PaymentRow = {
@@ -27,7 +27,9 @@ export type LedgerPayment = Payment & PrivacySubject
  * not flattened: a payment is what left the account, once. Transfers and
  * money coming in (refunds, income) are never payments. The merchant key
  * is the bank row's when the transaction was imported, else its payee's
- * (app/domain/recurring/merchant_key.ts).
+ * (app/domain/recurring/merchant_key.ts); the payee key is always the
+ * payee's, so an item typed by hand ("Rent") matches the imported row the
+ * person named that way.
  */
 export default class MerchantPaymentsRepository {
   /** Payments of the household dated `from`..`to` (inclusive), oldest first. */
@@ -71,6 +73,7 @@ export default class MerchantPaymentsRepository {
         payee: row.payee,
         rawDescription: row.raw_description,
       }),
+      payeeKey: row.payee ? payeeMerchantKey(row.payee) : '',
       payee: row.payee,
       categoryId: row.category_id,
       accountId: row.account_id,

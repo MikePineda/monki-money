@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import { addDays } from '#domain/importing/iso_days'
+import { addMonthsKeepingDay } from '#domain/recurring/cadence'
 import { cadenceOf, detectRecurring, type Payment } from '#domain/recurring/detection'
 
 let nextId = 1
@@ -11,6 +12,7 @@ function payment(overrides: Partial<Payment> = {}): Payment {
     date: '2026-10-01',
     amountCents: 50_000,
     merchantKey: 'harbour lettings',
+    payeeKey: 'harbour lettings',
     payee: 'Harbour Lettings',
     categoryId: 7,
     accountId: 1,
@@ -35,6 +37,7 @@ test.group('Recurring: detection', () => {
     assert.deepEqual(detected, [
       {
         merchantKey: 'harbour lettings',
+        payeeKeys: ['harbour lettings'],
         payee: 'Harbour Lettings',
         cadence: 'weekly',
         amountCents: 50_000,
@@ -140,8 +143,118 @@ test.group('Recurring: detection', () => {
       cadenceOf(['2026-04-05', '2026-05-05', '2026-07-05', '2026-08-05', '2026-09-05']),
       'monthly'
     )
-    // Four payments with one skip: only two of three gaps are one step.
-    assert.isNull(cadenceOf(['2026-05-05', '2026-07-05', '2026-08-05', '2026-09-05']))
+    // Every other month: no run has enough single steps.
+    assert.isNull(cadenceOf(['2026-03-05', '2026-05-05', '2026-07-05', '2026-09-05']))
+  })
+
+  test('test_the_latest_regular_run_counts_and_older_gaps_do_not', ({ assert }) => {
+    // A skipped month long ago: the three latest payments still make a run.
+    assert.equal(cadenceOf(['2026-05-05', '2026-07-05', '2026-08-05', '2026-09-05']), 'monthly')
+  })
+
+  test('test_a_duplicate_charge_long_ago_does_not_hide_the_subscription', ({ assert }) => {
+    const charges = Array.from({ length: 12 }, (_, month) =>
+      payment({
+        date: addMonthsKeepingDay('2025-11-05', month),
+        amountCents: 1_899,
+        merchantKey: 'streamflix',
+      })
+    ).filter((charge) => charge.date <= TODAY)
+    const duplicate = payment({ date: '2026-03-06', amountCents: 1_899, merchantKey: 'streamflix' })
+
+    const [item] = detectRecurring([...charges, duplicate], { today: TODAY })
+    assert.include(item, { cadence: 'monthly', amountCents: 1_899, lastPaidDate: '2026-10-05' })
+    // The run starts after the duplicate: March 6 to October 5.
+    assert.equal(item.occurrences, 8)
+  })
+
+  test('test_a_pause_months_ago_does_not_hide_the_payments_since', ({ assert }) => {
+    const months = [0, 1, 2, 3, 7, 8, 9, 10, 11]
+    const payments = months
+      .map((month) =>
+        payment({
+          date: addMonthsKeepingDay('2025-11-05', month),
+          amountCents: 1_399,
+          merchantKey: 'tunebox',
+        })
+      )
+      .filter((entry) => entry.date <= TODAY)
+
+    const [item] = detectRecurring(payments, { today: TODAY })
+    assert.include(item, { cadence: 'monthly', occurrences: 5, nextExpectedDate: '2026-11-05' })
+  })
+
+  test('test_payments_of_the_same_day_are_one_payment', ({ assert }) => {
+    // Both partners pay their own gym membership on the same day.
+    const payments = [0, 7, 14, 21].flatMap((daysBefore) => [
+      payment({
+        date: addDays('2026-10-14', -daysBefore),
+        amountCents: 2_500,
+        merchantKey: 'pulse gym',
+        paidByUserId: 1,
+      }),
+      payment({
+        date: addDays('2026-10-14', -daysBefore),
+        amountCents: 2_500,
+        merchantKey: 'pulse gym',
+        paidByUserId: 2,
+      }),
+    ])
+
+    const [item] = detectRecurring(payments, { today: TODAY })
+    assert.include(item, { cadence: 'weekly', amountCents: 5_000, occurrences: 4 })
+    assert.isNull(item.paidByUserId, 'two people paid: joint')
+  })
+
+  test('test_weekly_groceries_of_varying_amounts_are_not_recurring', ({ assert }) => {
+    // Every Saturday for a year, between $120 and $200.
+    const amounts = [
+      123, 188, 151, 197, 134, 166, 142, 181, 129, 159, 193, 138, 172, 147, 185, 121, 163, 199, 136,
+      155, 177, 128, 190, 145, 168, 132, 183, 150, 196, 125, 161, 140, 187, 131, 174, 158, 194, 127,
+      169, 144, 182, 135, 165, 198, 139, 153, 186, 130, 178, 148, 191, 157,
+    ]
+    const payments = amounts.map((dollars, week) =>
+      payment({
+        date: addDays('2026-10-10', -7 * (amounts.length - 1 - week)),
+        amountCents: dollars * 100,
+        merchantKey: 'corner grocer',
+      })
+    )
+
+    assert.deepEqual(detectRecurring(payments, { today: TODAY }), [])
+  })
+
+  test('test_the_payer_is_who_paid_most_of_the_run_else_joint', ({ assert }) => {
+    const alternating = series('2026-10-13', 7, 8).map((entry, index) => ({
+      ...entry,
+      paidByUserId: index % 2 === 0 ? 1 : 2,
+    }))
+    assert.isNull(detectRecurring(alternating, { today: TODAY })[0].paidByUserId)
+
+    const mostlyOne = series('2026-10-13', 7, 8).map((entry, index) => ({
+      ...entry,
+      paidByUserId: index === 3 ? 2 : 1,
+    }))
+    assert.equal(detectRecurring(mostlyOne, { today: TODAY })[0].paidByUserId, 1)
+  })
+
+  test('test_yearly_payments_are_found_in_two_years_of_history', ({ assert }) => {
+    const insurance = ['2024-10-01', '2025-10-01', '2026-10-01'].map((date) =>
+      payment({ date, amountCents: 120_000, merchantKey: 'car insurance' })
+    )
+
+    const [item] = detectRecurring(insurance, { today: TODAY })
+    assert.include(item, { cadence: 'yearly', nextExpectedDate: '2027-10-01', occurrences: 3 })
+    // Two payments a year apart are not a pattern yet.
+    assert.deepEqual(detectRecurring(insurance.slice(1), { today: TODAY }), [])
+  })
+
+  test('test_the_payee_keys_of_its_payments_come_with_the_item', ({ assert }) => {
+    const payments = series('2026-10-13', 7, 4, { merchantKey: 'rent harbour lettings' }).map(
+      (entry, index) => ({ ...entry, payeeKey: index === 0 ? '' : 'rent' })
+    )
+
+    assert.deepEqual(detectRecurring(payments, { today: TODAY })[0].payeeKeys, ['rent'])
   })
 
   test('test_quarterly_payments_are_detected_within_a_year', ({ assert }) => {
@@ -169,14 +282,13 @@ test.group('Recurring: detection', () => {
     payments[2].categoryId = 9
     payments[3].payee = 'Harbour Lettings Pty'
     payments[3].accountId = 2
-    payments[3].paidByUserId = 5
 
     const [item] = detectRecurring(payments, { today: TODAY })
     assert.include(item, {
       payee: 'Harbour Lettings Pty',
       categoryId: 9,
       accountId: 2,
-      paidByUserId: 5,
+      paidByUserId: null,
     })
   })
 

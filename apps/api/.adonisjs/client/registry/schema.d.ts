@@ -1051,6 +1051,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
     }
   }
+  'recurring.merchants': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/recurring/merchants'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['merchants']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['merchants']>>>
+    }
+  }
   'recurring.store': {
     methods: ["POST"]
     pattern: '/api/v1/recurring'

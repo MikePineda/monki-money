@@ -342,6 +342,7 @@ router
             router
               .group(() => {
                 router.get('/', [controllers.Recurring, 'index']).as('index')
+                router.get('merchants', [controllers.Recurring, 'merchants']).as('merchants')
                 router.post('/', [controllers.Recurring, 'store']).as('store')
                 router.post('detect', [controllers.Recurring, 'detect']).as('detect')
                 router.patch(':id', [controllers.Recurring, 'update']).where('id', id).as('update')

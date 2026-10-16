@@ -528,6 +528,12 @@ const routes = {
     tokens: [{"old":"/api/v1/recurring","type":0,"val":"api","end":""},{"old":"/api/v1/recurring","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring","type":0,"val":"recurring","end":""}],
     types: placeholder as Registry['recurring.index']['types'],
   },
+  'recurring.merchants': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/recurring/merchants',
+    tokens: [{"old":"/api/v1/recurring/merchants","type":0,"val":"api","end":""},{"old":"/api/v1/recurring/merchants","type":0,"val":"v1","end":""},{"old":"/api/v1/recurring/merchants","type":0,"val":"recurring","end":""},{"old":"/api/v1/recurring/merchants","type":0,"val":"merchants","end":""}],
+    types: placeholder as Registry['recurring.merchants']['types'],
+  },
   'recurring.store': {
     methods: ["POST"],
     pattern: '/api/v1/recurring',

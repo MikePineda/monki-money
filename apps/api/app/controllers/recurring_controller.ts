@@ -20,6 +20,13 @@ export default class RecurringController {
     return ctx.serialize(RecurringItemTransformer.transform(items))
   }
 
+  /** GET /recurring/merchants: merchants paid lately that no item tracks, to add one by hand. */
+  async merchants(ctx: HttpContext) {
+    const merchants = await this.recurring.merchants(ctx.household, ctx.auth.getUserOrFail())
+
+    return { data: merchants }
+  }
+
   /** POST /recurring: a recurring payment typed by a person. */
   async store(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(createRecurringValidator)

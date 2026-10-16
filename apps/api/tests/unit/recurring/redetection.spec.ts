@@ -7,6 +7,7 @@ const TODAY = '2026-10-16'
 function detected(overrides: Partial<DetectedItem> = {}): DetectedItem {
   return {
     merchantKey: 'harbour lettings',
+    payeeKeys: ['harbour lettings'],
     payee: 'Harbour Lettings',
     cadence: 'weekly',
     amountCents: 50_000,
@@ -185,7 +186,8 @@ test.group('Recurring: re-detection', () => {
   })
 
   test('test_a_paused_item_stays_paused_while_its_dates_move', ({ assert }) => {
-    const paused = tracked({ status: 'paused' })
+    // Paused by a person: detection keeps the status they chose.
+    const paused = tracked({ status: 'paused', editedFields: ['status'] })
 
     const plan = planRedetection(
       [paused],
@@ -195,5 +197,67 @@ test.group('Recurring: re-detection', () => {
 
     assert.notProperty(plan.update[0].changes, 'status')
     assert.equal(plan.update[0].changes.nextExpectedDate, '2026-10-27')
+  })
+
+  test('test_a_pattern_paid_under_a_hand_typed_payee_lands_on_that_item', ({ assert }) => {
+    // Typed "Rent"; the bank calls it a transfer to the agency, the person named it "Rent".
+    const manual = tracked({
+      merchantKey: 'rent',
+      payee: 'Rent',
+      source: 'manual',
+      lastPaidDate: null,
+      occurrences: 0,
+    })
+
+    const plan = planRedetection(
+      [manual],
+      [detected({ merchantKey: 'rent harbour lettings', payeeKeys: ['rent'] })],
+      TODAY
+    )
+
+    assert.deepEqual(plan.create, [], 'no second item for the same bill')
+    assert.deepEqual(plan.update, [
+      { id: 1, changes: { occurrences: 4, lastPaidDate: '2026-10-13' } },
+    ])
+  })
+
+  test('test_a_cancelled_subscription_is_paused_and_resumed_when_paid_again', ({ assert }) => {
+    const lapsed = tracked({ lastPaidDate: '2026-07-07', nextExpectedDate: '2026-07-14' })
+
+    // Weekly, last paid in July: two steps and a month of import lag have passed.
+    const paused = planRedetection([lapsed], [], TODAY)
+    assert.deepEqual(paused.update, [{ id: 1, changes: { status: 'paused' } }])
+
+    const back = planRedetection([{ ...lapsed, status: 'paused' }], [detected()], TODAY)
+    assert.equal(back.update[0].changes.status, 'active')
+  })
+
+  test('test_detection_never_changes_a_status_a_person_chose_or_an_edited_item', ({ assert }) => {
+    const old = { lastPaidDate: '2026-07-07', nextExpectedDate: '2026-07-14' }
+
+    assert.deepEqual(
+      planRedetection([tracked({ ...old, editedFields: ['amountCents'] })], [], TODAY),
+      {
+        create: [],
+        update: [],
+      }
+    )
+    assert.deepEqual(planRedetection([tracked({ ...old, source: 'manual' })], [], TODAY), {
+      create: [],
+      update: [],
+    })
+    const pausedByPerson = tracked({ status: 'paused', editedFields: ['status'] })
+    assert.notProperty(
+      planRedetection([pausedByPerson], [detected()], TODAY).update[0]?.changes ?? {},
+      'status'
+    )
+  })
+
+  test('test_an_item_still_paid_at_a_new_price_is_not_paused', ({ assert }) => {
+    const lapsed = tracked({ lastPaidDate: '2026-07-07', nextExpectedDate: '2026-07-14' })
+
+    const plan = planRedetection([lapsed], [], TODAY, new Map([['harbour lettings', '2026-10-13']]))
+
+    assert.deepEqual(plan.update, [])
   })
 })

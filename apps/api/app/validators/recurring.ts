@@ -17,7 +17,16 @@ const recurringFields = {
   paidByUserId: id().nullable().optional(),
 }
 
-export const createRecurringValidator = vine.create(recurringFields)
+export const createRecurringValidator = vine.create({
+  ...recurringFields,
+  /** A suggestion's merchant key (lowercase words, as the importer writes them). */
+  merchantKey: vine
+    .string()
+    .trim()
+    .maxLength(255)
+    .regex(/^[a-z]+( [a-z]+)*$/)
+    .optional(),
+})
 
 export const updateRecurringValidator = vine.create({
   params: idParams(),

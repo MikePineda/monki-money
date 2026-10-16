@@ -138,6 +138,7 @@ export interface ApiDefinition {
   }
   recurring: {
     index: typeof routes['recurring.index']
+    merchants: typeof routes['recurring.merchants']
     store: typeof routes['recurring.store']
     detect: typeof routes['recurring.detect']
     update: typeof routes['recurring.update']

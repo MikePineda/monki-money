@@ -1,6 +1,11 @@
 import { test } from '@japa/runner'
 import type User from '#models/user'
+import ImportRow from '#models/import_row'
+import ImportBatch from '#models/import_batch'
+import Transaction from '#models/transaction'
 import RecurringItem from '#models/recurring_item'
+import app from '@adonisjs/core/services/app'
+import RecurringDetector from '#services/recurring/recurring_detector'
 import { addDays } from '#domain/importing/iso_days'
 import drive from '@adonisjs/drive/services/main'
 import { nabCsv } from '#tests/helpers/importing'
@@ -25,6 +30,7 @@ const ITEM_FIELDS = [
   'lastPaidDate',
   'nextExpectedDate',
   'status',
+  'pausedByDetection',
   'source',
   'occurrences',
   'createdAt',
@@ -64,6 +70,50 @@ async function payments(
 
 function detect(client: any, user: User) {
   return client.post('/api/v1/recurring/detect').actingAs(user)
+}
+
+/**
+ * Weekly rent paid by bank transfer and imported: the bank row's merchant
+ * key is the agency's, while the person named the payee "Rent".
+ */
+async function importedRent(home: TestHousehold, dates: string[]) {
+  const batch = await ImportBatch.create({
+    householdId: home.household.id,
+    accountId: home.accounts[0].id,
+    source: 'nab_csv',
+    status: 'completed',
+    fileHash: 'c'.repeat(64),
+  })
+  for (const [index, date] of dates.entries()) {
+    const transaction = await TransactionFactory.merge({
+      householdId: home.household.id,
+      accountId: home.accounts[0].id,
+      payee: 'Rent',
+      date,
+      amountCents: -50_000,
+      source: 'import',
+      rawDescription: `ONLINE A123456789${index} Rent Harbour Lettings`,
+      createdByUserId: home.owner.id,
+    }).create()
+    await ImportRow.create({
+      importBatchId: batch.id,
+      householdId: home.household.id,
+      accountId: home.accounts[0].id,
+      rowIndex: index,
+      externalHash: String(index).repeat(64).slice(0, 64),
+      raw: {},
+      bankDate: date,
+      date,
+      amountCents: -50_000,
+      descriptionRaw: `ONLINE A123456789${index} Rent Harbour Lettings`,
+      descriptionNormalized: 'Rent Harbour Lettings',
+      merchantKey: 'rent harbour lettings',
+      merchantFullKey: 'rent harbour lettings',
+      resolution: 'new',
+      reasons: [],
+      transactionId: transaction.id,
+    })
+  }
 }
 
 test.group('Recurring payments', (group) => {
@@ -320,6 +370,139 @@ test.group('Recurring payments', (group) => {
     })
   })
 
+  test('test_an_item_typed_by_hand_matches_the_imported_rows_and_is_not_detected_twice', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await importedRent(home, ['2026-09-22', '2026-09-29', '2026-10-06', '2026-10-13'])
+    const typed = await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Rent',
+        cadence: 'weekly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-09-22',
+      })
+      .actingAs(home.owner)
+    typed.assertStatus(201)
+    assert.equal(typed.body().data.merchantKey, 'rent')
+
+    // The imported transfers the person named "Rent" pay it.
+    const month = await client.get('/api/v1/reports/month?month=2026-10').actingAs(home.owner)
+    assert.deepEqual(
+      month.body().data.committed.items.map((item: any) => [item.dueDate, item.paid]),
+      [
+        ['2026-10-06', true],
+        ['2026-10-13', true],
+        ['2026-10-20', false],
+        ['2026-10-27', false],
+      ]
+    )
+
+    // Detection finds the pattern under the bank's key and lands it on the typed item.
+    const detected = await detect(client, home.owner)
+    assert.deepEqual(detected.body().data, { created: 0, updated: 1 })
+    const items = await RecurringItem.query().where('household_id', home.household.id)
+    assert.lengthOf(items, 1)
+    assert.include(items[0].serialize(), {
+      merchantKey: 'rent',
+      source: 'manual',
+      occurrences: 4,
+      lastPaidDate: '2026-10-13',
+    })
+  })
+
+  test('test_adding_an_item_offers_the_merchants_paid_lately', async ({ client, assert }) => {
+    const home = await createHousehold({ users: 2, accounts: [{}] })
+    await importedRent(home, ['2026-09-29', '2026-10-06', '2026-10-13'])
+    await payments(home, {
+      payee: 'Corner Grocer',
+      last: '2026-10-10',
+      everyDays: 7,
+      count: 2,
+      amountCents: 8_000,
+    })
+    await payments(home, {
+      payee: 'Surprise Gift Shop',
+      last: '2026-10-11',
+      everyDays: 1,
+      count: 1,
+      state: 'private',
+      paidByUserId: home.owner.id,
+    })
+
+    const offered = await client.get('/api/v1/recurring/merchants').actingAs(home.member)
+
+    offered.assertStatus(200)
+    assert.deepEqual(offered.body().data, [
+      {
+        merchantKey: 'rent harbour lettings',
+        payee: 'Rent',
+        amountCents: 50_000,
+        lastPaidDate: '2026-10-13',
+        count: 3,
+      },
+      {
+        merchantKey: 'corner grocer',
+        payee: 'Corner Grocer',
+        amountCents: 8_000,
+        lastPaidDate: '2026-10-10',
+        count: 2,
+      },
+    ])
+
+    // Picking one keys the item like the bank, so it is not offered again.
+    const created = await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Rent',
+        merchantKey: 'rent harbour lettings',
+        cadence: 'weekly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-10-20',
+      })
+      .actingAs(home.member)
+    created.assertStatus(201)
+    assert.equal(created.body().data.merchantKey, 'rent harbour lettings')
+    const after = await client.get('/api/v1/recurring/merchants').actingAs(home.member)
+    assert.deepEqual(
+      after.body().data.map((merchant: any) => merchant.merchantKey),
+      ['corner grocer']
+    )
+
+    const invalid = await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Rent',
+        merchantKey: 'Rent Harbour 123',
+        cadence: 'weekly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-10-20',
+      })
+      .actingAs(home.member)
+    invalid.assertStatus(422)
+    invalid.assertBodyContains({ errors: [{ field: 'merchantKey', rule: 'regex' }] })
+  })
+
+  test('test_a_status_a_person_chose_is_kept_by_detection', async ({ client, assert }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await payments(home, { payee: 'Harbour Lettings', last: '2026-10-13', everyDays: 7, count: 4 })
+    await detect(client, home.owner)
+    const item = await RecurringItem.query().where('household_id', home.household.id).firstOrFail()
+
+    const paused = await client
+      .patch(`/api/v1/recurring/${item.id}`)
+      .json({ status: 'paused' })
+      .actingAs(home.owner)
+    assert.include(paused.body().data, { status: 'paused', pausedByDetection: false })
+    await detect(client, home.owner)
+
+    await item.refresh()
+    assert.equal(item.status, 'paused')
+    assert.include(item.editedFields, 'status')
+  })
+
   test('test_foreign_ids_in_recurring_bodies_are_rejected_with_422', async ({ client, assert }) => {
     const victim = await createHousehold({ taxonomy: true, accounts: [{}] })
     const victimCategory = await categoryBySlug(victim.household.id, 'groceries')
@@ -403,6 +586,7 @@ test.group('Recurring payments: committed this month', (group) => {
       amountCents: 50_000,
       dueDate,
       paid,
+      overdue: false,
       categoryId: rent.id,
     })
     assert.deepEqual(response.body().data.committed, {
@@ -420,6 +604,7 @@ test.group('Recurring payments: committed this month', (group) => {
           amountCents: 6_500,
           dueDate: '2026-10-28',
           paid: false,
+          overdue: false,
           categoryId: phone.id,
         },
       ],
@@ -449,7 +634,7 @@ test.group('Recurring payments: committed this month', (group) => {
       .actingAs(home.owner)
     await payments(home, {
       payee: 'Pulse Gym',
-      last: '2026-10-10',
+      last: '2026-10-20',
       everyDays: 1,
       count: 1,
       amountCents: 2_990,
@@ -462,6 +647,59 @@ test.group('Recurring payments: committed this month', (group) => {
 
     assert.deepInclude(partner.body().data.committed, { paidCents: 0, upcomingCents: 2_990 })
     assert.deepInclude(payer.body().data.committed, { paidCents: 2_990, upcomingCents: 0 })
+  })
+
+  test('test_a_due_date_already_past_and_unpaid_is_overdue_and_still_due', async ({
+    client,
+    assert,
+  }) => {
+    // Mid-October, only September's rent in the ledger (the bank export comes monthly).
+    const home = await createHousehold({ accounts: [{}] })
+    await payments(home, { payee: 'Harbour Lettings', last: '2026-09-29', everyDays: 7, count: 4 })
+    await detect(client, home.owner)
+
+    const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(home.owner)
+
+    const { committed } = response.body().data
+    assert.equal(committed.upcomingCents, 200_000)
+    assert.deepEqual(
+      committed.items.map((item: any) => [item.dueDate, item.overdue]),
+      [
+        ['2026-10-06', true],
+        ['2026-10-13', true],
+        ['2026-10-20', false],
+        ['2026-10-27', false],
+      ]
+    )
+  })
+
+  test('test_refunds_are_never_payments', async ({ client, assert }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    // Four weekly refunds from the same merchant: money coming back, not a bill.
+    await payments(home, {
+      payee: 'Pulse Gym',
+      last: '2026-10-13',
+      everyDays: 7,
+      count: 4,
+      amountCents: 2_990,
+      state: 'income',
+    })
+    const detected = await detect(client, home.owner)
+    assert.deepEqual(detected.body().data, { created: 0, updated: 0 })
+
+    await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Pulse Gym',
+        cadence: 'weekly',
+        amountCents: 2_990,
+        nextExpectedDate: '2026-10-06',
+      })
+      .actingAs(home.owner)
+    const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(home.owner)
+
+    assert.equal(response.body().data.committed.paidCents, 0)
+    assert.isFalse(response.body().data.committed.items.some((item: any) => item.paid))
   })
 
   test('test_a_household_without_items_commits_nothing', async ({ client, assert }) => {
@@ -521,5 +759,38 @@ test.group('Recurring payments: after an import', (group) => {
       nextExpectedDate: '2026-10-20',
       source: 'detected',
     })
+  })
+
+  test('test_a_detection_failure_after_confirm_leaves_the_import_confirmed', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    class BrokenDetector extends RecurringDetector {
+      override async detect(): Promise<never> {
+        throw new Error('detection exploded')
+      }
+    }
+    app.container.swap(RecurringDetector, () => new BrokenDetector({} as never, {} as never))
+    cleanup(() => app.container.restore(RecurringDetector))
+    const home = await nabHousehold()
+    const csv = nabCsv([
+      nabLine({
+        date: '13 Oct 26',
+        amount: '-29.90',
+        details: 'V1111 13/10 PULSE GYM SAMPLEVILLE 70000000900',
+        merchant: 'Pulse Gym (Sampleville)',
+      }),
+    ])
+    const upload = await uploadCsv(client, home.owner, csv)
+
+    const confirm = await client
+      .post(`/api/v1/imports/${upload.body().data[0].id}/confirm`)
+      .actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    assert.include(confirm.body().data, { status: 'completed', created: 1 })
+    assert.lengthOf(await Transaction.query().where('household_id', home.household.id), 1)
+    assert.lengthOf(await RecurringItem.query().where('household_id', home.household.id), 0)
   })
 })

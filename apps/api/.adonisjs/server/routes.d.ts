@@ -91,6 +91,7 @@ export type ScannedRoutes = {
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'recurring.index': { paramsTuple?: []; params?: {} }
+    'recurring.merchants': { paramsTuple?: []; params?: {} }
     'recurring.store': { paramsTuple?: []; params?: {} }
     'recurring.detect': { paramsTuple?: []; params?: {} }
     'recurring.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -129,6 +130,7 @@ export type ScannedRoutes = {
     'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.index': { paramsTuple?: []; params?: {} }
     'recurring.index': { paramsTuple?: []; params?: {} }
+    'recurring.merchants': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
@@ -161,6 +163,7 @@ export type ScannedRoutes = {
     'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.index': { paramsTuple?: []; params?: {} }
     'recurring.index': { paramsTuple?: []; params?: {} }
+    'recurring.merchants': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {

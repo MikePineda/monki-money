@@ -2,7 +2,9 @@ import { inject } from '@adonisjs/core'
 import type Household from '#models/household'
 import RecurringItem from '#models/recurring_item'
 import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
+import { addDays } from '#domain/importing/iso_days'
 import { monthRange, type Month } from '#domain/calendar/month'
+import { MAX_PAYMENT_WINDOW_DAYS } from '#domain/recurring/cadence'
 import { committedInMonth, type Committed } from '#domain/recurring/committed'
 import MerchantPaymentsRepository from '#repositories/merchant_payments_repository'
 
@@ -41,8 +43,13 @@ export default class CommittedReportBuilder {
     }
 
     const { from, to } = monthRange(month)
-    const inMonth = await this.payments.between(household, from, to)
-    const payments = inMonth.filter(
+    // From before the month too: a late payment pays last month's due date, not this month's.
+    const around = await this.payments.between(
+      household,
+      addDays(from, -MAX_PAYMENT_WINDOW_DAYS),
+      to
+    )
+    const payments = around.filter(
       (payment) =>
         !isHiddenFrom(payment, viewer) &&
         (paidByUserId === undefined || payment.paidByUserId === paidByUserId)

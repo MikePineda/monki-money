@@ -1,5 +1,12 @@
+import Clock from '#services/clock'
+import type User from '#models/user'
 import { inject } from '@adonisjs/core'
 import type Household from '#models/household'
+import { todayIn } from '#domain/calendar/month'
+import { addDays } from '#domain/importing/iso_days'
+import { isHiddenFrom } from '#domain/ledger/privacy'
+import { privacyViewer } from '#services/ledger/privacy_viewer'
+import MerchantPaymentsRepository from '#repositories/merchant_payments_repository'
 import db from '@adonisjs/lucid/services/db'
 import RecurringItem from '#models/recurring_item'
 import { FieldError } from '#exceptions/field_error'
@@ -10,7 +17,16 @@ import LedgerReferences from '#services/ledger/ledger_references'
 import { DEFAULT_TOLERANCE_PCT } from '#domain/recurring/detection'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import RecurringDetector, { lockRecurringItems } from '#services/recurring/recurring_detector'
-import type { CreateRecurringInput, UpdateRecurringInput } from '#services/recurring/dto'
+import type {
+  CreateRecurringInput,
+  MerchantSuggestion,
+  UpdateRecurringInput,
+} from '#services/recurring/dto'
+
+/** How far back the merchants offered when adding an item by hand go. */
+const SUGGESTION_DAYS = 120
+/** At most this many merchants are offered. */
+const MAX_SUGGESTIONS = 40
 
 /**
  * Recurring payments of the current household (any member): the list,
@@ -22,7 +38,9 @@ import type { CreateRecurringInput, UpdateRecurringInput } from '#services/recur
 export default class RecurringService {
   constructor(
     protected references: LedgerReferences,
-    protected detector: RecurringDetector
+    protected detector: RecurringDetector,
+    protected payments: MerchantPaymentsRepository,
+    protected clock: Clock
   ) {}
 
   /** Active items first, then paused, then dismissed; each by next due date. */
@@ -38,8 +56,45 @@ export default class RecurringService {
     return this.detector.detect(household)
   }
 
+  /**
+   * The merchants the household paid in the last months that no item
+   * tracks yet, most paid first: adding one of them keys the item like the
+   * bank's rows. A partner's private purchases are never offered.
+   */
+  async merchants(household: Household, viewer: User): Promise<MerchantSuggestion[]> {
+    const today = todayIn(this.clock.now(), household.timezone)
+    const reader = await privacyViewer(household, viewer)
+    const payments = await this.payments.between(household, addDays(today, -SUGGESTION_DAYS), today)
+    const tracked = await RecurringItem.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .select('merchant_key')
+    const taken = new Set(tracked.map((item) => item.merchantKey))
+
+    const byKey = new Map<string, MerchantSuggestion>()
+    for (const payment of payments) {
+      if (!payment.merchantKey || taken.has(payment.merchantKey)) continue
+      if (isHiddenFrom(payment, reader)) continue
+      const entry = byKey.get(payment.merchantKey)
+      byKey.set(payment.merchantKey, {
+        merchantKey: payment.merchantKey,
+        payee: payment.payee?.trim() || entry?.payee || payment.merchantKey,
+        amountCents: payment.amountCents,
+        lastPaidDate: payment.date,
+        count: (entry?.count ?? 0) + 1,
+      })
+    }
+    return [...byKey.values()]
+      .sort(
+        (a, b) =>
+          b.count - a.count ||
+          (a.lastPaidDate < b.lastPaidDate ? 1 : a.lastPaidDate > b.lastPaidDate ? -1 : 0) ||
+          (a.payee < b.payee ? -1 : 1)
+      )
+      .slice(0, MAX_SUGGESTIONS)
+  }
+
   async create(household: Household, input: CreateRecurringInput) {
-    const merchantKey = payeeMerchantKey(input.payee)
+    const merchantKey = input.merchantKey || payeeMerchantKey(input.payee)
     if (merchantKey === '') throw new FieldError('payee', 'merchantKey')
     await this.assertReferences(household, input)
 
@@ -85,7 +140,10 @@ export default class RecurringService {
       const changed = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined)
       )
-      const edited = EDITABLE_FIELDS.filter((field) => field in changed)
+      // A status a person chose is an edit too: detection never pauses or resumes it.
+      const edited = EDITABLE_FIELDS.filter(
+        (field) => field in changed || (field === 'status' && status !== undefined)
+      )
       item.merge({
         ...changed,
         ...(status ? { status } : {}),
