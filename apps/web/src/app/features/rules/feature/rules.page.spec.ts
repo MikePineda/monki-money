@@ -14,9 +14,9 @@ import RulesPage from './rules.page'
 describe('RulesPage', () => {
   let api: Record<'list' | 'create' | 'update' | 'remove' | 'apply', Mock>
 
-  async function open(rules: MerchantRule[]) {
+  async function open(rules: MerchantRule[], list: Mock = vi.fn(async () => rules)) {
     api = {
-      list: vi.fn(async () => rules),
+      list,
       create: vi.fn(async (body: Record<string, unknown>) =>
         aRule({ id: 50, origin: 'user', hitCount: 0, ...body })
       ),
@@ -156,6 +156,25 @@ describe('RulesPage', () => {
     await chooseAction('Apply to movements in review')
 
     await vi.waitFor(() => expect(api.apply).toHaveBeenCalledWith(4))
+  })
+
+  it('test_a_list_that_did_not_load_offers_to_try_again_not_a_new_rule', async () => {
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue([aRule({ id: 7 })])
+    const { root, settle } = await open([], list)
+
+    await vi.waitFor(() => expect(root.querySelector('[data-testid="rules.error"]')).not.toBeNull())
+    expect(root.querySelector('[data-testid="rules.empty"]')).toBeNull()
+    expect(root.querySelector('[data-testid="rules.new"]')).toBeNull()
+
+    root.querySelector<HTMLButtonElement>('[data-testid="rules.error"] button')?.click()
+    await settle()
+
+    await vi.waitFor(() => expect(root.querySelector('[data-testid="rules.error"]')).toBeNull())
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(root.querySelector('[data-testid="rules.new"]')).not.toBeNull()
   })
 
   it('test_no_rules_yet_says_where_they_come_from', async () => {

@@ -1,7 +1,7 @@
 import { DOCUMENT, Injectable, InjectionToken, computed, inject, signal } from '@angular/core'
 import { TranslocoService } from '@jsverse/transloco'
 import { firstValueFrom } from 'rxjs'
-import { APP_LANGS, DEFAULT_LANG, isAppLang, localeFor, type AppLang } from '../../domain/locale'
+import { APP_LANGS, deviceLang, isAppLang, localeFor, type AppLang } from '../../domain/locale'
 import { readPreference, writePreference } from '../platform/local-preference'
 import { WINDOW } from '../platform/window.token'
 
@@ -21,6 +21,11 @@ export const LANG_PERSISTENCE = new InjectionToken<LangPersistence>('LANG_PERSIS
  * The UI language (en / es) and its formatting locale (en-AU / es-MX).
  * Switching is live: Transloco re-renders, <html lang> follows, and the
  * choice is mirrored in localStorage for the next start.
+ *
+ * The start language is the stored choice, else the device's
+ * (`navigator.languages`, see `deviceLang`), so a Spanish phone sees
+ * Spanish from the first screen and signs up in Spanish. The device
+ * language is not stored: only a choice (or the account's language) is.
  */
 @Injectable({ providedIn: 'root' })
 export class LangStore {
@@ -29,7 +34,7 @@ export class LangStore {
   private readonly window = inject(WINDOW)
   private readonly persistence = inject(LANG_PERSISTENCE, { optional: true })
 
-  private readonly _lang = signal<AppLang>(this.storedLang())
+  private readonly _lang = signal<AppLang>(this.startLang())
 
   readonly available = APP_LANGS
   readonly lang = this._lang.asReadonly()
@@ -37,7 +42,7 @@ export class LangStore {
 
   /** Activates the start language and waits for its catalogue (app initializer). */
   async init(): Promise<void> {
-    this.apply(this._lang())
+    this.activate(this._lang())
     await firstValueFrom(this.transloco.load(this._lang()))
   }
 
@@ -52,15 +57,25 @@ export class LangStore {
     this.apply(lang)
   }
 
+  /** Applied and remembered on this device. */
   private apply(lang: AppLang): void {
-    this._lang.set(lang)
+    this.activate(lang)
     writePreference(this.window, LANG_STORAGE_KEY, lang)
+  }
+
+  private activate(lang: AppLang): void {
+    this._lang.set(lang)
     this.transloco.setActiveLang(lang)
     this.document.documentElement.lang = localeFor(lang)
   }
 
-  private storedLang(): AppLang {
+  private startLang(): AppLang {
     const stored = readPreference(this.window, LANG_STORAGE_KEY)
-    return isAppLang(stored) ? stored : DEFAULT_LANG
+    if (isAppLang(stored)) {
+      return stored
+    }
+    const navigator = this.window.navigator
+    const languages = navigator?.languages?.length ? navigator.languages : [navigator?.language]
+    return deviceLang(languages.filter((tag): tag is string => typeof tag === 'string'))
   }
 }

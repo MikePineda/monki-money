@@ -9,6 +9,7 @@ import { clearTurnstile, fakeTurnstile } from '../../../../testing/turnstile-tes
 import { AuthApi } from '../../../core/auth/auth.api'
 import { SessionStore } from '../../../core/auth/session.store'
 import { TURNSTILE_SCRIPT_URL } from '../../../core/auth/turnstile.service'
+import { LANG_STORAGE_KEY, LangStore } from '../../../core/i18n/lang.store'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
 import SignupPage from './signup.page'
@@ -63,6 +64,8 @@ describe('SignupPage', () => {
   }
 
   afterEach(() => {
+    localStorage.removeItem(LANG_STORAGE_KEY)
+    document.documentElement.lang = 'en-AU'
     clearTurnstile()
     document.head.querySelector(`script[src="${TURNSTILE_SCRIPT_URL}"]`)?.remove()
   })
@@ -81,6 +84,18 @@ describe('SignupPage', () => {
       locale: 'en',
     })
     expect(session.load).toHaveBeenCalled()
+  })
+
+  it('test_the_language_chosen_before_signing_up_becomes_the_accounts_language', async () => {
+    const { submit, fillIn } = await setup()
+    await fillIn()
+
+    // The auth layout's switch (or a Spanish device) set the language.
+    TestBed.inject(LangStore).setLang('es')
+    await submit.click()
+
+    await vi.waitFor(() => expect(api.signup).toHaveBeenCalled())
+    expect(api.signup).toHaveBeenCalledWith(expect.objectContaining({ locale: 'es' }))
   })
 
   it('test_with_a_site_key_sign_up_waits_for_the_check_then_sends_its_token', async () => {

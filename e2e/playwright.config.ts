@@ -42,6 +42,8 @@ export default defineConfig({
     : [['list']],
   use: {
     baseURL,
+    // The app's first language follows the device (navigator.languages): pin it.
+    locale: 'en-AU',
     testIdAttribute: 'data-testid',
     trace: 'retain-on-failure',
   },

@@ -9,7 +9,10 @@
     "eyebrow": "Gastado en {month}",
     "less": "{percent}% menos que {month} ({amount})",
     "more": "{percent}% más que {month} ({amount})",
-    "same": "Igual que {month} ({amount})"
+    "same": "Igual que {month} ({amount})",
+    "lessToDate": "{percent}% menos que a estas alturas de {month} ({amount})",
+    "moreToDate": "{percent}% más que a estas alturas de {month} ({amount})",
+    "sameToDate": "Igual que a estas alturas de {month} ({amount})"
   },
   "stats": {
     "label": "Totales del mes",
@@ -71,7 +74,11 @@
     "savedShare": "Ahorraste el {percent}% de tu ingreso este mes.",
     "overspent": "Gastaste {percent}% más de lo que ganaste este mes.",
     "spendAboveAverage": "El gasto está {percent}% arriba de tu promedio de 3 meses.",
-    "spendBelowAverage": "El gasto está {percent}% abajo de tu promedio de 3 meses."
+    "spendBelowAverage": "El gasto está {percent}% abajo de tu promedio de 3 meses.",
+    "groupAboveAverageToDate": "{group} está {percent}% arriba de tu promedio de 3 meses en los mismos días.",
+    "groupBelowAverageToDate": "{group} está {percent}% abajo de tu promedio de 3 meses en los mismos días.",
+    "spendAboveAverageToDate": "El gasto está {percent}% arriba de tu promedio de 3 meses en los mismos días.",
+    "spendBelowAverageToDate": "El gasto está {percent}% abajo de tu promedio de 3 meses en los mismos días."
   },
   "empty": {
     "title": "Aún no hay nada en {month}.",

@@ -274,6 +274,21 @@ isMasked, tags[], createdByUserId, updatedByUserId, createdAt, updatedAt }`.
 | `reports.category`            | `GET /reports/category/:id`          | `?months=6&month=` → `{ months[], categoryId, kind, totalCents, averageCents, points[] }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `reports.balances`            | `GET /reports/balances`              | `{ accounts[{ accountId, currencyCode, isActive, clearedBalanceCents, availableBalanceCents }], totals: { [currencyCode]: { clearedBalanceCents, availableBalanceCents } } }` (never adds up different currencies)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
+`reports.month` also carries the month-to-date comparison base, so a month
+still running is never compared with whole months. For the month running
+today in the household time zone, `previousToDate: { throughDay,
+incomeCents, expenseCents, netCents }` is the previous month from its 1st
+to `throughDay` (today's day of the month, capped at that month's length:
+the 31st of October counts September up to the 30th), and
+`previousMonthsToDate[{ month, throughDay, expenseCents, byGroup[] }]` is
+each of the three months before over the same days, oldest first, with
+`byGroup` lines as in the month itself. Same rules and payer filter as the
+month. Both are `null` for any other month (closed months keep comparing
+with `previous`). The Month view's hero uses `previousToDate` ("9% more
+than at the same point in September"); its "3-month average" cards use
+`previousMonthsToDate`, skip a group with nothing spent so far and wait
+for the seventh day of the month.
+
 ### Tags
 
 Free labels on transactions (`tags[]`, e.g. a trip), up to 20 per row,

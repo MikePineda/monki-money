@@ -93,6 +93,10 @@
       "title": "No accounts yet.",
       "body": "Add the accounts you and your partner use."
     },
+    "error": {
+      "title": "Accounts did not load",
+      "body": "Check your connection and try again."
+    },
     "kinds": {
       "transaction": "Everyday",
       "savings": "Savings",

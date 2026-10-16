@@ -9,7 +9,10 @@
     "eyebrow": "Spent in {month}",
     "less": "{percent}% less than {month} ({amount})",
     "more": "{percent}% more than {month} ({amount})",
-    "same": "Same as {month} ({amount})"
+    "same": "Same as {month} ({amount})",
+    "lessToDate": "{percent}% less than at the same point in {month} ({amount})",
+    "moreToDate": "{percent}% more than at the same point in {month} ({amount})",
+    "sameToDate": "Same as at the same point in {month} ({amount})"
   },
   "stats": {
     "label": "Month totals",
@@ -71,7 +74,11 @@
     "savedShare": "You saved {percent}% of your income this month.",
     "overspent": "You spent {percent}% more than you earned this month.",
     "spendAboveAverage": "Spending is {percent}% above your 3-month average.",
-    "spendBelowAverage": "Spending is {percent}% below your 3-month average."
+    "spendBelowAverage": "Spending is {percent}% below your 3-month average.",
+    "groupAboveAverageToDate": "{group} is {percent}% above your 3-month average for the same days.",
+    "groupBelowAverageToDate": "{group} is {percent}% below your 3-month average for the same days.",
+    "spendAboveAverageToDate": "Spending is {percent}% above your 3-month average for the same days.",
+    "spendBelowAverageToDate": "Spending is {percent}% below your 3-month average for the same days."
   },
   "empty": {
     "title": "Nothing in {month} yet.",

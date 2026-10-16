@@ -2,6 +2,11 @@
   "app": {
     "name": "monkimoney"
   },
+  "language": {
+    "label": "Idioma",
+    "en": "English",
+    "es": "Español"
+  },
   "shell": {
     "nav": {
       "label": "Principal"

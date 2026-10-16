@@ -6,6 +6,14 @@
  *
  * Amounts follow the report's convention: positive on their own side, so
  * a group's points are money spent.
+ *
+ * A closed month is compared with whole months. The month still running is
+ * compared like with like: its histories are the same days of the previous
+ * months (`sameDayHistories`, from the report's `previousMonthsToDate`), a
+ * group with nothing spent so far is not news (the bill may simply not have
+ * come yet), and the averages wait for the first week, when a single rent
+ * or salary date moves the numbers too much. Those cards say "for the same
+ * days" (the `*ToDate` kinds).
  */
 
 /** Spend of one category group per month, oldest first; the last value is the month shown. */
@@ -21,13 +29,23 @@ export interface InsightInput {
   groups: readonly GroupHistory[]
   /** Total spend per month, oldest first; the last value is the month shown. */
   spendHistory: readonly number[]
+  /**
+   * Set while the month is still running: the histories cover days 1 →
+   * `throughDay` of every month (the last day counted in the previous one).
+   */
+  toDate?: { throughDay: number }
 }
 
+type GroupAverageKind =
+  'groupAboveAverage' | 'groupBelowAverage' | 'groupAboveAverageToDate' | 'groupBelowAverageToDate'
+type SpendAverageKind =
+  'spendAboveAverage' | 'spendBelowAverage' | 'spendAboveAverageToDate' | 'spendBelowAverageToDate'
+
 export type Insight =
-  | { kind: 'groupAboveAverage' | 'groupBelowAverage'; groupId: number; percent: number }
+  | { kind: GroupAverageKind; groupId: number; percent: number }
   | { kind: 'groupShare'; groupId: number; percent: number }
   | { kind: 'savedShare' | 'overspent'; percent: number }
-  | { kind: 'spendAboveAverage' | 'spendBelowAverage'; percent: number }
+  | { kind: SpendAverageKind; percent: number }
 
 /** Months before the current one that make up "your average". */
 export const AVERAGE_MONTHS = 3
@@ -35,6 +53,53 @@ export const AVERAGE_MONTHS = 3
 export const MIN_CHANGE_PERCENT = 10
 /** Averages under $50 swing too much to talk about. */
 export const MIN_AVERAGE_CENTS = 5_000
+/** The running month compares with averages from its seventh day on. */
+export const MIN_DAYS_FOR_AVERAGE = 7
+
+/** A line of the month report by group, as `byGroup` and `previousMonthsToDate` carry it. */
+export interface GroupLine {
+  bucket: string
+  groupId: number | null
+  kind: string
+  amountCents: number
+}
+
+/** One month's spending and its group lines over the days that count. */
+export interface MonthSpend {
+  expenseCents: number
+  byGroup: readonly GroupLine[]
+}
+
+/**
+ * The running month's histories for {@link monthInsights}: each previous
+ * month over the same days (oldest first), then the month so far. One
+ * history per expense group seen in any of them, by group id.
+ */
+export function sameDayHistories(
+  previousMonths: readonly MonthSpend[],
+  current: MonthSpend
+): Pick<InsightInput, 'groups' | 'spendHistory'> {
+  const months = [...previousMonths, current]
+  const spentByGroup = months.map((month) => {
+    const spent = new Map<number, number>()
+    for (const line of month.byGroup) {
+      if (line.bucket === 'group' && line.kind === 'expense' && line.groupId !== null) {
+        spent.set(line.groupId, line.amountCents)
+      }
+    }
+    return spent
+  })
+  const groupIds = [...new Set(spentByGroup.flatMap((spent) => [...spent.keys()]))].sort(
+    (a, b) => a - b
+  )
+  return {
+    groups: groupIds.map((groupId) => ({
+      groupId,
+      points: spentByGroup.map((spent) => spent.get(groupId) ?? 0),
+    })),
+    spendHistory: months.map((month) => month.expenseCents),
+  }
+}
 
 /** The mean of up to three values before the last one; null when there is none. */
 export function previousAverage(points: readonly number[]): number | null {
@@ -69,11 +134,14 @@ interface Change {
   percent: number
 }
 
-/** The change of the last point against its average, when it is big enough to mention. */
-function notableChange(points: readonly number[]): Change | null {
+/**
+ * The change of the last point against its average, when it is big enough
+ * to mention. While the month runs, nothing spent so far is no change yet.
+ */
+function notableChange(points: readonly number[], running: boolean): Change | null {
   const average = previousAverage(points)
   const current = points.at(-1) ?? 0
-  if (average === null || average < MIN_AVERAGE_CENTS) {
+  if (average === null || average < MIN_AVERAGE_CENTS || (running && current === 0)) {
     return null
   }
   const delta = current - average
@@ -81,10 +149,10 @@ function notableChange(points: readonly number[]): Change | null {
   return percent >= MIN_CHANGE_PERCENT ? { current, average, delta, percent } : null
 }
 
-function groupChange(groups: readonly GroupHistory[]): Insight | null {
+function groupChange(groups: readonly GroupHistory[], running: boolean): Insight | null {
   let best: { groupId: number; change: Change } | null = null
   for (const group of groups) {
-    const change = notableChange(group.points)
+    const change = notableChange(group.points, running)
     if (!change) {
       continue
     }
@@ -99,8 +167,15 @@ function groupChange(groups: readonly GroupHistory[]): Insight | null {
   if (!best) {
     return null
   }
+  const above = best.change.delta > 0
   return {
-    kind: best.change.delta > 0 ? 'groupAboveAverage' : 'groupBelowAverage',
+    kind: running
+      ? above
+        ? 'groupAboveAverageToDate'
+        : 'groupBelowAverageToDate'
+      : above
+        ? 'groupAboveAverage'
+        : 'groupBelowAverage',
     groupId: best.groupId,
     percent: best.change.percent,
   }
@@ -114,13 +189,20 @@ function incomeShare(input: InsightInput): Insight | null {
   return input.netCents >= 0 ? { kind: 'savedShare', percent } : { kind: 'overspent', percent }
 }
 
-function spendChange(history: readonly number[]): Insight | null {
-  const change = notableChange(history)
+function spendChange(history: readonly number[], running: boolean): Insight | null {
+  const change = notableChange(history, running)
   if (!change) {
     return null
   }
+  const above = change.delta > 0
   return {
-    kind: change.delta > 0 ? 'spendAboveAverage' : 'spendBelowAverage',
+    kind: running
+      ? above
+        ? 'spendAboveAverageToDate'
+        : 'spendBelowAverageToDate'
+      : above
+        ? 'spendAboveAverage'
+        : 'spendBelowAverage',
     percent: change.percent,
   }
 }
@@ -155,13 +237,16 @@ function largestGroupShare(input: InsightInput): Insight | null {
  * Up to two insights, always the same for the same numbers: the category
  * group that moved most against its 3-month average, then the share of
  * income saved (or overspent). When one is missing, total spend against
- * its average and then the largest group's share fill in.
+ * its average and then the largest group's share fill in. A running month
+ * (`toDate`) uses same-day averages, and none before its seventh day.
  */
 export function monthInsights(input: InsightInput, limit = 2): Insight[] {
+  const running = input.toDate !== undefined
+  const averages = !running || (input.toDate?.throughDay ?? 0) >= MIN_DAYS_FOR_AVERAGE
   const candidates = [
-    groupChange(input.groups),
+    averages ? groupChange(input.groups, running) : null,
     incomeShare(input),
-    spendChange(input.spendHistory),
+    averages ? spendChange(input.spendHistory, running) : null,
     largestGroupShare(input),
   ]
   return candidates.filter((insight): insight is Insight => insight !== null).slice(0, limit)

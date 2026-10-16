@@ -13,6 +13,12 @@ import { largestExpenses, type LargestExpense } from '#domain/reports/top_expens
 import { findInHousehold } from '#repositories/scoped'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { summarizeMonth } from '#domain/reports/month_summary'
+import {
+  AVERAGE_MONTHS,
+  dayReached,
+  previousMonthsToDate,
+  previousToDate,
+} from '#domain/reports/month_to_date'
 import AccountBalances from '#services/accounts/account_balances'
 import CommittedReportBuilder from '#services/recurring/committed_report'
 import PostingsRepository from '#repositories/postings_repository'
@@ -72,19 +78,25 @@ export default class ReportService {
    * month before, its five largest expenses, whether the reader's monthly
    * summary is stored (`insight`), and what the recurring payments commit
    * in it (`committed`: already paid, still due until the end of the
-   * month). One call draws the Month view but its 6-month trend.
+   * month). For the month running today it also carries the earlier
+   * months over the same days (`previousToDate`, `previousMonthsToDate`,
+   * app/domain/reports/month_to_date.ts), so "so far" is never compared
+   * with whole months. One call draws the Month view but its 6-month trend.
    */
   async month(household: Household, viewer: User, input: MonthReportInput = {}) {
     if (input.paidByUserId !== undefined) {
       await assertMemberOf(household, input.paidByUserId, 'paidByUserId')
     }
     const now = this.clock.now()
+    const today = todayIn(now, household.timezone)
     const month = input.month ?? currentMonth(now, household.timezone)
     const previous = addMonths(month, -1)
+    // The running month also reads the months its "3-month average" compares with.
+    const first = dayReached(month, today) === null ? previous : addMonths(month, -AVERAGE_MONTHS)
     const reader = await privacyViewer(household, viewer)
 
     let postings = postingsFor(
-      await this.postings.between(household, monthRange(previous).from, monthRange(month).to),
+      await this.postings.between(household, monthRange(first).from, monthRange(month).to),
       reader
     )
     if (input.paidByUserId !== undefined) {
@@ -97,7 +109,7 @@ export default class ReportService {
     const [committed, topExpenses, insight] = await Promise.all([
       this.committedReport.forMonth(household, reader, {
         month,
-        today: todayIn(now, household.timezone),
+        today,
         paidByUserId: input.paidByUserId,
       }),
       this.describe(household, largestExpenses(postings, month)),
@@ -110,6 +122,8 @@ export default class ReportService {
         expenseCents: before.expenseCents,
         netCents: before.netCents,
       },
+      previousToDate: previousToDate(postings, month, today),
+      previousMonthsToDate: previousMonthsToDate(postings, month, today),
       topMovers: topMovers(before, summary),
       topExpenses,
       // The language the flag is about, so a client that switched language can tell.

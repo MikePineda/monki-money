@@ -20,8 +20,8 @@ describe('PayslipsPage', () => {
   let api: { list: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> }
   let month: { invalidateDate: ReturnType<typeof vi.fn> }
 
-  async function open(payslips = [aPayslip()]) {
-    api = { list: vi.fn(async () => payslips), remove: vi.fn(async () => undefined) }
+  async function open(payslips = [aPayslip()], list = vi.fn(async () => payslips)) {
+    api = { list, remove: vi.fn(async () => undefined) }
     month = { invalidateDate: vi.fn() }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -94,6 +94,25 @@ describe('PayslipsPage', () => {
     const { root } = await open([aPayslip({ userId: null, transferId: null, transfer: null })])
 
     expect(text(root, 'payslips.card.meta')).toBe('Joint · Not linked to a transfer')
+  })
+
+  it('test_a_list_that_did_not_load_offers_to_try_again_not_the_empty_state', async () => {
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue([aPayslip()])
+    const { harness, root } = await open([], list)
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="payslips.error"]')).not.toBeNull()
+    )
+    expect(root.querySelector('[data-testid="payslips.empty"]')).toBeNull()
+
+    root.querySelector<HTMLButtonElement>('[data-testid="payslips.error"] button')?.click()
+    await harness.fixture.whenStable()
+
+    await vi.waitFor(() => expect(root.querySelector('[data-testid="payslips.error"]')).toBeNull())
+    expect(list).toHaveBeenCalledTimes(2)
   })
 
   it('test_no_payslips_offers_to_record_one', async () => {
