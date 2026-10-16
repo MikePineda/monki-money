@@ -147,6 +147,8 @@ export default class PayslipsPage {
 
   constructor() {
     effect(() => this.store.accountId.set(Number(this.accountId())))
+    // Account and category names; an account added since the app started shows up too.
+    this.directory.refreshInBackground()
     void this.directory.load().catch(() => undefined)
   }
 

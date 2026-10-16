@@ -114,8 +114,10 @@ export default class PayslipNewPage {
   private readonly attempt = signal(0)
   private readonly directoryReady = resource({
     params: () => ({ attempt: this.attempt() }),
+    // Fresh accounts and categories (one may have been added since the app
+    // started); nothing reloads them afterwards, so the draft never resets.
     loader: async () => {
-      await this.directory.load()
+      await this.directory.load(true)
       return true
     },
   })
