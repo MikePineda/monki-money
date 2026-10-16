@@ -96,7 +96,7 @@ npm install                                # also installs the commit-msg hook
 (cd apps/api && node ace migration:run)
 npm run dev                                # api :3333 + web :4200 (proxies /api)
 npm run test                               # Japa + Vitest + shared node:test
-npm run e2e                                # Playwright vs docker-compose.test.yml (5433/9100)
+npm run e2e                                # Playwright vs docker-compose.test.yml (slot 0: 3334/5433/9100)
 npm run verify:quick                       # lint + typecheck + test + build
 npm run verify                             # verify:quick + e2e (the PR gate)
 npm run codegen                            # regenerate the Tuyau registry after route changes
@@ -104,6 +104,15 @@ npm run smoke:local                        # Bruno smoke (apps/api/bruno) vs npm
 docker build --target runtime -t monkimoney:local .   # faithful prod rehearsal (ARM64)
 docker compose --profile tools up -d pgweb # DB browser on 127.0.0.1:8081
 ```
+
+Each `npm run e2e` owns one E2E slot: its own compose project, ports and
+Playwright folders, so several worktrees can run the suite at the same time.
+`scripts/e2e.sh` derives everything from `E2E_SLOT` (default 0: project
+`monkimoney-test`, API 3334, Postgres 5433, MinIO 9100, `test-results`;
+slot N: `monkimoney-test-N`, 3334+N, 5433+N, 9100+2N, `test-results-N`) and
+its teardown removes only its own project. Leave `E2E_SLOT` unset and it
+takes the first free slot (prints which one); set it (`E2E_SLOT=1 npm run
+e2e`) to force one, and the run stops if that slot is taken.
 
 Run the image locally against the compose database:
 

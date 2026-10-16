@@ -54,7 +54,8 @@
     },
     "e2e": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["E2E_SLOT"]
     }
   }
 }
