@@ -146,8 +146,9 @@ const CATALOGUE_PROBE = 'review.title'
                   <!-- The duplicates' only way in: a toggle, like the blocking "Show". -->
                   <button
                     type="button"
-                    class="-my-3 h-11 rounded-md px-1 font-semibold text-accent underline-offset-4 active:bg-surface-2 aria-pressed:underline"
+                    class="-my-3 h-11 rounded-md px-1 font-semibold text-accent active:bg-surface-2"
                     data-testid="import.review.duplicates"
+                    [class.bg-accent-soft]="showingDuplicates()"
                     [attr.aria-pressed]="showingDuplicates()"
                     (click)="setFilter(showingDuplicates() ? 'all' : 'duplicate')"
                   >
