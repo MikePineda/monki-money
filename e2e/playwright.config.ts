@@ -20,9 +20,19 @@ if (!process.env.PORT) {
 }
 const baseURL = `http://127.0.0.1:${process.env.PORT}`
 
+/** E2E_WORKERS as Playwright takes it: a count, or a share like "50%". */
+function workersFromEnv(value: string | undefined): number | string | undefined {
+  if (!value) {
+    return undefined
+  }
+  return value.endsWith('%') ? value : Number(value)
+}
+
 export default defineConfig({
   testDir: './tests',
   outputDir: process.env.E2E_RESULTS_DIR,
+  // Fewer workers while another slot runs (scripts/e2e.sh); unset = Playwright's default.
+  workers: workersFromEnv(process.env.E2E_WORKERS),
   globalSetup: './global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

@@ -112,7 +112,10 @@ Playwright folders, so several worktrees can run the suite at the same time.
 slot N: `monkimoney-test-N`, 3334+N, 5433+N, 9100+2N, `test-results-N`) and
 its teardown removes only its own project. Leave `E2E_SLOT` unset and it
 takes the first free slot (prints which one); set it (`E2E_SLOT=1 npm run
-e2e`) to force one, and the run stops if that slot is taken.
+e2e`) to force one, and the run stops if that slot is taken. A run that
+finds another slot busy when its tests start uses 3 Playwright workers
+(two suites at the default count time out on one machine); `E2E_WORKERS`
+or a `--workers` flag overrides that.
 
 Run the image locally against the compose database:
 

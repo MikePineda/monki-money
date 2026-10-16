@@ -55,7 +55,7 @@
     "e2e": {
       "dependsOn": ["^build"],
       "cache": false,
-      "passThroughEnv": ["E2E_SLOT"]
+      "passThroughEnv": ["E2E_SLOT", "E2E_WORKERS"]
     }
   }
 }

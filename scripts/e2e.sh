@@ -21,6 +21,7 @@
 # Without E2E_SLOT the first free slot is used (0 when nothing else runs), so
 # two checkouts can run the suite at the same time. A set E2E_SLOT that is
 # already taken stops the run instead. Teardown only removes this run's project.
+# While another slot runs, Playwright gets 3 workers (E2E_WORKERS overrides).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -95,6 +96,19 @@ release_slot() {
     rm -rf "$LOCK"
     LOCK=""
   fi
+}
+
+# True when another live run holds a slot (a lock other than ours whose PID runs).
+other_runs() {
+  local lock owner
+  for lock in "$LOCKS"/slot-*; do
+    [[ -d "$lock" && "$lock" != "$LOCK" ]] || continue
+    owner="$(cat "$lock/pid" 2>/dev/null || true)"
+    if [[ -n "$owner" ]] && kill -0 "$owner" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 if [[ -n "${E2E_SLOT:-}" ]]; then
@@ -177,5 +191,14 @@ echo "e2e: migrating ${DB_DATABASE}"
 echo "e2e: seeding the E2E household"
 (cd "$API_BUILD" && node ace seed:e2e)
 
-echo "e2e: running Playwright"
+# Workers: two suites at Playwright's default worker count overload one machine
+# (navigations then miss their 5 s), so a run that finds another slot claimed
+# when its tests start uses 3. A set E2E_WORKERS wins, and a --workers flag
+# passed to Playwright wins over both. Alone (CI included) nothing changes.
+if [[ -z "${E2E_WORKERS:-}" ]] && other_runs; then
+  E2E_WORKERS=3
+fi
+export E2E_WORKERS="${E2E_WORKERS:-}"
+
+echo "e2e: running Playwright on slot $E2E_SLOT, workers: ${E2E_WORKERS:-default}"
 (cd e2e && npx playwright test "$@")
