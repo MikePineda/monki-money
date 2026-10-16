@@ -288,16 +288,21 @@ production (`providers/scheduler_provider.ts`): first tick a minute after
 boot, then every 15 minutes. On the 1st of each month, from 08:00 to
 midnight in each household's time zone, it writes last month's AI summary
 for every active household that had income or spending that month (transfers
-do not count) and has none yet in the household's language, through the same
-path as the Generate button (quota check, one `llm_usage` row per call, one
-retry on an unusable answer). Each household and month is claimed once in
-`scheduler_runs`, so overlapping containers (start-first updates) and
-restarts never write or pay for it twice. A run left unfinished for 30
-minutes (container stopped mid-run) is taken over; a failed one is retried an
-hour later, 3 attempts at most. Skips (no activity, quota used up, pending
-deletion, LLM not configured, already generated) are logged and recorded once
-and never retried. Cost: one model call per household and month (two when the
-first answer is unusable). Log lines:
+do not count), in the household's language, through the same path as the
+Generate button (quota check, one `llm_usage` row per call). A summary
+someone tapped before the month ended (say on the 20th) covers part of the
+month only, so it is replaced; one written after the month ended is kept.
+Each household and month is claimed once in `scheduler_runs`, so overlapping
+containers (start-first updates), restarts and manual runs never pay for it
+twice. A run left unfinished for 30 minutes (container killed mid-run) is
+taken over. Only a vendor failure (the model did not answer, nothing billed)
+is retried, an hour later, 3 attempts at most; an unusable answer is final
+(`failed:final`). Skips (no activity, quota used up, pending deletion, LLM not
+configured, already generated) are logged and recorded once and never
+retried. On shutdown the tick stops before the next household or model call
+and gives back a claim it had not used yet. Cost: at most two billed calls per
+household and month (the answer, plus the LLM layer's one retry when that
+answer is unusable). Log lines:
 
 ```
 monthly insights: household 12 2026-09 es: generated
@@ -308,19 +313,22 @@ monthly insights: household 31 2026-09 en: skipped (no activity)
 Empty (the default) means on; it never runs in development, ace commands or
 tests.
 
-**By hand** (a 1st missed entirely, a household that failed three times, a
-regenerate). It takes no lock and does not wait for 08:00; the default month
-is the previous month in each household's time zone, `--force` replaces the
-month's summary only once the model answered. One line per household; exit
-code 1 when any failed.
+**By hand** (a 1st missed entirely, a household the scheduler gave up on, a
+regenerate). It does not wait for 08:00, and the default month is the
+previous month in each household's time zone. Without `--force` it claims the
+scheduler's own row, so a household a tick already handled (or is handling)
+answers "already run"; `--force` bypasses that lock and replaces even a
+complete summary, only once the model answered (a failed regenerate keeps the
+old one). Use `--force` for a household whose run failed or was skipped. One
+line per household; exit code 1 when any failed.
 
 ```bash
 ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace insights:generate'
 ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace insights:generate --month 2026-09 --household 12 --force'
 ```
 
-**Last runs** (outcome `generated`, `skipped:<reason>` or `failed` with the
-error):
+**Last runs** (outcome `generated`, `skipped:<reason>`, `failed` (retried),
+`failed:final` or `released`, with the error):
 
 ```bash
 ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney -c "

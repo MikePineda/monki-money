@@ -12,8 +12,8 @@ import MonthlyInsight from '#models/monthly_insight'
 import InsightsGenerate from '#commands/insights_generate'
 import { createHousehold } from '#tests/helpers/household'
 import InsightService from '#services/insights/insight_service'
-import SchedulerRuns from '#services/scheduler/scheduler_runs'
 import { FakeLlmProvider } from '#llm/providers/fake_llm_provider'
+import SchedulerRuns, { type RunKey } from '#services/scheduler/scheduler_runs'
 import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 import MonthlyInsightsJob, { MONTHLY_INSIGHTS_JOB } from '#services/insights/monthly_insights_job'
 
@@ -63,6 +63,24 @@ async function householdWith(september: September, options: { locale?: Locale } 
   return fixture
 }
 
+/** September's English summary as a partner's tap at `generatedAt` left it. */
+async function storedSummary(householdId: number, generatedAt: string, headline: string) {
+  const stamp = new Date(generatedAt)
+  await db.table('monthly_insights').insert({
+    household_id: householdId,
+    month: '2026-09',
+    locale: 'en',
+    headline,
+    body_markdown: 'Written by a tap.',
+    highlights: '[]',
+    input_json: '{}',
+    model: 'fake',
+    generated_at: stamp,
+    created_at: stamp,
+    updated_at: stamp,
+  })
+}
+
 function insightsOf(householdId: number) {
   return MonthlyInsight.query().where('household_id', householdId).orderBy('id')
 }
@@ -73,6 +91,15 @@ function runsOf(householdId: number) {
     .where('household_id', householdId)
     .orderBy('id')
     .select('job', 'period_key', 'attempts', 'outcome', 'error', 'finished_at')
+}
+
+function septemberOf(householdId: number): RunKey {
+  return { job: MONTHLY_INSIGHTS_JOB, periodKey: '2026-09', householdId }
+}
+
+/** One scheduler tick in which every household reads `instant` as now. */
+function tickAt(job: MonthlyInsightsJob, instant: DateTime, signal?: AbortSignal) {
+  return job.tick({ now: () => instant, signal: signal ?? new AbortController().signal })
 }
 
 /** Runs the command; `lines` are its own output (the raw-mode logger is shared). */
@@ -154,8 +181,15 @@ test.group('Monthly insights: insights:generate command', (group) => {
 
     command.assertSucceeded()
     assert.lengthOf(await insightsOf(household.id), 1)
-    assert.equal(llm.requests.length, calls, 'the stored summary costs no call')
-    assert.deepEqual(lines, [`household ${household.id} 2026-09 en: skipped (already generated)`])
+    assert.equal(llm.requests.length, calls, 'the second run costs no call')
+    assert.deepEqual(lines, [
+      `household ${household.id} 2026-09 en: skipped (already run; --force redoes it)`,
+    ])
+    const runs = await runsOf(household.id)
+    assert.deepEqual(
+      runs.map((run) => [run.period_key, run.outcome, run.attempts]),
+      [['2026-09', 'generated', 1]]
+    )
   })
 
   test('test_force_recreates_the_month_summary', async ({ assert }) => {
@@ -179,6 +213,25 @@ test.group('Monthly insights: insights:generate command', (group) => {
       [['2026-09', 'A second look']]
     )
     assert.deepEqual(lines, [`household ${household.id} 2026-09 en: generated`])
+    assert.lengthOf(await runsOf(household.id), 1, '--force bypasses the lock')
+  })
+
+  test('test_a_summary_written_after_the_month_ended_is_kept', async ({ assert }) => {
+    const { household } = await householdWith('activity')
+    // Tapped on 2 October: it already covers the whole of September.
+    await storedSummary(household.id, '2026-10-02T09:00:00+10:00', 'Tapped on the 2nd')
+    const llm = await containerLlm()
+    const calls = llm.requests.length
+
+    const { lines } = await runCommand('--household', String(household.id))
+
+    assert.deepEqual(lines, [`household ${household.id} 2026-09 en: skipped (already generated)`])
+    assert.equal(llm.requests.length, calls)
+    const rows = await insightsOf(household.id)
+    assert.deepEqual(
+      rows.map((row) => row.headline),
+      ['Tapped on the 2nd']
+    )
   })
 
   test('test_a_household_over_quota_is_skipped_and_reported', async ({ assert, cleanup }) => {
@@ -218,6 +271,8 @@ test.group('Monthly insights: insights:generate command', (group) => {
       usage.map((entry) => entry.status),
       ['invalid_output', 'invalid_output']
     )
+    const [run] = await runsOf(first.household.id)
+    assert.include(run, { attempts: 1, outcome: 'failed:final' })
   })
 
   test('test_llm_usage_gets_a_row_per_generated_insight', async ({ assert }) => {
@@ -290,11 +345,11 @@ test.group('Monthly insights: scheduled run', (group) => {
     const { household } = await householdWith('activity')
     const job = await app.container.make(MonthlyInsightsJob)
 
-    await job.tick(FIRST_OF_OCTOBER.set({ hour: 7, minute: 45 }))
+    await tickAt(job, FIRST_OF_OCTOBER.set({ hour: 7, minute: 45 }))
     assert.lengthOf(await insightsOf(household.id), 0, 'not before 08:00')
     assert.lengthOf(await runsOf(household.id), 0)
 
-    await job.tick(FIRST_OF_OCTOBER)
+    await tickAt(job, FIRST_OF_OCTOBER)
 
     const rows = await insightsOf(household.id)
     assert.deepEqual(
@@ -313,6 +368,37 @@ test.group('Monthly insights: scheduled run', (group) => {
     assert.isNotNull(runs[0].finished_at)
   })
 
+  test('test_a_summary_tapped_before_the_month_ended_is_replaced_on_the_first', async ({
+    assert,
+  }) => {
+    const fixtures = await insightFixtures()
+    const partial = await householdWith('activity')
+    const early = await householdWith('activity')
+    // The partner tapped on the 20th: it covers 1-20 September only.
+    await storedSummary(partial.household.id, '2026-09-20T10:00:00+10:00', 'Tapped on the 20th')
+    // Tapped at 07:00 on the 1st: September was already over.
+    await storedSummary(early.household.id, '2026-10-01T07:00:00+10:00', 'Tapped on the 1st')
+    const job = await app.container.make(MonthlyInsightsJob)
+    const llm = await containerLlm()
+    const calls = llm.requests.length
+
+    await tickAt(job, FIRST_OF_OCTOBER)
+
+    assert.equal(llm.requests.length, calls + 1, 'one call, for the partial summary only')
+    const replaced = await insightsOf(partial.household.id)
+    assert.deepEqual(
+      replaced.map((row) => [row.headline, row.generatedAt.toMillis()]),
+      [[fixtures.en.headline, FIRST_OF_OCTOBER.toMillis()]]
+    )
+    const kept = await insightsOf(early.household.id)
+    assert.deepEqual(
+      kept.map((row) => row.headline),
+      ['Tapped on the 1st']
+    )
+    const [run] = await runsOf(early.household.id)
+    assert.include(run, { outcome: 'skipped:already-generated' })
+  })
+
   test('test_the_scheduler_lock_prevents_a_second_concurrent_run_of_the_same_period', async ({
     assert,
   }) => {
@@ -321,7 +407,7 @@ test.group('Monthly insights: scheduled run', (group) => {
     const runs = await app.container.make(SchedulerRuns)
     const job = await app.container.make(MonthlyInsightsJob)
     const llm = await containerLlm()
-    const key = { job: MONTHLY_INSIGHTS_JOB, periodKey: '2026-09', householdId: busy.household.id }
+    const key = septemberOf(busy.household.id)
 
     // Another container started this household's run five minutes ago.
     const owned = await runs.claim(key, FIRST_OF_OCTOBER.minus({ minutes: 5 }))
@@ -329,19 +415,50 @@ test.group('Monthly insights: scheduled run', (group) => {
     assert.isNull(await runs.claim(key, FIRST_OF_OCTOBER), 'a claimed period is not claimed twice')
 
     const calls = llm.requests.length
-    await job.tick(FIRST_OF_OCTOBER)
+    await tickAt(job, FIRST_OF_OCTOBER)
 
     assert.lengthOf(await insightsOf(busy.household.id), 0, 'left to the container that owns it')
     assert.lengthOf(await insightsOf(other.household.id), 1)
     assert.equal(llm.requests.length, calls + 1)
 
     // Once finished, a period never runs again, whatever the number of ticks.
-    await job.tick(FIRST_OF_OCTOBER.plus({ minutes: 15 }))
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes: 15 }))
     await runs.finish(owned!, FIRST_OF_OCTOBER.plus({ minutes: 20 }), { outcome: 'generated' })
-    await job.tick(FIRST_OF_OCTOBER.plus({ hours: 3 }))
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ hours: 3 }))
     assert.equal(llm.requests.length, calls + 1)
     assert.lengthOf(await runsOf(other.household.id), 1)
     assert.isNull(await runs.claim(key, FIRST_OF_OCTOBER.plus({ hours: 4 })))
+  })
+
+  test('test_the_command_and_the_scheduler_share_the_lock', async ({ assert, cleanup }) => {
+    ace.ui.switchMode('raw')
+    cleanup(() => ace.ui.switchMode('normal'))
+    const { household } = await householdWith('activity')
+    const job = await app.container.make(MonthlyInsightsJob)
+    const llm = await containerLlm()
+    const id = String(household.id)
+    const calls = llm.requests.length
+
+    // A manual run on the 1st claims the scheduler's row...
+    const manual = await runCommand('--household', id)
+    assert.deepEqual(manual.lines, [`household ${household.id} 2026-09 en: generated`])
+    // ...so the tick does not pay for it again, nor does a second manual run.
+    await tickAt(job, FIRST_OF_OCTOBER)
+    const again = await runCommand('--household', id)
+    assert.deepEqual(again.lines, [
+      `household ${household.id} 2026-09 en: skipped (already run; --force redoes it)`,
+    ])
+    assert.equal(llm.requests.length, calls + 1)
+
+    // --force bypasses the lock (and leaves its row alone).
+    const forced = await runCommand('--household', id, '--force')
+    assert.deepEqual(forced.lines, [`household ${household.id} 2026-09 en: generated`])
+    assert.equal(llm.requests.length, calls + 2)
+    const runs = await runsOf(household.id)
+    assert.deepEqual(
+      runs.map((run) => [run.outcome, run.attempts]),
+      [['generated', 1]]
+    )
   })
 
   test('test_a_run_left_unfinished_by_a_stopped_container_is_taken_over_after_thirty_minutes', async ({
@@ -350,17 +467,39 @@ test.group('Monthly insights: scheduled run', (group) => {
     const { household } = await householdWith('activity')
     const runs = await app.container.make(SchedulerRuns)
     const job = await app.container.make(MonthlyInsightsJob)
-    const key = { job: MONTHLY_INSIGHTS_JOB, periodKey: '2026-09', householdId: household.id }
-    await runs.claim(key, FIRST_OF_OCTOBER.minus({ minutes: 20 }))
+    await runs.claim(septemberOf(household.id), FIRST_OF_OCTOBER.minus({ minutes: 20 }))
 
-    await job.tick(FIRST_OF_OCTOBER)
+    await tickAt(job, FIRST_OF_OCTOBER)
     assert.lengthOf(await insightsOf(household.id), 0, 'twenty minutes may still be running')
 
-    await job.tick(FIRST_OF_OCTOBER.plus({ minutes: 15 }))
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes: 15 }))
 
     assert.lengthOf(await insightsOf(household.id), 1)
     const [run] = await runsOf(household.id)
     assert.include(run, { attempts: 2, outcome: 'generated', error: null })
+  })
+
+  test('test_a_taken_over_run_cannot_be_finished_or_released_by_its_old_owner', async ({
+    assert,
+  }) => {
+    const { household } = await householdWith('activity')
+    const runs = await app.container.make(SchedulerRuns)
+    const key = septemberOf(household.id)
+    const old = await runs.claim(key, FIRST_OF_OCTOBER.minus({ minutes: 40 }))
+    const current = await runs.claim(key, FIRST_OF_OCTOBER)
+    assert.deepEqual([old?.attempt, current?.attempt], [1, 2])
+
+    // The old owner wakes up late: nothing it writes lands.
+    assert.isFalse(await runs.finish(old!, FIRST_OF_OCTOBER, { outcome: 'generated' }))
+    assert.isFalse(await runs.release(old!, FIRST_OF_OCTOBER))
+    const [running] = await runsOf(household.id)
+    assert.include(running, { attempts: 2, outcome: null, finished_at: null })
+
+    assert.isTrue(
+      await runs.finish(current!, FIRST_OF_OCTOBER.plus({ minutes: 1 }), { outcome: 'generated' })
+    )
+    const [finished] = await runsOf(household.id)
+    assert.include(finished, { attempts: 2, outcome: 'generated' })
   })
 
   test('test_a_failure_in_one_household_does_not_stop_the_next_and_is_retried_an_hour_later', async ({
@@ -372,7 +511,7 @@ test.group('Monthly insights: scheduled run', (group) => {
     const llm = await containerLlm()
     llm.script(new Error('vendor down'))
 
-    await job.tick(FIRST_OF_OCTOBER)
+    await tickAt(job, FIRST_OF_OCTOBER)
 
     assert.lengthOf(await insightsOf(failing.household.id), 0)
     assert.lengthOf(await insightsOf(healthy.household.id), 1)
@@ -382,29 +521,114 @@ test.group('Monthly insights: scheduled run', (group) => {
 
     // Not retried within the hour, then retried once.
     const calls = llm.requests.length
-    await job.tick(FIRST_OF_OCTOBER.plus({ minutes: 45 }))
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes: 45 }))
     assert.equal(llm.requests.length, calls)
-    await job.tick(FIRST_OF_OCTOBER.plus({ minutes: 75 }))
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes: 75 }))
 
     assert.lengthOf(await insightsOf(failing.household.id), 1)
     const [retried] = await runsOf(failing.household.id)
     assert.include(retried, { attempts: 2, outcome: 'generated', error: null })
   })
 
-  test('test_a_failing_household_is_tried_three_times_at_most', async ({ assert }) => {
+  test('test_a_vendor_failure_is_tried_three_times_at_most', async ({ assert }) => {
     const { household } = await householdWith('activity')
     const job = await app.container.make(MonthlyInsightsJob)
     const llm = await containerLlm()
     llm.script(new Error('down 1'), new Error('down 2'), new Error('down 3'))
 
     for (const minutes of [0, 90, 180, 270, 360]) {
-      await job.tick(FIRST_OF_OCTOBER.plus({ minutes }))
+      await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes }))
     }
 
     assert.lengthOf(await insightsOf(household.id), 0)
     const [run] = await runsOf(household.id)
     assert.include(run, { attempts: 3, outcome: 'failed', error: 'E_LLM_UNAVAILABLE: down 3' })
     assert.lengthOf(await LlmUsage.query().where('household_id', household.id), 3)
+  })
+
+  test('test_an_unusable_answer_is_final_and_never_retried', async ({ assert }) => {
+    const { household } = await householdWith('activity')
+    const job = await app.container.make(MonthlyInsightsJob)
+    const llm = await containerLlm()
+    // The answer and the LLM layer's own retry: both billed, both unusable.
+    llm.script('not json at all', 'still not json')
+
+    for (const minutes of [0, 75, 150, 225]) {
+      await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes }))
+    }
+
+    assert.lengthOf(await insightsOf(household.id), 0)
+    const [run] = await runsOf(household.id)
+    assert.include(run, { attempts: 1, outcome: 'failed:final' })
+    assert.match(run.error, /^E_LLM_OUTPUT_INVALID: /)
+    const usage = await LlmUsage.query().where('household_id', household.id)
+    assert.deepEqual(
+      usage.map((entry) => entry.status),
+      ['invalid_output', 'invalid_output'],
+      'one job attempt, never a second'
+    )
+  })
+
+  test('test_a_stop_request_ends_the_tick_before_the_next_household', async ({
+    assert,
+    cleanup,
+  }) => {
+    const stopping = new AbortController()
+    // The process is told to stop while the first household's summary is written.
+    class StopAfterOneInsightService extends InsightService {
+      override async generate(...args: Parameters<InsightService['generate']>) {
+        const generated = await super.generate(...args)
+        stopping.abort()
+        return generated
+      }
+    }
+    app.container.swap(InsightService, (resolver) => resolver.make(StopAfterOneInsightService))
+    cleanup(() => app.container.restore(InsightService))
+    const first = await householdWith('activity')
+    const second = await householdWith('activity')
+    const job = await app.container.make(MonthlyInsightsJob)
+
+    await tickAt(job, FIRST_OF_OCTOBER, stopping.signal)
+
+    assert.lengthOf(await insightsOf(first.household.id), 1)
+    assert.lengthOf(await insightsOf(second.household.id), 0)
+    assert.lengthOf(await runsOf(second.household.id), 0, 'not even claimed')
+
+    // The next tick (of any container) picks it up.
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes: 15 }))
+    assert.lengthOf(await insightsOf(second.household.id), 1)
+  })
+
+  test('test_a_stop_before_the_model_call_gives_the_claim_back', async ({ assert, cleanup }) => {
+    const stopping = new AbortController()
+    // The stop request lands right after the claim, before the model call.
+    class StopAfterClaimRuns extends SchedulerRuns {
+      override async claim(...args: Parameters<SchedulerRuns['claim']>) {
+        const claim = await super.claim(...args)
+        stopping.abort()
+        return claim
+      }
+    }
+    app.container.swap(SchedulerRuns, () => new StopAfterClaimRuns())
+    cleanup(() => app.container.restore(SchedulerRuns))
+    const { household } = await householdWith('activity')
+    const job = await app.container.make(MonthlyInsightsJob)
+    const llm = await containerLlm()
+    const calls = llm.requests.length
+
+    await tickAt(job, FIRST_OF_OCTOBER, stopping.signal)
+
+    assert.equal(llm.requests.length, calls, 'nothing paid')
+    const [released] = await runsOf(household.id)
+    assert.include(released, { attempts: 0, outcome: 'released' })
+
+    // No 30-minute wait: the next tick claims it at once, as a first attempt.
+    app.container.restore(SchedulerRuns)
+    const next = await app.container.make(MonthlyInsightsJob)
+    await tickAt(next, FIRST_OF_OCTOBER.plus({ minutes: 15 }))
+    assert.lengthOf(await insightsOf(household.id), 1)
+    const [run] = await runsOf(household.id)
+    assert.include(run, { attempts: 1, outcome: 'generated' })
   })
 
   test('test_skipped_households_are_recorded_once_per_period', async ({ assert, cleanup }) => {
@@ -418,8 +642,8 @@ test.group('Monthly insights: scheduled run', (group) => {
       .save()
     const job = await app.container.make(MonthlyInsightsJob)
 
-    await job.tick(FIRST_OF_OCTOBER)
-    await job.tick(FIRST_OF_OCTOBER.plus({ hours: 2 }))
+    await tickAt(job, FIRST_OF_OCTOBER)
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ hours: 2 }))
 
     for (const [fixture, outcome] of [
       [quiet, 'skipped:no-activity'],

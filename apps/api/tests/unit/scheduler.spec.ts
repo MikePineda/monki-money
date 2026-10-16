@@ -22,8 +22,11 @@ function recordingLogger() {
   return { logger, lines }
 }
 
-function job(name: string, run: (now: DateTime) => Promise<void> | void): ScheduledJob {
-  return { name, tick: async (now) => run(now) }
+function job(
+  name: string,
+  run: (now: DateTime, signal: AbortSignal) => Promise<void> | void
+): ScheduledJob {
+  return { name, tick: async (context) => run(context.now(), context.signal) }
 }
 
 test.group('Scheduler', () => {
@@ -103,6 +106,42 @@ test.group('Scheduler', () => {
     assert.isAtLeast(stoppedAt, 2)
     assert.equal(ticks, stoppedAt, 'no tick after stop()')
     assert.equal(TICK_INTERVAL_MS, 15 * 60 * 1000)
+  })
+
+  test('test_stop_tells_the_running_tick_to_stop_and_no_tick_starts_afterwards', async ({
+    assert,
+  }) => {
+    const { logger } = recordingLogger()
+    const handled: number[] = []
+    let started!: () => void
+    const running = new Promise<void>((resolve) => (started = resolve))
+    const scheduler = new Scheduler(
+      [
+        // Three units of work; each waits a little and checks the signal first.
+        job('households', async (_now, signal) => {
+          for (const household of [1, 2, 3]) {
+            if (signal.aborted) return
+            handled.push(household)
+            started()
+            await sleep(30)
+          }
+        }),
+        job('after', () => {
+          handled.push(99)
+        }),
+      ],
+      () => NOW,
+      logger
+    )
+
+    const tick = scheduler.tick()
+    await running
+    await scheduler.stop()
+    await tick
+
+    assert.deepEqual(handled, [1], 'the tick ends before the next unit and the next job')
+    await scheduler.tick()
+    assert.deepEqual(handled, [1], 'a stopped scheduler never ticks again')
   })
 
   test('test_the_scheduler_runs_only_in_production_unless_switched_off', ({ assert }) => {

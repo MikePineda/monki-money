@@ -3,13 +3,16 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 
 /**
  * `node ace insights:generate [--month YYYY-MM] [--household <id>] [--force]`:
- * the scheduled monthly summaries by hand (a missed 1st, a household that
- * failed, a regenerate). Same job and rules as the scheduler, without its
- * lock or its 08:00 wait: default month = the previous month in each
- * household's time zone, every household unless --household, and --force
- * replaces a month that already has a summary (only once the model
- * answered, so a failed regenerate keeps the old one). Prints one line per
- * household; exits 1 when any of them failed.
+ * the scheduled monthly summaries by hand (a missed 1st, a household the
+ * scheduler gave up on, a regenerate). Same job and rules as the scheduler,
+ * without its 08:00 wait: default month = the previous month in each
+ * household's time zone, every household unless --household. Without
+ * --force it claims the scheduler's own `scheduler_runs` row, so it never
+ * pays for a household a tick is handling or already handled ("already
+ * run"). --force bypasses that lock and replaces even a summary that covers
+ * the whole month (only once the model answered, so a failed regenerate
+ * keeps the old one). Prints one line per household; exits 1 when any of
+ * them failed.
  */
 export default class InsightsGenerate extends BaseCommand {
   static override commandName = 'insights:generate'
@@ -24,7 +27,9 @@ export default class InsightsGenerate extends BaseCommand {
   @flags.number({ description: 'Only this household id (default: every household)' })
   declare household?: number
 
-  @flags.boolean({ description: 'Regenerate even when the month already has a summary' })
+  @flags.boolean({
+    description: 'Regenerate even a complete summary, bypassing the scheduler lock',
+  })
   declare force?: boolean
 
   override async run() {
@@ -41,7 +46,7 @@ export default class InsightsGenerate extends BaseCommand {
     const job = await this.app.container.make(MonthlyInsightsJob)
     const clock = await this.app.container.make(Clock)
     const outcomes = await job.run({
-      now: clock.now(),
+      now: () => clock.now(),
       month: this.month,
       householdId: this.household,
       force: this.force ?? false,

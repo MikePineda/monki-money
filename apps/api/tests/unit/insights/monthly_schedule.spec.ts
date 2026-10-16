@@ -39,13 +39,16 @@ function facts(overrides: Partial<MonthlyInsightFacts> = {}): MonthlyInsightFact
   return {
     status: 'active',
     month: '2026-09',
+    zone: BRISBANE,
     postings: [posting()],
-    alreadyGenerated: false,
+    storedAt: null,
     force: false,
     llmAvailable: true,
     ...overrides,
   }
 }
+
+const GENERATE = { generate: true, replace: false }
 
 test.group('Insights: monthly schedule', () => {
   test('test_the_monthly_job_is_due_once_the_first_of_the_month_passes_eight_in_the_household_timezone', ({
@@ -88,15 +91,16 @@ test.group('Insights: monthly schedule', () => {
         reason: 'no-activity',
       })
     }
-    assert.deepEqual(decideMonthlyInsight(facts({ postings: [...transfersOnly, posting()] })), {
-      generate: true,
-    })
+    assert.deepEqual(
+      decideMonthlyInsight(facts({ postings: [...transfersOnly, posting()] })),
+      GENERATE
+    )
     // Income counts as activity too.
     assert.deepEqual(
       decideMonthlyInsight(
         facts({ postings: [posting({ kind: 'income', amountCents: 500_000 })] })
       ),
-      { generate: true }
+      GENERATE
     )
   })
 
@@ -113,14 +117,43 @@ test.group('Insights: monthly schedule', () => {
     })
   })
 
-  test('test_a_month_with_a_summary_is_skipped_unless_forced', ({ assert }) => {
-    assert.deepEqual(decideMonthlyInsight(facts({ alreadyGenerated: true })), {
-      generate: false,
-      reason: 'already-generated',
-    })
-    assert.deepEqual(decideMonthlyInsight(facts({ alreadyGenerated: true, force: true })), {
-      generate: true,
-    })
+  test('test_a_summary_written_after_the_month_ended_is_kept_unless_forced', ({ assert }) => {
+    // Midnight on 1 October in Brisbane is the first instant after September.
+    for (const storedAt of [
+      at('2026-10-01T00:00:00+10:00'),
+      at('2026-10-01T07:00:00+10:00'),
+      at('2026-10-02T09:00:00+10:00'),
+    ]) {
+      assert.deepEqual(decideMonthlyInsight(facts({ storedAt })), {
+        generate: false,
+        reason: 'already-generated',
+      })
+      assert.deepEqual(decideMonthlyInsight(facts({ storedAt, force: true })), {
+        generate: true,
+        replace: true,
+      })
+    }
+  })
+
+  test('test_a_summary_written_before_the_month_ended_is_replaced', ({ assert }) => {
+    // Tapped on the 20th: it only covers 1-20 September.
+    for (const storedAt of [
+      at('2026-09-20T10:00:00+10:00'),
+      // 23:30 on 30 September in Brisbane, already 1 October in UTC.
+      at('2026-09-30T23:30:00+10:00'),
+    ]) {
+      assert.deepEqual(decideMonthlyInsight(facts({ storedAt })), {
+        generate: true,
+        replace: true,
+      })
+    }
+    // Same instant, read in a zone where September was already over.
+    assert.deepEqual(
+      decideMonthlyInsight(
+        facts({ storedAt: at('2026-09-30T23:30:00+10:00'), zone: 'Pacific/Auckland' })
+      ),
+      { generate: false, reason: 'already-generated' }
+    )
   })
 
   test('test_without_a_live_model_the_household_is_skipped', ({ assert }) => {

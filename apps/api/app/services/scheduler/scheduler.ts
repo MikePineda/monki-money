@@ -19,10 +19,21 @@ export const FIRST_TICK_DELAY_MS = 60 * 1000
 /** How long `stop()` waits for a tick in progress before letting it go. */
 const STOP_GRACE_MS = 5 * 1000
 
+export interface TickContext {
+  /** The current instant: read it again for every unit of work. */
+  now: () => DateTime
+  /**
+   * Aborted once the process is stopping: check it before starting anything
+   * new (a claim, a paid model call), and leave work not started for the
+   * next tick of any container.
+   */
+  signal: AbortSignal
+}
+
 /** A unit of recurring work. `tick` should not throw; the scheduler guards anyway. */
 export interface ScheduledJob {
   readonly name: string
-  tick(now: DateTime): Promise<void>
+  tick(context: TickContext): Promise<void>
 }
 
 /** The pino methods the scheduler uses (the app logger in production). */
@@ -48,6 +59,7 @@ export function schedulerEnabled(input: {
 export class Scheduler {
   #timer: NodeJS.Timeout | null = null
   #running: Promise<void> | null = null
+  readonly #stopping = new AbortController()
 
   constructor(
     protected jobs: ScheduledJob[],
@@ -61,9 +73,11 @@ export class Scheduler {
 
   /**
    * Runs every job once, in order. Never rejects: a failing job is logged and
-   * the next one still runs. A tick still in progress is not started again.
+   * the next one still runs. A tick still in progress is not started again,
+   * and nothing starts once `stop()` was called.
    */
   tick(): Promise<void> {
+    if (this.#stopping.signal.aborted) return Promise.resolve()
     if (!this.#running) {
       this.#running = this.#runJobs().finally(() => {
         this.#running = null
@@ -73,7 +87,7 @@ export class Scheduler {
   }
 
   start() {
-    if (this.#timer) return
+    if (this.#timer || this.#stopping.signal.aborted) return
     this.logger.info(
       {
         jobs: this.jobs.map((job) => job.name),
@@ -87,8 +101,13 @@ export class Scheduler {
     }, this.timing.firstTickDelayMs).unref()
   }
 
-  /** Stops ticking and gives a tick in progress a few seconds to finish. */
+  /**
+   * Stops ticking and tells a tick in progress to stop (its jobs see the
+   * signal before their next unit of work), then gives it a few seconds to
+   * wind down: a model call already on the wire is not interrupted.
+   */
   async stop() {
+    this.#stopping.abort()
     if (this.#timer) {
       clearTimeout(this.#timer)
       clearInterval(this.#timer)
@@ -100,9 +119,11 @@ export class Scheduler {
   }
 
   async #runJobs() {
+    const context: TickContext = { now: this.now, signal: this.#stopping.signal }
     for (const job of this.jobs) {
+      if (context.signal.aborted) return
       try {
-        await job.tick(this.now())
+        await job.tick(context)
       } catch (error) {
         this.logger.error({ err: error, job: job.name }, `scheduler: job ${job.name} failed`)
       }
