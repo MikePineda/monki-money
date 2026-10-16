@@ -52,7 +52,7 @@ export class RulesStore {
   async save(rule: MerchantRule | null, draft: RuleDraft): Promise<MerchantRule> {
     const saved = rule
       ? await this.api.update(rule.id, rulePatch(rule, draft))
-      : await this.api.create(ruleInput(draft))
+      : withCounters(await this.api.create(ruleInput(draft)))
     this.list.value.update((rules) =>
       rule
         ? (rules ?? []).map((item) => (item.id === saved.id ? saved : item))
@@ -129,4 +129,12 @@ export class RulesStore {
     const message = failureMessage(apiError)
     this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
   }
+}
+
+/**
+ * `POST /rules` answers before the database defaults are read back, so a
+ * new rule may arrive without its counters: it has never matched yet.
+ */
+function withCounters(rule: MerchantRule): MerchantRule {
+  return { ...rule, hitCount: rule.hitCount ?? 0, lastHitAt: rule.lastHitAt ?? null }
 }

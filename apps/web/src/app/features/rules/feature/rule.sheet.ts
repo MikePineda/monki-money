@@ -273,7 +273,7 @@ export interface RuleSheetData {
                 (click)="step(-1)"
               ></button>
               <output
-                class="min-w-12 text-center text-amount tnum text-ink-1"
+                class="min-w-11 text-center text-amount tnum text-ink-1"
                 data-testid="rules.form.priority"
                 aria-live="polite"
                 >{{ priorityText() }}</output
