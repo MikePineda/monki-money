@@ -14,26 +14,68 @@ import { aCategoryTree } from './ledger-fixtures'
 import { aMember, aUser, anAccount } from './session-fixtures'
 
 export type ImportsApiMock = Record<
-  'upload' | 'staged' | 'show' | 'decide' | 'classify' | 'confirm' | 'cancel',
+  | 'upload'
+  | 'staged'
+  | 'show'
+  | 'batch'
+  | 'decide'
+  | 'decideMany'
+  | 'classify'
+  | 'confirm'
+  | 'cancel',
   Mock
 >
 
-/** An ImportsApi whose `show` serves `rows` and whose `decide` echoes the change. */
+/** `row` with a change applied the way the API stores it (a reset goes back to `proposal`). */
+export function echoChange(
+  row: ImportRow,
+  change: Record<string, unknown>,
+  proposal: ImportRow = row
+): ImportRow {
+  const keys = { ...change }
+  const { resolution, reset } = change
+  for (const key of ['resolution', 'reset', 'rowId']) {
+    delete keys[key]
+  }
+  const base = reset
+    ? { ...row, resolution: row.proposedResolution ?? proposal.resolution, decision: null }
+    : row
+  if (reset && resolution === undefined && Object.keys(keys).length === 0) {
+    return { ...base, decidedAt: null } as ImportRow
+  }
+  return {
+    ...base,
+    resolution: (resolution as ImportRow['resolution']) ?? base.resolution,
+    decision: { ...(base.decision ?? {}), ...keys },
+    decidedAt: '2026-10-16T00:00:00.000Z',
+  } as ImportRow
+}
+
+/**
+ * An ImportsApi whose `show` serves `rows` and whose `decide` / `decideMany`
+ * echo the changes (a reset brings back the row as `rows` had it).
+ */
 export function importsApiMock(rows: ImportRow[] = []): ImportsApiMock {
+  const current = new Map(rows.map((row) => [row.id, row]))
   return {
     upload: vi.fn(async () => ({ kind: 'staged', batches: [anImportBatch()] })),
     staged: vi.fn(async () => []),
     show: vi.fn(async () => anImportDetail(rows)),
+    batch: vi.fn(async () => anImportBatch()),
     decide: vi.fn(async (_id: number, rowId: number, change: Record<string, unknown>) => {
-      const row = rows.find((item) => item.id === rowId) as ImportRow
-      const { resolution, ...keys } = change
-      return {
-        ...row,
-        resolution: resolution ?? row.resolution,
-        decision: { ...(row.decision ?? {}), ...keys },
-        decidedAt: '2026-10-16T00:00:00.000Z',
-      }
+      const row = echoChange(current.get(rowId) as ImportRow, change)
+      current.set(rowId, row)
+      return row
     }),
+    decideMany: vi.fn(async (_id: number, changes: Record<string, unknown>[]) =>
+      changes.map((change) => {
+        const rowId = change['rowId'] as number
+        const proposal = rows.find((item) => item.id === rowId) as ImportRow
+        const row = echoChange(current.get(rowId) as ImportRow, change, proposal)
+        current.set(rowId, row)
+        return row
+      })
+    ),
     classify: vi.fn(async () => anImportBatch()),
     confirm: vi.fn(async () => ({
       batchId: 7,

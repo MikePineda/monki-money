@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing'
+import { MAX_BULK_ROW_CHANGES } from '@monkimoney/shared'
 import { TuyauHTTPError } from '@tuyau/core/client'
 import {
+  aDuplicateRow,
   aMatchCandidate,
   aTentativeSuggestion,
   aTrustedSuggestion,
@@ -8,6 +10,7 @@ import {
   anImportDetail,
   anImportRow,
 } from '../../../testing/import-fixtures'
+import { echoChange } from '../../../testing/import-testing'
 import type { ImportRow } from '../../core/api/api-types'
 import { SessionStore } from '../../core/auth/session.store'
 import { HouseholdDirectory } from '../../core/household/household-directory.store'
@@ -15,7 +18,7 @@ import { MonthStore } from '../../core/month/month.store'
 import { ToastStore } from '../../core/ui/toast.store'
 import { ImportResults } from './data-access/import-results'
 import { ImportsApi } from './data-access/imports.api'
-import { CLASSIFY_POLL_MS, ImportReviewStore } from './import-review.store'
+import { CLASSIFY_MAX_POLLS, CLASSIFY_POLL_MS, ImportReviewStore } from './import-review.store'
 
 function httpError(status: number, body: unknown) {
   const kyError = {
@@ -35,16 +38,26 @@ const rows = (): ImportRow[] => [
 ]
 
 describe('ImportReviewStore', () => {
-  let api: Record<'show' | 'decide' | 'classify' | 'confirm' | 'cancel', ReturnType<typeof vi.fn>>
+  let api: Record<
+    'show' | 'batch' | 'decide' | 'decideMany' | 'classify' | 'confirm' | 'cancel',
+    ReturnType<typeof vi.fn>
+  >
   let months: { invalidate: ReturnType<typeof vi.fn>; current: () => string }
 
-  async function setup(initial: ImportRow[] = rows()) {
+  async function setup(initial: ImportRow[] = rows(), batch = anImportBatch()) {
     api = {
-      show: vi.fn(async () => anImportDetail(initial)),
+      show: vi.fn(async () => ({ ...anImportDetail(initial), ...batch, rows: initial })),
+      batch: vi.fn(async () => anImportBatch()),
       decide: vi.fn(async (_id: number, rowId: number, change: { categoryId?: number }) => {
         const row = initial.find((item) => item.id === rowId) as ImportRow
         return { ...row, decision: { ...change }, decidedAt: '2026-10-16T00:00:00.000Z' }
       }),
+      decideMany: vi.fn(async (_id: number, changes: Record<string, unknown>[]) =>
+        changes.map((change) => {
+          const row = initial.find((item) => item.id === change['rowId']) as ImportRow
+          return echoChange(row, change)
+        })
+      ),
       classify: vi.fn(async () => anImportBatch()),
       confirm: vi.fn(async () => ({
         batchId: 7,
@@ -193,22 +206,182 @@ describe('ImportReviewStore', () => {
 
     await expect(store.acceptSuggested()).resolves.toBe(1)
 
-    expect(api.decide).toHaveBeenCalledTimes(1)
-    expect(api.decide).toHaveBeenCalledWith(7, 2, { categoryId: 21 })
+    expect(api.decideMany).toHaveBeenCalledTimes(1)
+    expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 2, categoryId: 21 }])
+    expect(api.decide).not.toHaveBeenCalled()
     expect(TestBed.inject(ToastStore).current()).toMatchObject({
       messageKey: 'import.toast.bulkDone',
       params: { count: 1 },
+      action: { labelKey: 'import.toast.undo' },
     })
   })
 
-  it('test_a_bulk_action_the_api_refuses_entirely_keeps_the_refusal_on_screen', async () => {
+  it('test_a_bulk_action_is_one_request_shown_at_once_and_settled_by_its_answer', async () => {
     const store = await setup()
-    api.decide.mockRejectedValue(httpError(500, {}))
+    let resolve!: (rows: ImportRow[]) => void
+    api.decideMany.mockImplementationOnce(
+      () => new Promise<ImportRow[]>((done) => (resolve = done))
+    )
+    store.selection.set(new Set([1, 3]))
 
-    await expect(store.acceptSuggested()).resolves.toBe(0)
+    const ignoring = store.ignoreSelected()
+
+    expect(store.rows().map((row) => row.resolution)).toEqual([
+      'ignored',
+      'new',
+      'ignored',
+      'auto_matched',
+      'ignored',
+    ])
+    expect([...store.pending()]).toEqual([1, 3])
+    expect(store.canConfirm()).toBe(false)
+    resolve([
+      anImportRow({ id: 1, resolution: 'ignored', decision: {}, decidedAt: 'saved' }),
+      anImportRow({ id: 3, resolution: 'ignored', decision: {}, decidedAt: 'saved' }),
+    ])
+    await expect(ignoring).resolves.toBe(2)
+
+    expect(store.rows()[0]?.decidedAt).toBe('saved')
+    expect(store.pending().size).toBe(0)
+    expect(store.selection().size).toBe(0)
+  })
+
+  it('test_a_bulk_action_the_api_refuses_puts_every_row_back_and_says_why', async () => {
+    const store = await setup()
+    api.decideMany.mockRejectedValue(httpError(500, {}))
+    store.selection.set(new Set([1, 3]))
+
+    await expect(store.ignoreSelected()).resolves.toBe(0)
 
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('errors.server')
-    expect(store.rows()[1]?.decision).toBeNull()
+    expect(store.rows().map((row) => row.resolution)).toEqual(rows().map((row) => row.resolution))
+    expect(store.rows()[0]?.decision).toBeNull()
+    expect(store.selection().size).toBe(2)
+  })
+
+  it('test_undo_after_a_bulk_ignore_puts_the_rows_back_in_one_request', async () => {
+    const store = await setup([
+      anImportRow({ id: 1, suggestion: aTentativeSuggestion(20) }),
+      anImportRow({
+        id: 2,
+        decision: { categoryId: 21, payee: 'Deli' },
+        decidedAt: '2026-10-15T00:00:00.000Z',
+      }),
+    ])
+    store.selection.set(new Set([1, 2]))
+    await store.ignoreSelected()
+    expect(store.rows().map((row) => row.resolution)).toEqual(['ignored', 'ignored'])
+
+    TestBed.inject(ToastStore).runAction()
+    await vi.waitFor(() => expect(api.decideMany).toHaveBeenCalledTimes(2))
+
+    expect(api.decideMany).toHaveBeenLastCalledWith(7, [
+      { rowId: 1, reset: true },
+      { rowId: 2, reset: true, resolution: 'new', categoryId: 21, payee: 'Deli' },
+    ])
+    await vi.waitFor(() =>
+      expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('import.toast.undone')
+    )
+    expect(store.rows().map((row) => row.resolution)).toEqual(['new', 'new'])
+    expect(store.rows()[0]?.decidedAt).toBeNull()
+    expect(store.rows()[1]?.decision).toEqual({ categoryId: 21, payee: 'Deli' })
+    expect(store.pending().size).toBe(0)
+  })
+
+  it('test_undo_leaves_alone_a_row_decided_again_since_the_bulk_action', async () => {
+    const store = await setup([
+      anImportRow({ id: 1 }),
+      anImportRow({ id: 2 }),
+      anImportRow({ id: 3 }),
+    ])
+    store.selection.set(new Set([1, 2, 3]))
+    await store.ignoreSelected()
+    await store.decide(2, { resolution: 'new', categoryId: 30 })
+
+    TestBed.inject(ToastStore).runAction()
+    await vi.waitFor(() => expect(api.decideMany).toHaveBeenCalledTimes(2))
+
+    expect(api.decideMany).toHaveBeenLastCalledWith(7, [
+      { rowId: 1, reset: true },
+      { rowId: 3, reset: true },
+    ])
+    expect(store.rows()[1]?.decision).toEqual({ resolution: 'new', categoryId: 30 })
+  })
+
+  it('test_a_bulk_action_past_one_request_goes_out_in_several', async () => {
+    const many = Array.from({ length: MAX_BULK_ROW_CHANGES + 1 }, (_, index) =>
+      anImportRow({ id: index + 1 })
+    )
+    const store = await setup(many)
+    store.selection.set(new Set(many.map((row) => row.id)))
+
+    await expect(store.ignoreSelected()).resolves.toBe(MAX_BULK_ROW_CHANGES + 1)
+
+    expect(api.decideMany).toHaveBeenCalledTimes(2)
+    expect(api.decideMany.mock.calls[0]?.[1]).toHaveLength(MAX_BULK_ROW_CHANGES)
+    expect(api.decideMany.mock.calls[1]?.[1]).toEqual([
+      { rowId: MAX_BULK_ROW_CHANGES + 1, resolution: 'ignored' },
+    ])
+  })
+
+  it('test_a_refused_undo_keeps_what_the_bulk_action_did_and_says_why', async () => {
+    const store = await setup()
+    store.selection.set(new Set([1]))
+    await store.ignoreSelected()
+    api.decideMany.mockRejectedValueOnce(httpError(500, {}))
+
+    TestBed.inject(ToastStore).runAction()
+
+    await vi.waitFor(() =>
+      expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('errors.server')
+    )
+    expect(store.rows()[0]?.resolution).toBe('ignored')
+  })
+
+  it('test_restore_brings_back_the_selected_ignored_rows_as_the_importer_proposed', async () => {
+    const store = await setup([
+      // Proposed as a possible match, ignored by a person: back to confirm, undecided.
+      anImportRow({
+        id: 1,
+        resolution: 'ignored',
+        proposedResolution: 'needs_confirmation',
+        match: aMatchCandidate(900),
+        decision: {},
+        decidedAt: '2026-10-15T00:00:00.000Z',
+      }),
+      // Staged before the API kept the proposal: back to the match it found.
+      anImportRow({
+        id: 2,
+        resolution: 'ignored',
+        proposedResolution: null,
+        match: aMatchCandidate(901),
+      }),
+      anImportRow({ id: 3, resolution: 'ignored', amountCents: 0 }),
+    ])
+    store.selection.set(new Set([1, 2, 3]))
+
+    await expect(store.restoreSelected()).resolves.toBe(2)
+
+    expect(api.decideMany).toHaveBeenCalledWith(7, [
+      { rowId: 1, reset: true },
+      { rowId: 2, resolution: 'auto_matched', matchTransactionId: 901 },
+    ])
+    expect(store.rows().map((row) => row.resolution)).toEqual([
+      'needs_confirmation',
+      'auto_matched',
+      'ignored',
+    ])
+    expect(store.rows()[0]?.decidedAt).toBeNull()
+    expect(store.blocking()).toEqual([1])
+  })
+
+  it('test_duplicates_are_counted_listed_apart_and_never_part_of_the_work', async () => {
+    const store = await setup([...rows(), aDuplicateRow({ id: 9 })])
+
+    expect(store.summary()).toMatchObject({ duplicate: 1, listedDuplicates: 1, total: 5 })
+    expect(store.visibleRows().map((row) => row.id)).toEqual([1, 2, 3, 4, 5])
+    store.filter.set('duplicate')
+    expect(store.visibleRows().map((row) => row.id)).toEqual([9])
   })
 
   it('test_accept_suggested_with_a_selection_only_touches_the_selected_rows', async () => {
@@ -220,8 +393,8 @@ describe('ImportReviewStore', () => {
 
     await store.acceptSuggested()
 
-    expect(api.decide).toHaveBeenCalledTimes(1)
-    expect(api.decide).toHaveBeenCalledWith(7, 2, { categoryId: 21 })
+    expect(api.decideMany).toHaveBeenCalledTimes(1)
+    expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 2, categoryId: 21 }])
     expect(store.selection().size).toBe(0)
   })
 
@@ -246,11 +419,10 @@ describe('ImportReviewStore', () => {
     expect(store.canConfirm()).toBe(true)
     await expect(store.acceptSuggested()).resolves.toBe(2)
 
-    expect(api.decide).toHaveBeenCalledWith(7, 2, { categoryId: 21 })
-    expect(api.decide).toHaveBeenCalledWith(7, 6, {
-      resolution: 'transfer_leg',
-      transferAccountId: 2,
-    })
+    expect(api.decideMany).toHaveBeenCalledWith(7, [
+      { rowId: 2, categoryId: 21 },
+      { rowId: 6, resolution: 'transfer_leg', transferAccountId: 2 },
+    ])
     expect(store.summary()).toMatchObject({ doubtful: 0, transfer: 1, acceptable: 0 })
   })
 
@@ -260,18 +432,15 @@ describe('ImportReviewStore', () => {
 
     await store.assignCategory(30)
 
-    expect(api.decide.mock.calls.map((call) => [call[1], call[2]])).toEqual([
-      [2, { categoryId: 30 }],
-      [3, { categoryId: 30 }],
+    expect(api.decideMany).toHaveBeenLastCalledWith(7, [
+      { rowId: 2, categoryId: 30 },
+      { rowId: 3, categoryId: 30 },
     ])
 
-    api.decide.mockClear()
     store.selection.set(new Set([1, 5]))
     await store.ignoreSelected()
 
-    expect(api.decide.mock.calls.map((call) => [call[1], call[2]])).toEqual([
-      [1, { resolution: 'ignored' }],
-    ])
+    expect(api.decideMany).toHaveBeenLastCalledWith(7, [{ rowId: 1, resolution: 'ignored' }])
   })
 
   it('test_confirm_sends_the_decisions_remembers_the_result_and_invalidates_the_months', async () => {
@@ -330,43 +499,73 @@ describe('ImportReviewStore', () => {
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('import.toast.undecided')
   })
 
-  it('test_classify_polls_until_the_model_answered_every_row_it_could', async () => {
+  it('test_classify_with_the_run_already_finished_reloads_the_rows_once', async () => {
     vi.useFakeTimers()
     const store = await setup([anImportRow({ id: 1 }), anImportRow({ id: 2 })])
-    const classified = [
-      anImportRow({ id: 1, suggestion: aTentativeSuggestion(20, 0.6) }),
-      anImportRow({ id: 2, suggestion: { ...aTrustedSuggestion(21), source: 'llm' } }),
-    ]
-    api.show.mockResolvedValue(anImportDetail(classified))
+    api.classify.mockResolvedValue(
+      anImportBatch({ classifying: false, classifiedAt: '2026-10-16T00:00:00.000Z' })
+    )
+    api.show.mockResolvedValue(
+      anImportDetail([
+        anImportRow({ id: 1, suggestion: aTentativeSuggestion(20, 0.6) }),
+        anImportRow({ id: 2, suggestion: { ...aTrustedSuggestion(21), source: 'llm' } }),
+      ])
+    )
 
     const running = store.classify()
     expect(store.classifying()).toBe(true)
     await running
 
     expect(api.classify).toHaveBeenCalledWith(7)
+    expect(api.batch).not.toHaveBeenCalled()
     expect(api.show).toHaveBeenCalledTimes(2)
     expect(store.rows()[0]?.suggestion?.source).toBe('llm')
     expect(store.classifying()).toBe(false)
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('import.toast.classified')
   })
 
-  it('test_classify_keeps_polling_every_two_seconds_until_two_polls_agree', async () => {
+  it('test_classify_polls_the_batch_alone_while_the_run_lasts_then_reloads_the_rows', async () => {
     vi.useFakeTimers()
-    const store = await setup([anImportRow({ id: 1 }), anImportRow({ id: 2 })])
-    const halfway = anImportDetail([
-      anImportRow({ id: 1, suggestion: aTentativeSuggestion(20) }),
-      anImportRow({ id: 2 }),
-    ])
-    api.show.mockResolvedValue(halfway)
+    const store = await setup([anImportRow({ id: 1 })])
+    api.classify.mockResolvedValue(anImportBatch({ classifying: true }))
+    api.batch
+      .mockResolvedValueOnce(anImportBatch({ classifying: true }))
+      .mockResolvedValueOnce(anImportBatch({ classifying: false }))
+    api.show.mockResolvedValue(
+      anImportDetail([anImportRow({ id: 1, suggestion: aTentativeSuggestion(20) })])
+    )
 
     const running = store.classify()
     await vi.advanceTimersByTimeAsync(0)
-    expect(api.show).toHaveBeenCalledTimes(2)
+    expect(api.batch).not.toHaveBeenCalled()
+    expect(api.show).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(CLASSIFY_POLL_MS)
+    expect(api.batch).toHaveBeenCalledWith(7)
+    expect(api.show).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(CLASSIFY_POLL_MS)
     await running
 
-    expect(api.show).toHaveBeenCalledTimes(3)
+    expect(api.batch).toHaveBeenCalledTimes(2)
+    expect(api.show).toHaveBeenCalledTimes(2)
+    expect(store.rows()[0]?.suggestion?.categoryId).toBe(20)
     expect(store.classifying()).toBe(false)
+  })
+
+  it('test_a_run_that_never_ends_is_followed_for_a_bounded_time', async () => {
+    vi.useFakeTimers()
+    const store = await setup([anImportRow({ id: 1 })])
+    api.classify.mockResolvedValue(anImportBatch({ classifying: true }))
+    api.batch.mockResolvedValue(anImportBatch({ classifying: true }))
+
+    const running = store.classify()
+    await vi.advanceTimersByTimeAsync(CLASSIFY_POLL_MS * (CLASSIFY_MAX_POLLS + 1))
+    await running
+
+    expect(api.batch).toHaveBeenCalledTimes(CLASSIFY_MAX_POLLS)
+    expect(api.show).toHaveBeenCalledTimes(2)
+    expect(store.classifying()).toBe(false)
+    // The run may still be going: nothing is announced.
+    expect(TestBed.inject(ToastStore).current()?.messageKey).not.toBe('import.toast.classified')
   })
 
   it('test_a_classification_already_running_is_followed_instead', async () => {
@@ -375,14 +574,31 @@ describe('ImportReviewStore', () => {
     api.classify.mockRejectedValueOnce(
       httpError(409, { message: 'x', code: 'E_IMPORT_CLASSIFY_RUNNING' })
     )
+    api.batch.mockResolvedValue(anImportBatch({ classifying: false }))
     api.show.mockResolvedValue(
       anImportDetail([anImportRow({ id: 1, suggestion: aTentativeSuggestion(20) })])
     )
 
-    await store.classify()
+    const running = store.classify()
+    await vi.advanceTimersByTimeAsync(CLASSIFY_POLL_MS)
+    await running
 
+    expect(api.batch).toHaveBeenCalledTimes(1)
     expect(api.show).toHaveBeenCalledTimes(2)
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('import.toast.classified')
+  })
+
+  it('test_a_run_going_on_when_the_review_opens_is_followed_until_it_ends', async () => {
+    vi.useFakeTimers()
+    const store = await setup([anImportRow({ id: 1 })], anImportBatch({ classifying: true }))
+    api.batch.mockResolvedValue(anImportBatch({ classifying: false }))
+
+    expect(store.classifying()).toBe(true)
+    await vi.advanceTimersByTimeAsync(CLASSIFY_POLL_MS)
+
+    expect(api.batch).toHaveBeenCalledTimes(1)
+    expect(api.show).toHaveBeenCalledTimes(2)
+    expect(store.classifying()).toBe(false)
   })
 
   it('test_cancel_closes_the_batch', async () => {

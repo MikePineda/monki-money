@@ -102,6 +102,7 @@
       "label": "Selected movements",
       "clear": "Clear selection",
       "ignore": "Ignore",
+      "restore": "Restore",
       "category": "Category",
       "accept": "Accept ({count})"
     },
@@ -145,6 +146,8 @@
     "transferGuessed": "Transfer to {account} (guessed)",
     "matches": "Matches {payee}",
     "possibleMatch": "Maybe {payee}",
+    "duplicateOf": "Already imported: {date}, {amount}",
+    "duplicateIgnored": "Imported before and ignored",
     "suggestion": "{category} ?",
     "select": "Select {title}, {amount}",
     "change": "Change",
@@ -218,6 +221,8 @@
   },
   "toast": {
     "bulkDone": "{count, plural, one {# movement updated.} other {# movements updated.}}",
+    "undo": "Undo",
+    "undone": "Changes undone.",
     "classifyRunning": "The AI is already classifying this import.",
     "classified": "AI suggestions are in.",
     "undecided": "Some movements still need a decision.",

@@ -12,6 +12,13 @@ import { expect, signUpOwner, test, xsrfToken } from '../support/fixtures.ts'
 const FIXTURE = fileURLToPath(new URL('./fixtures/nab/journey.csv', import.meta.url))
 const MONTH = '2026-09'
 
+/**
+ * The next export of the same account: two October rows (a FreshCo purchase
+ * the learned rule sorts, a bakery without a category) and the last three
+ * September rows again, which are duplicates.
+ */
+const OCTOBER = fileURLToPath(new URL('./fixtures/nab/journey-october.csv', import.meta.url))
+
 /** The month's spending (`GET /reports/month`), positive cents. */
 async function spentIn(context: BrowserContext, month: string): Promise<number> {
   const response = await context.request.get(`/api/v1/reports/month?month=${month}`)
@@ -70,5 +77,39 @@ test.describe('journey 5: import a bank CSV', () => {
     const month = new MonthPage(page)
     await month.waitReady()
     await expect(month.hero).toHaveText('$132.05')
+
+    // The next export repeats three September rows: they stay out of the list,
+    // behind the duplicates chip, each with the movement it repeats.
+    await imports.goto()
+    await imports.upload(OCTOBER)
+    await expect(imports.summary).toContainText('3 duplicates')
+    await expect(imports.rows).toHaveCount(2)
+    await expect(imports.row('CORNER BAKERY')).toHaveAttribute('data-tone', 'new')
+    await expect(imports.row('FreshCo')).toHaveAttribute('data-tone', 'auto')
+    await imports.toggleDuplicates()
+    await expect(imports.rows).toHaveCount(3)
+    await expect(imports.row('FreshCo')).toHaveAttribute('data-tone', 'duplicate')
+    await expect(imports.row('FreshCo')).toContainText('Already imported:')
+    await expect(imports.row('FreshCo')).toContainText('$58.40')
+    await expect(imports.row('Translink')).toContainText('Imported before and ignored')
+    await imports.toggleDuplicates()
+    await expect(imports.rows).toHaveCount(2)
+
+    // Ignore both new rows at once, then "Undo" puts them back as they were.
+    await imports.select('CORNER BAKERY')
+    await imports.select('FreshCo')
+    await imports.ignoreSelected()
+    await expect(imports.row('CORNER BAKERY')).toHaveAttribute('data-tone', 'ignored')
+    await expect(imports.row('FreshCo')).toHaveAttribute('data-tone', 'ignored')
+    await imports.undo()
+    await expect(imports.row('CORNER BAKERY')).toHaveAttribute('data-tone', 'new')
+    await expect(imports.row('FreshCo')).toHaveAttribute('data-tone', 'auto')
+
+    // Confirm: only the two October rows reach the ledger, still balanced.
+    await imports.confirm()
+    await expect(imports.created).toHaveText('2')
+    await expect(imports.reconciliation).toHaveAttribute('data-status', 'balanced')
+    await expect(imports.reconciliation).toContainText('Balanced with the bank: $1,798.43')
+    await expect.poll(() => spentIn(context, MONTH)).toBe(13205)
   })
 })

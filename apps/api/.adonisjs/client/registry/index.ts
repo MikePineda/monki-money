@@ -498,6 +498,12 @@ const routes = {
     tokens: [{"old":"/api/v1/imports/:id/cancel","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/cancel","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/cancel","type":0,"val":"cancel","end":""}],
     types: placeholder as Registry['imports.cancel']['types'],
   },
+  'imports.rows.bulk': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/imports/:id/rows',
+    tokens: [{"old":"/api/v1/imports/:id/rows","type":0,"val":"api","end":""},{"old":"/api/v1/imports/:id/rows","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/:id/rows","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/:id/rows","type":1,"val":"id","end":""},{"old":"/api/v1/imports/:id/rows","type":0,"val":"rows","end":""}],
+    types: placeholder as Registry['imports.rows.bulk']['types'],
+  },
   'imports.rows.update': {
     methods: ["PATCH"],
     pattern: '/api/v1/imports/:id/rows/:rowId',

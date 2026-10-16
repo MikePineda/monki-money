@@ -8,18 +8,10 @@ import MerchantRule from '#models/merchant_rule'
 import drive from '@adonisjs/drive/services/main'
 import { categoryBySlug, freezeClock } from '#tests/helpers/ledger'
 import { TransactionFactory } from '#database/factories/transaction_factory'
-import { NAB_HEADER, nabCsv, nabFixture } from '#tests/helpers/importing'
+import { fixtureLines, nabCsv, nabFixture } from '#tests/helpers/importing'
 import { countOf, nabHousehold, nabLine, rowsStartingWith, uploadCsv } from '#tests/helpers/imports'
 
 const TODAY = '2026-10-15T09:00:00+10:00'
-
-/** Data lines of a fixture (header dropped), to build partial uploads. */
-function fixtureLines(name: string) {
-  return nabFixture(name)
-    .toString('utf8')
-    .split(/\r?\n/)
-    .filter((line) => line !== '' && line !== NAB_HEADER)
-}
 
 test.group('Imports: confirm', (group) => {
   group.each.setup(() => {

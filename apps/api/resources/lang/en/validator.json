@@ -145,6 +145,8 @@
       "matchType.locked": "Bank default rules keep their rule type. Add a new rule if you need another one",
       "pattern.locked": "Bank default rules keep their pattern. Add a new rule for other wording",
       "resolution.zeroAmount": "A movement of 0.00 can only be ignored",
+      "resolution.duplicate": "This movement was imported before: there is nothing to decide",
+      "reset.unknownProposal": "This movement was decided before the import kept its proposal. Choose what it is instead",
       "matchTransactionId.amountMismatch": "Choose a transaction with the same amount",
       "matchTransactionId.claimed": "Another bank movement is already linked to this transaction",
       "accountId.accountNumberMismatch": "This account is linked to another bank account number",

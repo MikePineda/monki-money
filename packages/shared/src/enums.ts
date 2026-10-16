@@ -73,9 +73,10 @@ export const IMPORT_BATCH_STATUSES = ['staged', 'completed', 'cancelled'] as con
 export type ImportBatchStatus = (typeof IMPORT_BATCH_STATUSES)[number]
 
 /**
- * What an imported bank row is. `duplicate` rows are counted but never
- * stored (their hash already is); `superseded` marks the row of a pending
- * movement once its posted copy took over the transaction.
+ * What an imported bank row is. `duplicate` rows (their hash was imported
+ * before) are stored settled, for the review to list them, and take no
+ * decision; `superseded` marks the row of a pending movement once its
+ * posted copy took over the transaction.
  */
 export const IMPORT_RESOLUTIONS = [
   'new',

@@ -47,6 +47,7 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
       isPending: row.isPending,
       isFutureDated: row.isFutureDated,
       resolution: row.resolution,
+      proposedResolution: row.proposedResolution,
       needsReview: row.needsReview,
       reasons: row.reasons,
       match:

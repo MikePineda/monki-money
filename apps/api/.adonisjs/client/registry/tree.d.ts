@@ -130,6 +130,7 @@ export interface ApiDefinition {
     confirm: typeof routes['imports.confirm']
     cancel: typeof routes['imports.cancel']
     rows: {
+      bulk: typeof routes['imports.rows.bulk']
       update: typeof routes['imports.rows.update']
     }
   }

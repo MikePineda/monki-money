@@ -35,6 +35,8 @@ export function anImportBatch(overrides: Partial<ImportBatch> = {}): ImportBatch
       openingBalanceCents: null,
       missingBefore: null,
     },
+    classifying: false,
+    classifiedAt: null,
     uploadedByUserId: 1,
     createdAt: '2026-10-01T00:00:00.000Z',
     completedAt: null,
@@ -44,6 +46,8 @@ export function anImportBatch(overrides: Partial<ImportBatch> = {}): ImportBatch
 
 export function anImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
   return {
+    // Untouched rows: the resolution is the importer's proposal.
+    proposedResolution: overrides.resolution ?? 'new',
     id: 1,
     rowIndex: 1,
     bankDate: '2026-09-27',
@@ -114,6 +118,18 @@ export function aMatchCandidate(transactionId = 900, amountCents = -2800) {
       status: 'cleared' as const,
     },
   }
+}
+
+/** A row the bank sent again: read-only, pointing at the ledger row it repeats. */
+export function aDuplicateRow(overrides: Partial<ImportRow> = {}): ImportRow {
+  return anImportRow({
+    resolution: 'duplicate',
+    reasons: ['duplicate_hash'],
+    suggestion: null,
+    confirmedAt: '2026-10-16T00:00:00.000Z',
+    match: { ...aMatchCandidate(900), score: null },
+    ...overrides,
+  })
 }
 
 export function anImportDetail(

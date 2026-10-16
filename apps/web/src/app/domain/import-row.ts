@@ -13,10 +13,13 @@
  * - {@link allowedActions}: what the triage sheet offers for a row;
  * - {@link applyDecision}: the optimistic preview of a `PATCH`;
  * - {@link bulkAcceptSuggested}, {@link assignCategoryChanges},
- *   {@link ignoreChanges}: the bulk bar;
+ *   {@link ignoreChanges}, {@link restoreChanges}: the bulk bar, and
+ *   {@link undoChanges}: its "Undo" (`PATCH /imports/:id/rows`);
  * - {@link decisionsFor}: the `POST /imports/:id/confirm` payload;
  * - {@link summary}, {@link filterRows}: the header chips and the filter
- *   (a tone, or only the rows that keep confirm waiting);
+ *   (a tone, or only the rows that keep confirm waiting). Duplicates (rows
+ *   the bank sent again) are read-only and only listed behind their own
+ *   filter;
  * - {@link reconciliationMessage}: the bank balance vs the ledger.
  */
 import type { Cents } from './money'
@@ -94,9 +97,14 @@ export interface RowDecision {
   learnRule?: boolean
 }
 
-/** A `PATCH /imports/:id/rows/:rowId` body: the decision plus, maybe, a new resolution. */
+/**
+ * A `PATCH /imports/:id/rows/:rowId` body: the decision plus, maybe, a new
+ * resolution. `reset` first puts the row back as the importer proposed it
+ * (`proposedResolution`), undecided unless the change sets something else.
+ */
 export interface RowChange extends RowDecision {
   resolution?: DecidedResolution
+  reset?: boolean
 }
 
 /** One row's change, for the bulk actions. */
@@ -107,6 +115,11 @@ export interface RowChangeRequest {
 
 /** One entry of the confirm payload (`decisions[]`). */
 export interface ConfirmDecision extends RowChange {
+  rowId: number
+}
+
+/** One entry of `PATCH /imports/:id/rows` (`changes[]`, applied all or nothing). */
+export interface BulkRowChange extends RowChange {
   rowId: number
 }
 
@@ -124,6 +137,11 @@ export interface ReviewableRow {
   isMasked: boolean
   isPending: boolean
   resolution: ImportResolution
+  /**
+   * What the importer proposed, kept when a decision moves `resolution`;
+   * null for rows staged before the API kept it (and decided since).
+   */
+  proposedResolution: ImportResolution | null
   /** Why the row ended where it did (`IMPORT_ROW_REASONS`). */
   reasons: readonly string[]
   match: {
@@ -195,8 +213,11 @@ function pick<Key extends keyof RowDecision>(
     : proposal
 }
 
+/** Still waiting for confirm: duplicates and superseded rows are done by definition. */
 function isOpen(row: ReviewableRow): boolean {
-  return row.confirmedAt === null && row.resolution !== 'superseded'
+  return (
+    row.confirmedAt === null && row.resolution !== 'superseded' && row.resolution !== 'duplicate'
+  )
 }
 
 function splitsOf(row: ReviewableRow): SplitLine[] {
@@ -353,8 +374,17 @@ export function acceptChange(row: ReviewableRow): RowChange | null {
   return null
 }
 
-/** The change "Restore" makes: back to the match or transfer found, else a new row. */
+/**
+ * The change "Restore" makes: back to what the importer proposed, undecided
+ * (a possible match, a guessed or unknown transfer account still wait for a
+ * person). Rows staged before the API kept the proposal, or that the
+ * importer itself ignored, come back to the match or transfer found, else
+ * as a new row.
+ */
 export function restoreChange(row: ReviewableRow): RowChange {
+  if (row.proposedResolution !== null && row.proposedResolution !== 'ignored') {
+    return { reset: true }
+  }
   const matchTransactionId = effectiveMatch(row)
   if (matchTransactionId !== null) {
     return { resolution: 'auto_matched', matchTransactionId }
@@ -403,21 +433,30 @@ export function allowedActions(row: ReviewableRow): ReadonlySet<RowAction> {
 /**
  * The optimistic preview of a `PATCH`: the resolution moves, decision keys
  * merge (an explicit null is kept, a key left out keeps what was there),
- * and the row counts as decided. Returns a new row.
+ * and the row counts as decided. A reset first puts the row back as the
+ * importer proposed it; with nothing else it stays undecided. Returns a
+ * new row.
  */
 export function applyDecision<Row extends ReviewableRow>(
   row: Row,
   change: RowChange,
   decidedAt: string = row.decidedAt ?? 'local'
 ): Row {
-  const { resolution, ...keys } = change
-  const decision: RowDecision = { ...(row.decision ?? {}) }
-  for (const [key, value] of Object.entries(keys)) {
-    if (value !== undefined) {
-      Object.assign(decision, { [key]: value })
-    }
+  const { resolution, reset, ...keys } = change
+  const base: Row = reset
+    ? {
+        ...row,
+        resolution: row.proposedResolution ?? row.resolution,
+        decision: null,
+        decidedAt: null,
+      }
+    : row
+  const set = Object.entries(keys).filter(([, value]) => value !== undefined)
+  if (reset && resolution === undefined && set.length === 0) {
+    return base
   }
-  return { ...row, resolution: resolution ?? row.resolution, decision, decidedAt }
+  const decision: RowDecision = { ...(base.decision ?? {}), ...Object.fromEntries(set) }
+  return { ...base, resolution: resolution ?? base.resolution, decision, decidedAt }
 }
 
 /** "Accept suggested": the doubtful (or new) rows that carry something to accept. */
@@ -457,6 +496,32 @@ export function ignoreChanges(rows: readonly ReviewableRow[]): RowChangeRequest[
     .map((row) => ({ rowId: row.id, change: { resolution: 'ignored' } }))
 }
 
+/** "Restore" for the selected ignored rows ({@link restoreChange}; never a 0.00 one). */
+export function restoreChanges(rows: readonly ReviewableRow[]): RowChangeRequest[] {
+  return rows
+    .filter((row) => allowedActions(row).has('restore'))
+    .map((row) => ({ rowId: row.id, change: restoreChange(row) }))
+}
+
+/**
+ * "Undo" of a bulk action: each row as it was before (`before`, the rows
+ * the action changed). A reset takes the row back to the importer's
+ * proposal; a row a person had decided gets that decision again, with its
+ * resolution when it was one a person sets.
+ */
+export function undoChanges(before: readonly ReviewableRow[]): BulkRowChange[] {
+  return before.map((row) => {
+    if (row.decidedAt === null) {
+      return { rowId: row.id, reset: true }
+    }
+    const entry: BulkRowChange = { rowId: row.id, reset: true }
+    if (DECIDED_RESOLUTIONS.includes(row.resolution)) {
+      entry.resolution = row.resolution as DecidedResolution
+    }
+    return { ...entry, ...(row.decision ?? {}) }
+  })
+}
+
 /**
  * The `decisions[]` of confirm: every open row a person touched, with its
  * decided resolution and stored keys. The same decisions were already sent
@@ -481,30 +546,36 @@ export function blockingRowIds(rows: readonly ReviewableRow[]): number[] {
 }
 
 export interface ReviewSummary extends Record<ReviewTone, number> {
-  /** Rows on screen (duplicates are counted by the batch, never listed). */
+  /** Rows of the import to review or confirm (duplicates apart). */
   total: number
   blocking: number
   /** Rows "Accept suggested" would change. */
   acceptable: number
+  /** Duplicates the list can show (the `duplicate` filter). */
+  listedDuplicates: number
 }
 
 /**
- * The header chips: rows per tone. The API never stores duplicates (their
- * hash already is), so their count comes from the batch (`counts.duplicate`).
+ * The header chips: rows per tone. Duplicates come from the batch count
+ * (`counts.duplicate`): batches staged before the API listed them only
+ * count them; newer ones list them too, read-only.
  */
 export function summary(rows: readonly ReviewableRow[], duplicates = 0): ReviewSummary {
+  const work = rows.filter((row) => row.resolution !== 'duplicate')
+  const listedDuplicates = rows.length - work.length
   const counts: ReviewSummary = {
     auto: 0,
     doubtful: 0,
     new: 0,
-    duplicate: duplicates,
+    duplicate: Math.max(duplicates, listedDuplicates),
     transfer: 0,
     ignored: 0,
-    total: rows.length,
+    total: work.length,
     blocking: 0,
-    acceptable: bulkAcceptSuggested(rows).length,
+    acceptable: bulkAcceptSuggested(work).length,
+    listedDuplicates,
   }
-  for (const row of rows) {
+  for (const row of work) {
     counts[toneOf(row)] += 1
     if (isBlocking(row)) {
       counts.blocking += 1
@@ -514,10 +585,11 @@ export function summary(rows: readonly ReviewableRow[], duplicates = 0): ReviewS
 }
 
 /**
- * What the list shows: every row, the rows of one tone, or `blocking`, only
- * the rows confirm waits for ({@link blockingRowIds}). "To review" is wider
- * than `blocking`: a category under review is worth a look but does not stop
- * the confirm.
+ * What the list shows: every row but the duplicates, the rows of one tone
+ * (`duplicate` is the only way to see those), or `blocking`, only the rows
+ * confirm waits for ({@link blockingRowIds}). "To review" is wider than
+ * `blocking`: a category under review is worth a look but does not stop the
+ * confirm.
  */
 export type ReviewFilter = 'all' | 'blocking' | ReviewTone
 
@@ -527,7 +599,7 @@ export function filterRows<Row extends ReviewableRow>(
 ): Row[] {
   switch (filter) {
     case 'all':
-      return [...rows]
+      return rows.filter((row) => row.resolution !== 'duplicate')
     case 'blocking':
       return rows.filter(isBlocking)
     default:
@@ -553,20 +625,6 @@ export function classifiableRows<Row extends ReviewableRow>(rows: readonly Row[]
     }
     return effectiveCategory(row) === null || row.suggestion?.needsReview === true
   })
-}
-
-/**
- * A digest of every row's suggestion: unchanged between two polls means the
- * classify run left nothing new to show.
- */
-export function suggestionFingerprint(rows: readonly ReviewableRow[]): string {
-  return rows
-    .map(
-      (row) =>
-        `${row.id}:${row.suggestion?.source ?? '-'}:${row.suggestion?.categoryId ?? '-'}:` +
-        `${row.suggestion?.needsReview ? 1 : 0}`
-    )
-    .join('|')
 }
 
 /** The batch's `reconciliation` (API `reconcile()`). */
