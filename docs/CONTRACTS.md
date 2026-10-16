@@ -83,13 +83,17 @@ The SPA fallback route (`spa.fallback`) is excluded from the registry
   bulk categorize skips it.
 - Another household's resource: 404, never 403.
 - Leaving members (`household.leave`; the same rule applies to a removal by
-  the owner if that route is ever added): their personal accounts become
-  joint (`ownerUserId: null`) and their cards, on any account of the
-  household, keep the suffix but lose their `userId`, in the same
-  transaction that drops the membership. New rows on those accounts and
-  cards then default to whoever enters them (`defaultPayer`) instead of
-  someone who is gone. Existing rows keep `paidByUserId` and
-  `createdByUserId`: history is history.
+  the owner if that route is ever added): in the same transaction that
+  drops the membership, their personal accounts become joint
+  (`ownerUserId: null`), their cards on any account of the household keep
+  the suffix but lose their `userId`, and merchant rules, recurring items
+  and import rows still to confirm (suggested payer and a decided payer)
+  stop naming them as the payer. New rows on those accounts and cards then
+  default to whoever enters them (`defaultPayer`) instead of someone who is
+  gone. Existing ledger rows and confirmed import rows keep
+  `paidByUserId` and `createdByUserId`: history is history. Leave, delete
+  and ownership transfer decide on the locked, committed membership, so a
+  handover racing a leave never leaves the household without an owner.
 - Locale of messages: the user's `locale`, else `Accept-Language`, else the
   household's, else `APP_DEFAULT_LOCALE` (`en`). Responses carry
   `Content-Language`. System categories/groups (`isSystem`) are named in that
@@ -119,7 +123,7 @@ is pending deletion.
 Throttles (429): login, sign-up, forgot/reset password and invitation
 lookups/accepts 5/min (then 20 min blocked) per client IP (+ email); password
 re-checks (`PATCH /me` with `password`, `household.delete`,
-`household.transferOwnership`) 5/min per user;
+`household.transferOwnership`; only wrong passwords count) 5/min per user;
 `auth.email.resend` 3 per 15 min per user; wrong `auth.email.verifyCode`
 codes 5/min (then 20 min blocked) per client IP + email; invitation mails (create + resend)
 10/hour per household. The client IP is `CF-Connecting-IP` only when the

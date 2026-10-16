@@ -1,5 +1,11 @@
 import { test } from '@japa/runner'
+import { DateTime } from 'luxon'
+import ImportRow from '#models/import_row'
+import ImportBatch from '#models/import_batch'
 import AccountCard from '#models/account_card'
+import MerchantRule from '#models/merchant_rule'
+import RecurringItem from '#models/recurring_item'
+import { categoryBySlug } from '#tests/helpers/ledger'
 import Transaction from '#models/transaction'
 import HouseholdMember from '#models/household_member'
 import limiter from '@adonisjs/limiter/services/main'
@@ -220,5 +226,131 @@ test.group('Household / leave', (group) => {
       legs.map((leg) => leg.paidByUserId),
       [owner.id, owner.id]
     )
+  })
+
+  test('test_leaving_frees_the_members_merchant_rules_and_they_stay_editable', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, member } = await createHousehold({ users: 2, taxonomy: true })
+    const groceries = await categoryBySlug(household.id, 'groceries')
+    const theirs = await MerchantRule.create({
+      householdId: household.id,
+      matchType: 'contains',
+      pattern: 'BAKERY',
+      categoryId: groceries.id,
+      paidByUserId: member.id,
+      origin: 'user',
+    })
+    const ours = await MerchantRule.create({
+      householdId: household.id,
+      matchType: 'contains',
+      pattern: 'BUTCHER',
+      categoryId: groceries.id,
+      paidByUserId: owner.id,
+      origin: 'user',
+    })
+
+    const leave = await client.post('/api/v1/household/leave').actingAs(member)
+    leave.assertStatus(204)
+
+    for (const rule of [theirs, ours]) await rule.refresh()
+    assert.isNull(theirs.paidByUserId)
+    assert.equal(ours.paidByUserId, owner.id)
+    // Editing it no longer trips over a payer who is gone.
+    const edit = await client
+      .patch(`/api/v1/rules/${theirs.id}`)
+      .json({ pattern: 'CORNER BAKERY' })
+      .actingAs(owner)
+    edit.assertStatus(200)
+    edit.assertBodyContains({ data: { pattern: 'CORNER BAKERY', paidByUserId: null } })
+  })
+
+  test('test_leaving_frees_the_members_recurring_items', async ({ client, assert }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    const base = {
+      householdId: household.id,
+      cadence: 'monthly' as const,
+      amountCents: 4_500,
+      nextExpectedDate: '2026-11-01',
+    }
+    const theirs = await RecurringItem.create({
+      ...base,
+      merchantKey: 'PHONE',
+      payee: 'Phone',
+      paidByUserId: member.id,
+    })
+    const ours = await RecurringItem.create({
+      ...base,
+      merchantKey: 'GYM',
+      payee: 'Gym',
+      paidByUserId: owner.id,
+    })
+
+    const leave = await client.post('/api/v1/household/leave').actingAs(member)
+    leave.assertStatus(204)
+
+    for (const item of [theirs, ours]) await item.refresh()
+    assert.isNull(theirs.paidByUserId)
+    assert.equal(ours.paidByUserId, owner.id)
+    const edit = await client
+      .patch(`/api/v1/recurring/${theirs.id}`)
+      .json({ amountCents: 5_000 })
+      .actingAs(owner)
+    edit.assertStatus(200)
+  })
+
+  test('test_leaving_frees_the_members_open_import_rows_but_not_confirmed_ones', async ({
+    client,
+    assert,
+  }) => {
+    const { household, member, accounts } = await createHousehold({
+      users: 2,
+      taxonomy: true,
+      accounts: [{ name: 'Everyday' }],
+    })
+    const groceries = await categoryBySlug(household.id, 'groceries')
+    const batch = await ImportBatch.create({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      source: 'nab_csv',
+      status: 'staged',
+      fileHash: 'd'.repeat(64),
+    })
+    const row = (rowIndex: number, extra: Partial<ImportRow>) =>
+      ImportRow.create({
+        importBatchId: batch.id,
+        householdId: household.id,
+        accountId: accounts[0].id,
+        rowIndex,
+        externalHash: `${rowIndex}`.repeat(64),
+        raw: {},
+        bankDate: '2026-10-01',
+        date: '2026-10-01',
+        amountCents: -1_000,
+        descriptionRaw: 'BAKERY',
+        descriptionNormalized: 'BAKERY',
+        resolution: 'new',
+        reasons: [],
+        suggestedPaidByUserId: member.id,
+        ...extra,
+      })
+    const suggested = await row(0, {})
+    const decided = await row(1, {
+      decision: { paidByUserId: member.id, categoryId: groceries.id },
+      decidedAt: DateTime.now(),
+    })
+    const confirmed = await row(2, { confirmedAt: DateTime.now() })
+
+    const leave = await client.post('/api/v1/household/leave').actingAs(member)
+    leave.assertStatus(204)
+
+    for (const item of [suggested, decided, confirmed]) await item.refresh()
+    // Rows still to confirm no longer name them as the payer...
+    assert.isNull(suggested.suggestedPaidByUserId)
+    assert.isNull(decided.suggestedPaidByUserId)
+    assert.deepEqual(decided.decision, { categoryId: groceries.id })
+    // ...while a confirmed row is history.
+    assert.equal(confirmed.suggestedPaidByUserId, member.id)
   })
 })

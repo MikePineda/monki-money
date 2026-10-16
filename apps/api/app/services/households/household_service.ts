@@ -22,6 +22,14 @@ import {
 } from '#exceptions/errors'
 
 /**
+ * Runs a password re-check, e.g. through the per-user limiter (wrong
+ * passwords count toward it, nothing else does).
+ */
+export type PasswordAttempt = (check: () => Promise<void>) => Promise<void>
+
+const unthrottled: PasswordAttempt = (check) => check()
+
+/**
  * Household settings and lifecycle. Deleting only schedules the deletion
  * (30-day restore window; the purge job arrives with the worker). Callers
  * authorize first (HouseholdPolicy).
@@ -94,9 +102,13 @@ export default class HouseholdService {
     if (membership.isOwner) throw new OwnerCannotLeave()
 
     await db.transaction(async (trx) => {
-      membership.useTransaction(trx)
-      await membership.delete()
-      await this.releaseAccountsOf(membership.householdId, user.id, trx)
+      // Decide on the committed role: a handover may have made them the owner meanwhile.
+      const current = await this.lockedMembership(membership.householdId, user.id, trx)
+      if (!current) throw new MemberNotFound()
+      if (current.isOwner) throw new OwnerCannotLeave()
+
+      await current.delete()
+      await this.releaseMember(current.householdId, user.id, trx)
       user.useTransaction(trx)
       user.currentHouseholdId = null
       await user.save()
@@ -104,11 +116,14 @@ export default class HouseholdService {
   }
 
   /**
-   * A former member's accounts and cards in this household: their personal
-   * accounts become joint and their cards (on any account of the household)
-   * keep the suffix but no longer name a person.
+   * What still names a former member as the person behind future rows, so
+   * nothing new is attributed to someone who is gone: their personal
+   * accounts become joint, their cards (on any account of the household)
+   * keep the suffix but no person, and merchant rules, recurring items and
+   * import rows still to confirm (suggestion and decision) lose them as the
+   * payer. Confirmed rows and the ledger are history and stay.
    */
-  protected async releaseAccountsOf(
+  protected async releaseMember(
     householdId: number,
     userId: number,
     trx: TransactionClientContract
@@ -125,6 +140,52 @@ export default class HouseholdService {
         Account.query({ client: trx }).where('household_id', householdId).select('id')
       )
       .update({ user_id: null, updated_at: now })
+    for (const table of ['merchant_rules', 'recurring_items']) {
+      await trx
+        .from(table)
+        .where('household_id', householdId)
+        .where('paid_by_user_id', userId)
+        .update({ paid_by_user_id: null, updated_at: now })
+    }
+    await trx
+      .from('import_rows')
+      .where('household_id', householdId)
+      .whereNull('confirmed_at')
+      .where('suggested_paid_by_user_id', userId)
+      .update({ suggested_paid_by_user_id: null, updated_at: now })
+    // A decided payer falls back to the (now empty) suggestion.
+    await trx
+      .from('import_rows')
+      .where('household_id', householdId)
+      .whereNull('confirmed_at')
+      .whereRaw(`decision -> 'paidByUserId' = to_jsonb(?::integer)`, [userId])
+      .update({ decision: trx.raw(`decision - 'paidByUserId'`), updated_at: now })
+  }
+
+  /** The membership of `userId`, locked until the transaction ends (null once gone). */
+  protected lockedMembership(householdId: number, userId: number, trx: TransactionClientContract) {
+    return HouseholdMember.query({ client: trx })
+      .where('household_id', householdId)
+      .where('user_id', userId)
+      .forUpdate()
+      .first()
+  }
+
+  /** Still the owner on the committed, locked row, or 403 like the policy. */
+  protected async assertStillOwner(
+    householdId: number,
+    userId: number,
+    trx: TransactionClientContract
+  ) {
+    const current = await this.lockedMembership(householdId, userId, trx)
+    if (!current?.isOwner) {
+      throw new bouncerErrors.E_AUTHORIZATION_FAILURE(AuthorizationResponse.deny())
+    }
+    return current
+  }
+
+  protected async checkPassword(user: User, password: string) {
+    if (!(await user.verifyPassword(password))) throw new FieldError('password', 'matches')
   }
 
   /**
@@ -135,16 +196,24 @@ export default class HouseholdService {
    * themselves 422. Both memberships are locked and re-read in the
    * transaction, so two concurrent transfers cannot leave two owners (the
    * loser finds it is no longer the owner: 403). The handover is audited
-   * in `household_ownership_transfers`.
+   * in `household_ownership_transfers`. Only the password check goes
+   * through `attempt` (the controller's re-check limiter): a wrong target
+   * is not a password guess.
    */
-  async transferOwnership(household: Household, owner: User, userId: number, password: string) {
+  async transferOwnership(
+    household: Household,
+    owner: User,
+    userId: number,
+    password: string,
+    attempt: PasswordAttempt = unthrottled
+  ) {
     if (userId === owner.id) throw new FieldError('userId', 'self')
     const target = await HouseholdMember.query()
       .withScopes((scopes) => scopes.forHousehold(household))
       .where('user_id', userId)
       .first()
     if (!target) throw new MemberNotFound()
-    if (!(await owner.verifyPassword(password))) throw new FieldError('password', 'matches')
+    await attempt(() => this.checkPassword(owner, password))
 
     await db.transaction(async (trx) => {
       const memberships = await HouseholdMember.query({ client: trx })
@@ -154,8 +223,9 @@ export default class HouseholdService {
         .forUpdate()
       const current = memberships.find((membership) => membership.userId === owner.id)
       const next = memberships.find((membership) => membership.userId === userId)
-      if (!current?.isOwner)
+      if (!current?.isOwner) {
         throw new bouncerErrors.E_AUTHORIZATION_FAILURE(AuthorizationResponse.deny())
+      }
       if (!next) throw new MemberNotFound()
 
       // Demote first: the household never has two owners, not even mid-transaction.
@@ -172,13 +242,26 @@ export default class HouseholdService {
     return this.members(household)
   }
 
-  /** Needs the owner's password: deleting is irreversible after the window. */
-  async scheduleDeletion(household: Household, owner: User, password: string) {
-    if (!(await owner.verifyPassword(password))) throw new FieldError('password', 'matches')
+  /**
+   * Needs the owner's password: deleting is irreversible after the window.
+   * The caller must still be the owner on the locked membership (a handover
+   * committed meanwhile answers 403).
+   */
+  async scheduleDeletion(
+    household: Household,
+    owner: User,
+    password: string,
+    attempt: PasswordAttempt = unthrottled
+  ) {
+    await attempt(() => this.checkPassword(owner, password))
 
-    household.status = 'pending_deletion'
-    household.deletionScheduledAt = deletionDate(DateTime.now())
-    await household.save()
+    await db.transaction(async (trx) => {
+      await this.assertStillOwner(household.id, owner.id, trx)
+      household.useTransaction(trx)
+      household.status = 'pending_deletion'
+      household.deletionScheduledAt = deletionDate(DateTime.now())
+      await household.save()
+    })
     return household
   }
 

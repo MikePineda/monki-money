@@ -110,6 +110,35 @@ test.group('Household / ownership transfer', (group) => {
     assert.deepEqual(await roles(household), rolesOf(owner, member))
   })
 
+  test('test_mistakes_other_than_the_password_do_not_count_toward_the_password_limit', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    const stranger = await createHousehold()
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const self = await client
+        .post(URL)
+        .json({ userId: owner.id, password: FACTORY_PASSWORD })
+        .actingAs(owner)
+      self.assertStatus(422)
+      const foreign = await client
+        .post(URL)
+        .json({ userId: stranger.owner.id, password: FACTORY_PASSWORD })
+        .actingAs(owner)
+      foreign.assertStatus(404)
+    }
+
+    // Ten mistakes later the owner still gets through (the limit is 5).
+    const response = await client
+      .post(URL)
+      .json({ userId: member.id, password: FACTORY_PASSWORD })
+      .actingAs(owner)
+    response.assertStatus(200)
+    assert.deepEqual(await roles(household), rolesOf(member, owner))
+  })
+
   test('test_a_member_cannot_transfer_ownership', async ({ client, assert }) => {
     const { household, owner, member } = await createHousehold({ users: 2 })
 

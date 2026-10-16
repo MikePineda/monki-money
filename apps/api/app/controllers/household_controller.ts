@@ -1,10 +1,11 @@
 import { Readable } from 'node:stream'
 import { inject } from '@adonisjs/core'
+import type User from '#models/user'
 import type { HttpContext } from '@adonisjs/core/http'
 import HouseholdPolicy from '#policies/household_policy'
 import { authAttempts, throttleKey } from '#services/auth/throttles'
 import MemberTransformer from '#transformers/member_transformer'
-import HouseholdService from '#services/households/household_service'
+import HouseholdService, { type PasswordAttempt } from '#services/households/household_service'
 import HouseholdTransformer from '#transformers/household_transformer'
 import HouseholdExporter from '#services/households/household_exporter'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
@@ -14,6 +15,17 @@ import {
   transferOwnershipValidator,
   updateHouseholdValidator,
 } from '#validators/household'
+
+/**
+ * Password re-checks of `user` through the per-user limiter shared with
+ * PATCH /me: 5 wrong passwords a minute, then 20 minutes blocked (429).
+ */
+function passwordAttempt(user: User): PasswordAttempt {
+  return async (check) => {
+    const [throttled] = await authAttempts().penalize(throttleKey('password', user.id), check)
+    if (throttled) throw throttled
+  }
+}
 
 @inject()
 export default class HouseholdController {
@@ -86,19 +98,22 @@ export default class HouseholdController {
 
   /**
    * POST /household/transfer-ownership (owner, password): another member
-   * becomes the owner and the caller a member. Wrong passwords count toward
-   * the same per-user limit as PATCH /me and the household delete.
+   * becomes the owner and the caller a member. Wrong passwords (only those:
+   * not a wrong target) count toward the same per-user limit as PATCH /me
+   * and the household delete.
    */
   async transferOwnership(ctx: HttpContext) {
     const { userId, password } = await ctx.request.validateUsing(transferOwnershipValidator)
     await ctx.bouncer.with(HouseholdPolicy).authorize('transferOwnership', ctx.membership)
 
     const owner = ctx.auth.getUserOrFail()
-    const [throttled, members] = await authAttempts().penalize(
-      throttleKey('password', owner.id),
-      () => this.households.transferOwnership(ctx.household, owner, userId, password)
+    const members = await this.households.transferOwnership(
+      ctx.household,
+      owner,
+      userId,
+      password,
+      passwordAttempt(owner)
     )
-    if (throttled) throw throttled
 
     return ctx.serialize(MemberTransformer.transform(members))
   }
@@ -112,11 +127,12 @@ export default class HouseholdController {
     await ctx.bouncer.with(HouseholdPolicy).authorize('delete', ctx.membership)
 
     const owner = ctx.auth.getUserOrFail()
-    const [throttled, household] = await authAttempts().penalize(
-      throttleKey('password', owner.id),
-      () => this.households.scheduleDeletion(ctx.household, owner, password)
+    const household = await this.households.scheduleDeletion(
+      ctx.household,
+      owner,
+      password,
+      passwordAttempt(owner)
     )
-    if (throttled) throw throttled
 
     return ctx.serialize(HouseholdTransformer.transform(household))
   }
