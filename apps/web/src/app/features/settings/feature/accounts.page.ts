@@ -263,6 +263,8 @@ export default class AccountsPage implements OnInit {
   )
 
   async ngOnInit(): Promise<void> {
+    // The names come from the session: pick up a partner who joined since the app opened.
+    void this.session.refresh()
     try {
       this.accounts.set(await this.accountsApi.list())
     } catch (error) {

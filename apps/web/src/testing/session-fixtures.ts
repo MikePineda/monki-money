@@ -132,13 +132,17 @@ export function aSessionStub(options: { user?: User; members?: readonly MemberSu
   return sessionStubOf(signal<Me | null>(options.user ? { ...base, user: options.user } : base))
 }
 
-/** The SessionStore signals derived from one `GET /auth/me` body, for specs that change it. */
+/**
+ * The SessionStore signals derived from one `GET /auth/me` body, for specs
+ * that change it. `refresh` re-reads nothing unless a spec replaces it.
+ */
 export function sessionStubOf(me: WritableSignal<Me | null>) {
   return {
     me,
     user: computed(() => me()?.user ?? null),
     members: computed(() => me()?.members ?? []),
     partner: computed(() => me()?.partner ?? null),
+    refresh: async (): Promise<void> => undefined,
     onClear: () => undefined,
   }
 }

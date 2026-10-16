@@ -4,7 +4,14 @@ import { provideRouter } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import type { Mock } from 'vitest'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import { aSessionStub, anAccount } from '../../../../testing/session-fixtures'
+import {
+  COUPLE,
+  aMe,
+  aSessionStub,
+  anAccount,
+  sessionStubOf,
+} from '../../../../testing/session-fixtures'
+import type { Me } from '../../../core/auth/auth.api'
 import type { Account } from '../../../core/api/api-types'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi, type AccountInput } from '../../../core/household/accounts.api'
@@ -27,7 +34,7 @@ describe('AccountsPage', () => {
     } as Account
   }
 
-  async function open(accounts: Account[]) {
+  async function open(accounts: Account[], session = aSessionStub()) {
     api = {
       list: vi.fn(async () => accounts),
       create: vi.fn(async (body: AccountInput) =>
@@ -48,7 +55,7 @@ describe('AccountsPage', () => {
         {
           provide: SessionStore,
           useValue: {
-            ...aSessionStub(),
+            ...session,
             entitlements: signal({
               llmCallsPerMonth: 200,
               maxAccounts: 6,
@@ -100,6 +107,22 @@ describe('AccountsPage', () => {
   }
 
   afterEach(() => TestBed.inject(BottomSheetService).closeAll())
+
+  it('test_a_partner_who_joined_since_the_app_opened_is_named_after_the_session_refresh', async () => {
+    // Booted alone; the partner accepted the invitation since.
+    const me = signal<Me | null>(aMe('owner'))
+    const session = sessionStubOf(me)
+    const refresh = vi.fn(async () => me.set(aMe('owner', [], COUPLE)))
+    session.refresh = refresh
+
+    const { root } = await open(
+      [anAccount({ id: 3, name: 'Second Visa', ownerUserId: 2 })],
+      session
+    )
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(text(root, '[data-testid="accounts.3"]')).toContain('Alex'))
+  })
 
   it('test_accounts_show_their_cleared_balance_and_the_available_one_only_when_different', async () => {
     const { root } = await open([

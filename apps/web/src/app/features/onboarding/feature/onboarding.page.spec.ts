@@ -4,7 +4,14 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import { aHousehold, aMe, anAccount, sessionStubOf } from '../../../../testing/session-fixtures'
+import {
+  COUPLE,
+  aHousehold,
+  aMe,
+  anAccount,
+  sessionStubOf,
+} from '../../../../testing/session-fixtures'
+import type { Me } from '../../../core/auth/auth.api'
 import type { Account } from '../../../core/api/api-types'
 import { ONBOARDING_KEY } from '../../../core/auth/onboarding-progress'
 import { SessionStore } from '../../../core/auth/session.store'
@@ -20,8 +27,10 @@ describe('OnboardingPage', () => {
   let households: Record<string, ReturnType<typeof vi.fn>>
   let accounts: Record<string, ReturnType<typeof vi.fn>>
   let created: Account[]
+  let session: ReturnType<typeof sessionStubOf>
 
-  async function open() {
+  /** `joined`: the partner accepts the invitation while the wizard is open. */
+  async function open(options: { joined?: boolean } = {}) {
     created = []
     households = {
       update: vi.fn(async (body: object) => ({ ...aHousehold(), ...body })),
@@ -38,6 +47,12 @@ describe('OnboardingPage', () => {
       update: vi.fn(async (id: number, body: Partial<Account>) => anAccount({ id, ...body })),
     }
     const household = signal(aHousehold({ name: 'Sam’s home' }))
+    // A household of one: no partner to own an account yet.
+    const me = signal<Me | null>(aMe('owner'))
+    session = sessionStubOf(me)
+    session.refresh = vi.fn(async () => {
+      if (options.joined) me.set(aMe('owner', [], COUPLE))
+    })
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
       providers: [
@@ -50,8 +65,7 @@ describe('OnboardingPage', () => {
           provide: SessionStore,
           useValue: {
             household,
-            // A household of one: no partner to own an account yet.
-            ...sessionStubOf(signal(aMe('owner'))),
+            ...session,
             entitlements: signal(null),
             patchHousehold: (next: ReturnType<typeof aHousehold>) => household.set(next),
             onClear: () => undefined,
@@ -132,6 +146,23 @@ describe('OnboardingPage', () => {
       root.querySelector('[data-testid="onboarding.preset.hnry"]')?.getAttribute('aria-pressed')
     ).toBe('true')
     expect(continueButton()?.disabled).toBe(false)
+  })
+
+  it('test_the_accounts_step_offers_a_partner_who_joined_after_the_app_opened', async () => {
+    localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ householdId: 10, step: 2 }))
+    const { root, click } = await open({ joined: true })
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="onboarding.preset.hnry"]')).not.toBeNull()
+    )
+
+    click('onboarding.preset.hnry')
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="onboarding.owner.1"]')?.textContent).toContain(
+        'Alex'
+      )
+    )
+    expect(session.refresh).toHaveBeenCalledTimes(1)
   })
 
   it('test_finishing_clears_the_progress_and_opens_the_month', async () => {

@@ -202,6 +202,8 @@ export class AccountsStepComponent implements OnInit {
   })
 
   async ngOnInit(): Promise<void> {
+    // A partner may have accepted the invitation since the app opened.
+    void this.session.refresh()
     try {
       const accounts = await this.accountsApi.list()
       this.accounts.set(accounts.filter((account) => account.isActive))

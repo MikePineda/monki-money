@@ -85,6 +85,18 @@ export class SessionStore {
     }
   }
 
+  /**
+   * Re-reads `/auth/me` on a screen that names the members (a partner who
+   * joined since the app opened); a failure keeps the session as it is.
+   */
+  async refresh(): Promise<void> {
+    try {
+      this.set(await this.api.me())
+    } catch {
+      // Offline or failing: the session stays; a 401 already ended it (SessionExpiry).
+    }
+  }
+
   /** Applies a fresh `/auth/me` body, including the user's theme and language. */
   set(me: Me): void {
     const before = this._me()
