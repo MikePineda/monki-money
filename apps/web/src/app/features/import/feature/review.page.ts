@@ -2,7 +2,7 @@ import { Component, Injector, computed, effect, inject, input, untracked } from 
 import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
 import { formatDateRange } from '../../../domain/dates'
-import { acceptChange, type ReviewFilter } from '../../../domain/import-row'
+import { acceptChange, allowedActions, type ReviewFilter } from '../../../domain/import-row'
 import { categoryIcon } from '../../../shared/icons/category-icons'
 import { IconComponent } from '../../../shared/icons/icon.component'
 import { BulkBarComponent } from '../../../shared/review/bulk-bar.component'
@@ -54,12 +54,14 @@ const CATALOGUE_PROBE = 'review.title'
  * review · new · ignored), the rows in the shared ReviewList (auto rows
  * quiet, doubtful ones raised with their suggestion and "Accept", new ones
  * marked) and, per row, the triage sheet. Ticking rows brings the bulk bar
- * (ignore, assign a category, accept suggested); otherwise the bottom holds
- * "Accept suggested" and "Confirm import", which waits while a row still
- * needs a decision. The banner above the list counts those rows; its "Show"
- * narrows the list to them (no tab selected) and turns into "Show all";
- * any tab leaves that view too. "Classify with AI" asks the model and
- * follows its run.
+ * (ignore or restore, assign a category, accept suggested; its toast offers
+ * "Undo"); otherwise the bottom holds "Accept suggested" and "Confirm
+ * import", which waits while a row still needs a decision. The banner above
+ * the list counts those rows; its "Show" narrows the list to them (no tab
+ * selected) and turns into "Show all"; any tab leaves that view too.
+ * Duplicates (rows imported before) stay out of the list: their chip in the
+ * summary toggles a read-only list of them, each with the ledger row it
+ * repeats. "Classify with AI" asks the model and follows its run.
  */
 @Component({
   selector: 'app-import-review-page',
@@ -140,7 +142,20 @@ const CATALOGUE_PROBE = 'review.title'
                 @if (chip.tone === 'doubtful' && chip.count > 0) {
                   <app-icon name="triangle-alert" [size]="16" class="text-status-warning" />
                 }
-                {{ chip.label }}
+                @if (chip.tone === 'duplicate' && store.summary().listedDuplicates > 0) {
+                  <!-- The duplicates' only way in: a toggle, like the blocking "Show". -->
+                  <button
+                    type="button"
+                    class="-my-3 h-11 rounded-md px-1 font-semibold text-accent underline-offset-4 active:bg-surface-2 aria-pressed:underline"
+                    data-testid="import.review.duplicates"
+                    [attr.aria-pressed]="showingDuplicates()"
+                    (click)="setFilter(showingDuplicates() ? 'all' : 'duplicate')"
+                  >
+                    {{ chip.label }}
+                  </button>
+                } @else {
+                  {{ chip.label }}
+                }
               </li>
             }
           </ul>
@@ -286,18 +301,34 @@ const CATALOGUE_PROBE = 'review.title'
             [countLabel]="'import.review.selected' | transloco: { count: store.selection().size }"
             (cleared)="store.clearSelection()"
           >
-            <button
-              bulkAside
-              appButton
-              variant="ghost"
-              type="button"
-              class="-mr-3"
-              data-testid="import.review.bulk.ignore"
-              [disabled]="store.bulkBusy()"
-              (click)="store.ignoreSelected()"
-            >
-              {{ 'import.review.bulk.ignore' | transloco }}
-            </button>
+            @if (selectedRestorable() > 0) {
+              <button
+                bulkAside
+                appButton
+                variant="ghost"
+                type="button"
+                [class.-mr-3]="selectedIgnorable() === 0"
+                data-testid="import.review.bulk.restore"
+                [disabled]="store.bulkBusy()"
+                (click)="store.restoreSelected()"
+              >
+                {{ 'import.review.bulk.restore' | transloco }}
+              </button>
+            }
+            @if (selectedIgnorable() > 0) {
+              <button
+                bulkAside
+                appButton
+                variant="ghost"
+                type="button"
+                class="-mr-3"
+                data-testid="import.review.bulk.ignore"
+                [disabled]="store.bulkBusy()"
+                (click)="store.ignoreSelected()"
+              >
+                {{ 'import.review.bulk.ignore' | transloco }}
+              </button>
+            }
             <button
               appButton
               variant="secondary"
@@ -433,9 +464,22 @@ export default class ImportReviewPage {
   /** The list shows only the rows that keep confirm waiting (no tab is selected). */
   protected readonly showingBlocking = computed(() => this.store.filter() === 'blocking')
 
+  /** The list shows only the duplicates (no tab is selected). */
+  protected readonly showingDuplicates = computed(() => this.store.filter() === 'duplicate')
+
   /** Selected rows that "Accept suggested" would change. */
   protected readonly selectedAcceptable = computed(
     () => this.store.selectedRows().filter((row) => acceptChange(row) !== null).length
+  )
+
+  /** Selected rows "Ignore" would change. */
+  protected readonly selectedIgnorable = computed(
+    () => this.store.selectedRows().filter((row) => allowedActions(row).has('ignore')).length
+  )
+
+  /** Selected ignored rows "Restore" would bring back. */
+  protected readonly selectedRestorable = computed(
+    () => this.store.selectedRows().filter((row) => allowedActions(row).has('restore')).length
   )
 
   protected readonly keyOf = (view: ImportRowView): ReviewKey => view.id

@@ -14,8 +14,9 @@ import {
   decisionsFor,
   filterRows,
   ignoreChanges,
-  suggestionFingerprint,
+  restoreChanges,
   summary,
+  undoChanges,
   type ReviewFilter,
   type RowChange,
   type RowChangeRequest,
@@ -24,12 +25,13 @@ import { monthOf, monthRange } from '../../domain/month'
 import { ImportResults } from './data-access/import-results'
 import { ImportsApi, type ConfirmResult } from './data-access/imports.api'
 
-/** How often a running classification is polled (`GET /imports/:id`). */
+/** How often a running classification is polled (`GET /imports/:id?rows=0`). */
 export const CLASSIFY_POLL_MS = 2_000
-/** Polls before giving up on a classification that keeps changing (2 minutes). */
-export const CLASSIFY_MAX_POLLS = 60
-/** Row decisions sent at once by a bulk action (the API serialises them per batch). */
-export const BULK_CONCURRENCY = 4
+/**
+ * Polls before the screen stops following a run that never says it ended
+ * (10 minutes: the API stops counting a claim that old as a live run).
+ */
+export const CLASSIFY_MAX_POLLS = 300
 
 export type ReviewStatus = 'loading' | 'ready' | 'error'
 
@@ -46,11 +48,15 @@ function withoutRows(detail: ImportBatchDetail | ImportBatch): ImportBatch {
  *
  * Decisions are optimistic: the row shows the outcome at once
  * (`applyDecision`), the `PATCH` goes out, the row takes the API's answer,
- * and a refusal rolls it back with a toast. Bulk actions send their
- * decisions a few at a time. "Classify with AI" starts the model and polls
- * the batch every {@link CLASSIFY_POLL_MS} until the suggestions settle.
- * Confirm sends `decisionsFor(rows)`, remembers the result for the result
- * screen and invalidates the months the file covers. Provided by the page.
+ * and a refusal rolls it back with a toast. Bulk actions (accept, assign a
+ * category, ignore, restore) go out as one all-or-nothing request
+ * (`PATCH /imports/:id/rows`) and their toast offers "Undo", which puts
+ * the rows back as they were in one more. The rows load once; "Classify
+ * with AI" (or a run already going when the screen opens) polls the batch
+ * alone every {@link CLASSIFY_POLL_MS} while it says `classifying`, then
+ * reloads the rows once. Confirm sends `decisionsFor(rows)`, remembers the
+ * result for the result screen and invalidates the months the file covers.
+ * Provided by the page.
  */
 @Injectable()
 export class ImportReviewStore {
@@ -73,6 +79,7 @@ export class ImportReviewStore {
   /** Rows with a decision on its way (their checkbox and actions wait). */
   readonly pending = signal<ReadonlySet<number>>(new Set())
   readonly bulkBusy = signal(false)
+  /** The screen follows a classify run (started here, elsewhere or before a reload). */
   readonly classifying = signal(false)
   readonly confirming = signal(false)
   readonly cancelling = signal(false)
@@ -115,8 +122,12 @@ export class ImportReviewStore {
     this.status.set(this.batch() ? 'ready' : 'loading')
     this.loadFailure.set(null)
     try {
-      this.take(await this.api.show(id, controller.signal))
+      const detail = await this.api.show(id, controller.signal)
+      this.take(detail)
       this.status.set('ready')
+      if (detail.classifying) {
+        void this.followClassification(id)
+      }
     } catch (error) {
       if (controller.signal.aborted) {
         return
@@ -174,40 +185,65 @@ export class ImportReviewStore {
     return this.applyMany(ignoreChanges(this.selectedRows()))
   }
 
+  /** "Restore" for the selected ignored rows. */
+  restoreSelected(): Promise<number> {
+    return this.applyMany(restoreChanges(this.selectedRows()))
+  }
+
   /**
-   * Bulk decisions, {@link BULK_CONCURRENCY} at a time. Resolves with how
-   * many the API accepted; the selection clears once they are all in.
+   * A bulk action: every row shows its outcome at once, then one request
+   * saves them all or none. Resolves with how many rows changed (0 when
+   * refused: the rows go back and the refusal is said). The selection
+   * clears once saved and the toast offers "Undo".
    */
   async applyMany(requests: readonly RowChangeRequest[]): Promise<number> {
-    if (requests.length === 0 || this.bulkBusy()) {
+    const id = this.batchId
+    if (id === null || requests.length === 0 || this.bulkBusy()) {
       return 0
     }
-    this.bulkBusy.set(true)
-    let accepted = 0
-    try {
-      const queue = [...requests]
-      const worker = async () => {
-        for (let next = queue.shift(); next; next = queue.shift()) {
-          if (await this.decide(next.rowId, next.change)) {
-            accepted += 1
-          }
-        }
-      }
-      await Promise.all(Array.from({ length: BULK_CONCURRENCY }, worker))
-    } finally {
-      this.bulkBusy.set(false)
+    const changes = new Map(requests.map((request) => [request.rowId, request.change]))
+    const before = this.rows().filter((row) => changes.has(row.id))
+    const decidedAt = new Date().toISOString()
+    const saved = await this.saveMany(
+      id,
+      before.map((row) => applyDecision(row, changes.get(row.id) ?? {}, decidedAt)),
+      before,
+      requests.map(({ rowId, change }) => ({ rowId, ...change }))
+    )
+    if (!saved) {
+      return 0
     }
     this.selection.set(new Set())
-    // When none went through, the refusal's own toast stays on screen.
-    if (accepted > 0) {
-      /** t(import.toast.bulkDone) */
-      this.toasts.show({
-        messageKey: 'import.toast.bulkDone',
-        params: { count: accepted },
-        status: 'good',
-      })
+    /** t(import.toast.bulkDone, import.toast.undo) */
+    this.toasts.show({
+      messageKey: 'import.toast.bulkDone',
+      params: { count: saved.length },
+      status: 'good',
+      action: { labelKey: 'import.toast.undo', run: () => void this.undo(before) },
+    })
+    return saved.length
+  }
+
+  /**
+   * "Undo" of a bulk action: `before` (the rows as they were) shows at
+   * once and one request puts them back on the API (a reset to the
+   * importer's proposal plus the decision each row had). A refusal keeps
+   * what the bulk action did and says why.
+   */
+  async undo(before: readonly ImportRow[]): Promise<boolean> {
+    const id = this.batchId
+    if (id === null || before.length === 0 || this.bulkBusy()) {
+      return false
     }
-    return accepted
+    const ids = new Set(before.map((row) => row.id))
+    const current = this.rows().filter((row) => ids.has(row.id))
+    const saved = await this.saveMany(id, before, current, undoChanges(before))
+    if (!saved) {
+      return false
+    }
+    /** t(import.toast.undone) */
+    this.toasts.show({ messageKey: 'import.toast.undone' })
+    return true
   }
 
   clearSelection(): void {
@@ -217,9 +253,9 @@ export class ImportReviewStore {
   /* ------------------------------------------------------- classification */
 
   /**
-   * Asks the model for categories, then polls the batch until the rows'
-   * suggestions stop changing (the API does not say when a run ends).
-   * A run already going (409) is followed the same way.
+   * Asks the model for categories and follows the run: the answer says
+   * whether it still goes on (`classifying`; with the sync queue it already
+   * ended). A run already going (409) is followed the same way.
    */
   async classify(): Promise<void> {
     const id = this.batchId
@@ -228,8 +264,11 @@ export class ImportReviewStore {
     }
     this.classifying.set(true)
     try {
+      let running = true
       try {
-        await this.api.classify(id)
+        const batch = await this.api.classify(id)
+        this.batch.set(withoutRows(batch))
+        running = batch.classifying
       } catch (error) {
         const apiError = toApiError(error)
         if (
@@ -242,46 +281,57 @@ export class ImportReviewStore {
         /** t(import.toast.classifyRunning) */
         this.toasts.show({ messageKey: 'import.toast.classifyRunning' })
       }
-      await this.pollClassification(id)
+      await this.awaitClassification(id, running)
     } finally {
       this.classifying.set(false)
     }
   }
 
-  private async pollClassification(id: number): Promise<void> {
-    let previous = suggestionFingerprint(this.rows())
-    let seenChange = false
-    for (let attempt = 0; attempt < CLASSIFY_MAX_POLLS && !this.destroyed; attempt++) {
-      if (attempt > 0) {
-        await new Promise((resolve) => setTimeout(resolve, CLASSIFY_POLL_MS))
-        if (this.destroyed) {
-          return
-        }
+  /** Follows a run the batch says is going on (found when the screen loads). */
+  private async followClassification(id: number): Promise<void> {
+    if (this.classifying()) {
+      return
+    }
+    this.classifying.set(true)
+    try {
+      await this.awaitClassification(id, true)
+    } finally {
+      this.classifying.set(false)
+    }
+  }
+
+  /**
+   * While the run lasts, polls the batch alone (`?rows=0`) every
+   * {@link CLASSIFY_POLL_MS}, at most {@link CLASSIFY_MAX_POLLS} times;
+   * then reloads the rows once (rows with a decision on its way keep their
+   * local state) and says the suggestions are in.
+   */
+  private async awaitClassification(id: number, running: boolean): Promise<void> {
+    for (let attempt = 0; running && attempt < CLASSIFY_MAX_POLLS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, CLASSIFY_POLL_MS))
+      if (this.destroyed) {
+        return
       }
-      let detail: ImportBatchDetail
       try {
-        detail = await this.api.show(id)
+        const batch = await this.api.batch(id)
+        this.batch.set(batch)
+        running = batch.classifying
       } catch (error) {
         this.fail(error)
         return
       }
-      this.take(detail, true)
-      const current = suggestionFingerprint(this.rows())
-      const changed = current !== previous
-      seenChange ||= changed
-      // The model answered every row it could take, or two polls agree.
-      const untouched = classifiableRows(this.rows()).filter(
-        (row) => row.suggestion?.source !== 'llm'
-      )
-      if ((seenChange && untouched.length === 0) || (attempt > 0 && !changed)) {
-        break
-      }
-      previous = current
     }
-    if (!this.destroyed) {
-      /** t(import.toast.classified) */
-      this.toasts.show({ messageKey: 'import.toast.classified', status: 'good' })
+    if (this.destroyed) {
+      return
     }
+    try {
+      this.take(await this.api.show(id), true)
+    } catch (error) {
+      this.fail(error)
+      return
+    }
+    /** t(import.toast.classified) */
+    this.toasts.show({ messageKey: 'import.toast.classified', status: 'good' })
   }
 
   /* --------------------------------------------------- confirm and cancel */
@@ -357,17 +407,53 @@ export class ImportReviewStore {
     this.selection.update((current) => new Set([...current].filter((key) => ids.has(Number(key)))))
   }
 
-  private replaceRow(next: ImportRow): void {
-    this.rows.update((rows) => rows.map((row) => (row.id === next.id ? next : row)))
+  /**
+   * Shows `preview` at once, sends `changes` in one request and takes the
+   * rows it answers; a refusal puts `fallback` back and says why. Resolves
+   * with the saved rows, or null.
+   */
+  private async saveMany(
+    id: number,
+    preview: readonly ImportRow[],
+    fallback: readonly ImportRow[],
+    changes: Parameters<ImportsApi['decideMany']>[1]
+  ): Promise<ImportRow[] | null> {
+    const ids = preview.map((row) => row.id)
+    this.bulkBusy.set(true)
+    this.replaceRows(preview)
+    this.markPending(ids, true)
+    try {
+      const saved = await this.api.decideMany(id, changes)
+      this.replaceRows(saved)
+      return saved
+    } catch (error) {
+      this.replaceRows(fallback)
+      this.fail(error)
+      return null
+    } finally {
+      this.markPending(ids, false)
+      this.bulkBusy.set(false)
+    }
   }
 
-  private markPending(rowId: number, on: boolean): void {
+  private replaceRow(next: ImportRow): void {
+    this.replaceRows([next])
+  }
+
+  private replaceRows(next: readonly ImportRow[]): void {
+    const byId = new Map(next.map((row) => [row.id, row]))
+    this.rows.update((rows) => rows.map((row) => byId.get(row.id) ?? row))
+  }
+
+  private markPending(rowIds: number | readonly number[], on: boolean): void {
     this.pending.update((current) => {
       const next = new Set(current)
-      if (on) {
-        next.add(rowId)
-      } else {
-        next.delete(rowId)
+      for (const rowId of typeof rowIds === 'number' ? [rowIds] : rowIds) {
+        if (on) {
+          next.add(rowId)
+        } else {
+          next.delete(rowId)
+        }
       }
       return next
     })

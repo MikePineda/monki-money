@@ -2,7 +2,12 @@ import { Injectable, inject } from '@angular/core'
 import { API } from '../../../core/api/api'
 import type { ImportBatch, ImportBatchDetail, ImportRow } from '../../../core/api/api-types'
 import { UploadService } from '../../../core/api/upload.service'
-import type { ConfirmDecision, Reconciliation, RowChange } from '../../../domain/import-row'
+import type {
+  BulkRowChange,
+  ConfirmDecision,
+  Reconciliation,
+  RowChange,
+} from '../../../domain/import-row'
 import { uploadOutcome, type UploadOutcome } from '../../../domain/import-upload'
 
 /** `POST /imports/:id/confirm`: what the batch became in the ledger. */
@@ -60,9 +65,18 @@ export class ImportsApi {
     return data
   }
 
+  /** The batch with every row, in file order (the review screen loads it once). */
   async show(id: number, signal?: AbortSignal): Promise<ImportBatchDetail> {
     const { data } = await (await this.api()).request('imports.show', { params: { id }, signal })
-    return data
+    return data as ImportBatchDetail
+  }
+
+  /** The batch alone (`?rows=0`): classify polling and the result screen. */
+  async batch(id: number, signal?: AbortSignal): Promise<ImportBatch> {
+    const { data } = await (
+      await this.api()
+    ).request('imports.show', { params: { id }, query: { rows: false }, signal })
+    return data as ImportBatch
   }
 
   /** Stores a person's decision on one row; answers the row as the API now sees it. */
@@ -70,6 +84,14 @@ export class ImportsApi {
     const { data } = await (
       await this.api()
     ).request('imports.rows.update', { params: { id, rowId }, body: change })
+    return data
+  }
+
+  /** Several rows' changes, all saved or none; answers the changed rows in file order. */
+  async decideMany(id: number, changes: BulkRowChange[]): Promise<ImportRow[]> {
+    const { data } = await (
+      await this.api()
+    ).request('imports.rows.bulk', { params: { id }, body: { changes } })
     return data
   }
 

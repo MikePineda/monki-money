@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import {
+  aDuplicateRow,
   aMatchCandidate,
   aTentativeSuggestion,
   aTrustedSuggestion,
@@ -180,10 +181,85 @@ describe('ImportReviewPage', () => {
 
     expect(text(root, '[data-testid="import.review.bulk"] [aria-live]')).toBe('1 selected')
     expect(root.querySelector('[data-testid="import.review.footer"]')).toBeNull()
+    expect(button(root, 'import.review.bulk.restore')).toBeNull()
     button(root, 'import.review.bulk.ignore').click()
-    await vi.waitFor(() => expect(api.decide).toHaveBeenCalledWith(7, 3, { resolution: 'ignored' }))
+    await vi.waitFor(() =>
+      expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 3, resolution: 'ignored' }])
+    )
     await settle()
     expect(root.querySelector('[data-testid="import.review.bulk"]')).toBeNull()
+  })
+
+  it('test_undo_in_the_toast_puts_back_the_rows_a_bulk_ignore_changed', async () => {
+    const { root, settle } = await open()
+    root.querySelector<HTMLInputElement>('input[aria-label^="Select Riverside Deli"]')?.click()
+    await settle()
+    button(root, 'import.review.bulk.ignore').click()
+    await vi.waitFor(() => expect(row(root, 3).dataset['tone']).toBe('ignored'))
+    await settle()
+
+    const undo = [...root.querySelectorAll<HTMLButtonElement>('[role="status"] button')].find(
+      (item) => item.textContent?.trim() === 'Undo'
+    )
+    expect(text(root, '[role="status"]')).toContain('1 movement updated.')
+    undo?.click()
+    await settle()
+
+    await vi.waitFor(() =>
+      expect(api.decideMany).toHaveBeenLastCalledWith(7, [{ rowId: 3, reset: true }])
+    )
+    await vi.waitFor(() => expect(row(root, 3).dataset['tone']).toBe('new'))
+    await vi.waitFor(() => expect(text(root, '[role="status"]')).toContain('Changes undone.'))
+  })
+
+  it('test_selected_ignored_rows_offer_restore_in_the_bulk_bar', async () => {
+    const { root, settle } = await open([
+      ...rows(),
+      anImportRow({ id: 5, nabMerchant: 'Kmart', amountCents: -900, resolution: 'ignored' }),
+    ])
+
+    expect(root.querySelector('input[aria-label^="Select Translink"]')).toBeNull()
+    root.querySelector<HTMLInputElement>('input[aria-label^="Select Kmart"]')?.click()
+    await settle()
+
+    expect(button(root, 'import.review.bulk.ignore')).toBeNull()
+    expect(text(root, '[data-testid="import.review.bulk.restore"]')).toBe('Restore')
+    button(root, 'import.review.bulk.restore').click()
+    await settle()
+
+    await vi.waitFor(() =>
+      expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 5, resolution: 'new' }])
+    )
+    await vi.waitFor(() => expect(row(root, 5).dataset['tone']).toBe('new'))
+  })
+
+  it('test_duplicates_stay_out_of_the_list_until_their_chip_shows_them_read_only', async () => {
+    const { root, settle } = await open([
+      ...rows(),
+      aDuplicateRow({ id: 9, nabMerchant: 'Harbour Cafe', amountCents: -2800 }),
+    ])
+
+    expect(visibleIds(root)).toEqual(['1', '2', '3', '4'])
+    const chip = button(root, 'import.review.duplicates')
+    expect(chip.textContent?.trim()).toBe('1 duplicate')
+    expect(chip.getAttribute('aria-pressed')).toBe('false')
+    chip.click()
+    await settle()
+
+    expect(visibleIds(root)).toEqual(['9'])
+    expect(chip.getAttribute('aria-pressed')).toBe('true')
+    expect(checkedTabs(root)).toEqual([])
+    expect(row(root, 9).dataset['tone']).toBe('duplicate')
+    expect(text(row(root, 9), '[data-testid="import.row.meta"]')).toBe(
+      'Sun 27 Sept · Already imported: Sun 27 Sept, −$28.00'
+    )
+    expect(text(row(root, 9), '[data-testid="import.row.status"]')).toBe('Duplicate')
+    expect(root.querySelector('input[aria-label^="Select Harbour Cafe"]')).toBeNull()
+    expect(root.querySelector('[data-testid="import.row.accept"]')).toBeNull()
+
+    chip.click()
+    await settle()
+    expect(visibleIds(root)).toEqual(['1', '2', '3', '4'])
   })
 
   it('test_accept_suggested_takes_every_suggestion_waiting', async () => {
@@ -193,7 +269,9 @@ describe('ImportReviewPage', () => {
     button(root, 'import.review.acceptAll').click()
     await settle()
 
-    await vi.waitFor(() => expect(api.decide).toHaveBeenCalledWith(7, 2, { categoryId: 10 }))
+    await vi.waitFor(() =>
+      expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 2, categoryId: 10 }])
+    )
   })
 
   it('test_a_guessed_transfer_is_to_review_and_says_which_account_was_guessed', async () => {
@@ -223,12 +301,11 @@ describe('ImportReviewPage', () => {
     await settle()
 
     await vi.waitFor(() =>
-      expect(api.decide).toHaveBeenCalledWith(7, 6, {
-        resolution: 'transfer_leg',
-        transferAccountId: 2,
-      })
+      expect(api.decideMany).toHaveBeenCalledWith(7, [
+        { rowId: 6, resolution: 'transfer_leg', transferAccountId: 2 },
+      ])
     )
-    expect(api.decide).toHaveBeenCalledTimes(1)
+    expect(api.decideMany).toHaveBeenCalledTimes(1)
     await vi.waitFor(() => expect(row(root, 6).dataset['tone']).toBe('transfer'))
     expect(text(row(root, 6), '[data-testid="import.row.meta"]')).toBe(
       'Sun 27 Sept · Transfer to NAB Savings'
