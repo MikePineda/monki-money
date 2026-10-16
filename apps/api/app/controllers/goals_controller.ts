@@ -15,13 +15,17 @@ import {
 export default class GoalsController {
   constructor(protected goals: GoalService) {}
 
-  /** GET /goals?status= */
+  /** GET /goals?status=&include=projection (every projection computed in one pass). */
   async index(ctx: HttpContext) {
-    const filters = await ctx.request.validateUsing(listGoalsValidator)
+    const { include, ...filters } = await ctx.request.validateUsing(listGoalsValidator)
 
     const goals = await this.goals.list(ctx.household, filters)
+    if (include !== 'projection') {
+      return ctx.serialize(GoalTransformer.transform(goals))
+    }
 
-    return ctx.serialize(GoalTransformer.transform(goals))
+    const projections = await this.goals.projections(ctx.household, goals)
+    return ctx.serialize(GoalTransformer.transform(goals, projections).useVariant('withProjection'))
   }
 
   /** POST /goals */

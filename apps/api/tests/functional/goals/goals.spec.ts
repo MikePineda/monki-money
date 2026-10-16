@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import SavingsGoal from '#models/savings_goal'
 import { freezeClock } from '#tests/helpers/ledger'
+import { countQueries } from '#tests/helpers/queries'
 import { createHousehold } from '#tests/helpers/household'
 import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 
@@ -299,7 +300,107 @@ test.group('Goals: projection', (group) => {
         { month: '2026-12', projectedCents: 90_000 },
         { month: '2027-01', projectedCents: 100_000 },
       ],
+      history: [
+        { month: '2026-04', balanceCents: 50_000 },
+        { month: '2026-05', balanceCents: 50_000 },
+        { month: '2026-06', balanceCents: 50_000 },
+        { month: '2026-07', balanceCents: 50_000 },
+        { month: '2026-08', balanceCents: 50_000 },
+        { month: '2026-09', balanceCents: 50_000 },
+        { month: '2026-10', balanceCents: 70_000 },
+      ],
     })
+  })
+
+  test('test_goal_projection_history_is_the_tracked_account_month_end_cleared_balance', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, accounts } = await createHousehold({
+      accounts: [
+        { name: 'Savings', kind: 'savings', openingBalanceCents: 100_000 },
+        { name: 'Everyday' },
+      ],
+    })
+    const [savings, everyday] = accounts
+    const row = (date: string, amountCents: number, accountId = savings.id) =>
+      TransactionFactory.merge({ householdId: household.id, accountId, date, amountCents })
+        .apply('income')
+        .create()
+
+    await row('2026-03-31', 7_000)
+    await row('2026-05-31', 20_000)
+    await row('2026-06-01', 5_000)
+    // Another account never counts.
+    await row('2026-07-15', 999_999, everyday.id)
+    // A transfer in is money the account holds; one out of it is not.
+    await TransferFactory.merge({
+      householdId: household.id,
+      fromAccountId: everyday.id,
+      toAccountId: savings.id,
+      date: '2026-08-10',
+      amountCents: 30_000,
+    }).create()
+    await TransferFactory.merge({
+      householdId: household.id,
+      fromAccountId: savings.id,
+      toAccountId: everyday.id,
+      date: '2026-09-10',
+      amountCents: 10_000,
+    }).create()
+    // Pending money is not saved yet.
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: savings.id,
+      date: '2026-10-05',
+      amountCents: 40_000,
+    })
+      .apply('income')
+      .apply('pending')
+      .create()
+    const goal = await SavingsGoal.create({
+      householdId: household.id,
+      name: 'House deposit',
+      targetCents: 1_000_000,
+      monthlyContributionCents: 50_000,
+      accountId: savings.id,
+      sortOrder: 0,
+    })
+
+    const response = await client.get(`/api/v1/goals/${goal.id}/projection`).actingAs(owner)
+
+    response.assertStatus(200)
+    assert.deepEqual(response.body().data.history, [
+      { month: '2026-04', balanceCents: 107_000 },
+      { month: '2026-05', balanceCents: 127_000 },
+      { month: '2026-06', balanceCents: 132_000 },
+      { month: '2026-07', balanceCents: 132_000 },
+      { month: '2026-08', balanceCents: 162_000 },
+      { month: '2026-09', balanceCents: 152_000 },
+      { month: '2026-10', balanceCents: 152_000 },
+    ])
+    // The actual line ends where the projection starts.
+    assert.equal(response.body().data.savedCents, 152_000)
+    assert.deepEqual(response.body().data.series[0], { month: '2026-10', projectedCents: 152_000 })
+  })
+
+  test('test_goal_projection_history_without_account_is_the_starting_amount', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner } = await createHousehold()
+    const goal = await SavingsGoal.create({
+      householdId: household.id,
+      name: 'Sofa',
+      targetCents: 200_000,
+      startingCents: 30_000,
+      monthlyContributionCents: 10_000,
+      sortOrder: 0,
+    })
+
+    const response = await client.get(`/api/v1/goals/${goal.id}/projection`).actingAs(owner)
+
+    assert.deepEqual(response.body().data.history, [{ month: '2026-10', balanceCents: 30_000 }])
   })
 
   test('test_goal_projection_falls_back_to_average_net_of_last_three_full_months', async ({
@@ -421,5 +522,243 @@ test.group('Goals: projection', (group) => {
     await goal.refresh()
     assert.equal(goal.status, 'active')
     assert.isNull(goal.reachedAt)
+  })
+})
+
+test.group('Goals: list with projections', (group) => {
+  group.each.setup(() => freezeClock(NOW))
+
+  /** A household with one savings account (and one goal tracking it) per name. */
+  async function householdWithTrackedGoals(names: string[]) {
+    const home = await createHousehold({
+      accounts: names.map((name) => ({ name, kind: 'savings' as const })),
+    })
+    for (const [index, account] of home.accounts.entries()) {
+      await TransactionFactory.merge({
+        householdId: home.household.id,
+        accountId: account.id,
+        date: '2026-09-10',
+        amountCents: 10_000 * (index + 1),
+      })
+        .apply('income')
+        .create()
+      await SavingsGoal.create({
+        householdId: home.household.id,
+        name: names[index],
+        targetCents: 500_000,
+        accountId: account.id,
+        sortOrder: index,
+      })
+    }
+    return home
+  }
+
+  test('test_goals_list_carries_each_projection_when_asked', async ({ client, assert }) => {
+    const { household, owner, accounts } = await createHousehold({
+      accounts: [{ name: 'Savings', kind: 'savings', openingBalanceCents: 40_000 }, {}],
+    })
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[1].id,
+      date: '2026-09-10',
+      amountCents: 90_000,
+    })
+      .apply('income')
+      .create()
+    const tracked = await SavingsGoal.create({
+      householdId: household.id,
+      name: 'Tracked',
+      targetCents: 100_000,
+      monthlyContributionCents: 20_000,
+      accountId: accounts[0].id,
+      sortOrder: 0,
+    })
+    const averaged = await SavingsGoal.create({
+      householdId: household.id,
+      name: 'Averaged',
+      targetCents: 300_000,
+      startingCents: 30_000,
+      sortOrder: 1,
+    })
+    const done = await SavingsGoal.create({
+      householdId: household.id,
+      name: 'Done',
+      targetCents: 50_000,
+      startingCents: 60_000,
+      sortOrder: 2,
+    })
+
+    const response = await client.get('/api/v1/goals?include=projection').actingAs(owner)
+
+    response.assertStatus(200)
+    const rows = response.body().data
+    assert.deepEqual(
+      rows.map((row: any) => [row.name, row.projection.goalId]),
+      [
+        ['Tracked', tracked.id],
+        ['Averaged', averaged.id],
+        ['Done', done.id],
+      ]
+    )
+    // The same numbers as each goal's own projection.
+    for (const row of rows) {
+      const { projection, ...goal } = row
+      assert.sameMembers(Object.keys(goal), GOAL_FIELDS)
+      const single = await client.get(`/api/v1/goals/${row.id}/projection`).actingAs(owner)
+      assert.deepEqual(projection, single.body().data)
+    }
+    assert.include(rows[0].projection, { savedCents: 40_000, rateSource: 'contribution' })
+    assert.include(rows[1].projection, { rateSource: 'average', monthlyRateCents: 90_000 })
+    assert.include(rows[2].projection, { remainingCents: 0, monthsToGoal: 0 })
+
+    // Without `include` the list stays plain goals.
+    const plain = await client.get('/api/v1/goals').actingAs(owner)
+    assert.sameMembers(Object.keys(plain.body().data[0]), GOAL_FIELDS)
+  })
+
+  test('test_goals_list_with_projections_reads_the_ledger_once_for_every_goal', async ({
+    client,
+    assert,
+  }) => {
+    const one = await householdWithTrackedGoals(['Car'])
+    const three = await householdWithTrackedGoals(['Car', 'Holiday', 'Laptop'])
+
+    // Warm up anything lazy (first request of the suite) before counting.
+    await client.get('/api/v1/goals?include=projection').actingAs(one.owner)
+
+    const forOne = await countQueries(() =>
+      client.get('/api/v1/goals?include=projection').actingAs(one.owner)
+    )
+    let body: any
+    const forThree = await countQueries(async () => {
+      const response = await client.get('/api/v1/goals?include=projection').actingAs(three.owner)
+      body = response.body()
+    })
+
+    assert.lengthOf(body.data, 3)
+    assert.deepEqual(
+      body.data.map((row: any) => row.projection.savedCents),
+      [10_000, 20_000, 30_000]
+    )
+    assert.isAbove(forOne, 0)
+    assert.equal(forThree, forOne)
+  })
+
+  test('test_goals_list_include_accepts_only_projection', async ({ client }) => {
+    const { owner } = await createHousehold()
+
+    const response = await client.get('/api/v1/goals?include=history').actingAs(owner)
+
+    response.assertStatus(422)
+    response.assertBodyContains({ errors: [{ field: 'include' }] })
+  })
+
+  test('test_goals_list_with_projections_is_empty_without_goals', async ({ client, assert }) => {
+    const { owner } = await createHousehold()
+
+    const response = await client
+      .get('/api/v1/goals?status=reached&include=projection')
+      .actingAs(owner)
+
+    response.assertStatus(200)
+    assert.deepEqual(response.body().data, [])
+  })
+})
+
+test.group('Goals: reached', (group) => {
+  group.each.setup(() => freezeClock(NOW))
+
+  test('test_a_goal_at_its_target_can_be_marked_reached_and_reopened', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    const goal = await SavingsGoal.create({
+      householdId: household.id,
+      name: 'New laptop',
+      targetCents: 250_000,
+      startingCents: 250_000,
+      sortOrder: 0,
+    })
+    const url = `/api/v1/goals/${goal.id}`
+
+    const projection = await client.get(`${url}/projection`).actingAs(owner)
+    assert.equal(projection.body().data.remainingCents, 0)
+
+    const reached = await client.patch(url).json({ status: 'reached' }).actingAs(member)
+    reached.assertStatus(200)
+    assert.include(reached.body().data, {
+      status: 'reached',
+      // 15 Oct 2026 in Brisbane, the household's day.
+      reachedAt: '2026-10-14T23:00:00.000Z',
+    })
+    const reachedList = await client.get('/api/v1/goals?status=reached').actingAs(owner)
+    assert.deepEqual(
+      reachedList.body().data.map((row: any) => row.id),
+      [goal.id]
+    )
+
+    const reopened = await client.patch(url).json({ status: 'active' }).actingAs(owner)
+    reopened.assertStatus(200)
+    assert.include(reopened.body().data, { status: 'active', reachedAt: null })
+    const activeList = await client.get('/api/v1/goals?status=active').actingAs(owner)
+    assert.deepEqual(
+      activeList.body().data.map((row: any) => row.id),
+      [goal.id]
+    )
+  })
+
+  test('test_patching_other_fields_keeps_the_reached_status_and_its_date', async ({
+    client,
+    assert,
+  }) => {
+    const { owner } = await createHousehold()
+    const created = await client
+      .post('/api/v1/goals')
+      .json({ name: 'Emergency fund', targetCents: 100_000 })
+      .actingAs(owner)
+    const url = `/api/v1/goals/${created.body().data.id}`
+    await client.patch(url).json({ status: 'reached' }).actingAs(owner)
+
+    // A day later: renaming it (or sending `reached` again) keeps the first date.
+    freezeClock('2026-10-16T09:00:00+10:00')
+    const renamed = await client.patch(url).json({ name: 'Rainy day' }).actingAs(owner)
+    const again = await client.patch(url).json({ status: 'reached' }).actingAs(owner)
+
+    assert.include(renamed.body().data, {
+      name: 'Rainy day',
+      status: 'reached',
+      reachedAt: '2026-10-14T23:00:00.000Z',
+    })
+    assert.equal(again.body().data.reachedAt, '2026-10-14T23:00:00.000Z')
+  })
+
+  test('test_another_households_goal_cannot_be_marked_reached_or_reopened', async ({
+    client,
+    assert,
+  }) => {
+    const { owner } = await createHousehold()
+    const victim = await createHousehold()
+    const goal = await SavingsGoal.create({
+      householdId: victim.household.id,
+      name: 'Theirs',
+      targetCents: 100_000,
+      startingCents: 100_000,
+      status: 'reached',
+      sortOrder: 0,
+    })
+
+    for (const status of ['reached', 'active']) {
+      const response = await client
+        .patch(`/api/v1/goals/${goal.id}`)
+        .json({ status })
+        .actingAs(owner)
+      response.assertStatus(404)
+    }
+    const list = await client.get('/api/v1/goals?include=projection').actingAs(owner)
+    assert.deepEqual(list.body().data, [])
+
+    await goal.refresh()
+    assert.equal(goal.status, 'reached')
   })
 })

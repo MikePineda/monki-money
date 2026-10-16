@@ -547,6 +547,8 @@ test.group('Tenant isolation', () => {
 
     const goals = await client.get('/api/v1/goals').actingAs(attacker.owner)
     assert.deepEqual(goals.body().data, [])
+    const projected = await client.get('/api/v1/goals?include=projection').actingAs(attacker.owner)
+    assert.deepEqual(projected.body().data, [])
 
     const payslips = await client.get('/api/v1/payslips').actingAs(attacker.owner)
     assert.deepEqual(payslips.body().data, [])
