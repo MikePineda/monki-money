@@ -103,7 +103,8 @@ The full, commented list is `apps/api/.env.example`. Production specifics:
 `DB_HOST=monkimoney-db`, `DB_*`, `SESSION_DRIVER=cookie`,
 `LIMITER_STORE=database`, `REGISTRATION_OPEN=false`, `DRIVE_DISK`, `S3_*`,
 `LLM_*`, `MAIL_DRIVER`, `RESEND_API_KEY`, `MAIL_FROM`, `SENTRY_DSN`,
-`SENTRY_DSN_WEB`, `APP_DEFAULT_LOCALE` (optional, `en`), `MIGRATE_ON_START=true`,
+`SENTRY_DSN_WEB`, `APP_DEFAULT_LOCALE` (optional, `en`), `SCHEDULER` (optional,
+empty = on, `off` stops the monthly insights schedule), `MIGRATE_ON_START=true`,
 `SEED_USERS` (first deploy only), `SEED_HOUSEHOLD_NAME`, `SEED_LOCALE`,
 `SEED_USER1_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
 `SEED_USER2_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
@@ -279,6 +280,61 @@ ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db)
 
 Check the live endpoint with `node ace llm:smoke` inside the app container
 (see `docs/llm.md`).
+
+## Monthly insights schedule
+
+**How it runs.** The web process starts an in-process scheduler in
+production (`providers/scheduler_provider.ts`): first tick a minute after
+boot, then every 15 minutes. On the 1st of each month, from 08:00 to
+midnight in each household's time zone, it writes last month's AI summary
+for every active household that had income or spending that month (transfers
+do not count), in the household's language, through the same path as the
+Generate button (quota check, one `llm_usage` row per call). A summary
+someone tapped before the month ended (say on the 20th) covers part of the
+month only, so it is replaced; one written after the month ended is kept.
+Each household and month is claimed once in `scheduler_runs`, so overlapping
+containers (start-first updates), restarts and manual runs never pay for it
+twice. A run left unfinished for 30 minutes (container killed mid-run) is
+taken over. Only a vendor failure (the model did not answer, nothing billed)
+is retried, an hour later, 3 attempts at most; an unusable answer is final
+(`failed:final`). Skips (no activity, quota used up, pending deletion, LLM not
+configured, already generated) are logged and recorded once and never
+retried. On shutdown the tick stops before the next household or model call
+and gives back a claim it had not used yet. Cost: at most two billed calls per
+household and month (the answer, plus the LLM layer's one retry when that
+answer is unusable). Log lines:
+
+```
+monthly insights: household 12 2026-09 es: generated
+monthly insights: household 31 2026-09 en: skipped (no activity)
+```
+
+**Disable.** `SCHEDULER=off` in the Dokploy environment, then redeploy.
+Empty (the default) means on; it never runs in development, ace commands or
+tests.
+
+**By hand** (a 1st missed entirely, a household the scheduler gave up on, a
+regenerate). It does not wait for 08:00, and the default month is the
+previous month in each household's time zone. Without `--force` it claims the
+scheduler's own row, so a household a tick already handled (or is handling)
+answers "already run"; `--force` bypasses that lock and replaces even a
+complete summary, only once the model answered (a failed regenerate keeps the
+old one). Use `--force` for a household whose run failed or was skipped. One
+line per household; exit code 1 when any failed.
+
+```bash
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace insights:generate'
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace insights:generate --month 2026-09 --household 12 --force'
+```
+
+**Last runs** (outcome `generated`, `skipped:<reason>`, `failed` (retried),
+`failed:final` or `released`, with the error):
+
+```bash
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney -c "
+  SELECT job, period_key, household_id, attempts, outcome, error, started_at, finished_at
+  FROM scheduler_runs ORDER BY started_at DESC LIMIT 20;"'
+```
 
 ## Receipts storage
 

@@ -64,6 +64,8 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Background jobs
   QUEUE_DRIVER: Env.schema.enum.optional(['sync', 'database'] as const),
+  // In-process scheduler (monthly insights). Production only; empty = on, `off` disables it.
+  SCHEDULER: Env.schema.enum.optional(['on', 'off'] as const),
 
   // LLM provider (empty LLM_API_KEY = no LLM, the app keeps working)
   LLM_PROVIDER: Env.schema.enum.optional(['anthropic-compatible', 'anthropic', 'fake'] as const),

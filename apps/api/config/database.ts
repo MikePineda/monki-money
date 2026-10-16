@@ -25,11 +25,12 @@ const dbConfig = defineConfig({
       },
       // Regenerates database/schema.ts after migrations, in development only:
       // the image is read-only for the app user, and the test suite migrates
-      // a database whose schema is identical by definition.
+      // a database whose schema is identical by definition. Infrastructure
+      // tables without a model (rate limiter, scheduler lock) are left out.
       schemaGeneration: {
         enabled: app.inDev,
         rulesPaths: ['./database/schema_rules.js'],
-        excludeTables: ['rate_limits'],
+        excludeTables: ['rate_limits', 'scheduler_runs'],
       },
       debug: app.inDev && env.get('LOG_LEVEL') === 'debug',
     },
