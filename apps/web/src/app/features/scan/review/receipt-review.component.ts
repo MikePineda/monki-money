@@ -6,6 +6,7 @@ import {
   inject,
   input,
   output,
+  signal,
   untracked,
   viewChild,
 } from '@angular/core'
@@ -45,6 +46,7 @@ import { ReceiptReviewStore } from './receipt-review.store'
  * t(scan.review.check, scan.review.lineCategory, scan.review.uncategorized)
  * t(scan.review.discardSheet.title, scan.review.discardSheet.body)
  * t(scan.review.discardSheet.confirm, scan.review.discardSheet.keep)
+ * t(scan.review.photo.show, scan.review.photo.hide)
  */
 const PEOPLE_KEYS = ['review.who.you', 'review.who.joint']
 
@@ -60,9 +62,12 @@ const CONFIDENCE_CLASS: Record<ReceiptConfidence, string> = {
 }
 
 /**
- * Reviewing a scanned receipt (the review half of `/scan`): how sure the
- * model was, the draft in the shared transaction form (payee, date,
- * amount, category, account, payer) and, for a receipt with two or more
+ * Reviewing a scanned receipt (the review half of `/scan`): a warning with
+ * "Continue" or "Cancel" when the receipt is in another currency (saving
+ * waits for it; nothing is converted), how sure the model was, "Show
+ * photo" (the reduced photo, folded, to compare), the draft in the shared
+ * transaction form (payee, date, amount, category, account, payer) and,
+ * for a receipt with two or more
  * lines, "Split by lines": the printed lines in the shared ReviewList, each
  * with its category (tap to change it), merged, dropped or recategorised
  * from the bulk bar; the last line takes the difference to the total.
@@ -120,6 +125,39 @@ const CONFIDENCE_CLASS: Record<ReceiptConfidence, string> = {
           />
         }
         @default {
+          @if (store.currencyPending()) {
+            <section class="mx-4 flex flex-col gap-1" data-testid="scan.review.currency">
+              <app-banner
+                status="warning"
+                [message]="
+                  'scan.review.currency.message'
+                    | transloco
+                      : { currency: store.foreignCurrency(), home: store.householdCurrency() }
+                "
+              />
+              <div class="flex justify-end gap-2">
+                <button
+                  appButton
+                  type="button"
+                  variant="ghost"
+                  data-testid="scan.review.currency.cancel"
+                  (click)="discarded.emit()"
+                >
+                  {{ 'scan.review.currency.cancel' | transloco }}
+                </button>
+                <button
+                  appButton
+                  type="button"
+                  variant="secondary"
+                  data-testid="scan.review.currency.continue"
+                  (click)="store.continueInHouseholdCurrency()"
+                >
+                  {{ 'scan.review.currency.continue' | transloco }}
+                </button>
+              </div>
+            </section>
+          }
+
           <p
             class="mx-4 flex items-start gap-3 rounded-lg bg-surface-2 p-4 text-body text-ink-1"
             data-testid="scan.review.confidence"
@@ -132,6 +170,35 @@ const CONFIDENCE_CLASS: Record<ReceiptConfidence, string> = {
             />
             <span>{{ 'scan.review.confidence.' + store.confidence() | transloco }}</span>
           </p>
+
+          @if (photo(); as src) {
+            <div class="flex flex-col gap-2 px-4">
+              <button
+                appButton
+                type="button"
+                variant="ghost"
+                icon="image"
+                class="-ml-3 self-start"
+                aria-controls="scan-review-photo"
+                data-testid="scan.review.photoToggle"
+                [attr.aria-expanded]="photoShown()"
+                (click)="photoShown.set(!photoShown())"
+              >
+                {{
+                  (photoShown() ? 'scan.review.photo.hide' : 'scan.review.photo.show') | transloco
+                }}
+              </button>
+              @if (photoShown()) {
+                <img
+                  id="scan-review-photo"
+                  class="mx-auto max-h-[50dvh] w-auto max-w-full rounded-lg border border-line object-contain"
+                  data-testid="scan.review.photo"
+                  [src]="src"
+                  [alt]="'scan.review.photo.alt' | transloco"
+                />
+              }
+            </div>
+          }
 
           <app-transaction-form
             [today]="store.today()"
@@ -265,12 +332,16 @@ export class ReceiptReviewComponent {
   private readonly locale = inject(APP_LOCALE)
 
   readonly receipt = input.required<ReceiptDraft>()
+  /** The reduced photo's local `blob:` URL (memory only), to compare with the fields. */
+  readonly photo = input<string | null>(null)
   /** The receipt is in the ledger. */
   readonly saved = output<void>()
   /** The person dropped the draft (back to the capture). */
   readonly discarded = output<void>()
 
   protected readonly emptySelection: ReadonlySet<ReviewKey> = new Set()
+  /** "Show photo": folded by default so the fields open at the top. */
+  protected readonly photoShown = signal(false)
   private readonly linesSection = viewChild<ElementRef<HTMLElement>>('linesSection')
   private readonly peopleLabels = translateSignal(PEOPLE_KEYS)
 

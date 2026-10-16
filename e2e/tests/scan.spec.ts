@@ -46,6 +46,13 @@ test.describe('journey 6: scan a receipt', () => {
     await expect(scan.category).toHaveText('Groceries')
     await expect(scan.confidence).toHaveAttribute('data-level', 'high')
 
+    // The reduced photo stays in memory while reviewing, to compare with the fields.
+    await scan.showPhoto()
+    await expect(scan.photo).toHaveAttribute('src', /^blob:/)
+    await expect
+      .poll(() => scan.photo.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0)
+
     // Split by lines: one line per printed item, all in the receipt's category.
     await scan.splitByLines()
     await expect(scan.lines).toHaveCount(3)
