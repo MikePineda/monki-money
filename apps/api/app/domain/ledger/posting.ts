@@ -1,4 +1,9 @@
-import type { CategoryGroupKind, TransactionKind, TransactionStatus } from '@monkimoney/shared'
+import type {
+  AccountKind,
+  CategoryGroupKind,
+  TransactionKind,
+  TransactionStatus,
+} from '@monkimoney/shared'
 
 /**
  * One line of the ledger as reports see it: a whole transaction, or one
@@ -12,6 +17,8 @@ export type Posting = {
   /** The split line, or null for a transaction that is not split. */
   splitId: number | null
   accountId: number
+  /** Kind of the posting's account: a transfer leg landing in `savings` is money set aside. */
+  accountKind: AccountKind
   /** Effective calendar date, 'YYYY-MM-DD'. */
   date: string
   /** Signed cents: negative leaves the account. */
@@ -27,6 +34,8 @@ export type Posting = {
   paidByUserId: number | null
   createdByUserId: number | null
   isPrivate: boolean
+  /** Free labels of the transaction; split lines carry their parent's. */
+  tags: readonly string[]
   /**
    * True when the reader may not see the details of this private posting:
    * its amount still counts, under the `private` bucket instead of its

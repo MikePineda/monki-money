@@ -102,6 +102,8 @@ export interface TransactionFilters {
   needsReview?: boolean
   /** Text search over payee, notes and the bank description. */
   q?: string
+  /** Only rows carrying this exact tag (every date unless a month or range is given). */
+  tag?: string
   page?: number
   perPage?: number
   sort?: TransactionSort
@@ -115,6 +117,8 @@ export interface CreateTransferInput {
   /** Positive; the outgoing leg gets the negative amount. */
   amountCents: number
   memo?: string | null
+  /** Written on both legs; a leg landing in a savings account counts as set aside. */
+  tags?: string[]
 }
 
 export type UpdateTransferInput = Partial<Omit<CreateTransferInput, 'clientId'>>

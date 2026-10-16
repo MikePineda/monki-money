@@ -194,3 +194,9 @@ export const StorageUnavailable = domainError(
  * any other missing row (404, never 403).
  */
 export const UploadNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')
+
+/**
+ * A tag no transaction of the household carries (or only the partner's
+ * private ones, whose tags the reader cannot see): 404 like any missing row.
+ */
+export const TagNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')

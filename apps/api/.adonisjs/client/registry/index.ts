@@ -372,6 +372,18 @@ const routes = {
     tokens: [{"old":"/api/v1/reports/balances","type":0,"val":"api","end":""},{"old":"/api/v1/reports/balances","type":0,"val":"v1","end":""},{"old":"/api/v1/reports/balances","type":0,"val":"reports","end":""},{"old":"/api/v1/reports/balances","type":0,"val":"balances","end":""}],
     types: placeholder as Registry['reports.balances']['types'],
   },
+  'tags.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tags',
+    tokens: [{"old":"/api/v1/tags","type":0,"val":"api","end":""},{"old":"/api/v1/tags","type":0,"val":"v1","end":""},{"old":"/api/v1/tags","type":0,"val":"tags","end":""}],
+    types: placeholder as Registry['tags.index']['types'],
+  },
+  'tags.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/tags/:tag',
+    tokens: [{"old":"/api/v1/tags/:tag","type":0,"val":"api","end":""},{"old":"/api/v1/tags/:tag","type":0,"val":"v1","end":""},{"old":"/api/v1/tags/:tag","type":0,"val":"tags","end":""},{"old":"/api/v1/tags/:tag","type":1,"val":"tag","end":""}],
+    types: placeholder as Registry['tags.show']['types'],
+  },
   'goals.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/goals',

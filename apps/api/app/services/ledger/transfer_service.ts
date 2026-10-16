@@ -61,10 +61,11 @@ export default class TransferService {
           },
           { client: trx }
         )
+        const tags = input.tags ?? []
         await Transaction.createMany(
           [
-            this.leg(transfer, from, -transfer.amountCents, actor),
-            this.leg(transfer, to, transfer.amountCents, actor),
+            { ...this.leg(transfer, from, -transfer.amountCents, actor), tags },
+            { ...this.leg(transfer, to, transfer.amountCents, actor), tags },
           ],
           { client: trx }
         )
@@ -107,7 +108,7 @@ export default class TransferService {
         updatedByUserId: actor.id,
       })
       await transfer.save()
-      await this.rewriteLegs(transfer, from, to, actor, trx)
+      await this.rewriteLegs(transfer, from, to, actor, trx, input.tags)
     })
 
     return this.find(household, transferId)
@@ -165,18 +166,25 @@ export default class TransferService {
     }
   }
 
+  /**
+   * Both legs follow the transfer. `tags` replaces the labels of both legs
+   * when given; otherwise each leg keeps its own (a recreated missing leg
+   * copies the other one's).
+   */
   protected async rewriteLegs(
     transfer: Transfer,
     from: Account,
     to: Account,
     actor: User,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    tags?: string[]
   ) {
     const legs = await Transaction.query({ client: trx })
       .where('transfer_id', transfer.id)
       .orderBy('amount_cents')
     const outgoing = legs.find((leg) => leg.amountCents < 0)
     const incoming = legs.find((leg) => leg !== outgoing)
+    const legTags = tags ?? outgoing?.tags ?? incoming?.tags ?? []
 
     for (const [leg, account, amountCents] of [
       [outgoing, from, -transfer.amountCents],
@@ -184,7 +192,7 @@ export default class TransferService {
     ] as const) {
       const values = this.leg(transfer, account, amountCents, actor)
       if (!leg) {
-        await Transaction.create(values, { client: trx })
+        await Transaction.create({ ...values, tags: legTags }, { client: trx })
         continue
       }
       leg.useTransaction(trx)
@@ -195,6 +203,7 @@ export default class TransferService {
         currencyCode: values.currencyCode,
         description: values.description,
         updatedByUserId: actor.id,
+        ...(tags === undefined ? {} : { tags }),
         ...(leg.accountId === account.id ? {} : { paidByUserId: values.paidByUserId }),
       })
       await leg.save()

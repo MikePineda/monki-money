@@ -159,6 +159,12 @@ const cases: IsolationCase[] = [
     method: 'get',
     url: (v) => `/api/v1/reports/category/${v.category.id}`,
   },
+  // A tag is not an id: another household's tag simply does not exist here.
+  {
+    route: 'tags.show',
+    method: 'get',
+    url: (v) => `/api/v1/tags/${encodeURIComponent(v.transaction.tags[0])}`,
+  },
   { route: 'goals.show', method: 'get', url: (v) => `/api/v1/goals/${v.goal.id}` },
   {
     route: 'goals.update',
@@ -305,6 +311,7 @@ async function victimHousehold(): Promise<Victim> {
     accountId: account.id,
     categoryId: category.id,
     payee: 'Victim payee',
+    tags: ['Victim trip'],
   }).create()
   const transfer = await TransferFactory.merge({
     householdId: household.household.id,
@@ -482,6 +489,14 @@ test.group('Tenant isolation', () => {
       .get(`/api/v1/transactions?accountId=${victim.account.id}`)
       .actingAs(attacker.owner)
     assert.deepEqual(transactions.body().data, [])
+
+    const tagged = await client
+      .get('/api/v1/transactions')
+      .qs({ tag: victim.transaction.tags[0] })
+      .actingAs(attacker.owner)
+    assert.deepEqual(tagged.body().data, [])
+    const tags = await client.get('/api/v1/tags').actingAs(attacker.owner)
+    assert.deepEqual(tags.body().data, [])
 
     const month = await client
       .get(`/api/v1/reports/month?month=${victim.transaction.date.slice(0, 7)}`)

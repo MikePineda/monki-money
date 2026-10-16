@@ -65,6 +65,8 @@ export type ScannedRoutes = {
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.balances': { paramsTuple?: []; params?: {} }
+    'tags.index': { paramsTuple?: []; params?: {} }
+    'tags.show': { paramsTuple: [ParamValue]; params: {'tag': ParamValue} }
     'goals.index': { paramsTuple?: []; params?: {} }
     'goals.store': { paramsTuple?: []; params?: {} }
     'goals.reorder': { paramsTuple?: []; params?: {} }
@@ -110,6 +112,8 @@ export type ScannedRoutes = {
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.balances': { paramsTuple?: []; params?: {} }
+    'tags.index': { paramsTuple?: []; params?: {} }
+    'tags.show': { paramsTuple: [ParamValue]; params: {'tag': ParamValue} }
     'goals.index': { paramsTuple?: []; params?: {} }
     'goals.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.projection': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -139,6 +143,8 @@ export type ScannedRoutes = {
     'reports.trend': { paramsTuple?: []; params?: {} }
     'reports.category': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'reports.balances': { paramsTuple?: []; params?: {} }
+    'tags.index': { paramsTuple?: []; params?: {} }
+    'tags.show': { paramsTuple: [ParamValue]; params: {'tag': ParamValue} }
     'goals.index': { paramsTuple?: []; params?: {} }
     'goals.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.projection': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

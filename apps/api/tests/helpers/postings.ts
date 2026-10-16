@@ -11,6 +11,7 @@ export function posting(overrides: Partial<Posting> = {}): Posting {
     transactionId: nextTransactionId++,
     splitId: null,
     accountId: 1,
+    accountKind: 'transaction',
     date: '2026-10-10',
     amountCents: -1_000,
     kind: 'expense',
@@ -21,6 +22,7 @@ export function posting(overrides: Partial<Posting> = {}): Posting {
     paidByUserId: 1,
     createdByUserId: 1,
     isPrivate: false,
+    tags: [],
     hidden: false,
     ...overrides,
   }
