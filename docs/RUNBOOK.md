@@ -121,8 +121,12 @@ delete the `SEED_*_PASSWORD` values after the first deploy. It logs ids only.
 A Dokploy scheduled backup of the Postgres service (`backup-create`) to an
 S3-compatible destination (R2), prefix `monkimoney/`, at least daily, with
 a retention count (the schedule and destination of a given deployment live
-in the panel). Manual: `backup-manualBackupPostgres`. List:
-`backup-listBackupFiles`. Restore:
+in the panel). Dokploy writes the objects under
+`<postgres appName>/<prefix>/<timestamp>.sql.gz` (so `monkimoney-db-<suffix>/monkimoney/...`),
+as `pg_dump -Fc` piped through gzip. Manual: `backup-manualBackupPostgres`.
+List: `backup-listBackupFiles` only shows the top-level folder; to see the
+files run `rclone lsjson -R --files-only` inside the Dokploy container with the
+destination's S3 flags (`destination.one` has them; never print them). Restore:
 
 ```bash
 gunzip -c <file>.dump.gz | docker exec -i $(docker ps -q -f name=monkimoney-db) \
@@ -130,7 +134,13 @@ gunzip -c <file>.dump.gz | docker exec -i $(docker ps -q -f name=monkimoney-db) 
 ```
 
 A restore drill into `monkimoney_restore_test` is mandatory after the first
-backup. TODO: record the date and result here.
+backup, and worth repeating after any Postgres major upgrade. Drill log:
+
+- 2026-10-16: the first scheduled backup (15 Oct 16:15 UTC, 74 KB) streamed
+  from R2 with `rclone cat | gunzip | pg_restore --no-owner --no-acl` into a
+  fresh `monkimoney_restore_test` in 0.8 s; every count matched production
+  (19 migrations, 20 tables, households, users, accounts, categories,
+  transactions, import batches). The scratch database was dropped afterwards.
 
 ## Logs
 
