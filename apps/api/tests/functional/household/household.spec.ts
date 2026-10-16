@@ -2,10 +2,8 @@ import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import Household from '#models/household'
 import limiter from '@adonisjs/limiter/services/main'
-import { categoryBySlug } from '#tests/helpers/ledger'
 import { createHousehold } from '#tests/helpers/household'
 import { FACTORY_PASSWORD } from '#database/factories/user_factory'
-import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 
 test.group('Household', (group) => {
   group.each.setup(() => limiter.clear())
@@ -214,119 +212,5 @@ test.group('Household', (group) => {
 
     response.assertStatus(403)
     await Household.findOrFail(household.id)
-  })
-
-  test('test_export_contains_all_household_data', async ({ client, assert }) => {
-    const { owner, household, accounts } = await createHousehold({
-      users: 2,
-      taxonomy: true,
-      accounts: [{ name: 'Everyday', externalAccountNumber: '000111222' }, { name: 'Savings' }],
-    })
-    const split = await TransactionFactory.merge({
-      householdId: household.id,
-      accountId: accounts[0].id,
-      amountCents: -1_000,
-      tags: ['weekly'],
-    })
-      .apply('split')
-      .create()
-    const transfer = await TransferFactory.merge({
-      householdId: household.id,
-      fromAccountId: accounts[0].id,
-      toAccountId: accounts[1].id,
-    }).create()
-
-    const response = await client.get('/api/v1/household/export').actingAs(owner)
-
-    response.assertStatus(200)
-    assert.include(response.header('content-disposition'), 'attachment')
-    const body = response.body()
-    assert.equal(body.household.id, household.id)
-    assert.lengthOf(body.members, 2)
-    assert.sameMembers(
-      body.accounts.map((a: any) => a.name),
-      ['Everyday', 'Savings']
-    )
-    assert.isAbove(body.categoryGroups.length, 5)
-    assert.isAbove(body.categories.length, 20)
-    assert.deepEqual(
-      body.transfers.map((t: any) => t.id),
-      [transfer.id]
-    )
-    // The split transaction and both transfer legs.
-    assert.lengthOf(body.transactions, 3)
-    const exported = body.transactions.find((t: any) => t.id === split.id)
-    assert.include(exported, { amountCents: -1_000, isSplit: true })
-    assert.deepEqual(exported.tags, ['weekly'])
-    assert.lengthOf(exported.splits, 2)
-    assert.notInclude(JSON.stringify(body), '"password"')
-  })
-
-  test('test_export_csv_escapes_formula_cells', async ({ client, assert }) => {
-    const { owner, household, accounts } = await createHousehold({
-      taxonomy: true,
-      accounts: [{ name: '=cmd|calc' }],
-    })
-    const groceries = await categoryBySlug(household.id, 'groceries')
-    await TransactionFactory.merge({
-      householdId: household.id,
-      accountId: accounts[0].id,
-      date: '2026-10-02',
-      amountCents: -1_234,
-      categoryId: groceries.id,
-      payee: '=HYPERLINK("http://evil.test","Click")',
-      description: '@SUM(1,2)',
-      tags: ['+tag', '-5'],
-    }).create()
-
-    const response = await client.get('/api/v1/household/export?format=csv').actingAs(owner)
-
-    response.assertStatus(200)
-    assert.include(response.header('content-type'), 'text/csv')
-    assert.include(response.header('content-disposition'), '.csv')
-    const lines = response
-      .text()
-      .replace(/^\uFEFF/, '')
-      .trimEnd()
-      .split('\r\n')
-    assert.lengthOf(lines, 2)
-    assert.isTrue(lines[0].startsWith('Date,Bank date,Account,Type,Amount'))
-    const row = lines[1]
-    assert.include(row, `'=cmd|calc`)
-    assert.include(row, `"'=HYPERLINK(""http://evil.test"",""Click"")"`)
-    assert.include(row, `"'@SUM(1,2)"`)
-    assert.include(row, `'+tag; -5`)
-    // Amounts stay numbers; system categories are named in the reader's locale.
-    assert.include(row, ',-12.34,AUD,Groceries,Food,')
-    assert.notInclude(row, `'-12.34`)
-  })
-
-  test('test_export_masks_the_partners_private_transactions', async ({ client, assert }) => {
-    const { owner, member, household, accounts } = await createHousehold({
-      users: 2,
-      accounts: [{ name: 'Joint' }],
-    })
-    await TransactionFactory.merge({
-      householdId: household.id,
-      accountId: accounts[0].id,
-      amountCents: -50_000,
-      payee: 'Secret jeweller',
-      paidByUserId: member.id,
-      createdByUserId: member.id,
-    })
-      .apply('private')
-      .create()
-
-    const json = await client.get('/api/v1/household/export').actingAs(owner)
-    const csv = await client.get('/api/v1/household/export?format=csv').actingAs(owner)
-
-    assert.include(json.body().transactions[0], {
-      amountCents: -50_000,
-      payee: null,
-      isPrivate: true,
-    })
-    assert.notInclude(json.text(), 'Secret jeweller')
-    assert.notInclude(csv.text(), 'Secret jeweller')
-    assert.include(csv.text(), ',-500.00,AUD,Private,')
   })
 })

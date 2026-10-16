@@ -82,6 +82,18 @@ The SPA fallback route (`spa.fallback`) is excluded from the registry
   bucket in reports, cannot change the row (403 `E_TRANSACTION_PRIVATE`) and
   bulk categorize skips it.
 - Another household's resource: 404, never 403.
+- Leaving members (`household.leave`; the same rule applies to a removal by
+  the owner if that route is ever added): in the same transaction that
+  drops the membership, their personal accounts become joint
+  (`ownerUserId: null`), their cards on any account of the household keep
+  the suffix but lose their `userId`, and merchant rules, recurring items
+  and import rows still to confirm (suggested payer and a decided payer)
+  stop naming them as the payer. New rows on those accounts and cards then
+  default to whoever enters them (`defaultPayer`) instead of someone who is
+  gone. Existing ledger rows and confirmed import rows keep
+  `paidByUserId` and `createdByUserId`: history is history. Leave, delete
+  and ownership transfer decide on the locked, committed membership, so a
+  handover racing a leave never leaves the household without an owner.
 - Locale of messages: the user's `locale`, else `Accept-Language`, else the
   household's, else `APP_DEFAULT_LOCALE` (`en`). Responses carry
   `Content-Language`. System categories/groups (`isSystem`) are named in that
@@ -110,7 +122,8 @@ is pending deletion.
 
 Throttles (429): login, sign-up, forgot/reset password and invitation
 lookups/accepts 5/min (then 20 min blocked) per client IP (+ email); password
-re-checks (`PATCH /me` with `password`, `household.delete`) 5/min per user;
+re-checks (`PATCH /me` with `password`, `household.delete`,
+`household.transferOwnership`; only wrong passwords count) 5/min per user;
 `auth.email.resend` 3 per 15 min per user; wrong `auth.email.verifyCode`
 codes 5/min (then 20 min blocked) per client IP + email; invitation mails (create + resend)
 10/hour per household. The client IP is `CF-Connecting-IP` only when the
@@ -160,9 +173,10 @@ members). Bodies in `{ data }` unless noted.
 | `household.show`                                              | `GET /household`                                                                               | `Household`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `household.update`                                            | `PATCH /household`                                                                             | Owner. `{ name?, locale?, timezone? }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `household.members`                                           | `GET /household/members`                                                                       | `Member[]` (`userId`, `fullName`, `email`, `role`, ...)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `household.export`                                            | `GET /household/export?format=json\|csv`                                                       | Owner. Streamed download. JSON: household, members, accounts with cards, category groups, categories, transfers, transactions with split lines. CSV: the ledger, one row per posting (split lines expanded), names in the reader's locale, UTF-8 BOM, text cells starting with `= + - @` (or tab/CR) prefixed with `'`. Private rows of the partner masked                                                                                                                                                                                                                                   |
+| `household.export`                                            | `GET /household/export?format=json\|csv`                                                       | Owner (403 for members). Streamed download (`Cache-Control: no-store`) of every table of the household, read in pages (see "Household export" below). JSON (`monkimoney-export-<date>.json`): one object `{ format, version: 2, exportedAt, household, <table>: [...] }`. CSV (`monkimoney-export-<date>.zip`, `application/zip`): one CSV per table plus `ledger.csv`                                                                                                                                                                                                                       |
 | `household.delete`                                            | `POST /household/delete`                                                                       | Owner. `{ password }` → `Household` with `status: 'pending_deletion'`, `deletionScheduledAt` (+30 days)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `household.leave`                                             | `POST /household/leave`                                                                        | Members only (owners: 422 `E_OWNER_CANNOT_LEAVE`). 204; drops the membership and the current household, keeps the session (next household request: 403 `E_NO_HOUSEHOLD`) and the leaver's ledger rows (payer, creator, account owner, card user)                                                                                                                                                                                                                                                                                                                                             |
+| `household.leave`                                             | `POST /household/leave`                                                                        | Members only (owners: 422 `E_OWNER_CANNOT_LEAVE`; they transfer ownership first). 204; drops the membership and the current household, keeps the session (next household request: 403 `E_NO_HOUSEHOLD`) and the leaver's ledger rows (payer and creator stay). The leaver's personal accounts become joint and their cards lose their user (see "Leaving members" above)                                                                                                                                                                                                                     |
+| `household.transferOwnership`                                 | `POST /household/transfer-ownership`                                                           | Owner. `{ userId, password }` → `Member[]` with the new roles: `userId` becomes the owner, the caller a member (so they can then leave), in one transaction, audited in `household_ownership_transfers` (who, to whom, when). 422 `password`/`matches` (wrong password, counts toward the password re-check limit), 422 `userId`/`self`, 404 `E_ROW_NOT_FOUND` when `userId` is not a member of this household                                                                                                                                                                               |
 | `household.restore`                                           | `POST /household/restore`                                                                      | Owner, within the window. 409 if not pending, 410 if the window ended                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `households.store`                                            | `POST /households`                                                                             | Verified, no household needed. `{ name, locale?, timezone?, currencyCode? }` (defaults: the user's locale, `Australia/Brisbane`, `AUD`) → 201 `{ household, membership }` (owner, taxonomy in that locale, becomes the current household); 409 `E_ALREADY_IN_HOUSEHOLD` when the user already has one                                                                                                                                                                                                                                                                                        |
 | `household.invitations.index`                                 | `GET /household/invitations`                                                                   | Owner. Pending invitations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -182,6 +196,54 @@ members). Bodies in `{ data }` unless noted.
 | `categories.store` / `.update`                                | `POST /categories`, `PATCH /categories/:id`                                                    | `{ categoryGroupId, name, icon?, isHidden? }`; renaming a system category makes it custom; slug never changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `categories.destroy`                                          | `DELETE /categories/:id`                                                                       | `{ reassignToCategoryId? }` → 204 (transactions and split lines move to the replacement); 409 `E_CATEGORY_IN_USE` when referenced without a replacement                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `categories.reorder`                                          | `PUT /categories/reorder`                                                                      | `{ ids }` → 204                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+
+### Household export
+
+`GET /household/export` is the owner's "download my data". Both formats
+carry the same tables, rows and columns (`app/services/households/export_tables.ts`):
+
+| JSON key             | CSV file                  | Rows                                                                                                                                                     |
+| -------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `household`          | `household.csv`           | The household (one object; one row in the CSV)                                                                                                           |
+| `members`            | `members.csv`             | Current members with name, email and role                                                                                                                |
+| `accounts`           | `accounts.csv`            | Accounts with owner, account number and opening balance (cents and date)                                                                                 |
+| `accountCards`       | `account_cards.csv`       | Cards by account (suffix, user, label)                                                                                                                   |
+| `categoryGroups`     | `category_groups.csv`     | Category groups                                                                                                                                          |
+| `categories`         | `categories.csv`          | Categories                                                                                                                                               |
+| `transfers`          | `transfers.csv`           | Transfers (their two legs are in `transactions`)                                                                                                         |
+| `transactions`       | `transactions.csv`        | Every ledger row, with `tags`, `transferId`, `payslipId`, `isPrivate` and `isMasked`                                                                     |
+| `transactionSplits`  | `transaction_splits.csv`  | Split lines                                                                                                                                              |
+| `payslips`           | `payslips.csv`            | Payslips (gross, net, deductions, transfer)                                                                                                              |
+| `payslipLines`       | `payslip_lines.csv`       | Each payslip's gross and deduction lines (the transactions with that `payslipId`)                                                                        |
+| `merchantRules`      | `merchant_rules.csv`      | Merchant rules, the bank defaults included                                                                                                               |
+| `importBatches`      | `import_batches.csv`      | Bank imports with their counts and reconciliation balances (`archived` says whether the file is kept, never where)                                       |
+| `importRows`         | `import_rows.csv`         | Each imported row's date, amount, resolution (and the importer's proposal), decision and the ledger rows it became or matched; never the bank file cells |
+| `savingsGoals`       | `savings_goals.csv`       | Goals with `status` and `reachedAt`                                                                                                                      |
+| `recurringItems`     | `recurring_items.csv`     | Recurring payments (cadence, amount, next date, status, source, edited fields)                                                                           |
+| `monthlyInsights`    | `monthly_insights.csv`    | Monthly summaries: `headline`, `highlights`, `bodyMarkdown`                                                                                              |
+| `llmUsage`           | `llm_usage.csv`           | LLM totals per month (household time zone) and purpose: calls, failed calls, tokens, cost in micro-dollars                                               |
+| `ownershipTransfers` | `ownership_transfers.csv` | Ownership handovers (from, to, when)                                                                                                                     |
+
+- Only the current household's rows, read page by page in id order with
+  a keyset (memory stays flat; rows added or deleted mid-export never
+  repeat nor vanish). No secrets: password hashes, tokens, invitation
+  links and storage keys never leave.
+- The privacy rule holds for the owner too: the partner's private
+  transactions keep their amount but not their payee, notes, category,
+  tags or split lines (`isMasked: true`, no `transactionSplits` rows, and
+  their payslip line or import decision masked the same way). A payslip
+  whose gross line is the partner's private row loses its memo, also where
+  it was copied: its transfer's `memo` and the legs' `description`. The
+  owner's own private rows are exported in full.
+- CSV: a zip rather than one multi-section CSV, so each table keeps its own
+  header and opens as a sheet of its own; the zip is written with
+  node:zlib (no archive dependency). Each file is UTF-8 with a BOM, CRLF
+  records, columns named like the JSON keys; lists of strings (tags) join
+  with `; `, objects become JSON text; every text cell starting with
+  `= + - @` (or tab/CR) is prefixed with `'` (numbers stay numbers).
+  `ledger.csv` is the ledger as a spreadsheet: one row per posting (split
+  lines expanded), names in the reader's locale, decimal amounts, the
+  partner's private rows under "Private".
 
 ### Ledger and reports
 

@@ -295,6 +295,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
     }
   }
+  'household.transferOwnership': {
+    methods: ["POST"]
+    pattern: '/api/v1/household/transfer-ownership'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/household').transferOwnershipValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/household').transferOwnershipValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['transferOwnership']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['transferOwnership']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'household.invitations.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/household/invitations'

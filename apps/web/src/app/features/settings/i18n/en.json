@@ -32,6 +32,15 @@
       "owner": "Owner",
       "member": "Member"
     },
+    "makeOwner": "Make owner",
+    "ownerSheet": {
+      "title": "Make {name} the owner?",
+      "body": "{name} will manage the household: its name, time zone, invitations, export and deletion. You stay as a member and can leave afterwards if you want.",
+      "password": "Your password",
+      "confirm": "Make {name} the owner",
+      "wrongPassword": "That password is not correct.",
+      "done": "{name} is now the owner."
+    },
     "nameSheet": {
       "title": "Household name",
       "label": "Name"
@@ -154,10 +163,10 @@
     },
     "leaveSheet": {
       "title": "Leave {name}?",
-      "body": "Everything you added stays with {name}: its members keep seeing your transactions, accounts and cards.",
+      "body": "Everything you added stays with {name}: its members keep seeing your transactions. Your accounts and cards stay too, as joint ones.",
       "after": "You lose access right away. Afterwards you can start your own household or join one with an invitation.",
       "confirm": "Leave household",
-      "ownerCannot": "The owner cannot leave the household."
+      "ownerCannot": "The owner cannot leave the household. Make your partner the owner first."
     }
   },
   "password": {

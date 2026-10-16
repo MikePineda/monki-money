@@ -8,6 +8,7 @@ import HouseholdMember from '#models/household_member'
 import { csvRow } from '#domain/export/csv'
 import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import { centsToDecimal } from '#domain/money/cents'
+import { hiddenPayslipMemos, unlessPayslipMemo } from '#services/households/export_tables'
 
 const PAGE_SIZE = 500
 
@@ -41,7 +42,8 @@ const COLUMNS = [
  * gives one row per line, with the line's amount and category), names in
  * the reader's locale, amounts as plain decimals, every text cell escaped
  * against formula injection (app/domain/export/csv.ts). The partner's
- * private transactions show their amount under "Private". Streamed page by
+ * private transactions show their amount under "Private" (and a private
+ * payslip's memo is left out of its transfer legs). Streamed page by
  * page in `(date, id)` order with a keyset (`(date, id) > last`), so rows
  * saved or deleted while the export runs never shift a page; starts with a
  * UTF-8 BOM so Excel reads accents right.
@@ -52,6 +54,7 @@ export default class LedgerCsvExporter {
   async *csv(household: Household, viewer: PrivacyViewer, i18n?: I18n): AsyncGenerator<string> {
     const t = (key: string, fallback: string) => (i18n ? i18n.t(key, {}, fallback) : fallback)
     const names = await this.names(household, t)
+    const payslipMemos = await hiddenPayslipMemos(household, viewer, this.pageSize)
 
     yield `\uFEFF${csvRow(COLUMNS.map((column) => t(`messages.export.columns.${column}`, column)))}`
 
@@ -88,7 +91,9 @@ export default class LedgerCsvExporter {
             masked ? names.private : category?.name,
             masked ? null : category?.group,
             masked ? null : transaction.payee,
-            masked ? null : transaction.description,
+            masked
+              ? null
+              : unlessPayslipMemo(transaction.description, transaction.transferId, payslipMemos),
             transaction.paidByUserId === null
               ? names.joint
               : names.members.get(transaction.paidByUserId),

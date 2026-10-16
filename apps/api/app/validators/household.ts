@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 import { LOCALES, MEMBER_ROLES } from '@monkimoney/shared'
-import { email, idParams, timezone } from '#validators/rules'
+import { email, id, idParams, timezone } from '#validators/rules'
 
 export const updateHouseholdValidator = vine.create({
   name: vine.string().trim().minLength(1).maxLength(120).optional(),
@@ -25,8 +25,14 @@ export const deleteHouseholdValidator = vine.create({
 })
 
 export const exportHouseholdValidator = vine.create({
-  /** json: everything; csv: the ledger, one row per posting (formula-escaped). */
+  /** json: one object, an array per table; csv: a zip, one CSV per table (formula-escaped). */
   format: vine.enum(['json', 'csv'] as const).optional(),
+})
+
+/** The member who becomes the owner, and the current owner's password. */
+export const transferOwnershipValidator = vine.create({
+  userId: id(),
+  password: vine.string().maxLength(128),
 })
 
 export const createInvitationValidator = vine.create({

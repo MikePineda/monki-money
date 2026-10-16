@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { csvCell, csvRow, escapeFormula } from '#domain/export/csv'
+import { csvCell, csvRow, escapeFormula, flatCell } from '#domain/export/csv'
 
 test.group('Export: CSV', () => {
   test('test_csv_cell_escapes_formula_prefixes', ({ assert }) => {
@@ -31,5 +31,17 @@ test.group('Export: CSV', () => {
     assert.equal(csvCell('-12.34 refund'), "'-12.34 refund")
     assert.equal(csvCell('-1+1'), "'-1+1")
     assert.equal(csvRow(['2026-10-01', '-12.34', '=evil']), `2026-10-01,-12.34,'=evil\r\n`)
+  })
+
+  test('test_structured_values_become_one_escaped_text_cell', ({ assert }) => {
+    // Lists of strings (tags) join with "; ", anything else becomes JSON.
+    assert.equal(flatCell(['weekly', 'Bali 2027']), 'weekly; Bali 2027')
+    assert.equal(flatCell([]), '')
+    assert.equal(flatCell({ tone: 'positive' }), '{"tone":"positive"}')
+    assert.equal(flatCell([{ text: 'hi' }]), '[{"text":"hi"}]')
+    assert.equal(flatCell(12), 12)
+    assert.equal(flatCell(null), null)
+    assert.equal(csvCell(flatCell(['+tag', '-5'])), "'+tag; -5")
+    assert.equal(csvCell(flatCell({ note: '=1' })), '"{""note"":""=1""}"')
   })
 })
