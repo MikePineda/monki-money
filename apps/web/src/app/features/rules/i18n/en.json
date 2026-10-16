@@ -1,7 +1,8 @@
 {
   "title": "Merchant rules",
   "back": "Back to settings",
-  "intro": "Rules sort imported movements by merchant. They are learned when you confirm an import or change a category for the future.",
+  "intro": "Rules sort imported movements by merchant. They are learned when you confirm an import or change a category for the future, and you can write your own.",
+  "new": "New rule",
   "loading": "Loading the rules",
   "error": {
     "title": "The rules could not be loaded.",
@@ -9,7 +10,7 @@
   },
   "empty": {
     "title": "No rules yet.",
-    "body": "They appear as you confirm imports.",
+    "body": "They appear as you confirm imports, or write one yourself.",
     "action": "Import a bank CSV"
   },
   "hits": "{count, plural, =0 {No matches yet} one {# match} other {# matches}}",
@@ -27,6 +28,7 @@
   },
   "actions": {
     "title": "Rule “{pattern}”",
+    "edit": "Edit rule",
     "apply": "Apply to movements in review",
     "delete": "Delete rule"
   },
@@ -38,6 +40,49 @@
   },
   "toast": {
     "deleted": "Rule deleted.",
-    "applied": "{count, plural, =0 {No movement in review matched this rule.} one {# movement categorised.} other {# movements categorised.}}"
+    "applied": "{count, plural, =0 {No movement in review matched this rule.} one {# movement categorised.} other {# movements categorised.}}",
+    "saved": "Rule saved.",
+    "savedApply": "Rule saved. Apply it to the movements in review?",
+    "apply": "Apply"
+  },
+  "form": {
+    "newTitle": "New rule",
+    "editTitle": "Edit rule",
+    "matchType": "How it matches",
+    "matchHelp": {
+      "merchant": "The merchant name, ignoring capitals and numbers.",
+      "contains": "Any bank description that contains this text.",
+      "regex": "A regular expression over the bank description, for advanced cases."
+    },
+    "pattern": "Text to match",
+    "locked": "A bank default: it keeps matching “{pattern}” the way the bank writes it. You can change what it does.",
+    "target": "What it does",
+    "targets": {
+      "category": "Category",
+      "transfer": "Transfer"
+    },
+    "chooseCategory": "Choose a category",
+    "chooseAccount": "Choose an account",
+    "categoryTitle": "Category",
+    "accountTitle": "Transfer to account",
+    "paidBy": "Paid by",
+    "paidByHint": "Optional. Who pays the movements it matches.",
+    "defaultPayer": "As imported",
+    "you": "You",
+    "payee": "Show as",
+    "payeeHint": "Optional. The name the movements it matches get.",
+    "more": "More",
+    "priority": "Priority",
+    "priorityValue": "Priority {priority}",
+    "priorityHint": "When several Contains or Pattern rules match, the highest priority wins.",
+    "raisePriority": "Raise priority",
+    "lowerPriority": "Lower priority",
+    "save": "Save rule",
+    "problems": {
+      "patternRequired": "Enter the text to match.",
+      "patternTooLong": "Use {max} characters or fewer.",
+      "targetRequired": "Choose a category or a transfer account.",
+      "payeeTooLong": "Use {max} characters or fewer."
+    }
   }
 }
