@@ -23,6 +23,7 @@
     "import": "src/app/features/import/i18n",
     "rules": "src/app/features/rules/i18n",
     "scan": "src/app/features/scan/i18n",
-    "outbox": "src/app/core/outbox/i18n"
+    "outbox": "src/app/core/outbox/i18n",
+    "tags": "src/app/features/tags/i18n"
   }
 }

@@ -21,6 +21,8 @@
     "tags": "Tags",
     "addTag": "Add a tag",
     "removeTag": "Remove tag {tag}",
+    "tagSuggestions": "Recent tags",
+    "addSuggestedTag": "Add tag {tag}",
     "private": "Private",
     "privateHint": "Your partner sees the amount, not the payee, note or category.",
     "moreCategories": "More",

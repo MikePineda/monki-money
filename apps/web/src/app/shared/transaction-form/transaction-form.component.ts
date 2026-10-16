@@ -1,13 +1,4 @@
-import {
-  Component,
-  booleanAttribute,
-  computed,
-  inject,
-  input,
-  model,
-  output,
-  signal,
-} from '@angular/core'
+import { Component, booleanAttribute, computed, inject, input, model, output } from '@angular/core'
 import { FormField, form, maxLength, min, required } from '@angular/forms/signals'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
 import type { EntryKind } from '@monkimoney/shared'
@@ -32,7 +23,8 @@ import { openSelectSheet, type SelectOption } from '../ui/select-sheet/select-sh
 import { TextFieldComponent } from '../ui/text-field/text-field.component'
 import { provideTransactionFormI18n } from './transaction-form-i18n'
 import { CategoryGridComponent, type CategoryTile } from './category-grid.component'
-import { addTag, draftErrors, type TransactionDraft } from './transaction-draft'
+import { TagsFieldComponent } from './tags-field.component'
+import { draftErrors, type TransactionDraft } from './transaction-draft'
 
 /**
  * Keys read from TypeScript. translateSignal() takes them relative to the
@@ -93,6 +85,7 @@ export const EMPTY_DRAFT: TransactionDraft = {
     FormField,
     IconComponent,
     SegmentedControlComponent,
+    TagsFieldComponent,
     TextFieldComponent,
     TranslocoPipe,
   ],
@@ -344,45 +337,13 @@ export const EMPTY_DRAFT: TransactionDraft = {
         [error]="errors().description ?? ''"
       />
 
-      <div class="flex flex-col gap-2 px-4">
-        <span class="text-label text-ink-2">{{ 'transactionForm.form.tags' | transloco }}</span>
-        @if (draft().tags.length > 0) {
-          <ul class="flex flex-wrap gap-2">
-            @for (tag of draft().tags; track tag) {
-              <li>
-                <button
-                  type="button"
-                  class="inline-flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-surface-1 pr-2 pl-3 text-label text-ink-1 active:bg-surface-2"
-                  [attr.aria-label]="'transactionForm.form.removeTag' | transloco: { tag }"
-                  (click)="removeTag(tag)"
-                >
-                  {{ tag }}<app-icon name="x" [size]="16" />
-                </button>
-              </li>
-            }
-          </ul>
-        }
-        <div class="flex items-end gap-2">
-          <app-text-field
-            class="min-w-0 flex-1"
-            data-testid="transactions.form.tag"
-            autocomplete="off"
-            [label]="'transactionForm.form.addTag' | transloco"
-            [error]="errors().tags ?? ''"
-            [(value)]="tagText"
-            (keydown.enter)="$event.preventDefault(); commitTag()"
-          />
-          <button
-            type="button"
-            class="mb-0 grid size-12 shrink-0 place-items-center rounded-md border border-line-strong bg-surface-1 text-ink-1 active:bg-surface-2 disabled:text-ink-3"
-            [attr.aria-label]="'transactionForm.form.addTag' | transloco"
-            [disabled]="!tagText().trim()"
-            (click)="commitTag()"
-          >
-            <app-icon name="plus" />
-          </button>
-        </div>
-      </div>
+      <app-tags-field
+        class="px-4"
+        [known]="tagSuggestions()"
+        [error]="errors().tags ?? ''"
+        [tags]="draft().tags"
+        (tagsChange)="patch({ tags: $event })"
+      />
 
       <app-checkbox
         class="px-4"
@@ -410,6 +371,8 @@ export class TransactionFormComponent {
   readonly categories = input<readonly CategoryOption[]>([])
   /** Payees seen recently, most recent first. */
   readonly payees = input<readonly string[]>([])
+  /** The household's tags, most recently used first (`GET /tags`), offered as chips. */
+  readonly tagSuggestions = input<readonly string[]>([])
   /** A 422's `{ field: message }`, keyed by API field. */
   readonly serverErrors = input<Record<string, string>>({})
   /** Lines of a split transaction; the split owns its amount and categories. */
@@ -441,7 +404,6 @@ export class TransactionFormComponent {
   /** Amount above zero, an account and a date: the host may save. */
   readonly valid = computed(() => this.fields().valid())
 
-  protected readonly tagText = signal('')
   protected readonly errors = computed(() => draftErrors(this.serverErrors()))
   protected readonly locked = computed(() => this.splitCount() > 0)
 
@@ -548,15 +510,6 @@ export class TransactionFormComponent {
       const today = this.today()
       this.patch({ date: today && value > today ? today : value })
     }
-  }
-
-  protected commitTag(): void {
-    this.patch({ tags: addTag(this.draft().tags, this.tagText()) })
-    this.tagText.set('')
-  }
-
-  protected removeTag(tag: string): void {
-    this.patch({ tags: this.draft().tags.filter((item) => item !== tag) })
   }
 
   /** A full key, translated when a sheet opens (the scope is loaded by then). */

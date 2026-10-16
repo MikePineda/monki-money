@@ -1,0 +1,52 @@
+{
+  "title": "Tags",
+  "back": "Back",
+  "loading": "Loading your tags",
+  "count": "{count, plural, one {# transaction} other {# transactions}}",
+  "totals": {
+    "spent": "Spent",
+    "income": "Income",
+    "setAside": "Set aside",
+    "net": "Net"
+  },
+  "empty": {
+    "title": "No tags yet",
+    "body": "Open a transaction or a transfer to savings and add a tag, such as \"Bali 2027\". Everything carrying it adds up here.",
+    "action": "Go to transactions"
+  },
+  "error": {
+    "title": "Your tags could not be loaded",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "detail": {
+    "eyebrow": "Spent with this tag",
+    "loading": "Loading the tag",
+    "error": "This tag could not be loaded.",
+    "retry": "Try again",
+    "notFound": {
+      "title": "This tag is not in use",
+      "body": "No transaction you can see carries it anymore.",
+      "back": "All tags"
+    },
+    "spend": {
+      "title": "Spending by category",
+      "header": "Category",
+      "empty": "Nothing was spent with this tag.",
+      "uncategorized": "Uncategorised",
+      "unknown": "Unknown category"
+    },
+    "trend": {
+      "title": "Month by month",
+      "spent": "Spent",
+      "setAside": "Set aside"
+    },
+    "whoPaid": {
+      "title": "Who paid",
+      "empty": "Nothing was spent with this tag.",
+      "you": "You",
+      "joint": "Shared"
+    },
+    "movements": "See these transactions"
+  }
+}

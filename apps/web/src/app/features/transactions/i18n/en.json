@@ -16,7 +16,13 @@
     "monthTitle": "Month",
     "accountTitle": "Account",
     "personTitle": "Who paid",
-    "categoryTitle": "Category"
+    "categoryTitle": "Category",
+    "tag": "Tag",
+    "allTags": "Any tag",
+    "tagTitle": "Tag",
+    "tagCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "noTags": "No tags yet: add one from a transaction.",
+    "allMonths": "All months"
   },
   "people": {
     "you": "You",
@@ -86,7 +92,8 @@
     "date": "Date",
     "memo": "Memo",
     "account": "Account",
-    "paidBy": "Paid by"
+    "paidBy": "Paid by",
+    "tags": "Tags"
   },
   "split": {
     "title": "Split {amount}",

@@ -55,6 +55,8 @@ export interface TransferDetails {
   fromAccountId: number
   toAccountId: number | null
   memo: string | null
+  /** Both legs carry them; a transfer into savings for a tag counts as set aside. */
+  tags: string[]
 }
 
 type NarrowFilters = Omit<TransactionFilters, 'month'>
@@ -83,16 +85,31 @@ export class TransactionsStore {
   /* ------------------------------------------------------------- filters */
 
   private readonly narrow = signal<NarrowFilters>(this.blankNarrow())
+  /** A tag filter shows every month until a month is picked (a trip spans several). */
+  private readonly allMonths = signal(false)
 
-  readonly filters = computed<TransactionFilters>(() => ({
-    ...this.narrow(),
-    month: this.months.selectedMonth(),
-  }))
+  readonly filters = computed<TransactionFilters>(() => {
+    const narrow = this.narrow()
+    const everyMonth = this.allMonths() && narrow.tag !== null
+    return { ...narrow, month: everyMonth ? null : this.months.selectedMonth() }
+  })
   readonly hasNarrowingFilters = computed(() => hasNarrowingFilters(this.filters()))
   readonly currentMonth = this.months.current
 
   setMonth(month: YearMonth): void {
+    this.allMonths.set(false)
     this.months.selectedMonth.set(month)
+  }
+
+  /** Every month at once (offered while a tag filter is set). */
+  showAllMonths(): void {
+    this.allMonths.set(true)
+  }
+
+  /** Only rows carrying this tag, over every month; null drops the filter. */
+  setTag(tag: string | null): void {
+    this.allMonths.set(tag !== null)
+    this.patchNarrow({ tag })
   }
 
   setAccount(accountId: number | null): void {
@@ -112,6 +129,7 @@ export class TransactionsStore {
   }
 
   clearFilters(): void {
+    this.allMonths.set(false)
     this.patchNarrow(this.blankNarrow())
   }
 
@@ -137,11 +155,18 @@ export class TransactionsStore {
   private loaded: { key: string; state: ListState } | null = null
 
   readonly list = resource<ListState, ListParams>({
-    params: () => ({
-      filters: this.filters(),
-      pages: this.pages(),
-      revision: this.months.revisionOf(this.filters().month),
-    }),
+    params: () => {
+      const filters = this.filters()
+      return {
+        filters,
+        pages: this.pages(),
+        // A list over every month reloads after a change in any of them.
+        revision:
+          filters.month === null
+            ? this.months.ledgerRevision()
+            : this.months.revisionOf(filters.month),
+      }
+    },
     loader: ({ params, abortSignal }) => this.loadPages(params, abortSignal),
   })
 
@@ -212,6 +237,7 @@ export class TransactionsStore {
       fromAccountId: outgoing?.accountId ?? leg.accountId,
       toAccountId: incoming?.accountId ?? null,
       memo: leg.description,
+      tags: [...leg.tags],
     }
   }
 
@@ -307,8 +333,8 @@ export class TransactionsStore {
   /* ------------------------------------------------------------ internals */
 
   private blankNarrow(): NarrowFilters {
-    const { accountId, paidByUserId, category, q } = initialFilters(this.months.current())
-    return { accountId, paidByUserId, category, q }
+    const { accountId, paidByUserId, category, q, tag } = initialFilters(this.months.current())
+    return { accountId, paidByUserId, category, q, tag }
   }
 
   private async loadPages(params: ListParams, signal: AbortSignal): Promise<ListState> {
@@ -427,6 +453,7 @@ export class TransactionsStore {
       date: details.date,
       amountCents: details.amountCents,
       memo: details.memo,
+      tags: [...details.tags],
     })
   }
 
