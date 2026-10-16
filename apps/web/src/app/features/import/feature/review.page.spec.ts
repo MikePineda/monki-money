@@ -298,6 +298,66 @@ describe('ImportReviewPage', () => {
     expect(visibleIds(root)).toEqual(['2', '6'])
   })
 
+  it('test_an_incoming_transfer_says_where_the_money_came_from', async () => {
+    const incoming = (overrides: Partial<ImportRow>): ImportRow =>
+      anImportRow({
+        nabMerchant: null,
+        description: 'TRANSFER FROM SAMPLE WALLET',
+        amountCents: 435_000,
+        resolution: 'transfer_leg',
+        transfer: {
+          signal: 'linked_account_memo',
+          accountId: 2,
+          legTransactionId: null,
+          ruleId: null,
+        },
+        ...overrides,
+      })
+    const { root } = await open([
+      ...rows(),
+      incoming({ id: 8 }),
+      incoming({ id: 9, needsReview: true, reasons: ['transfer_destination_guessed'] }),
+      incoming({
+        id: 10,
+        resolution: 'needs_confirmation',
+        transfer: {
+          signal: 'linked_account_memo',
+          accountId: null,
+          legTransactionId: null,
+          ruleId: null,
+        },
+      }),
+    ])
+
+    expect(text(row(root, 8), '[data-testid="import.row.meta"]')).toBe(
+      'Sun 27 Sept · Transfer from NAB Savings'
+    )
+    expect(text(row(root, 9), '[data-testid="import.row.meta"]')).toBe(
+      'Sun 27 Sept · Transfer from NAB Savings (guessed)'
+    )
+    expect(text(row(root, 10), '[data-testid="import.row.meta"]')).toBe(
+      'Sun 27 Sept · Transfer from an unknown account'
+    )
+  })
+
+  it('test_the_triage_sheet_of_a_guessed_incoming_transfer_says_from', async () => {
+    const { root, settle } = await open([
+      ...rows(),
+      { ...aGuessedTransfer(), amountCents: 435_000 },
+    ])
+
+    row(root, 6).click()
+    await settle()
+
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="import.triage.accept"]')).not.toBeNull()
+    )
+    expect(text(document, '[data-testid="import.triage.accept"]')).toBe(
+      'Accept transfer from NAB Savings'
+    )
+    expect(text(document, '[data-testid="import.triage.transfer"]')).toContain('NAB Savings')
+  })
+
   it('test_accept_suggested_counts_guessed_transfers_and_takes_their_account', async () => {
     const { root, settle } = await open([...rows(), aGuessedTransfer()])
 

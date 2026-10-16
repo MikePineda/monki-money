@@ -36,6 +36,11 @@ export interface ImportRowSheetData {
 /** "Not a transfer" in the transfer select sheet. */
 const NOT_A_TRANSFER = -1
 
+/** A credit: as a transfer, the money came in from the other account. */
+function isIncoming(row: { amountCents: number }): boolean {
+  return row.amountCents > 0
+}
+
 /**
  * Keys read from TypeScript:
  * t(import.triage.categoryTitle, import.triage.transferTitle, import.triage.payerTitle)
@@ -43,11 +48,13 @@ const NOT_A_TRANSFER = -1
  * t(import.reason.possible_match, import.reason.transfer_destination_unknown)
  * t(import.reason.category_needs_review, import.reason.future_date, import.reason.zero_amount)
  * t(import.reason.duplicate_hash, import.reason.transfer_destination_guessed, import.triage.accept)
- * t(import.triage.acceptTransfer)
+ * t(import.triage.acceptTransfer, import.triage.acceptTransferFrom, import.triage.transferFromTitle)
+ * t(import.row.transferUnknown, import.row.transferFromUnknown)
  */
 const KEYS = {
   categoryTitle: 'import.triage.categoryTitle',
   transferTitle: 'import.triage.transferTitle',
+  transferFromTitle: 'import.triage.transferFromTitle',
   payerTitle: 'import.triage.payerTitle',
   notTransfer: 'import.triage.notTransfer',
   card: 'import.triage.card',
@@ -341,7 +348,10 @@ export class ImportRowSheetComponent {
     const change = this.accept()
     if (change.transferAccountId) {
       const account = this.directory.account(change.transferAccountId)?.name ?? ''
-      return this.t('import.triage.acceptTransfer', { account })
+      const row = this.row()
+      return row && isIncoming(row)
+        ? this.t('import.triage.acceptTransferFrom', { account })
+        : this.t('import.triage.acceptTransfer', { account })
     }
     if (!change.categoryId) {
       return ''
@@ -390,7 +400,10 @@ export class ImportRowSheetComponent {
     }
     const account =
       state.transferAccountId === null ? null : this.directory.account(state.transferAccountId)
-    return account?.name ?? this.t('import.row.transferUnknown')
+    return (
+      account?.name ??
+      this.t(isIncoming(row) ? 'import.row.transferFromUnknown' : 'import.row.transferUnknown')
+    )
   })
 
   protected readonly payerText = computed(() => {
@@ -471,7 +484,7 @@ export class ImportRowSheetComponent {
         })),
     ]
     openSelectSheet(this.sheets, {
-      title: this.t(KEYS.transferTitle),
+      title: this.t(isIncoming(row) ? KEYS.transferFromTitle : KEYS.transferTitle),
       options,
       selected: isTransfer ? this.state()?.transferAccountId : undefined,
     }).subscribe((accountId) => {

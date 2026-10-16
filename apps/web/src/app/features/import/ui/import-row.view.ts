@@ -39,6 +39,15 @@ export interface ImportRowView {
   checkLabel: string
 }
 
+/** How a transfer row names its other account, in one direction. */
+export interface TransferWords {
+  known: (account: string) => string
+  /** The other account is the importer's guess. */
+  guessed: (account: string) => string
+  /** No other account found. */
+  unknown: string
+}
+
 /** The words and lookups a row needs; the page builds it from its catalogue and stores. */
 export interface ImportRowContext {
   locale: string
@@ -56,13 +65,13 @@ export interface ImportRowContext {
     duplicateIgnored: string
     private: string
     uncategorized: string
-    transferUnknown: string
     /** `llm` takes the model's confidence as a percentage, or null when unknown. */
     bySource: { rule: string; nab_map: string; llm: (percent: number | null) => string }
     split: (count: number) => string
-    transferTo: (account: string) => string
-    /** A transfer whose other account the importer guessed. */
-    transferGuessed: (account: string) => string
+    /** A debit that went to another own account. */
+    transferTo: TransferWords
+    /** A credit that came in from another own account. */
+    transferFrom: TransferWords
     matches: (payee: string) => string
     possibleMatch: (payee: string) => string
     suggestion: (category: string) => string
@@ -137,10 +146,12 @@ function whatItIs(row: ImportRow, context: ImportRowContext): string[] {
   ) {
     const account =
       state.transferAccountId === null ? null : context.account(state.transferAccountId)
+    // A credit came in from the other account; a debit went out to it.
+    const words = row.amountCents > 0 ? labels.transferFrom : labels.transferTo
     if (!account) {
-      return [labels.transferUnknown]
+      return [words.unknown]
     }
-    return [isGuessedTransfer(row) ? labels.transferGuessed(account) : labels.transferTo(account)]
+    return [isGuessedTransfer(row) ? words.guessed(account) : words.known(account)]
   }
   if (row.resolution === 'auto_matched') {
     return [labels.matches(row.match?.transaction?.payee ?? '')].filter(Boolean)

@@ -14,6 +14,7 @@ export type Translate = (key: string, params?: Record<string, string | number>) 
  * t(import.row.private, import.row.uncategorized, import.row.transferUnknown)
  * t(import.source.rule, import.source.bank, import.source.ai, import.source.aiConfidence)
  * t(import.row.split, import.row.transferTo, import.row.transferGuessed, import.row.matches)
+ * t(import.row.transferFrom, import.row.transferFromGuessed, import.row.transferFromUnknown)
  * t(import.row.possibleMatch)
  * t(import.row.suggestion, import.row.select, import.people.you, import.people.joint)
  */
@@ -45,7 +46,6 @@ export function importRowContext(
       duplicateIgnored: t('import.row.duplicateIgnored'),
       private: t('import.row.private'),
       uncategorized: t('import.row.uncategorized'),
-      transferUnknown: t('import.row.transferUnknown'),
       bySource: {
         rule: t('import.source.rule'),
         nab_map: t('import.source.bank'),
@@ -53,8 +53,16 @@ export function importRowContext(
           percent === null ? t('import.source.ai') : t('import.source.aiConfidence', { percent }),
       },
       split: (count) => t('import.row.split', { count }),
-      transferTo: (account) => t('import.row.transferTo', { account }),
-      transferGuessed: (account) => t('import.row.transferGuessed', { account }),
+      transferTo: {
+        known: (account) => t('import.row.transferTo', { account }),
+        guessed: (account) => t('import.row.transferGuessed', { account }),
+        unknown: t('import.row.transferUnknown'),
+      },
+      transferFrom: {
+        known: (account) => t('import.row.transferFrom', { account }),
+        guessed: (account) => t('import.row.transferFromGuessed', { account }),
+        unknown: t('import.row.transferFromUnknown'),
+      },
       matches: (payee) => t('import.row.matches', { payee }),
       possibleMatch: (payee) => t('import.row.possibleMatch', { payee }),
       suggestion: (category) => t('import.row.suggestion', { category }),
