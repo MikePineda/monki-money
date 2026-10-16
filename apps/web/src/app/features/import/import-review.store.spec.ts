@@ -128,6 +128,31 @@ describe('ImportReviewStore', () => {
     expect(store.visibleRows().map((row) => row.id)).toEqual([2])
   })
 
+  it('test_the_blocking_filter_shows_only_the_rows_that_block_the_confirm', async () => {
+    const store = await setup([
+      ...rows(),
+      anImportRow({ id: 6, resolution: 'needs_confirmation', match: aMatchCandidate(901) }),
+    ])
+
+    store.filter.set('blocking')
+
+    expect(store.blocking()).toEqual([6])
+    expect(store.visibleRows().map((row) => row.id)).toEqual([6])
+  })
+
+  it('test_a_batch_partly_confirmed_elsewhere_only_asks_about_its_open_rows', async () => {
+    const confirmedAt = '2026-10-15T00:00:00.000Z'
+    const store = await setup([
+      anImportRow({ id: 1, suggestion: aTentativeSuggestion(21), confirmedAt }),
+      anImportRow({ id: 2, resolution: 'transfer_leg', confirmedAt }),
+      anImportRow({ id: 3, resolution: 'needs_confirmation' }),
+    ])
+
+    expect(store.summary()).toMatchObject({ auto: 1, doubtful: 1, transfer: 1, blocking: 1 })
+    store.filter.set('doubtful')
+    expect(store.visibleRows().map((row) => row.id)).toEqual([3])
+  })
+
   it('test_a_decision_shows_at_once_and_takes_the_api_answer', async () => {
     const store = await setup()
     let resolve!: (row: ImportRow) => void
@@ -242,7 +267,7 @@ describe('ImportReviewStore', () => {
     expect(api.confirm).not.toHaveBeenCalled()
   })
 
-  it('test_a_confirm_refused_for_undecided_rows_reloads_and_shows_them', async () => {
+  it('test_a_confirm_refused_for_undecided_rows_reloads_and_shows_only_the_blocking_ones', async () => {
     const store = await setup()
     api.confirm.mockRejectedValueOnce(
       httpError(422, { message: 'x', code: 'E_IMPORT_ROWS_UNDECIDED', rowIds: [2] })
@@ -251,7 +276,7 @@ describe('ImportReviewStore', () => {
     await expect(store.confirm()).resolves.toBeNull()
 
     expect(api.show).toHaveBeenCalledTimes(2)
-    expect(store.filter()).toBe('doubtful')
+    expect(store.filter()).toBe('blocking')
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('import.toast.undecided')
   })
 

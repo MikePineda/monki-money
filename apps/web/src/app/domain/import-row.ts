@@ -14,7 +14,8 @@
  * - {@link bulkAcceptSuggested}, {@link assignCategoryChanges},
  *   {@link ignoreChanges}: the bulk bar;
  * - {@link decisionsFor}: the `POST /imports/:id/confirm` payload;
- * - {@link summary}, {@link filterRows}: the header chips and the filter;
+ * - {@link summary}, {@link filterRows}: the header chips and the filter
+ *   (a tone, or only the rows that keep confirm waiting);
  * - {@link reconciliationMessage}: the bank balance vs the ledger.
  */
 import type { Cents } from './money'
@@ -215,7 +216,11 @@ function effectiveMatch(row: ReviewableRow): number | null {
   return pick(row, 'matchTransactionId', row.match?.transactionId ?? null)
 }
 
-/** The visual state of a row (DESIGN.md, Review row). */
+/**
+ * The visual state of a row (DESIGN.md, Review row). A confirmed row (by
+ * this screen or by `import:nab --confirm-auto`) is done: it keeps the tone
+ * of what happened to it and is never "to review" or "new" again.
+ */
 export function toneOf(row: ReviewableRow): ReviewTone {
   switch (row.resolution) {
     case 'duplicate':
@@ -227,21 +232,23 @@ export function toneOf(row: ReviewableRow): ReviewTone {
       return 'transfer'
     case 'auto_matched':
       return 'auto'
-    case 'needs_confirmation':
-      return 'doubtful'
-    case 'new': {
-      if (splitsOf(row).length > 0) {
-        return 'auto'
-      }
-      if (effectiveCategory(row) === null) {
-        return 'new'
-      }
-      if (categoryDecided(row)) {
-        return 'auto'
-      }
-      return row.suggestion?.needsReview ? 'doubtful' : 'auto'
-    }
   }
+  if (row.confirmedAt !== null) {
+    return 'auto'
+  }
+  if (row.resolution === 'needs_confirmation') {
+    return 'doubtful'
+  }
+  if (splitsOf(row).length > 0) {
+    return 'auto'
+  }
+  if (effectiveCategory(row) === null) {
+    return 'new'
+  }
+  if (categoryDecided(row)) {
+    return 'auto'
+  }
+  return row.suggestion?.needsReview ? 'doubtful' : 'auto'
 }
 
 /**
@@ -478,13 +485,26 @@ export function summary(rows: readonly ReviewableRow[], duplicates = 0): ReviewS
   return counts
 }
 
-export type ReviewFilter = 'all' | ReviewTone
+/**
+ * What the list shows: every row, the rows of one tone, or `blocking`, only
+ * the rows confirm waits for ({@link blockingRowIds}). "To review" is wider
+ * than `blocking`: a category under review is worth a look but does not stop
+ * the confirm.
+ */
+export type ReviewFilter = 'all' | 'blocking' | ReviewTone
 
 export function filterRows<Row extends ReviewableRow>(
   rows: readonly Row[],
   filter: ReviewFilter
 ): Row[] {
-  return filter === 'all' ? [...rows] : rows.filter((row) => toneOf(row) === filter)
+  switch (filter) {
+    case 'all':
+      return [...rows]
+    case 'blocking':
+      return rows.filter(isBlocking)
+    default:
+      return rows.filter((row) => toneOf(row) === filter)
+  }
 }
 
 /**

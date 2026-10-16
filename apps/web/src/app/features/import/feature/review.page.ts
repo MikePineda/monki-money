@@ -56,7 +56,10 @@ const CATALOGUE_PROBE = 'review.title'
  * marked) and, per row, the triage sheet. Ticking rows brings the bulk bar
  * (ignore, assign a category, accept suggested); otherwise the bottom holds
  * "Accept suggested" and "Confirm import", which waits while a row still
- * needs a decision. "Classify with AI" asks the model and follows its run.
+ * needs a decision. The banner above the list counts those rows; its "Show"
+ * narrows the list to them (no tab selected) and turns into "Show all";
+ * any tab leaves that view too. "Classify with AI" asks the model and
+ * follows its run.
  */
 @Component({
   selector: 'app-import-review-page',
@@ -151,16 +154,20 @@ const CATALOGUE_PROBE = 'review.title'
               <span class="min-w-0 flex-1">{{
                 'import.review.blocking' | transloco: { count: store.blocking().length }
               }}</span>
-              @if (store.filter() !== 'doubtful') {
-                <button
-                  type="button"
-                  class="-my-3 h-11 shrink-0 rounded-md px-2 text-label font-semibold text-accent active:bg-surface-2"
-                  data-testid="import.review.showBlocking"
-                  (click)="setFilter('doubtful')"
-                >
-                  {{ 'import.review.showBlocking' | transloco }}
-                </button>
-              }
+              <!-- One button that toggles in place, so it keeps the focus. -->
+              <button
+                type="button"
+                class="-my-3 h-11 shrink-0 rounded-md px-2 text-label font-semibold text-accent active:bg-surface-2"
+                [attr.data-testid]="
+                  showingBlocking() ? 'import.review.showAll' : 'import.review.showBlocking'
+                "
+                (click)="setFilter(showingBlocking() ? 'all' : 'blocking')"
+              >
+                {{
+                  (showingBlocking() ? 'import.review.showAll' : 'import.review.showBlocking')
+                    | transloco
+                }}
+              </button>
             </p>
           }
           @if (store.classifiable() > 0 || store.classifying()) {
@@ -422,6 +429,9 @@ export default class ImportReviewPage {
       { value: 'ignored', label: this.t('import.review.filter.ignored') },
     ]
   })
+
+  /** The list shows only the rows that keep confirm waiting (no tab is selected). */
+  protected readonly showingBlocking = computed(() => this.store.filter() === 'blocking')
 
   /** Selected rows that "Accept suggested" would change. */
   protected readonly selectedAcceptable = computed(

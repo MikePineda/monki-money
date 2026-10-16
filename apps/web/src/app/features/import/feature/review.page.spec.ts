@@ -24,6 +24,18 @@ const rows = (): ImportRow[] => [
   anImportRow({ id: 4, nabMerchant: 'Translink', amountCents: 0, resolution: 'ignored' }),
 ]
 
+/** One row that only needs a look (2) and one that blocks the confirm (5). */
+const withBlocking = (): ImportRow[] => [
+  anImportRow({ id: 1, nabMerchant: 'Corner Grocer', suggestion: aTrustedSuggestion(20) }),
+  anImportRow({ id: 2, nabMerchant: 'Sample Fest', suggestion: aTentativeSuggestion(10, 0.61) }),
+  anImportRow({
+    id: 5,
+    nabMerchant: 'Harbour Cafe',
+    resolution: 'needs_confirmation',
+    suggestion: aTentativeSuggestion(20),
+  }),
+]
+
 describe('ImportReviewPage', () => {
   let api: ImportsApiMock
 
@@ -67,6 +79,24 @@ describe('ImportReviewPage', () => {
 
   function button(root: ParentNode, testId: string): HTMLButtonElement {
     return root.querySelector(`[data-testid="${testId}"]`) as HTMLButtonElement
+  }
+
+  function visibleIds(root: ParentNode): string[] {
+    return [...root.querySelectorAll<HTMLElement>('[data-testid="import.row"]')].map(
+      (item) => item.dataset['id'] ?? ''
+    )
+  }
+
+  function tab(root: ParentNode, label: string): HTMLButtonElement {
+    return [...root.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find(
+      (item) => item.textContent?.trim() === label
+    ) as HTMLButtonElement
+  }
+
+  function checkedTabs(root: ParentNode): string[] {
+    return [...root.querySelectorAll<HTMLElement>('[role="radio"][aria-checked="true"]')].map(
+      (item) => item.textContent?.trim() ?? ''
+    )
   }
 
   afterEach(() => TestBed.inject(BottomSheetService).closeAll())
@@ -163,6 +193,126 @@ describe('ImportReviewPage', () => {
     expect(text(root, '[data-testid="import.review.blocking"]')).toContain(
       '1 movement needs a decision before you confirm.'
     )
+  })
+
+  it('test_show_blocking_button_switches_to_the_blocking_filter', async () => {
+    const { root, settle } = await open(withBlocking())
+
+    expect(text(root, '[data-testid="import.review.blocking"]')).toContain(
+      '1 movement needs a decision before you confirm.'
+    )
+    button(root, 'import.review.showBlocking').click()
+    await settle()
+
+    expect(visibleIds(root)).toEqual(['5'])
+    expect(checkedTabs(root)).toEqual([])
+    expect(button(root, 'import.review.showBlocking')).toBeNull()
+    expect(text(root, '[data-testid="import.review.showAll"]')).toBe('Show all')
+  })
+
+  it('test_the_banner_button_keeps_focus_when_it_toggles', async () => {
+    const { root, settle } = await open(withBlocking())
+    const show = button(root, 'import.review.showBlocking')
+
+    show.focus()
+    show.click()
+    await settle()
+
+    expect(document.activeElement).toBe(show)
+    expect(show.dataset['testid']).toBe('import.review.showAll')
+    show.click()
+    await settle()
+    expect(document.activeElement).toBe(show)
+    expect(show.dataset['testid']).toBe('import.review.showBlocking')
+  })
+
+  it('test_show_blocking_stays_available_on_the_to_review_tab', async () => {
+    const { root, settle } = await open(withBlocking())
+
+    tab(root, 'To review').click()
+    await settle()
+
+    expect(visibleIds(root)).toEqual(['2', '5'])
+    expect(button(root, 'import.review.showBlocking')).not.toBeNull()
+    button(root, 'import.review.showBlocking').click()
+    await settle()
+    expect(visibleIds(root)).toEqual(['5'])
+  })
+
+  it('test_show_all_in_the_banner_leaves_the_blocking_filter', async () => {
+    const { root, settle } = await open(withBlocking())
+    button(root, 'import.review.showBlocking').click()
+    await settle()
+
+    button(root, 'import.review.showAll').click()
+    await settle()
+
+    expect(visibleIds(root)).toEqual(['1', '2', '5'])
+    expect(checkedTabs(root)).toEqual(['All'])
+    expect(button(root, 'import.review.showAll')).toBeNull()
+    expect(button(root, 'import.review.showBlocking')).not.toBeNull()
+  })
+
+  it('test_choosing_a_tab_leaves_the_blocking_filter', async () => {
+    const { root, settle } = await open(withBlocking())
+    button(root, 'import.review.showBlocking').click()
+    await settle()
+
+    tab(root, 'To review').click()
+    await settle()
+
+    expect(visibleIds(root)).toEqual(['2', '5'])
+    expect(checkedTabs(root)).toEqual(['To review'])
+    expect(button(root, 'import.review.showBlocking')).not.toBeNull()
+  })
+
+  it('test_deciding_the_last_blocking_row_leaves_an_empty_list_that_leads_back_to_all', async () => {
+    const { root, settle } = await open(withBlocking())
+    button(root, 'import.review.showBlocking').click()
+    await settle()
+
+    button(row(root, 5).parentElement as HTMLElement, 'import.row.accept').click()
+    await settle()
+
+    expect(api.decide).toHaveBeenCalledWith(7, 5, { resolution: 'new', categoryId: 20 })
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="import.review.empty"]')).not.toBeNull()
+    )
+    expect(root.querySelector('[data-testid="import.review.blocking"]')).toBeNull()
+    expect(button(root, 'import.review.confirm').disabled).toBe(false)
+    button(root, 'import.review.empty').querySelector('button')?.click()
+    await settle()
+    expect(visibleIds(root)).toEqual(['1', '2', '5'])
+  })
+
+  it('test_confirmed_rows_are_shown_as_done_with_nothing_left_to_decide', async () => {
+    const confirmedAt = '2026-10-15T00:00:00.000Z'
+    const { root, settle } = await open([
+      anImportRow({
+        id: 1,
+        nabMerchant: 'Sample Fest',
+        suggestion: aTentativeSuggestion(10, 0.61),
+        confirmedAt,
+      }),
+      anImportRow({ id: 2, nabMerchant: 'Transfer', resolution: 'transfer_leg', confirmedAt }),
+      anImportRow({ id: 3, nabMerchant: 'Harbour Cafe', resolution: 'needs_confirmation' }),
+    ])
+
+    expect(text(root, '[data-testid="import.review.summary"]')).toBe(
+      '1 auto 1 to review 0 new 1 duplicate 1 transfer'
+    )
+    expect(row(root, 1).dataset['tone']).toBe('auto')
+    expect(text(row(root, 1), '[data-testid="import.row.status"]')).toBe('Auto')
+    expect(root.querySelector('[data-testid="import.row.accept"]')).toBeNull()
+    expect(root.querySelector('input[aria-label^="Select Sample Fest"]')).toBeNull()
+    expect(root.querySelector('input[aria-label^="Select Harbour Cafe"]')).not.toBeNull()
+
+    row(root, 1).click()
+    await settle()
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="import.triage.nothing"]')).not.toBeNull()
+    )
+    expect(document.querySelector('[data-testid="import.triage.ignore"]')).toBeNull()
   })
 
   it('test_confirm_sends_the_decisions_and_opens_the_result', async () => {
