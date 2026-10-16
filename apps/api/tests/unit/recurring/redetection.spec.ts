@@ -232,16 +232,27 @@ test.group('Recurring: re-detection', () => {
     assert.equal(back.update[0].changes.status, 'active')
   })
 
-  test('test_detection_never_changes_a_status_a_person_chose_or_an_edited_item', ({ assert }) => {
+  test('test_a_cancelled_subscription_is_paused_even_after_its_category_was_edited', ({
+    assert,
+  }) => {
+    const edited = tracked({
+      lastPaidDate: '2026-07-07',
+      nextExpectedDate: '2026-07-14',
+      editedFields: ['categoryId'],
+    })
+
+    assert.deepEqual(planRedetection([edited], [], TODAY).update, [
+      { id: 1, changes: { status: 'paused' } },
+    ])
+  })
+
+  test('test_detection_never_changes_a_status_a_person_chose_or_a_manual_item', ({ assert }) => {
     const old = { lastPaidDate: '2026-07-07', nextExpectedDate: '2026-07-14' }
 
-    assert.deepEqual(
-      planRedetection([tracked({ ...old, editedFields: ['amountCents'] })], [], TODAY),
-      {
-        create: [],
-        update: [],
-      }
-    )
+    assert.deepEqual(planRedetection([tracked({ ...old, editedFields: ['status'] })], [], TODAY), {
+      create: [],
+      update: [],
+    })
     assert.deepEqual(planRedetection([tracked({ ...old, source: 'manual' })], [], TODAY), {
       create: [],
       update: [],

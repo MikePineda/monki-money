@@ -249,6 +249,54 @@ test.group('Recurring: detection', () => {
     assert.deepEqual(detectRecurring(insurance.slice(1), { today: TODAY }), [])
   })
 
+  test('test_one_bill_off_the_usual_amount_among_four_is_still_steady', ({ assert }) => {
+    const quarterly = [
+      ['2025-11-20', 48_000],
+      ['2026-02-20', 38_000],
+      ['2026-05-20', 42_000],
+      ['2026-08-20', 40_000],
+    ].map(([date, amountCents]) =>
+      payment({
+        date: date as string,
+        amountCents: amountCents as number,
+        merchantKey: 'city power',
+      })
+    )
+    assert.include(detectRecurring(quarterly, { today: TODAY })[0], {
+      cadence: 'quarterly',
+      amountCents: 40_000,
+    })
+
+    const monthly = [
+      ['2026-06-12', 18_500],
+      ['2026-07-12', 15_000],
+      ['2026-08-12', 16_000],
+      ['2026-09-12', 15_500],
+    ].map(([date, amountCents]) =>
+      payment({
+        date: date as string,
+        amountCents: amountCents as number,
+        merchantKey: 'city power',
+      })
+    )
+    assert.include(detectRecurring(monthly, { today: TODAY })[0], {
+      cadence: 'monthly',
+      amountCents: 15_500,
+    })
+  })
+
+  test('test_a_yearly_bill_paid_months_ago_is_still_found', ({ assert }) => {
+    // Paid every September 1: on October 16 the oldest payment is two years and six weeks old.
+    const insurance = ['2024-09-01', '2025-09-01', '2026-09-01'].map((date) =>
+      payment({ date, amountCents: 90_000, merchantKey: 'home insurance' })
+    )
+
+    assert.include(detectRecurring(insurance, { today: TODAY })[0], {
+      cadence: 'yearly',
+      nextExpectedDate: '2027-09-01',
+    })
+  })
+
   test('test_the_payee_keys_of_its_payments_come_with_the_item', ({ assert }) => {
     const payments = series('2026-10-13', 7, 4, { merchantKey: 'rent harbour lettings' }).map(
       (entry, index) => ({ ...entry, payeeKey: index === 0 ? '' : 'rent' })

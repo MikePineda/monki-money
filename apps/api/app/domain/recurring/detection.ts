@@ -30,7 +30,7 @@ import { addCadence, nextDueOnOrAfter, stepsBetween } from '#domain/recurring/ca
  *    plus STALE_GRACE_DAYS (bank exports arrive monthly).
  *
  * Every cadence reads the last WINDOW_DAYS; yearly reads YEARLY_WINDOW_DAYS
- * (three yearly payments need two years of history).
+ * (three yearly payments, the latest up to a year old: three years).
  */
 
 /** A payment to a merchant: one expense of the ledger. */
@@ -80,8 +80,11 @@ export const REGULAR_SHARE = 0.75
 export const STALE_GRACE_DAYS = 31
 /** History every cadence reads, in days before today. */
 export const WINDOW_DAYS = 365
-/** History yearly payments read: three of them span two years. */
-export const YEARLY_WINDOW_DAYS = 760
+/**
+ * History yearly payments read: three of them span two years, and the third
+ * may be up to a year old, so three years plus a month of slack.
+ */
+export const YEARLY_WINDOW_DAYS = 3 * 365 + 35
 /** Payments this close to the typical amount are the same kind of payment (the steadiness check). */
 export const COMPARABLE_PCT = 50
 /** Share of the comparable payments around the run that must be within the tolerance. */
@@ -212,7 +215,8 @@ function steady(
     )
   const around = oldPrice ? comparable.filter((day) => day.date >= runStart) : comparable
   const within = around.filter((day) => withinTolerance(day.amountCents, typical, tolerancePct))
-  return within.length >= Math.ceil(around.length * STEADY_SHARE)
+  // Rounded down: with four payments, one off the typical amount is still steady.
+  return within.length >= Math.floor(around.length * STEADY_SHARE)
 }
 
 function detectOne(

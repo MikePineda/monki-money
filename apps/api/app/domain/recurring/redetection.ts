@@ -18,10 +18,11 @@ import { addCadence, nextDueOnOrAfter } from '#domain/recurring/cadence'
  * - The next due date follows the latest payment with the item's own
  *   cadence. When a person set it (or typed the item), it holds until a
  *   payment reaches it.
- * - Status: a detected item nobody touched is paused when its merchant
- *   has not been paid for two steps plus STALE_GRACE_DAYS (a cancelled
- *   subscription stops counting as committed), and resumed when its
- *   payments come back. A status a person chose is never changed.
+ * - Status: a detected item whose status no person chose is paused when
+ *   its merchant has not been paid for two steps plus STALE_GRACE_DAYS (a
+ *   cancelled subscription stops counting as committed, even after a person
+ *   set its category), and resumed when its payments come back. A status a
+ *   person chose is never changed.
  */
 
 /** Fields a person can change on an item (PATCH); detection never overwrites them afterwards. */
@@ -82,9 +83,9 @@ export type RedetectionPlan = {
   update: Array<{ id: number; changes: ItemChanges }>
 }
 
-/** True when a detected item nobody edited may have its status changed by detection. */
+/** True when detection may change a detected item's status: no person chose it. */
 function statusIsDetections(item: TrackedItem): boolean {
-  return item.source === 'detected' && item.editedFields.length === 0
+  return item.source === 'detected' && !item.editedFields.includes('status')
 }
 
 /** True for an item detection paused (not a person). */

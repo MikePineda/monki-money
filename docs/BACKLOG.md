@@ -78,6 +78,6 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 `scheduler_runs` gains one row per household and month and is never pruned; add a retention (13 months?) once there are many households, and show the last runs in the `pulse` skill.
 - 2026-10-16 Recurring screen: no delete (the API has `DELETE /recurring/:id`); dismissing covers "not a bill", and a hand-made item can only be dismissed.
 - 2026-10-16 Month view: the "Committed this month" card shows on the current month only; past months could show what the recurring payments took.
-- 2026-10-16 Recurring: yearly payments need three payments, so two years of history; a yearly bill seen twice is only found once it is paid a third time (or added by hand).
+- 2026-10-16 Recurring: yearly payments need three payments (detection reads three years); a yearly bill seen twice is only found once it is paid a third time (or added by hand).
 - 2026-10-16 Recurring: one item per merchant key, so two plans at one merchant (two phone lines, $65 and $45) are neither detected nor told apart; sub-group by amount and allow several items per key.
 - 2026-10-16 Recurring: an item typed by hand only matches rows whose bank key or payee key is its key; the add sheet now offers the merchants paid lately (with their real keys), but a typed name that matches neither stays unpaid until the person renames the rows or picks the suggestion.

@@ -72,7 +72,9 @@ export default class RecurringService {
 
     const byKey = new Map<string, MerchantSuggestion>()
     for (const payment of payments) {
+      // Tracked under its bank key, or under its payee key (an item typed by hand).
       if (!payment.merchantKey || taken.has(payment.merchantKey)) continue
+      if (payment.payeeKey && taken.has(payment.payeeKey)) continue
       if (isHiddenFrom(payment, reader)) continue
       const entry = byKey.get(payment.merchantKey)
       byKey.set(payment.merchantKey, {

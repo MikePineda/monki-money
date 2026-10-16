@@ -411,6 +411,10 @@ test.group('Recurring payments', (group) => {
       occurrences: 4,
       lastPaidDate: '2026-10-13',
     })
+
+    // Tracked under its payee key: the imported rows are not offered as a new merchant.
+    const offered = await client.get('/api/v1/recurring/merchants').actingAs(home.owner)
+    assert.deepEqual(offered.body().data, [])
   })
 
   test('test_adding_an_item_offers_the_merchants_paid_lately', async ({ client, assert }) => {
