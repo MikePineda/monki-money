@@ -36,7 +36,7 @@ test.group('Recurring: cadence calendar', () => {
     assert.isNull(stepsBetween('2026-10-01', '2026-10-01', 'weekly'))
   })
 
-  test('test_next_due_date_is_the_first_step_on_or_after_today', ({ assert }) => {
+  test('test_next_expected_date_follows_the_cadence', ({ assert }) => {
     assert.equal(nextDueOnOrAfter('2026-10-07', 'weekly', '2026-10-10'), '2026-10-14')
     assert.equal(nextDueOnOrAfter('2026-10-07', 'weekly', '2026-10-14'), '2026-10-14')
     // Steps behind (an import still to come): rolled forward, never in the past.
