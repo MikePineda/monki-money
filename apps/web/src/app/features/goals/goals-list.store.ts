@@ -17,7 +17,7 @@ export type GoalsListStatus = 'loading' | 'ready' | 'error'
 
 /**
  * The goals list: one status at a time (the filter chips), each goal with
- * its projection (`GET /goals/:id/projection` per goal, read in parallel),
+ * its projection (one `GET /goals?include=projection` for the whole list),
  * and the order. Reordering (drag or ▲▼) shows at once and rolls back with
  * a toast if the API refuses it. Provided by the list page, so every visit
  * reads fresh numbers.
@@ -79,10 +79,7 @@ export class GoalsListStore {
   }
 
   private async fetch(status: GoalStatus): Promise<GoalRow[]> {
-    const goals = await this.api.list(status)
-    const projections = await Promise.all(
-      goals.map((goal) => this.api.projection(goal.id).catch(() => null))
-    )
-    return goals.map((goal, index) => ({ goal, projection: projections[index] ?? null }))
+    const goals = await this.api.listWithProjections(status)
+    return goals.map(({ projection, ...goal }) => ({ goal, projection }))
   }
 }

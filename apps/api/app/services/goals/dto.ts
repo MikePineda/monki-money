@@ -1,4 +1,5 @@
 import type { GoalStatus } from '@monkimoney/shared'
+import type { HistoryPoint } from '#domain/goals/history'
 import type { GoalProjection } from '#domain/goals/projection'
 
 /** Inputs of GoalService. Amounts are integer cents, dates 'YYYY-MM-DD'. */
@@ -19,7 +20,7 @@ export interface CreateGoalInput {
 
 /** PATCH semantics: only the given fields change. */
 export interface UpdateGoalInput extends Partial<CreateGoalInput> {
-  /** `reached` stamps `reachedAt`; back to `active` clears it. */
+  /** `reached` stamps `reachedAt` (an earlier stamp is kept); back to `active` clears it. */
   status?: GoalStatus
 }
 
@@ -36,4 +37,6 @@ export type GoalProjectionReport = {
   targetCents: number
   rateSource: GoalRateSource
   monthlyRateCents: number | null
+  /** What was saved at each month end (the chart's actual line), the current month last. */
+  history: HistoryPoint[]
 } & GoalProjection

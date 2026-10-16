@@ -2,7 +2,15 @@ import { CdkDragHandle } from '@angular/cdk/drag-drop'
 import { Component, computed, inject, input, output } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TranslocoPipe } from '@jsverse/transloco'
-import { goalOutlook, progressOf, targetPace } from '../../../domain/goals'
+import { CLOCK } from '../../../core/platform/clock.token'
+import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
+import {
+  goalOutlook,
+  progressOf,
+  reachedOnText,
+  readsReached,
+  targetPace,
+} from '../../../domain/goals'
 import { formatMoney } from '../../../domain/money'
 import { label as monthLabel, monthOf } from '../../../domain/month'
 import { IconComponent } from '../../../shared/icons/icon.component'
@@ -16,6 +24,7 @@ import type { GoalRow } from '../goals-list.store'
  * Keys picked at runtime, declared for transloco-keys-manager:
  * t(goals.card.reached, goals.card.archived, goals.card.needsPlan, goals.card.unknown)
  * t(goals.card.projected, goals.card.onTrack, goals.card.behind)
+ * t(goals.card.reachedOn, goals.card.ready)
  */
 interface Outlook {
   key: string
@@ -26,8 +35,11 @@ interface Outlook {
  * One goal in the list (DESIGN.md, Card): name, saved vs target with a
  * progress track (tabular figures), when it is projected ("Needs a plan"
  * when open-ended), whose goal it is, and an on-track / behind mark (icon
- * plus word) when it has a target date. The body links to the detail; a
- * drag handle reorders it, and in reorder mode ▲▼ do the same.
+ * plus word) when it has a target date. A goal marked reached, or still
+ * active with nothing left to save, wears a "Reached" badge instead (and
+ * says the day it was reached, or that it can be marked). The body links
+ * to the detail; a drag handle reorders it, and in reorder mode ▲▼ do the
+ * same.
  */
 @Component({
   selector: 'app-goal-card',
@@ -56,7 +68,15 @@ interface Outlook {
         <span class="min-w-0 truncate text-body-strong text-ink-1" data-testid="goals.card.name">{{
           row().goal.name
         }}</span>
-        @if (pace(); as current) {
+        @if (reached()) {
+          <span
+            class="inline-flex h-5 shrink-0 items-center gap-1 rounded-sm bg-surface-2 px-1.5 text-caption font-medium text-ink-1"
+            data-testid="goals.card.badge"
+          >
+            <app-icon [name]="goodIcon" [size]="16" [class]="goodClass" />
+            {{ 'goals.card.reached' | transloco }}
+          </span>
+        } @else if (pace(); as current) {
           <span
             class="flex shrink-0 items-center gap-1 text-label text-ink-1"
             data-testid="goals.card.pace"
@@ -117,6 +137,11 @@ interface Outlook {
 })
 export class GoalCardComponent {
   private readonly locale = inject(APP_LOCALE)
+  private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
+  private readonly clock = inject(CLOCK)
+
+  protected readonly goodIcon = STATUS_ICON.good
+  protected readonly goodClass = STATUS_TEXT_CLASS.good
 
   readonly row = input.required<GoalRow>()
   /** "Household", "You" or the partner's name. */
@@ -138,6 +163,10 @@ export class GoalCardComponent {
     formatMoney(this.row().goal.targetCents, this.locale())
   )
 
+  /** Marked reached, or active with nothing left to save: the "Reached" badge. */
+  protected readonly reached = computed(() =>
+    readsReached(this.row().goal.status, this.row().projection)
+  )
   protected readonly pace = computed(() => {
     const projection = this.row().projection
     return projection && this.row().goal.status === 'active' ? targetPace(projection) : null
@@ -152,7 +181,10 @@ export class GoalCardComponent {
   protected readonly outlook = computed<Outlook>(() => {
     const { goal, projection } = this.row()
     if (goal.status === 'reached') {
-      return { key: 'goals.card.reached' }
+      const date = reachedOnText(goal.reachedAt, this.locale(), this.timeZone(), this.clock())
+      return date
+        ? { key: 'goals.card.reachedOn', params: { date } }
+        : { key: 'goals.card.reached' }
     }
     if (goal.status === 'archived') {
       return { key: 'goals.card.archived' }
@@ -162,7 +194,7 @@ export class GoalCardComponent {
     }
     switch (goalOutlook(projection)) {
       case 'reached':
-        return { key: 'goals.card.reached' }
+        return { key: 'goals.card.ready' }
       case 'openEnded':
         return { key: 'goals.card.needsPlan' }
       default: {

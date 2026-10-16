@@ -45,10 +45,22 @@ export default class PostingsRepository {
   ): Promise<Posting[]> {
     const conditions = ['t.date BETWEEN ? AND ?']
     const bindings: unknown[] = [from, to]
-    if (options.accountIds?.length) {
-      conditions.push('t.account_id = ANY(?::int[])')
-      bindings.push(options.accountIds)
-    }
+    this.onlyAccounts(conditions, bindings, options.accountIds)
+    return this.select(household, conditions, bindings)
+  }
+
+  /**
+   * Postings of the household dated up to `to` (inclusive) since the very
+   * first one: what an account's balance at a date is built from.
+   */
+  async upTo(
+    household: HouseholdRef,
+    to: string,
+    options: { accountIds?: number[] } = {}
+  ): Promise<Posting[]> {
+    const conditions = ['t.date <= ?']
+    const bindings: unknown[] = [to]
+    this.onlyAccounts(conditions, bindings, options.accountIds)
     return this.select(household, conditions, bindings)
   }
 
@@ -79,6 +91,13 @@ export default class PostingsRepository {
       bindings.push(options.to)
     }
     return this.select(household, conditions, bindings)
+  }
+
+  /** Narrows to some accounts; none given = every account of the household. */
+  protected onlyAccounts(conditions: string[], bindings: unknown[], accountIds?: number[]) {
+    if (!accountIds?.length) return
+    conditions.push('t.account_id = ANY(?::int[])')
+    bindings.push(accountIds)
   }
 
   protected async select(

@@ -13,6 +13,7 @@ import PostingsRepository from '#repositories/postings_repository'
 import LedgerReferences from '#services/ledger/ledger_references'
 import { assertMemberOf } from '#services/households/membership_lookup'
 import { averageMonthlyNet, projectGoal } from '#domain/goals/projection'
+import { accountHistory, startingHistory, type HistoryPoint } from '#domain/goals/history'
 import { currentMonth, monthRange, previousMonths, type Month } from '#domain/calendar/month'
 import type {
   CreateGoalInput,
@@ -24,6 +25,12 @@ import type {
 
 /** Full months averaged when a goal has no explicit monthly contribution. */
 const AVERAGE_WINDOW = 3
+
+/** What a projection needs of a tracked account: today's saved amount and its month ends. */
+type TrackedAccount = {
+  savedCents: number
+  history: HistoryPoint[]
+}
 
 /**
  * Savings goals of the current household. Lookups are household-scoped
@@ -101,7 +108,9 @@ export default class GoalService {
    * Where the goal stands and when it is reached at the current pace:
    * saved = the account's cleared balance (else `startingCents`); rate = the
    * explicit monthly contribution, else the average net of the last full
-   * months (a negative average leaves the goal open-ended), else none.
+   * months (a negative average leaves the goal open-ended), else none;
+   * history = the account's month-end cleared balances (else the starting
+   * amount this month).
    */
   async projection(
     household: Household,
@@ -109,9 +118,39 @@ export default class GoalService {
     now: DateTime = this.clock.now()
   ): Promise<GoalProjectionReport> {
     const goal = await findInHousehold(SavingsGoal, household, goalId)
+    const projections = await this.projections(household, [goal], now)
+    return projections.get(goal.id)!
+  }
+
+  /**
+   * The projection of every goal given, by goal id, in one pass: the
+   * tracked accounts, their balances and postings, and the household's
+   * average net are each read once, however many goals there are.
+   */
+  async projections(
+    household: Household,
+    goals: SavingsGoal[],
+    now: DateTime = this.clock.now()
+  ): Promise<Map<number, GoalProjectionReport>> {
+    if (goals.length === 0) return new Map()
+
     const fromMonth = currentMonth(now, household.timezone)
-    const savedCents = await this.savedCents(household, goal)
-    const { rateSource, monthlyRateCents } = await this.monthlyRate(household, goal, fromMonth)
+    const tracked = await this.trackedAccounts(household, goals, fromMonth)
+    const needsAverage = goals.some((goal) => goal.monthlyContributionCents === null)
+    const average = needsAverage ? await this.averageNet(household, fromMonth) : null
+
+    return new Map(goals.map((goal) => [goal.id, this.project(goal, tracked, average, fromMonth)]))
+  }
+
+  protected project(
+    goal: SavingsGoal,
+    tracked: Map<number, TrackedAccount>,
+    average: number | null,
+    fromMonth: Month
+  ): GoalProjectionReport {
+    const account = goal.accountId === null ? undefined : tracked.get(goal.accountId)
+    const savedCents = goal.accountId === null ? goal.startingCents : (account?.savedCents ?? 0)
+    const { rateSource, monthlyRateCents } = this.monthlyRate(goal, average)
 
     return {
       goalId: goal.id,
@@ -126,37 +165,71 @@ export default class GoalService {
         targetDate: goal.targetDate,
         fromMonth,
       }),
+      history: account?.history ?? startingHistory(savedCents, fromMonth),
     }
   }
 
-  protected async savedCents(household: Household, goal: SavingsGoal) {
-    if (goal.accountId === null) return goal.startingCents
-    const account = await findInHousehold(Account, household, goal.accountId)
-    const balances = await this.balances.forAccounts([account])
-    return balances.get(account.id)?.clearedBalanceCents ?? 0
+  /**
+   * The accounts the goals track, read together: one query for the
+   * accounts, one for their balances and one for their postings up to the
+   * end of the current month (the month ends are folded in memory).
+   */
+  protected async trackedAccounts(
+    household: Household,
+    goals: SavingsGoal[],
+    month: Month
+  ): Promise<Map<number, TrackedAccount>> {
+    const ids = [...new Set(goals.flatMap((goal) => goal.accountId ?? []))]
+    if (ids.length === 0) return new Map()
+
+    const accounts = await Account.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .whereIn('id', ids)
+    const balances = await this.balances.forAccounts(accounts)
+    const postings = await this.postings.upTo(household, monthRange(month).to, {
+      accountIds: accounts.map((account) => account.id),
+    })
+
+    return new Map(
+      accounts.map((account) => [
+        account.id,
+        {
+          savedCents: balances.get(account.id)?.clearedBalanceCents ?? 0,
+          history: accountHistory(
+            account,
+            postings.filter((posting) => posting.accountId === account.id),
+            month
+          ),
+        },
+      ])
+    )
   }
 
-  protected async monthlyRate(
-    household: Household,
+  protected monthlyRate(
     goal: SavingsGoal,
-    month: Month
-  ): Promise<{ rateSource: GoalRateSource; monthlyRateCents: number | null }> {
+    average: number | null
+  ): { rateSource: GoalRateSource; monthlyRateCents: number | null } {
     if (goal.monthlyContributionCents !== null) {
       return { rateSource: 'contribution', monthlyRateCents: goal.monthlyContributionCents }
     }
+    return average === null
+      ? { rateSource: 'none', monthlyRateCents: null }
+      : { rateSource: 'average', monthlyRateCents: average }
+  }
 
-    // The full months plus the current one, which the average leaves out.
-    // Totals never depend on who reads them, so no privacy view is needed.
+  /**
+   * The household's average net of the last full months. The full months
+   * plus the current one are read (the average leaves the current one out).
+   * Totals never depend on who reads them, so no privacy view is needed.
+   */
+  protected async averageNet(household: Household, month: Month): Promise<number | null> {
     const months = previousMonths(month, AVERAGE_WINDOW + 1)
     const postings = await this.postings.between(
       household,
       monthRange(months[0]).from,
       monthRange(month).to
     )
-    const average = averageMonthlyNet(trend(postings, months), month, AVERAGE_WINDOW)
-    return average === null
-      ? { rateSource: 'none', monthlyRateCents: null }
-      : { rateSource: 'average', monthlyRateCents: average }
+    return averageMonthlyNet(trend(postings, months), month, AVERAGE_WINDOW)
   }
 
   protected async assertReferences(household: Household, input: UpdateGoalInput) {

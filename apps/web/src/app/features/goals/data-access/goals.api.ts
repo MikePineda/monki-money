@@ -1,7 +1,12 @@
 import { Injectable, inject } from '@angular/core'
 import { API } from '../../../core/api/api'
-import type { Goal } from '../../../core/api/api-types'
+import type { Goal, GoalWithProjection } from '../../../core/api/api-types'
 import type { GoalFields, GoalStatus } from '../../../domain/goals'
+
+/** `GET /goals` answers plain goals unless asked for `include=projection`. */
+function hasProjection(goal: Goal | GoalWithProjection): goal is GoalWithProjection {
+  return 'projection' in goal
+}
 
 /** `PATCH /goals/:id`: any goal field, plus the status (`reached` stamps `reachedAt`). */
 export type GoalPatch = Partial<GoalFields> & { status?: GoalStatus }
@@ -20,6 +25,19 @@ export class GoalsApi {
       await this.api()
     ).request('goals.index', { query: status ? { status } : {} })
     return data
+  }
+
+  /**
+   * `GET /goals?status=&include=projection`: by `sortOrder`, each goal with
+   * its projection, in one request (the API computes them in one pass).
+   */
+  async listWithProjections(status?: GoalStatus): Promise<GoalWithProjection[]> {
+    const { data } = await (
+      await this.api()
+    ).request('goals.index', {
+      query: { ...(status ? { status } : {}), include: 'projection' },
+    })
+    return data.map((goal) => (hasProjection(goal) ? goal : { ...goal, projection: null }))
   }
 
   async show(id: number): Promise<Goal> {

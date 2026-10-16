@@ -42,6 +42,15 @@ export class GoalsPage {
       .getByTestId('goals.card')
       .filter({ has: this.page.getByTestId('goals.card.name').getByText(name, { exact: true }) })
   }
+
+  badge(name: string): Locator {
+    return this.card(name).getByTestId('goals.card.badge')
+  }
+
+  async open(name: string): Promise<void> {
+    await this.card(name).getByTestId('goals.card.link').click()
+    await expect(this.page).toHaveURL(/\/goals\/\d+$/)
+  }
 }
 
 /** `/goals/new` and the edit form on a goal: keypad amounts, segments, submit. */
@@ -94,6 +103,20 @@ export class GoalDetailPage {
   }
   get markReached() {
     return this.page.getByTestId('goal.markReached')
+  }
+  get reopen() {
+    return this.page.getByTestId('goal.reopen')
+  }
+  /** The prompt an active goal with nothing left to save leads with. */
+  get atTarget() {
+    return this.page.getByTestId('goal.atTarget')
+  }
+  get reachedOn() {
+    return this.page.getByTestId('goal.reachedOn')
+  }
+  /** The solid line's month-end markers (the history). */
+  get actualPoints() {
+    return this.chart.locator('g[data-series="actual"] circle')
   }
   get back() {
     return this.page.getByRole('link', { name: 'Back' })

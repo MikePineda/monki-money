@@ -12,6 +12,8 @@ import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { MembersStore } from '../../../core/household/members.store'
+import { CLOCK } from '../../../core/platform/clock.token'
+import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { formatDay } from '../../../domain/dates'
 import {
   EMPTY_GOAL_DRAFT,
@@ -21,6 +23,8 @@ import {
   openEndedReason,
   progressOf,
   projectionPoints,
+  reachedOnText,
+  readyToMarkReached,
   targetPace,
   type GoalDraft,
   type GoalStatus,
@@ -64,11 +68,14 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
 /**
  * One goal `/goals/:id`: the hero (saved of target, what is left, the
  * progress track, on track or behind its date and what it would take per
- * month), the projection chart (target as a goal line, the target date as
- * a marker), stat tiles (months to go, projected date, monthly rate and
- * where it comes from, and what it takes per month when behind), and the actions: edit, mark as reached (or
- * active again), archive or restore, delete with a confirmation. A goal
- * with no usable rate says why honestly and offers to set a contribution.
+ * month, the day it was reached), the projection chart (the actual line
+ * through the month-end history, the dashed estimate from today, target as
+ * a goal line, the target date as a marker), stat tiles (months to go,
+ * projected date, monthly rate and where it comes from, and what it takes
+ * per month when behind), and the actions: edit, mark as reached (or
+ * active again), archive or restore, delete with a confirmation. An active
+ * goal with nothing left to save leads with "Mark as reached"; a goal with
+ * no usable rate says why honestly and offers to set a contribution.
  */
 @Component({
   selector: 'app-goal-detail-page',
@@ -191,6 +198,7 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                 <app-amount-display
                   data-testid="goal.saved"
                   variant="hero"
+                  [signed]="true"
                   [cents]="current.projection.savedCents"
                 />
                 <p class="text-body text-ink-2 tnum" data-testid="goal.target">
@@ -205,6 +213,11 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                     }}
                   }
                 </p>
+                @if (reachedOnText(); as date) {
+                  <p class="text-body text-ink-1" data-testid="goal.reachedOn">
+                    {{ 'goals.detail.reachedOn' | transloco: { date } }}
+                  </p>
+                }
                 <app-progress-track
                   class="mt-1"
                   [value]="ratio()"
@@ -226,6 +239,29 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                 }
               </section>
 
+              @if (atTarget()) {
+                <app-card data-testid="goal.atTarget" class="gap-3!">
+                  <h2 class="flex items-center gap-2 text-heading text-ink-1">
+                    <app-icon class="shrink-0" [name]="goodIcon" [class]="goodClass" />
+                    {{ 'goals.detail.atTarget.title' | transloco }}
+                  </h2>
+                  <p class="text-body text-ink-2">
+                    {{ 'goals.detail.atTarget.body' | transloco }}
+                  </p>
+                  <button
+                    appButton
+                    type="button"
+                    size="block"
+                    icon="circle-check"
+                    data-testid="goal.markReached"
+                    [loading]="store.busy()"
+                    (click)="setStatus('reached')"
+                  >
+                    {{ 'goals.detail.actions.reached' | transloco }}
+                  </button>
+                </app-card>
+              }
+
               @if (outlook() === 'openEnded') {
                 <app-card data-testid="goal.openEnded" class="gap-3!">
                   <h2 class="text-heading text-ink-1">
@@ -245,7 +281,7 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                     {{ 'goals.detail.openEnded.action' | transloco }}
                   </button>
                 </app-card>
-              } @else if (outlook() === 'projected') {
+              } @else if (showChart()) {
                 <app-chart-frame
                   data-testid="goal.chart"
                   skeletonHeight="180px"
@@ -304,17 +340,19 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                 [attr.aria-label]="'goals.detail.actions.label' | transloco"
               >
                 @if (current.goal.status === 'active') {
-                  <button
-                    appButton
-                    type="button"
-                    variant="secondary"
-                    icon="circle-check"
-                    data-testid="goal.markReached"
-                    [loading]="store.busy()"
-                    (click)="setStatus('reached')"
-                  >
-                    {{ 'goals.detail.actions.reached' | transloco }}
-                  </button>
+                  @if (!atTarget()) {
+                    <button
+                      appButton
+                      type="button"
+                      variant="secondary"
+                      icon="circle-check"
+                      data-testid="goal.markReached"
+                      [loading]="store.busy()"
+                      (click)="setStatus('reached')"
+                    >
+                      {{ 'goals.detail.actions.reached' | transloco }}
+                    </button>
+                  }
                 } @else if (current.goal.status === 'reached') {
                   <button
                     appButton
@@ -378,6 +416,8 @@ export default class GoalDetailPage {
   private readonly router = inject(Router)
   private readonly injector = inject(Injector)
   private readonly locale = inject(APP_LOCALE)
+  private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
+  private readonly clock = inject(CLOCK)
 
   /** `/goals/:id`, bound by the router. */
   readonly id = input<string>()
@@ -422,7 +462,27 @@ export default class GoalDetailPage {
     return detail ? progressOf(detail.projection.savedCents, detail.goal.targetCents) : 0
   })
   protected readonly percent = computed(() => Math.floor(this.ratio() * 100))
-  protected readonly points = computed(() => projectionPoints(this.projection()?.series ?? []))
+  protected readonly points = computed(() =>
+    projectionPoints(this.projection() ?? { history: [], series: [] })
+  )
+  /** Active with nothing left to save: "Mark as reached" leads the screen. */
+  protected readonly atTarget = computed(() => {
+    const detail = this.detail()
+    return detail ? readyToMarkReached(detail.goal.status, detail.projection) : false
+  })
+  /** The estimate while saving; once reached, how it got there (when it has months behind it). */
+  protected readonly showChart = computed(
+    () =>
+      this.outlook() === 'projected' ||
+      (this.outlook() === 'reached' && this.points().history.length > 1)
+  )
+  /** "3 Nov": the household's day the goal was marked reached. */
+  protected readonly reachedOnText = computed(() => {
+    const goal = this.detail()?.goal
+    return goal?.status === 'reached'
+      ? reachedOnText(goal.reachedAt, this.locale(), this.timeZone(), this.clock())
+      : null
+  })
   protected readonly targetMonth = computed(() => {
     const date = this.detail()?.goal.targetDate
     return date ? monthOf(date) : null

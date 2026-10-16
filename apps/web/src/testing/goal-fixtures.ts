@@ -1,4 +1,4 @@
-import type { Goal } from '../app/core/api/api-types'
+import type { Goal, GoalWithProjection } from '../app/core/api/api-types'
 import type { GoalProjection } from '../app/features/goals/data-access/goals.api'
 
 /** A synthetic savings goal of the household ($1,200 saved of $5,000, no date). */
@@ -21,7 +21,10 @@ export function aGoal(overrides: Partial<Goal> = {}): Goal {
   } as Goal
 }
 
-/** Its projection: $500 a month from the last 3 months, reached in June 2027. */
+/**
+ * Its projection: $500 a month from the last 3 months, reached in June 2027.
+ * No account, so the history is today's saved amount only.
+ */
 export function aProjection(overrides: Partial<GoalProjection> = {}): GoalProjection {
   const saved = overrides.savedCents ?? 120_000
   const rate = overrides.monthlyRateCents === undefined ? 50_000 : overrides.monthlyRateCents
@@ -40,6 +43,7 @@ export function aProjection(overrides: Partial<GoalProjection> = {}): GoalProjec
       month: monthAfter('2026-10', index),
       projectedCents: saved + index * (rate ?? 0),
     })),
+    history: [{ month: '2026-10', balanceCents: saved }],
     ...overrides,
   } as GoalProjection
 }
@@ -55,6 +59,37 @@ export function anOpenEndedProjection(overrides: Partial<GoalProjection> = {}): 
     series: [{ month: '2026-10', projectedCents: 120_000 }],
     ...overrides,
   })
+}
+
+/** A projection with nothing left to save: $5,000 of $5,000. */
+export function aReachedProjection(overrides: Partial<GoalProjection> = {}): GoalProjection {
+  return aProjection({
+    savedCents: 500_000,
+    remainingCents: 0,
+    monthsToGoal: 0,
+    projectedDate: null,
+    series: [{ month: '2026-10', projectedCents: 500_000 }],
+    ...overrides,
+  })
+}
+
+/**
+ * Month-end balances of a tracked account from April to October 2026,
+ * ending at the default $1,200 saved.
+ */
+export function aTrackedHistory(): GoalProjection['history'] {
+  return [20_000, 35_000, 50_000, 70_000, 85_000, 100_000, 120_000].map((balanceCents, index) => ({
+    month: monthAfter('2026-04', index),
+    balanceCents,
+  }))
+}
+
+/** One row of `GET /goals?include=projection`. */
+export function aGoalWithProjection(
+  goal: Partial<Goal> = {},
+  projection: GoalProjection | null = aProjection({ goalId: goal.id ?? 1 })
+): GoalWithProjection {
+  return { ...aGoal(goal), projection } as GoalWithProjection
 }
 
 function monthAfter(month: string, count: number): string {

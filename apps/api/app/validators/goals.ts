@@ -14,8 +14,12 @@ const goalFields = {
   userId: id().nullable().optional(),
 }
 
+/** What `GET /goals?include=` can add to each goal. */
+export const GOAL_INCLUDES = ['projection'] as const
+
 export const listGoalsValidator = vine.create({
   status: vine.enum(GOAL_STATUSES).optional(),
+  include: vine.enum(GOAL_INCLUDES).optional(),
 })
 
 export const createGoalValidator = vine.create(goalFields)

@@ -8,6 +8,10 @@ import {
   ownerOf,
   progressOf,
   projectionPoints,
+  reachedDay,
+  reachedOnText,
+  readsReached,
+  readyToMarkReached,
   targetPace,
   type GoalDraft,
   type GoalFields,
@@ -44,6 +48,11 @@ function facts(overrides: Partial<ProjectionFacts> = {}): ProjectionFacts {
       { month: '2026-10', projectedCents: 120_000 },
       { month: '2026-11', projectedCents: 170_000 },
       { month: '2026-12', projectedCents: 220_000 },
+    ],
+    history: [
+      { month: '2026-08', balanceCents: 40_000 },
+      { month: '2026-09', balanceCents: 90_000 },
+      { month: '2026-10', balanceCents: 120_000 },
     ],
     ...overrides,
   }
@@ -204,14 +213,70 @@ describe('projection facts', () => {
     ).toBe('tooSlow')
   })
 
-  it('test_the_series_splits_into_today_and_the_projected_months', () => {
-    expect(projectionPoints(facts().series)).toEqual({
+  it('test_the_actual_line_follows_the_history_and_the_estimate_continues_from_today', () => {
+    expect(projectionPoints(facts())).toEqual({
+      history: [
+        { x: '2026-08', valueCents: 40_000 },
+        { x: '2026-09', valueCents: 90_000 },
+        { x: '2026-10', valueCents: 120_000 },
+      ],
+      projection: [
+        { x: '2026-11', valueCents: 170_000 },
+        { x: '2026-12', valueCents: 220_000 },
+      ],
+    })
+  })
+
+  it('test_without_history_today_is_the_only_actual_point', () => {
+    expect(projectionPoints(facts({ history: [] }))).toEqual({
       history: [{ x: '2026-10', valueCents: 120_000 }],
       projection: [
         { x: '2026-11', valueCents: 170_000 },
         { x: '2026-12', valueCents: 220_000 },
       ],
     })
-    expect(projectionPoints([])).toEqual({ history: [], projection: [] })
+    expect(projectionPoints(facts({ history: [], series: [] }))).toEqual({
+      history: [],
+      projection: [],
+    })
+  })
+
+  it('test_a_goal_reads_as_reached_when_marked_or_when_nothing_is_left', () => {
+    const atTarget = facts({ remainingCents: 0, monthsToGoal: 0, projectedDate: null })
+
+    expect(readsReached('reached', facts())).toBe(true)
+    expect(readsReached('reached', null)).toBe(true)
+    expect(readsReached('active', atTarget)).toBe(true)
+    expect(readsReached('active', facts())).toBe(false)
+    expect(readsReached('active', null)).toBe(false)
+    expect(readsReached('archived', atTarget)).toBe(false)
+  })
+
+  it('test_only_an_active_goal_with_nothing_left_is_ready_to_mark_reached', () => {
+    const atTarget = facts({ remainingCents: 0, monthsToGoal: 0, projectedDate: null })
+
+    expect(readyToMarkReached('active', atTarget)).toBe(true)
+    expect(readyToMarkReached('active', facts())).toBe(false)
+    expect(readyToMarkReached('reached', atTarget)).toBe(false)
+    expect(readyToMarkReached('archived', atTarget)).toBe(false)
+    expect(readyToMarkReached('active', null)).toBe(false)
+  })
+
+  it('test_the_reached_day_is_the_household_calendar_day', () => {
+    // 21:30 UTC on 2 Nov is already 3 Nov in Brisbane.
+    expect(reachedDay('2026-11-02T21:30:00.000Z', 'Australia/Brisbane')).toBe('2026-11-03')
+    expect(reachedDay('2026-11-02T21:30:00.000Z', 'UTC')).toBe('2026-11-02')
+    expect(reachedDay(null, 'Australia/Brisbane')).toBeNull()
+  })
+
+  it('test_the_reached_on_text_drops_the_year_only_within_this_year', () => {
+    const stamp = '2026-11-02T21:30:00.000Z'
+    const brisbane = 'Australia/Brisbane'
+
+    expect(reachedOnText(stamp, 'en-AU', brisbane, new Date('2026-12-01T00:00:00Z'))).toBe('3 Nov')
+    expect(reachedOnText(stamp, 'es-MX', brisbane, new Date('2027-01-05T00:00:00Z'))).toBe(
+      '3 nov 2026'
+    )
+    expect(reachedOnText(null, 'en-AU', brisbane, new Date())).toBeNull()
   })
 })
