@@ -6,10 +6,11 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core'
-import { provideRouter, withComponentInputBinding } from '@angular/router'
-import { provideServiceWorker } from '@angular/service-worker'
+import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
+import { SwPush, provideServiceWorker } from '@angular/service-worker'
 import { routes } from './app.routes'
 import { provideAuth } from './core/auth/auth.providers'
+import { SessionStore } from './core/auth/session.store'
 import { provideI18n } from './core/i18n/i18n.providers'
 import { InstallService } from './core/pwa/install.service'
 import { UpdateService } from './core/pwa/update.service'
@@ -40,6 +41,13 @@ export const appConfig: ApplicationConfig = {
       void import('./core/outbox/outbox.store').then(({ OutboxStore }) =>
         injector.get(OutboxStore).start()
       )
+      // Push the same way: a tapped notification routes the running app to
+      // its page, and an explicit logout unsubscribes this browser first.
+      // SwPush, Router and the session are in the initial bundle anyway
+      // (provideServiceWorker registers SwPush); handing them over keeps the
+      // push chunk from importing them, which would split the vendor chunk.
+      const push = { sw: inject(SwPush), router: inject(Router), session: inject(SessionStore) }
+      void import('./core/push/push-startup').then(({ startPush }) => startPush(push))
     }),
   ],
 }

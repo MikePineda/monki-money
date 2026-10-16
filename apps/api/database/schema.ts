@@ -64,6 +64,21 @@ export class AccountSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AppSettingSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'key', 'updatedAt', 'value'] as const
+  $columns = AppSettingSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare key: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare value: string
+}
+
 export class CategorySchema extends BaseModel {
   static $columns = ['categoryGroupId', 'createdAt', 'createdByUserId', 'householdId', 'icon', 'id', 'isHidden', 'isSystem', 'name', 'slug', 'sortOrder', 'updatedAt'] as const
   $columns = CategorySchema.$columns
@@ -441,7 +456,7 @@ export class MerchantRuleSchema extends BaseModel {
 }
 
 export class MonthlyInsightSchema extends BaseModel {
-  static $columns = ['bodyMarkdown', 'createdAt', 'generatedAt', 'generatedByUserId', 'headline', 'highlights', 'householdId', 'id', 'inputJson', 'locale', 'model', 'month', 'updatedAt'] as const
+  static $columns = ['bodyMarkdown', 'createdAt', 'generatedAt', 'generatedByUserId', 'headline', 'highlights', 'householdId', 'id', 'inputJson', 'locale', 'model', 'month', 'notifiedAt', 'updatedAt'] as const
   $columns = MonthlyInsightSchema.$columns
   @column()
   declare bodyMarkdown: string
@@ -467,6 +482,8 @@ export class MonthlyInsightSchema extends BaseModel {
   declare model: string
   @column()
   declare month: string
+  @column.dateTime()
+  declare notifiedAt: DateTime | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -500,6 +517,33 @@ export class PayslipSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare userId: number | null
+}
+
+export class PushSubscriptionSchema extends BaseModel {
+  static $columns = ['auth', 'createdAt', 'endpoint', 'failures', 'householdId', 'id', 'lastUsedAt', 'p256Dh', 'updatedAt', 'userAgent', 'userId'] as const
+  $columns = PushSubscriptionSchema.$columns
+  @column()
+  declare auth: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare endpoint: string
+  @column()
+  declare failures: number
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastUsedAt: DateTime | null
+  @column({ columnName: 'p256dh' })
+  declare p256Dh: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userAgent: string | null
+  @column()
+  declare userId: number
 }
 
 export class RecurringItemSchema extends BaseModel {
@@ -687,6 +731,25 @@ export class TransferSchema extends BaseModel {
   declare updatedAt: DateTime
   @column()
   declare updatedByUserId: number | null
+}
+
+export class UserNotificationSettingSchema extends BaseModel {
+  static $columns = ['createdAt', 'dailyReminder', 'id', 'reminderTime', 'summaryReady', 'updatedAt', 'userId'] as const
+  $columns = UserNotificationSettingSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare dailyReminder: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare reminderTime: string
+  @column()
+  declare summaryReady: boolean
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
 }
 
 export class UserSchema extends BaseModel {

@@ -65,6 +65,7 @@ export default defineConfig({
     () => import('#providers/llm_provider'),
     () => import('#providers/turnstile_provider'),
     () => import('#providers/storage_provider'),
+    () => import('#providers/push_provider'),
     () => import('@adonisjs/drive/drive_provider'),
     () => import('@adonisjs/queue/queue_provider'),
     {

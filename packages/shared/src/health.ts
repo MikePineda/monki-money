@@ -26,4 +26,9 @@ export interface PublicConfig {
   sentryDsnWeb: string | null
   /** Locale used when neither the user nor the browser picks a supported one. */
   defaultLocale: string
+  /**
+   * VAPID public key (URL-safe base64) the browser subscribes to Web Push
+   * with; null while push is unavailable on the server.
+   */
+  vapidPublicKey: string | null
 }

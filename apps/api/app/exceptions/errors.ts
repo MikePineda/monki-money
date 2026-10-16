@@ -212,6 +212,13 @@ export const UploadNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')
 export const TagNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')
 
 /**
+ * A push subscription endpoint the current person did not register in this
+ * household: a partner's device, another household's, or none at all. Same
+ * answer as any other missing row (404, never 403).
+ */
+export const PushSubscriptionNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')
+
+/**
  * A user who is not a member of the current household (another
  * household's, or nobody's): 404 like any missing row, never 403.
  */

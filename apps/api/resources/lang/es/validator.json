@@ -82,7 +82,13 @@
       "amountTolerancePct": "tolerancia del monto",
       "grossCents": "monto bruto",
       "deductions": "deducciones",
-      "transferId": "transferencia"
+      "transferId": "transferencia",
+      "endpoint": "dirección de notificaciones",
+      "p256dh": "clave de notificaciones",
+      "auth": "secreto de notificaciones",
+      "reminderTime": "hora del recordatorio",
+      "summaryReady": "aviso del resumen",
+      "dailyReminder": "recordatorio diario"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -161,7 +167,10 @@
       "byteSize.max": "La foto debe pesar 10 MB o menos",
       "key.mimetype": "Sube una foto JPEG, PNG o WebP",
       "key.fileSize": "La foto debe pesar 10 MB o menos",
-      "key.image": "Este archivo no es una foto que podamos leer. Tómala de nuevo"
+      "key.image": "Este archivo no es una foto que podamos leer. Tómala de nuevo",
+      "pushEndpoint": "El campo {field} no es un servicio de notificaciones admitido",
+      "pushKey": "El campo {field} no es una clave de notificaciones válida",
+      "reminderTime": "El campo {field} debe ser una hora de 00:00 a 23:30"
     }
   }
 }

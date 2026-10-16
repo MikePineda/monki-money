@@ -2,8 +2,9 @@ import type { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 
 /**
- * The scheduler's lock and log (`scheduler_runs`): one row per job, period
- * and household (NULL household = an app-wide job), unique across the three.
+ * The scheduler's lock and log (`scheduler_runs`): one row per job, period,
+ * household and person (NULL household = an app-wide job, NULL person = a
+ * household-wide one), unique across the four (NULLs equal).
  * Claiming a run is an `INSERT ... ON CONFLICT DO NOTHING`, so of two
  * containers ticking at once (start-first updates), a container that
  * restarted or a manual run, exactly one does the work. A claimed row is
@@ -46,6 +47,8 @@ export interface RunKey {
   /** What the run covers, e.g. the month being summarised ('2026-09'). */
   periodKey: string
   householdId: number | null
+  /** A run per person (push notifications); omitted or null = household-wide. */
+  userId?: number | null
 }
 
 /** Proof of ownership: the row and the attempt this process claimed. */
@@ -62,18 +65,20 @@ export interface RunResult {
 }
 
 type ClaimRow = { id: number; attempts: number }
+type OpenRow = { attempts: number; finished_at: Date | null; outcome: string | null }
 
 export default class SchedulerRuns {
   /** The claim when this process owns the run now; null when someone else does (or did). */
   async claim(key: RunKey, now: DateTime): Promise<RunClaim | null> {
     const startedAt = now.toJSDate()
+    const userId = key.userId ?? null
     const inserted = await db.rawQuery<{ rows: ClaimRow[] }>(
       `INSERT INTO ${SCHEDULER_RUNS_TABLE}
-         (job, period_key, household_id, attempts, started_at, created_at, updated_at)
-       VALUES (?, ?, ?, 1, ?, ?, ?)
+         (job, period_key, household_id, user_id, attempts, started_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?)
        ON CONFLICT DO NOTHING
        RETURNING id, attempts`,
-      [key.job, key.periodKey, key.householdId, startedAt, startedAt, startedAt]
+      [key.job, key.periodKey, key.householdId, userId, startedAt, startedAt, startedAt]
     )
     if (inserted.rows.length > 0) return claimOf(inserted.rows[0])
 
@@ -84,6 +89,7 @@ export default class SchedulerRuns {
           SET attempts = attempts + 1, started_at = ?, finished_at = NULL,
               outcome = NULL, error = NULL, updated_at = ?
         WHERE job = ? AND period_key = ? AND household_id IS NOT DISTINCT FROM ?
+          AND user_id IS NOT DISTINCT FROM ?
           AND attempts < ?
           AND ((finished_at IS NULL AND started_at < ?)
                OR (outcome = ? AND finished_at < ?)
@@ -95,6 +101,7 @@ export default class SchedulerRuns {
         key.job,
         key.periodKey,
         key.householdId,
+        userId,
         MAX_ATTEMPTS,
         now.minus(STALE_AFTER).toJSDate(),
         RETRYABLE_FAILURE,
@@ -128,6 +135,24 @@ export default class SchedulerRuns {
       updated_at: releasedAt,
     })
     return countOf(updated) > 0
+  }
+
+  /**
+   * Whether the run may still happen: running now, given back, or a
+   * retryable failure with attempts left. False when it never started or
+   * ended for good.
+   */
+  async isOpen(key: RunKey): Promise<boolean> {
+    const result = await db.rawQuery<{ rows: OpenRow[] }>(
+      `SELECT attempts, finished_at, outcome FROM ${SCHEDULER_RUNS_TABLE}
+        WHERE job = ? AND period_key = ? AND household_id IS NOT DISTINCT FROM ?
+          AND user_id IS NOT DISTINCT FROM ?`,
+      [key.job, key.periodKey, key.householdId, key.userId ?? null]
+    )
+    const row = result.rows[0]
+    if (!row) return false
+    if (row.finished_at === null || row.outcome === RELEASED) return true
+    return row.outcome === RETRYABLE_FAILURE && row.attempts < MAX_ATTEMPTS
   }
 
   protected owned(claim: RunClaim) {

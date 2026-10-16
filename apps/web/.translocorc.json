@@ -17,6 +17,7 @@
     "auth": "src/app/features/auth/i18n",
     "onboarding": "src/app/features/onboarding/i18n",
     "settings": "src/app/features/settings/i18n",
+    "notifications": "src/app/features/settings/notifications/i18n",
     "legal": "src/app/features/legal/i18n",
     "kit": "src/app/kit/i18n",
     "charts": "src/app/shared/charts/i18n",

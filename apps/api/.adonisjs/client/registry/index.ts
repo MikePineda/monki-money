@@ -102,6 +102,18 @@ const routes = {
     tokens: [{"old":"/api/v1/me","type":0,"val":"api","end":""},{"old":"/api/v1/me","type":0,"val":"v1","end":""},{"old":"/api/v1/me","type":0,"val":"me","end":""}],
     types: placeholder as Registry['me.update']['types'],
   },
+  'me.notifications.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/me/notifications',
+    tokens: [{"old":"/api/v1/me/notifications","type":0,"val":"api","end":""},{"old":"/api/v1/me/notifications","type":0,"val":"v1","end":""},{"old":"/api/v1/me/notifications","type":0,"val":"me","end":""},{"old":"/api/v1/me/notifications","type":0,"val":"notifications","end":""}],
+    types: placeholder as Registry['me.notifications.show']['types'],
+  },
+  'me.notifications.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/me/notifications',
+    tokens: [{"old":"/api/v1/me/notifications","type":0,"val":"api","end":""},{"old":"/api/v1/me/notifications","type":0,"val":"v1","end":""},{"old":"/api/v1/me/notifications","type":0,"val":"me","end":""},{"old":"/api/v1/me/notifications","type":0,"val":"notifications","end":""}],
+    types: placeholder as Registry['me.notifications.update']['types'],
+  },
   'households.store': {
     methods: ["POST"],
     pattern: '/api/v1/households',
@@ -605,6 +617,18 @@ const routes = {
     pattern: '/api/v1/receipts/scan',
     tokens: [{"old":"/api/v1/receipts/scan","type":0,"val":"api","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"v1","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"receipts","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"scan","end":""}],
     types: placeholder as Registry['receipts.scan']['types'],
+  },
+  'push.subscriptions.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/push/subscriptions',
+    tokens: [{"old":"/api/v1/push/subscriptions","type":0,"val":"api","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"v1","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"push","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"subscriptions","end":""}],
+    types: placeholder as Registry['push.subscriptions.store']['types'],
+  },
+  'push.subscriptions.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/push/subscriptions',
+    tokens: [{"old":"/api/v1/push/subscriptions","type":0,"val":"api","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"v1","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"push","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"subscriptions","end":""}],
+    types: placeholder as Registry['push.subscriptions.destroy']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 

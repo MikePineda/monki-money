@@ -18,7 +18,27 @@
 
 import { Env } from '@adonisjs/core/env'
 
-export default await Env.create(new URL('../', import.meta.url), {
+/** An optional URL-safe base64 VAPID key of `bytes` bytes once decoded. */
+function vapidKey(bytes: number) {
+  return (name: string, value?: string) => {
+    if (!value) return undefined
+    if (!/^[\w-]+$/.test(value) || Buffer.from(value, 'base64url').length !== bytes) {
+      throw new Error(`${name} must be a URL-safe base64 key of ${bytes} bytes`)
+    }
+    return value
+  }
+}
+
+/** Push services take an https: URL or a mailto: address only. */
+function vapidSubject(name: string, value?: string) {
+  if (!value) return undefined
+  if (!/^(mailto:\S+@\S+|https:\/\/\S+)$/.test(value)) {
+    throw new Error(`${name} must be a mailto: address or an https:// URL`)
+  }
+  return value
+}
+
+const env = await Env.create(new URL('../', import.meta.url), {
   // Node / HTTP
   TZ: Env.schema.string.optional(),
   NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
@@ -67,6 +87,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   // In-process scheduler (monthly insights). Production only; empty = on, `off` disables it.
   SCHEDULER: Env.schema.enum.optional(['on', 'off'] as const),
 
+  // Web Push (VAPID). Optional: without the pair the app generates one and
+  // stores it in app_settings (private key encrypted with APP_KEY).
+  VAPID_PUBLIC_KEY: vapidKey(65),
+  VAPID_PRIVATE_KEY: Env.schema.secret.optional(),
+  VAPID_SUBJECT: vapidSubject,
+
   // LLM provider (empty LLM_API_KEY = no LLM, the app keeps working)
   LLM_PROVIDER: Env.schema.enum.optional(['anthropic-compatible', 'anthropic', 'fake'] as const),
   LLM_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
@@ -107,3 +133,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMOKE_EMAIL: Env.schema.string.optional(),
   SMOKE_PASSWORD: Env.schema.secret.optional(),
 })
+
+// The VAPID pair goes together: half of it would sign with a key no browser subscribed to.
+const vapidPrivateKey = env.get('VAPID_PRIVATE_KEY')?.release()
+if (Boolean(env.get('VAPID_PUBLIC_KEY')) !== Boolean(vapidPrivateKey)) {
+  throw new Error('VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY go together: set both or neither')
+}
+if (vapidPrivateKey) vapidKey(32)('VAPID_PRIVATE_KEY', vapidPrivateKey)
+
+export default env

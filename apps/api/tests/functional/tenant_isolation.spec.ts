@@ -12,6 +12,7 @@ import MonthlyInsight from '#models/monthly_insight'
 import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
 import MerchantRule from '#models/merchant_rule'
+import PushSubscription from '#models/push_subscription'
 import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import HouseholdMember from '#models/household_member'
@@ -19,6 +20,7 @@ import router from '@adonisjs/core/services/router'
 import CategoryGroup from '#models/category_group'
 import { receiptKey } from '#domain/receipts/receipt_key'
 import { createHousehold, type TestHousehold } from '#tests/helpers/household'
+import { aBrowserSubscription, subscribeDevice } from '#tests/helpers/push'
 import { download, unzip } from '#tests/helpers/zip'
 import db from '@adonisjs/lucid/services/db'
 import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
@@ -55,6 +57,8 @@ interface Victim {
   systemRule: MerchantRule
   /** An uploaded receipt photo, still in (fake) storage. */
   receiptKey: string
+  /** The owner's phone, subscribed to Web Push. */
+  pushDevice: PushSubscription
 }
 
 interface Attacker {
@@ -279,6 +283,19 @@ const cases: IsolationCase[] = [
     body: (v) => ({ key: v.receiptKey }),
   },
   {
+    // Someone else's device: never re-registered to the attacker.
+    route: 'push.subscriptions.store',
+    method: 'post',
+    url: () => '/api/v1/push/subscriptions',
+    body: (v) => aBrowserSubscription(v.pushDevice.endpoint),
+  },
+  {
+    route: 'push.subscriptions.destroy',
+    method: 'delete',
+    url: () => '/api/v1/push/subscriptions',
+    body: (v) => ({ endpoint: v.pushDevice.endpoint }),
+  },
+  {
     // Another household's owner as the new owner: not a member here.
     route: 'household.transferOwnership',
     method: 'post',
@@ -323,9 +340,14 @@ const NOT_ID_SCOPED = new Set(['auth.invitations.show', 'auth.invitations.accept
 /**
  * Routes without params that still reach a household-scoped resource by a
  * reference in the body (the key of an uploaded receipt photo, the member
- * who becomes the owner).
+ * who becomes the owner, the endpoint of a push subscription).
  */
-const BODY_SCOPED = new Set(['receipts.scan', 'household.transferOwnership'])
+const BODY_SCOPED = new Set([
+  'receipts.scan',
+  'household.transferOwnership',
+  'push.subscriptions.store',
+  'push.subscriptions.destroy',
+])
 
 async function victimHousehold(): Promise<Victim> {
   const household = await createHousehold({
@@ -450,6 +472,7 @@ async function victimHousehold(): Promise<Victim> {
     recurringItem,
     systemRule,
     receiptKey: receiptKey(household.household.id, randomUUID(), 'image/jpeg'),
+    pushDevice: await subscribeDevice(household.owner, household.household),
   }
 }
 
@@ -534,6 +557,12 @@ test.group('Tenant isolation', () => {
         .firstOrFail()
       assert.equal(victimOwner.role, 'owner')
       assert.isTrue(storage.has(victim.receiptKey), 'the photo was neither read nor deleted')
+      const device = await PushSubscription.findOrFail(victim.pushDevice.id)
+      assert.include(device.serialize(), {
+        userId: victim.household.owner.id,
+        householdId: victim.household.household.id,
+        auth: victim.pushDevice.auth,
+      })
       assert.deepEqual(storage.deleted, [])
     })
 
