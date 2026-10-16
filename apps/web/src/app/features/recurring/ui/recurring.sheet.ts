@@ -161,7 +161,7 @@ export interface RecurringSheetData {
           }
         </label>
 
-        <div class="flex flex-wrap gap-x-6 gap-y-4">
+        <div class="flex flex-wrap gap-4">
           <div class="flex flex-col gap-2">
             <span class="text-label text-ink-2">{{ 'recurring.sheet.category' | transloco }}</span>
             <button

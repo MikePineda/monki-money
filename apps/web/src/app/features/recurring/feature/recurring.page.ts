@@ -207,7 +207,7 @@ interface RecurringView {
       </section>
       @if (views().paused.length > 0) {
         <section data-testid="recurring.paused">
-          <h2 class="px-4 pt-2 pb-1 text-eyebrow uppercase text-ink-2">
+          <h2 class="px-4 pt-2 pb-2 text-eyebrow uppercase text-ink-2">
             {{ 'recurring.sections.paused' | transloco }}
           </h2>
           <ng-container
@@ -218,7 +218,7 @@ interface RecurringView {
       }
       @if (views().dismissed.length > 0) {
         <section data-testid="recurring.dismissed">
-          <h2 class="px-4 pt-2 pb-1 text-eyebrow uppercase text-ink-2">
+          <h2 class="px-4 pt-2 pb-2 text-eyebrow uppercase text-ink-2">
             {{ 'recurring.sections.dismissed' | transloco }}
           </h2>
           <ng-container

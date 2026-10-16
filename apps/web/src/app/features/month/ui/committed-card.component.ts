@@ -39,17 +39,14 @@ interface CommittedRow {
   providers: [provideMonthScope()],
   template: `
     @if (committed().recurringCount === 0) {
-      <div
-        data-testid="month.committed.hint"
-        class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"
-      >
+      <div data-testid="month.committed.hint" class="flex flex-col items-start gap-1">
         <p class="text-body text-ink-2">{{ 'month.committed.hint' | transloco }}</p>
         <button
           appButton
           type="button"
           variant="link"
           icon="refresh-cw"
-          class="-mx-3"
+          class="-ml-3"
           data-testid="month.committed.detect"
           [disabled]="detecting()"
           (click)="detect.emit()"
