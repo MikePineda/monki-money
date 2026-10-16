@@ -7,6 +7,9 @@
  */
 export default {
   extends: ['@commitlint/config-conventional'],
+  // Dependabot writes sentence-case subjects ("Bump the tooling group") and
+  // cannot be configured otherwise; its commits are signed off by the bot.
+  ignores: [(message) => /^Signed-off-by: dependabot\[bot\]/m.test(message)],
   rules: {
     'type-enum': [
       2,
