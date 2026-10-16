@@ -1,4 +1,5 @@
 import { LoginPage } from '../pages/login.page.ts'
+import { apiRequestsSettled, countApiRequests } from '../support/api-requests.ts'
 import { SEEDED_OWNER, expect, test } from '../support/fixtures.ts'
 import { TURNSTILE_DUMMY_TOKEN } from '../support/turnstile.ts'
 
@@ -30,12 +31,20 @@ test.describe('journey 1: login and session expiry', () => {
     context,
   }) => {
     const login = new LoginPage(page)
+    await countApiRequests(page)
     await login.goto()
     await login.logIn(SEEDED_OWNER.email, SEEDED_OWNER.password)
     await expect(page).toHaveURL(/\/month$/)
     // Let the month's own requests finish: a response still in flight would
-    // set the (cookie-store) session cookie again right after it is cleared.
-    await page.waitForLoadState('networkidle')
+    // set the (cookie-store) session cookie again right after it is cleared,
+    // and one sent after it would expire the session from /month instead.
+    // The empty month is drawn once its report is in, and the household
+    // directory it also loads was asked for alongside it, so after that every
+    // request the screen makes has been sent: wait until all are answered.
+    // (`networkidle` cannot tell: it belongs to the document, which may have
+    // reached it on /login before the in-app navigation to /month.)
+    await expect(page.getByTestId('month.empty')).toBeVisible()
+    await apiRequestsSettled(page)
 
     // The session cookie disappears (expired or revoked elsewhere).
     await context.clearCookies()
