@@ -1,5 +1,9 @@
 import { test } from '@japa/runner'
 import Payslip from '#models/payslip'
+import drive from '@adonisjs/drive/services/main'
+import { nabFixture } from '#tests/helpers/importing'
+import { freezeClock } from '#tests/helpers/ledger'
+import { nabHousehold, uploadCsv } from '#tests/helpers/imports'
 import Transfer from '#models/transfer'
 import Transaction from '#models/transaction'
 import { createHousehold } from '#tests/helpers/household'
@@ -512,6 +516,66 @@ test.group('Payslips: ledger', () => {
       categoryId: fixture.fees.id,
       amountCents: -125_000,
       payslipId: created.body().data.id,
+    })
+  })
+})
+
+test.group('Payslips: bank imports', (group) => {
+  group.each.setup(() => {
+    drive.fake()
+    const restoreClock = freezeClock('2026-10-15T09:00:00+10:00')
+    return () => {
+      drive.restore()
+      restoreClock()
+    }
+  })
+
+  test('test_payslip_rows_are_never_taken_as_the_other_leg_of_an_imported_transfer', async ({
+    client,
+    assert,
+  }) => {
+    // The sample export has a 4,350.00 payout from the wallet on 31 July. A
+    // payslip that same day withheld exactly 4,350.00 of tax: that row is
+    // the payslip's, not the wallet side of the bank's transfer.
+    const home = await nabHousehold()
+    const taxes = await categoryBySlug(home.household.id, 'taxes')
+    const created = await client
+      .post('/api/v1/payslips')
+      .json({
+        accountId: home.hnry.id,
+        date: '2026-07-31',
+        grossCents: 1_000_000,
+        deductions: [{ categoryId: taxes.id, amountCents: 435_000 }],
+        toAccountId: home.savings.id,
+      })
+      .actingAs(home.owner)
+    created.assertStatus(201)
+
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batch = upload.body().data[0]
+    const confirm = await client.post(`/api/v1/imports/${batch.id}/confirm`).actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    const lines = await linesOf(created.body().data.id)
+    assert.deepEqual(
+      lines.map((line) => [line.kind, line.amountCents, line.transferId]),
+      [
+        ['income', 1_000_000, null],
+        ['expense', -435_000, null],
+      ]
+    )
+    const incoming = await Transaction.query()
+      .where('account_id', home.everyday.id)
+      .where('amount_cents', 435_000)
+      .firstOrFail()
+    const walletLeg = await Transaction.query()
+      .where('transfer_id', incoming.transferId!)
+      .whereNot('id', incoming.id)
+      .firstOrFail()
+    assert.include(walletLeg.serialize(), {
+      accountId: home.hnry.id,
+      amountCents: -435_000,
+      payslipId: null,
     })
   })
 })
