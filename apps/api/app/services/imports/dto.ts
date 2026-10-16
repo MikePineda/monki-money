@@ -24,6 +24,15 @@ export interface InlineDecision extends DecideInput {
   rowId: number
 }
 
+/**
+ * One change of `PATCH /imports/:id/rows`. `reset` drops the person's
+ * decision first: the row goes back to the importer's proposal (resolution
+ * included) and counts as undecided unless the change sets something else.
+ */
+export interface RowChange extends InlineDecision {
+  reset?: boolean
+}
+
 export interface ConfirmInput {
   decisions?: InlineDecision[]
 }

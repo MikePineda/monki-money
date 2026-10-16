@@ -22,9 +22,11 @@ export const importParamsValidator = vine.create({
   params: idParams(),
 })
 
+/** `GET /imports/:id`: `?rows=0` answers the batch alone (polling, the result screen). */
 export const showImportValidator = vine.create({
   params: idParams(),
   resolution: vine.enum(IMPORT_RESOLUTIONS).optional(),
+  rows: vine.boolean().optional(),
 })
 
 const splitLine = () =>
@@ -49,6 +51,19 @@ const decisionFields = {
 export const decideRowValidator = vine.create({
   params: vine.object({ id: id(), rowId: id() }),
   ...decisionFields,
+})
+
+/**
+ * `PATCH /imports/:id/rows`: several rows' decisions at once, applied in one
+ * database transaction. `reset` first drops the row's decision (back to the
+ * importer's proposal), so an "Undo" can restore a row exactly.
+ */
+export const decideRowsValidator = vine.create({
+  params: idParams(),
+  changes: vine
+    .array(vine.object({ rowId: id(), reset: vine.boolean().optional(), ...decisionFields }))
+    .minLength(1)
+    .maxLength(20_000),
 })
 
 export const confirmImportValidator = vine.create({

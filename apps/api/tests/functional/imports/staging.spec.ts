@@ -6,7 +6,7 @@ import Transaction from '#models/transaction'
 import MerchantRule from '#models/merchant_rule'
 import drive from '@adonisjs/drive/services/main'
 import { freezeClock } from '#tests/helpers/ledger'
-import { nabCsv, nabFixture } from '#tests/helpers/importing'
+import { fixtureLines, nabCsv, nabFixture } from '#tests/helpers/importing'
 import { TransactionFactory } from '#database/factories/transaction_factory'
 import {
   EVERYDAY_NUMBER,
@@ -96,7 +96,13 @@ test.group('Imports: staging', (group) => {
     const batchId = first.body().data[0].id
     const confirmed = await client.post(`/api/v1/imports/${batchId}/confirm`).actingAs(home.owner)
     confirmed.assertStatus(200)
-    const rowsBefore = await countOf(ImportRow.query().where('household_id', home.household.id))
+    const imported = () =>
+      countOf(
+        ImportRow.query()
+          .where('household_id', home.household.id)
+          .whereNot('resolution', 'duplicate')
+      )
+    const rowsBefore = await imported()
     const ledgerBefore = await countOf(Transaction.query().where('household_id', home.household.id))
 
     const again = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
@@ -105,14 +111,111 @@ test.group('Imports: staging', (group) => {
     const [batch] = again.body().data
     assert.equal(batch.status, 'completed', 'nothing left to review')
     assert.include(batch.counts, { rows: 35, duplicate: 35, new: 0, transferLeg: 0, ignored: 0 })
-    assert.equal(
-      await countOf(ImportRow.query().where('household_id', home.household.id)),
-      rowsBefore
-    )
+    assert.equal(await imported(), rowsBefore)
+    const duplicates = await ImportRow.query().where('import_batch_id', batch.id)
+    assert.lengthOf(duplicates, 35, 'every row is listed as a duplicate')
+    assert.isTrue(duplicates.every((row) => row.resolution === 'duplicate'))
+    assert.isTrue(duplicates.every((row) => row.transactionId === null))
     assert.equal(
       await countOf(Transaction.query().where('household_id', home.household.id)),
       ledgerBefore
     )
+  })
+
+  test('test_reimported_rows_are_listed_as_duplicates_of_their_ledger_rows', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const lines = fixtureLines('sample.csv')
+    const older = await uploadCsv(client, home.owner, nabCsv(lines.slice(10)))
+    const olderId = older.body().data[0].id
+    await client.post(`/api/v1/imports/${olderId}/confirm`).actingAs(home.owner)
+    const services = await Transaction.query()
+      .where('account_id', home.everyday.id)
+      .where('raw_description', 'like', 'V1111 02/09 SAMPLE SERVICES%')
+      .firstOrFail()
+    const ledgerBefore = await countOf(Transaction.query().where('household_id', home.household.id))
+
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+
+    upload.assertStatus(201)
+    const batch = upload.body().data[0]
+    assert.equal(batch.status, 'staged')
+    assert.include(batch.counts, { rows: 35, duplicate: 25 })
+    const listed = await client
+      .get(`/api/v1/imports/${batch.id}?resolution=duplicate`)
+      .actingAs(home.owner)
+    const duplicates = listed.body().data.rows
+    assert.lengthOf(duplicates, 25)
+    const [copy] = rowsStartingWith(duplicates, 'V1111 02/09 SAMPLE SERVICES')
+    assert.include(copy, { resolution: 'duplicate', transactionId: null, needsReview: false })
+    assert.deepEqual(copy.reasons, ['duplicate_hash'])
+    assert.isString(copy.confirmedAt, 'settled at staging: nothing to decide or confirm')
+    assert.isNull(copy.suggestion)
+    assert.deepInclude(copy.match, {
+      transactionId: services.id,
+      transaction: {
+        date: services.date,
+        amountCents: services.amountCents,
+        payee: services.payee,
+        source: 'import',
+        status: 'cleared',
+      },
+    })
+
+    const decided = await client
+      .patch(`/api/v1/imports/${batch.id}/rows/${copy.id}`)
+      .json({ resolution: 'new' })
+      .actingAs(home.owner)
+    decided.assertStatus(422)
+    decided.assertBodyContains({ errors: [{ field: 'resolution', rule: 'duplicate' }] })
+    const bulk = await client
+      .patch(`/api/v1/imports/${batch.id}/rows`)
+      .json({ changes: [{ rowId: copy.id, reset: true }] })
+      .actingAs(home.owner)
+    bulk.assertStatus(422)
+    bulk.assertBodyContains({ errors: [{ field: 'changes.0.resolution', rule: 'duplicate' }] })
+
+    const confirm = await client.post(`/api/v1/imports/${batch.id}/confirm`).actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    assert.equal(confirm.body().data.remaining, 0)
+    assert.equal(
+      await countOf(
+        Transaction.query()
+          .where('account_id', home.everyday.id)
+          .where('raw_description', 'like', 'V1111 02/09 SAMPLE SERVICES%')
+      ),
+      1,
+      'a duplicate creates nothing'
+    )
+    assert.isAbove(
+      await countOf(Transaction.query().where('household_id', home.household.id)),
+      ledgerBefore
+    )
+    const after = await ImportRow.query()
+      .where('import_batch_id', batch.id)
+      .where('resolution', 'duplicate')
+    assert.lengthOf(after, 25)
+    assert.isTrue(after.every((row) => row.transactionId === null))
+    const closed = await ImportBatch.findOrFail(batch.id)
+    assert.include(closed.serialize(), { status: 'completed', duplicateCount: 25 })
+  })
+
+  test('test_show_without_rows_answers_only_the_batch', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batchId = upload.body().data[0].id
+
+    const summary = await client.get(`/api/v1/imports/${batchId}?rows=0`).actingAs(home.owner)
+
+    summary.assertStatus(200)
+    assert.notProperty(summary.body().data, 'rows')
+    assert.include(summary.body().data, { id: batchId, status: 'staged', classifying: false })
+    assert.equal(summary.body().data.counts.rows, 35)
+    const detail = await client.get(`/api/v1/imports/${batchId}?rows=1`).actingAs(home.owner)
+    assert.lengthOf(detail.body().data.rows, 35)
   })
 
   test('test_manual_entry_is_auto_matched_and_not_duplicated', async ({ client, assert }) => {

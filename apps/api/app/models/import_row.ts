@@ -11,9 +11,12 @@ import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
 /**
  * One bank row of an import batch: what the pipeline proposed
- * (`resolution`, match, suggestion, transfer), what the person decided
- * (`decision`) and, once confirmed, the ledger row it became
- * (`transactionId`). `raw` holds the original cells: data, never HTML.
+ * (`resolution`, kept in `proposedResolution` once a decision moves it;
+ * match, suggestion, transfer), what the person decided (`decision`) and,
+ * once confirmed, the ledger row it became (`transactionId`). A
+ * `duplicate` (its hash was already imported) is settled at staging and
+ * points at the ledger row of its stored copy (`matchTransactionId`).
+ * `raw` holds the original cells: data, never HTML.
  */
 export default class ImportRow extends compose(ImportRowSchema, HouseholdScoped) {
   @belongsTo(() => Household)
@@ -34,8 +37,12 @@ export default class ImportRow extends compose(ImportRowSchema, HouseholdScoped)
   @belongsTo(() => Transaction)
   declare transaction: BelongsTo<typeof Transaction>
 
-  /** Still waiting for confirm (superseded rows are done by definition). */
+  /** Still waiting for confirm (superseded and duplicate rows are done by definition). */
   get isOpen() {
-    return this.confirmedAt === null && this.resolution !== 'superseded'
+    return (
+      this.confirmedAt === null &&
+      this.resolution !== 'superseded' &&
+      this.resolution !== 'duplicate'
+    )
   }
 }

@@ -328,6 +328,10 @@ router
                   .where('id', id)
                   .as('cancel')
                 router
+                  .patch(':id/rows', [controllers.ImportRows, 'updateMany'])
+                  .where('id', id)
+                  .as('rows.bulk')
+                router
                   .patch(':id/rows/:rowId', [controllers.ImportRows, 'update'])
                   .where('id', id)
                   .where('rowId', id)

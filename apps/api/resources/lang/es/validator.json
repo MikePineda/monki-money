@@ -140,6 +140,7 @@
       "matchType.locked": "Las reglas del banco conservan su tipo. Crea una regla nueva si necesitas otro",
       "pattern.locked": "Las reglas del banco conservan su patrón. Crea una regla nueva para otro texto",
       "resolution.zeroAmount": "Un movimiento de 0.00 solo se puede ignorar",
+      "resolution.duplicate": "Este movimiento ya se importó antes: no hay nada que decidir",
       "matchTransactionId.amountMismatch": "Elige un movimiento con el mismo importe",
       "matchTransactionId.claimed": "Otro movimiento del banco ya está ligado a este",
       "accountId.accountNumberMismatch": "Esta cuenta está ligada a otro número de cuenta bancaria",

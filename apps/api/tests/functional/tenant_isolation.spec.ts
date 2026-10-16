@@ -226,6 +226,19 @@ const cases: IsolationCase[] = [
     body: { resolution: 'ignored' },
   },
   {
+    route: 'imports.rows.bulk',
+    method: 'patch',
+    url: (v) => `/api/v1/imports/${v.batch.id}/rows`,
+    body: (v) => ({ changes: [{ rowId: v.row.id, resolution: 'ignored' }] }),
+  },
+  {
+    // Own batch in the path, another household's row id in the body.
+    route: 'imports.rows.bulk',
+    method: 'patch',
+    url: (_v, a) => `/api/v1/imports/${a.batch.id}/rows`,
+    body: (v) => ({ changes: [{ rowId: v.row.id, resolution: 'ignored' }] }),
+  },
+  {
     route: 'rules.update',
     method: 'patch',
     url: (v) => `/api/v1/rules/${v.rule.id}`,

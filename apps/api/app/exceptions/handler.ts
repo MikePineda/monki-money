@@ -131,9 +131,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       const message = i18n
         ? i18n.t(messageKey, { field, ...error.meta }, error.message)
         : error.message
-      return ctx.response
-        .status(422)
-        .send({ errors: [{ field: error.field, rule: error.rule, message }] })
+      const path = error.path ? `${error.path}.${error.field}` : error.field
+      return ctx.response.status(422).send({ errors: [{ field: path, rule: error.rule, message }] })
     }
 
     const httpError = this.toHttpError(error) as {

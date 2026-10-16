@@ -86,6 +86,7 @@ export type ScannedRoutes = {
     'imports.classify': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.confirm': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.cancel': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.rows.bulk': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }
     'rules.index': { paramsTuple?: []; params?: {} }
     'rules.store': { paramsTuple?: []; params?: {} }
@@ -208,6 +209,7 @@ export type ScannedRoutes = {
     'transactions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.rows.bulk': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }
     'rules.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }

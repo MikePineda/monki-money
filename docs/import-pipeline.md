@@ -25,7 +25,8 @@ buffer --parseBankCsv--> ParsedRow[] --groupByAccountNumber--> per account:
 | Reconcile         | `balanceChainBreaks(rows)`, `openingBalanceCents(rows)`                                                                                                     | First import of an account: opening = oldest balance - its amount.                                                                                                                                                                                                                                                                      |
 | Seed system rules | `resolveSystemRules(NAB_SYSTEM_RULES, { categoryIdBySlug, accounts })`                                                                                      | Skips targets the household lacks or has twice.                                                                                                                                                                                                                                                                                         |
 
-Column mapping: `ResolvedRow` -> `import_rows`: `resolution`, `match_transaction_id`,
+Column mapping: `ResolvedRow` -> `import_rows`: `resolution` (also kept in
+`proposed_resolution`, which a decision never moves), `match_transaction_id`,
 `match_score`, `suggested_category_id` / `suggestion_source` /
 `suggestion_confidence` (from `suggestion`), `suggested_transfer_account_id`
 (`transfer.counterpartAccountId`), `suggested_paid_by_user_id` (`paidByUserId`);
@@ -42,13 +43,18 @@ entities not decoded), empty string for a missing balance, and `occurrence`
 file order. Identical purchases differ by running balance; zero-amount twins
 (same balance) by occurrence. Re-exporting the same period gives the same
 hashes, so re-importing is all `duplicate` (ignored rows included: an
-`ignored` hash never comes back).
+`ignored` hash never comes back). Duplicates are stored too, for the review
+to list them: the hash is unique per household and account among the other
+rows only (partial unique index `WHERE resolution <> 'duplicate'`).
 
 ## Resolver chain
 
 `DuplicateStep -> ZeroAmountStep -> TransferStep -> MatchStep -> SuggestCategoryStep`
 
-1. **Duplicate**: hash already stored for the account -> `duplicate`.
+1. **Duplicate**: hash already stored for the account (by a row that is not
+   itself a duplicate) -> `duplicate`. The row is stored settled
+   (`confirmed_at` at staging, no suggestion) with `match_transaction_id` =
+   the ledger row its first copy became, and takes no decision.
 2. **Zero amount** (card checks, cancelled holds) -> `ignored`.
 3. **Transfer**: the winning rule decides first (`transferAccountId` -> transfer;
    category -> not a transfer). Otherwise NAB `Internal transfers` or the
@@ -123,9 +129,9 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ImportStager`        | `POST /imports`: parse, map `Account Number` -> account (or `accountId`, which remembers the number), plan limit (`importsPerMonth`), one staged batch per account (409), stage + resolve every account first (one account's row may be the other leg of another's transfer), then one DB transaction for batches and rows; archive the CSV. |
 | `ImportContextLoader` | `ResolverContext` from the database: stored hashes, candidates, transfer legs, rules, payers.                                                                                                                                                                                                                                                |
-| `ImportDecisions`     | `PATCH /imports/:id/rows/:rowId`: stores the person's decision in `import_rows.decision` (jsonb; absent keys keep the proposal) and validates it; confirm validates again.                                                                                                                                                                   |
+| `ImportDecisions`     | `PATCH /imports/:id/rows/:rowId` (one row) and `PATCH /imports/:id/rows` (several, one transaction, all or nothing): stores the person's decision in `import_rows.decision` (jsonb; absent keys keep the proposal) and validates it; confirm validates again. `reset` drops the decision first (back to `proposed_resolution`).              |
 | `ImportConfirmer`     | `POST /imports/:id/confirm`: one transaction with the batch `FOR UPDATE`; `review.ts` (pure) says what each row becomes.                                                                                                                                                                                                                     |
-| `ImportClassifier`    | Run by `ClassifyImportRowsJob` (`@adonisjs/queue`, inline with `QUEUE_DRIVER=sync`).                                                                                                                                                                                                                                                         |
+| `ImportClassifier`    | Run by `ClassifyImportRowsJob` (`@adonisjs/queue`, inline with `QUEUE_DRIVER=sync`); releases the claim and stamps `classify_finished_at` when the run ends, failed or not.                                                                                                                                                                  |
 | `ImportBookkeeping`   | Batch counts by resolution; ledger balance for the reconciliation.                                                                                                                                                                                                                                                                           |
 | `ImportArchive`       | The original CSV at `imports/{householdId}/{batchId}.csv` when `DRIVE_DISK` is set (best effort).                                                                                                                                                                                                                                            |
 
@@ -149,7 +155,15 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
 - **Decisions**: a picked `matchTransactionId` must have the row's amount
   and account and not be the copy of a posted bank row nor picked by
   another row of the batch (or of the same confirm); a 0.00 row can only be
-  `ignored`. `PATCH` locks the batch like confirm does.
+  `ignored`; a `duplicate` row takes none (422 `resolution`/`duplicate`).
+  `PATCH` locks the batch like confirm does. The bulk `PATCH
+/imports/:id/rows` applies every change in one transaction (any refusal
+  rolls them all back, 422 `changes.<index>.<field>`); a change with
+  `reset: true` first drops the row's decision (`resolution` back to
+  `proposed_resolution`, `decision`/`decided_at`/`decided_by_user_id`
+  null), so the review's "Undo" sends each row's earlier decision after a
+  reset. Rows staged before `proposed_resolution` existed and decided
+  since keep their current resolution on a reset.
 - **Privacy**: rows linked to the partner's private transaction are
   masked in `GET /imports/:id` (`isMasked`), like the ledger.
 - **Payer**: personal account -> its owner; joint account -> the card
@@ -181,7 +195,14 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
   one never runs, and rules only read the first 300 characters of a row.
 - **Classify** claims the batch (`classify_started_at`, 409 while another
   run holds it, taken over after 10 minutes), handles at most 500 rows per
-  run and saves every 40-row model call as it returns.
+  run and saves every 40-row model call as it returns. When the run ends
+  (also on a model failure) the claim is released and
+  `classify_finished_at` stamped. The batch resource says `classifying`
+  while a live claim exists (`classify_run.ts`) and `classifiedAt`: the
+  review polls `GET /imports/:id?rows=0` only while `classifying` is true,
+  then reloads the rows once. With `QUEUE_DRIVER=sync` the run ends inside
+  `POST /imports/:id/classify`, whose answer already says `classifying:
+false`.
 - **Reconciliation**: bank balance on the newest row vs opening + ledger
   rows with `COALESCE(bank_date, date) <= dateTo` (pending included).
 - **System rules** (`SystemRulesSeeder`, insert-only): category rules when
@@ -189,6 +210,9 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
   the production bootstrap and on the household's first import.
 - **Deleting** an imported transaction marks its bank row `ignored`, so a
   re-import never brings it back.
+- **Duplicates** are kept on cancel (they are settled, not waiting) and
+  never counted again by `refreshCounts`: `duplicate_count` is set at
+  staging (batches staged before duplicates were stored only count them).
 - **Backfill**: `node ace import:nab <file> --account <number|id>
 --household <id> [--confirm-auto]` (stages as the owner; `--confirm-auto`
   confirms what `isAutoConfirmable` allows and leaves the rest staged).
