@@ -453,10 +453,12 @@ export class MonthlyInsightSchema extends BaseModel {
 }
 
 export class PayslipSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'createdByUserId', 'date', 'grossCents', 'householdId', 'id', 'memo', 'netCents', 'transferId', 'updatedAt', 'userId'] as const
+  static $columns = ['accountId', 'clientId', 'createdAt', 'createdByUserId', 'date', 'grossCents', 'householdId', 'id', 'memo', 'netCents', 'transferId', 'updatedAt', 'userId'] as const
   $columns = PayslipSchema.$columns
   @column()
   declare accountId: number
+  @column()
+  declare clientId: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()

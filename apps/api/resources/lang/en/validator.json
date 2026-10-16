@@ -127,6 +127,7 @@
       "transferId.linked": "This transfer already belongs to another payslip",
       "transferId.wrongAccount": "Choose a transfer that leaves this account",
       "toAccountId.exclusive": "Choose an existing transfer or a destination account, not both",
+      "expenseCategory": "Choose an expense category for this deduction",
       "month.future": "This month has not started yet",
       "month.noActivity": "There is no income or spending in this month yet",
       "file.required": "Choose the CSV file exported from your bank",

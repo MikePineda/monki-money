@@ -127,6 +127,7 @@
       "transferId.linked": "Esta transferencia ya pertenece a otro recibo de pago",
       "transferId.wrongAccount": "Elige una transferencia que salga de esta cuenta",
       "toAccountId.exclusive": "Elige una transferencia existente o una cuenta de destino, no ambas",
+      "expenseCategory": "Elige una categoría de gasto para esta deducción",
       "month.future": "Este mes todavía no empieza",
       "month.noActivity": "Todavía no hay ingresos ni gastos en este mes",
       "file.required": "Elige el archivo CSV que exportaste de tu banco",

@@ -32,14 +32,17 @@ export default class PayslipsController {
     )
   }
 
-  /** POST /payslips: the gross, its deductions and the transfer, in one DB transaction. */
+  /**
+   * POST /payslips: the gross, its deductions and the transfer, in one DB
+   * transaction. 201, or 200 with the existing payslip for a repeated `clientId`.
+   */
   async store(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(createPayslipValidator)
     const user = ctx.auth.getUserOrFail()
 
-    const payslip = await this.payslips.create(ctx.household, user, payload)
+    const { payslip, created } = await this.payslips.create(ctx.household, user, payload)
 
-    ctx.response.status(201)
+    ctx.response.status(created ? 201 : 200)
     return ctx.serialize(
       PayslipTransformer.transform(payslip, await privacyViewer(ctx.household, user))
     )
@@ -54,11 +57,11 @@ export default class PayslipsController {
     return { data: candidates }
   }
 
-  /** DELETE /payslips/:id: its rows go, the transfer stays (unlinked). */
+  /** DELETE /payslips/:id: its rows go, the transfer stays (unlinked); 403 over a partner's private row. */
   async destroy(ctx: HttpContext) {
     const { params } = await ctx.request.validateUsing(payslipParamsValidator)
 
-    await this.payslips.destroy(ctx.household, params.id)
+    await this.payslips.destroy(ctx.household, ctx.auth.getUserOrFail(), params.id)
 
     return ctx.response.noContent()
   }

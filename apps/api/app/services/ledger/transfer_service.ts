@@ -1,12 +1,14 @@
 import type User from '#models/user'
 import { inject } from '@adonisjs/core'
 import type Account from '#models/account'
+import Payslip from '#models/payslip'
 import Transfer from '#models/transfer'
 import type Household from '#models/household'
 import Transaction from '#models/transaction'
 import db from '@adonisjs/lucid/services/db'
 import { defaultPayer } from '#domain/ledger/payer'
 import { FieldError } from '#exceptions/field_error'
+import { PayslipLineReadOnly } from '#exceptions/errors'
 import { findInHousehold } from '#repositories/scoped'
 import { isUniqueViolationOn } from '#services/ledger/unique_violation'
 import LedgerReferences from '#services/ledger/ledger_references'
@@ -101,7 +103,9 @@ export default class TransferService {
   /**
    * Changes the transfer and rewrites both legs from the row locked inside
    * the DB transaction, so overlapping edits (amount vs memo) can never
-   * leave the legs disagreeing with the transfer.
+   * leave the legs disagreeing with the transfer. The amount and source
+   * account of a transfer a payslip links belong to the payslip (it is
+   * its net): changing them answers 409 `E_PAYSLIP_LINE`.
    */
   async update(household: Household, actor: User, transferId: number, input: UpdateTransferInput) {
     await db.transaction(async (trx) => {
@@ -110,6 +114,15 @@ export default class TransferService {
         .where('id', transferId)
         .forUpdate()
         .firstOrFail()
+      const movesTheNet =
+        (input.amountCents !== undefined && input.amountCents !== transfer.amountCents) ||
+        (input.fromAccountId !== undefined && input.fromAccountId !== transfer.fromAccountId)
+      if (movesTheNet) {
+        const payslip = await Payslip.query({ client: trx })
+          .where('transfer_id', transfer.id)
+          .first()
+        if (payslip) throw new PayslipLineReadOnly()
+      }
       const { from, to } = await this.accounts(
         household,
         input.fromAccountId ?? transfer.fromAccountId,

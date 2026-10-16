@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import Payslip from '#models/payslip'
+import ImportRow from '#models/import_row'
 import drive from '@adonisjs/drive/services/main'
 import { nabFixture } from '#tests/helpers/importing'
 import { freezeClock } from '#tests/helpers/ledger'
@@ -313,6 +314,53 @@ test.group('Payslips: create', () => {
     zero.assertStatus(422)
     zero.assertBodyContains({ errors: [{ field: 'grossCents' }] })
   })
+
+  test('test_a_repeated_payslip_with_the_same_client_id_is_recorded_once', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const body = payslipBody(fixture, {
+      clientId: '9b2f7c1e-4d3a-4f6b-8a1c-2e5d7f9a0b3c',
+      date: '2026-09-30',
+      transferId: undefined,
+      toAccountId: fixture.bank.id,
+    })
+
+    const first = await client.post('/api/v1/payslips').json(body).actingAs(fixture.owner)
+    const retry = await client.post('/api/v1/payslips').json(body).actingAs(fixture.owner)
+
+    first.assertStatus(201)
+    retry.assertStatus(200)
+    assert.equal(retry.body().data.id, first.body().data.id)
+    assert.equal(first.body().data.clientId, '9b2f7c1e-4d3a-4f6b-8a1c-2e5d7f9a0b3c')
+    assert.equal(retry.body().data.transferId, first.body().data.transferId)
+    assert.lengthOf(await Payslip.query().where('household_id', fixture.household.id), 1)
+    // The imported payout plus the one transfer this payslip created.
+    assert.lengthOf(await Transfer.query().where('from_account_id', fixture.wallet.id), 2)
+  })
+
+  test('test_a_deduction_needs_an_expense_category', async ({ client, assert }) => {
+    const fixture = await walletWithPayout()
+
+    const response = await client
+      .post('/api/v1/payslips')
+      .json(
+        payslipBody(fixture, {
+          deductions: [
+            { categoryId: fixture.taxes.id, amountCents: 125_000 },
+            { categoryId: fixture.salary.id, amountCents: 5_000 },
+          ],
+        })
+      )
+      .actingAs(fixture.owner)
+
+    response.assertStatus(422)
+    response.assertBodyContains({
+      errors: [{ field: 'deductions.1.categoryId', rule: 'expenseCategory' }],
+    })
+    assert.lengthOf(await Payslip.query().where('household_id', fixture.household.id), 0)
+  })
 })
 
 test.group('Payslips: list, candidates and delete', () => {
@@ -457,6 +505,95 @@ test.group('Payslips: list, candidates and delete', () => {
     assert.isNull(payslip.transferId)
     assert.lengthOf(await linesOf(payslip.id), 3)
   })
+
+  test('test_the_memo_is_hidden_when_the_gross_line_is_private_to_the_partner', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const created = await client
+      .post('/api/v1/payslips')
+      .json(payslipBody(fixture, { memo: 'August invoice' }))
+      .actingAs(fixture.owner)
+    const [gross] = await linesOf(created.body().data.id)
+    await client
+      .patch(`/api/v1/transactions/${gross.id}`)
+      .json({ isPrivate: true })
+      .actingAs(fixture.owner)
+
+    const partner = await client
+      .get(`/api/v1/payslips?accountId=${fixture.wallet.id}`)
+      .actingAs(fixture.member)
+    const owner = await client
+      .get(`/api/v1/payslips?accountId=${fixture.wallet.id}`)
+      .actingAs(fixture.owner)
+
+    const [hidden] = partner.body().data
+    assert.isNull(hidden.memo)
+    assert.include(hidden.lines[0], { isMasked: true, memo: null, categoryId: null })
+    assert.equal(hidden.grossCents, 500_000)
+    assert.equal(owner.body().data[0].memo, 'August invoice')
+  })
+
+  test('test_a_payslip_with_a_partners_private_line_cannot_be_deleted_by_the_other', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const created = await client
+      .post('/api/v1/payslips')
+      .json(payslipBody(fixture))
+      .actingAs(fixture.owner)
+    const id = created.body().data.id
+    const [, tax] = await linesOf(id)
+    await client
+      .patch(`/api/v1/transactions/${tax.id}`)
+      .json({ isPrivate: true })
+      .actingAs(fixture.owner)
+
+    const byPartner = await client.delete(`/api/v1/payslips/${id}`).actingAs(fixture.member)
+
+    byPartner.assertStatus(403)
+    byPartner.assertBodyContains({ code: 'E_TRANSACTION_PRIVATE' })
+    assert.isNotNull(await Payslip.find(id))
+    assert.lengthOf(await linesOf(id), 3)
+    const byOwner = await client.delete(`/api/v1/payslips/${id}`).actingAs(fixture.owner)
+    byOwner.assertStatus(204)
+  })
+
+  test('test_a_linked_transfer_keeps_its_amount_and_source_account', async ({ client, assert }) => {
+    const fixture = await walletWithPayout()
+    const cash = await fixture.household.related('accounts').create({ name: 'Cash', kind: 'cash' })
+    await client.post('/api/v1/payslips').json(payslipBody(fixture)).actingAs(fixture.owner)
+    const url = `/api/v1/transfers/${fixture.payout.id}`
+
+    const amount = await client.patch(url).json({ amountCents: 360_000 }).actingAs(fixture.owner)
+    const source = await client.patch(url).json({ fromAccountId: cash.id }).actingAs(fixture.owner)
+    const labels = await client
+      .patch(url)
+      .json({
+        fromAccountId: fixture.wallet.id,
+        amountCents: 370_000,
+        toAccountId: cash.id,
+        date: '2026-09-01',
+        memo: 'INV-7',
+      })
+      .actingAs(fixture.owner)
+
+    amount.assertStatus(409)
+    amount.assertBodyContains({ code: 'E_PAYSLIP_LINE' })
+    source.assertStatus(409)
+    source.assertBodyContains({ code: 'E_PAYSLIP_LINE' })
+    labels.assertStatus(200)
+    await fixture.payout.refresh()
+    assert.include(fixture.payout.serialize(), {
+      amountCents: 370_000,
+      fromAccountId: fixture.wallet.id,
+      toAccountId: cash.id,
+      date: '2026-09-01',
+      memo: 'INV-7',
+    })
+  })
 })
 
 test.group('Payslips: ledger', () => {
@@ -577,5 +714,45 @@ test.group('Payslips: bank imports', (group) => {
       amountCents: -435_000,
       payslipId: null,
     })
+  })
+
+  test('test_confirm_never_turns_a_payslip_row_into_a_transfer_leg', async ({ client, assert }) => {
+    // Even when a bank row points at a payslip row as its other leg (a
+    // regression in staging), confirm writes a new wallet leg instead.
+    const home = await nabHousehold()
+    const taxes = await categoryBySlug(home.household.id, 'taxes')
+    const created = await client
+      .post('/api/v1/payslips')
+      .json({
+        accountId: home.hnry.id,
+        date: '2026-07-31',
+        grossCents: 1_000_000,
+        deductions: [{ categoryId: taxes.id, amountCents: 435_000 }],
+        toAccountId: home.savings.id,
+      })
+      .actingAs(home.owner)
+    const [, tax] = await linesOf(created.body().data.id)
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batch = upload.body().data[0]
+    const row = await ImportRow.query()
+      .where('import_batch_id', batch.id)
+      .where('amount_cents', 435_000)
+      .firstOrFail()
+    row.transferLegTransactionId = tax.id
+    await row.save()
+
+    const confirm = await client.post(`/api/v1/imports/${batch.id}/confirm`).actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    await tax.refresh()
+    assert.include(tax.serialize(), { kind: 'expense', transferId: null, amountCents: -435_000 })
+    await row.refresh()
+    const leg = await Transaction.findOrFail(row.transactionId!)
+    const walletLeg = await Transaction.query()
+      .where('transfer_id', leg.transferId!)
+      .whereNot('id', leg.id)
+      .firstOrFail()
+    assert.notEqual(walletLeg.id, tax.id)
+    assert.equal(walletLeg.accountId, home.hnry.id)
   })
 })

@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 import { PAYSLIP_MAX_DEDUCTIONS } from '@monkimoney/shared'
-import { amount, id, idParams, isoDate } from '#validators/rules'
+import { amount, id, idParams, isoDate, uuid } from '#validators/rules'
 
 const memo = () => vine.string().trim().maxLength(255).nullable()
 
@@ -10,6 +10,7 @@ const memo = () => vine.string().trim().maxLength(255).nullable()
  * is checked by the service, together with `gross - deductions = net`.
  */
 export const createPayslipValidator = vine.create({
+  clientId: uuid().optional(),
   accountId: id(),
   date: isoDate(),
   /** null = joint; omitted = the account's owner. */

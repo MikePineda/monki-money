@@ -8,7 +8,7 @@ import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
  * preloaded). Amounts are positive except the lines', which keep the
  * ledger's sign (the gross positive, deductions negative); the gross line
  * comes first. A line a partner made private keeps its amount but not its
- * category or memo (`isMasked`).
+ * category or memo (`isMasked`); the payslip's memo goes with the gross line.
  */
 export default class PayslipTransformer extends BaseTransformer<Payslip> {
   constructor(
@@ -24,6 +24,8 @@ export default class PayslipTransformer extends BaseTransformer<Payslip> {
       (a, b) => Number(b.kind === 'income') - Number(a.kind === 'income') || a.id - b.id
     )
     const transfer = payslip.transfer ?? null
+    const gross = lines.find((line) => line.kind === 'income')
+    const memoHidden = gross !== undefined && isHiddenFrom(gross, this.viewer)
 
     return {
       id: payslip.id,
@@ -33,7 +35,7 @@ export default class PayslipTransformer extends BaseTransformer<Payslip> {
       grossCents: payslip.grossCents,
       netCents: payslip.netCents,
       deductionsCents: payslip.grossCents - payslip.netCents,
-      memo: payslip.memo,
+      memo: memoHidden ? null : payslip.memo,
       transferId: payslip.transferId,
       transfer: transfer
         ? {
@@ -55,6 +57,7 @@ export default class PayslipTransformer extends BaseTransformer<Payslip> {
           isMasked: masked,
         }
       }),
+      clientId: payslip.clientId,
       createdByUserId: payslip.createdByUserId,
       createdAt: isoTimestamp(payslip.createdAt)!,
       updatedAt: isoTimestamp(payslip.updatedAt)!,

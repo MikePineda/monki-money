@@ -7,6 +7,8 @@ export interface PayslipDeductionInput {
 }
 
 export interface CreatePayslipInput {
+  /** Idempotency key: a repeat returns the payslip it recorded. */
+  clientId?: string
   /** Where the gross arrived (the umbrella service's wallet). */
   accountId: number
   date: string

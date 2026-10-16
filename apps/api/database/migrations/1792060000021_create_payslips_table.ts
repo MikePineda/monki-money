@@ -13,6 +13,8 @@ import { BaseSchema } from '@adonisjs/lucid/schema'
  *   One payslip per transfer (partial unique index); deleting the transfer
  *   unlinks it (SET NULL) and keeps the payslip.
  * - `user_id` NULL = joint (who earned it).
+ * - `client_id`: idempotency key of the PWA; unique per household, so a
+ *   retried create never records the payout (and its transfer) twice.
  * - Invariant `gross - sum(deductions) = net` is enforced by the service;
  *   the checks below only keep the amounts sane.
  *
@@ -50,6 +52,7 @@ export default class extends BaseSchema {
         .inTable('transfers')
         .onDelete('SET NULL')
       table.string('memo', 255).nullable()
+      table.uuid('client_id').nullable()
       table
         .integer('created_by_user_id')
         .unsigned()
@@ -70,6 +73,11 @@ export default class extends BaseSchema {
     )
     this.schema.raw(
       `CREATE INDEX payslips_household_date_index ON payslips (household_id, date DESC, id DESC)`
+    )
+    this.schema.raw(
+      `CREATE UNIQUE INDEX payslips_household_client_id_unique
+         ON payslips (household_id, client_id)
+         WHERE client_id IS NOT NULL`
     )
     this.schema.raw(
       `CREATE UNIQUE INDEX payslips_transfer_id_unique
