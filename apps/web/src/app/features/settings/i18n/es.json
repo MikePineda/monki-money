@@ -93,6 +93,10 @@
       "title": "Aún no hay cuentas.",
       "body": "Agrega las cuentas que usan tú y tu pareja."
     },
+    "error": {
+      "title": "No se cargaron las cuentas",
+      "body": "Revisa tu conexión e inténtalo de nuevo."
+    },
     "kinds": {
       "transaction": "Diaria",
       "savings": "Ahorro",

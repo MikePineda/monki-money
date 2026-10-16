@@ -34,9 +34,13 @@ describe('AccountsPage', () => {
     } as Account
   }
 
-  async function open(accounts: Account[], session = aSessionStub()) {
+  async function open(
+    accounts: Account[],
+    session = aSessionStub(),
+    list: Mock = vi.fn(async () => accounts)
+  ) {
     api = {
-      list: vi.fn(async () => accounts),
+      list,
       create: vi.fn(async (body: AccountInput) =>
         saved(anAccount({ id: 9, name: body.name }), body)
       ),
@@ -107,6 +111,29 @@ describe('AccountsPage', () => {
   }
 
   afterEach(() => TestBed.inject(BottomSheetService).closeAll())
+
+  it('test_a_list_that_did_not_load_offers_to_try_again_not_to_add_an_account', async () => {
+    const everyday = anAccount({ id: 1, name: 'Everyday' })
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue([everyday])
+
+    const { root, settle } = await open([everyday], aSessionStub(), list)
+
+    // Never "No accounts yet. Add account": the household may well have some.
+    expect(text(root, '[data-testid="accounts.error"] h2')).toBe('Accounts did not load')
+    expect(root.querySelector('[data-testid="accounts.add"]')).toBeNull()
+    expect(text(root, '[data-testid="accounts.page"]')).not.toContain('No accounts yet.')
+
+    root.querySelector<HTMLButtonElement>('[data-testid="accounts.retry"]')?.click()
+    await settle()
+
+    await vi.waitFor(() => expect(text(root, '[data-testid="accounts.1"]')).toContain('Everyday'))
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(root.querySelector('[data-testid="accounts.error"]')).toBeNull()
+    expect(root.querySelector('[data-testid="accounts.add"]')).not.toBeNull()
+  })
 
   it('test_a_partner_who_joined_since_the_app_opened_is_named_after_the_session_refresh', async () => {
     // Booted alone; the partner accepted the invitation since.

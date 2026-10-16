@@ -69,7 +69,9 @@ interface AccountRow {
  * owner (you, the partner or joint) and, on joint accounts, the cards each
  * person carries (so imports know who paid). A save shows the balance the
  * API answers with, so a new opening balance moves it at once. A wallet
- * account (an umbrella service's) links to its payslips.
+ * account (an umbrella service's) links to its payslips. A list that did
+ * not load says so with "Try again", never the empty state's invitation to
+ * add (which would duplicate accounts).
  */
 @Component({
   selector: 'app-accounts-page',
@@ -101,6 +103,25 @@ interface AccountRow {
       @if (loading()) {
         <app-skeleton height="56px" />
         <app-skeleton height="56px" />
+      } @else if (failed()) {
+        <!-- Not the empty state: an "Add account" here would invite duplicates. -->
+        <app-empty-state
+          data-testid="accounts.error"
+          icon="wifi-off"
+          [title]="'settings.accounts.error.title' | transloco"
+          [body]="'settings.accounts.error.body' | transloco"
+        >
+          <button
+            appButton
+            type="button"
+            variant="secondary"
+            icon="refresh-cw"
+            data-testid="accounts.retry"
+            (click)="load()"
+          >
+            {{ 'errors.retry' | transloco }}
+          </button>
+        </app-empty-state>
       } @else {
         @for (row of activeRows(); track row.account.id) {
           <app-card
@@ -223,6 +244,8 @@ export default class AccountsPage implements OnInit {
 
   protected readonly accounts = signal<Account[]>([])
   protected readonly loading = signal(true)
+  /** The list did not load. */
+  protected readonly failed = signal(false)
   protected readonly busy = signal(false)
 
   private readonly youId = computed(() => this.session.user()?.id ?? 0)
@@ -265,10 +288,17 @@ export default class AccountsPage implements OnInit {
   async ngOnInit(): Promise<void> {
     // The names come from the session: pick up a partner who joined since the app opened.
     void this.session.refresh()
+    await this.load()
+  }
+
+  /** Reads the list; a failure shows the error state with "Try again" (never the empty one). */
+  protected async load(): Promise<void> {
+    this.loading.set(true)
+    this.failed.set(false)
     try {
       this.accounts.set(await this.accountsApi.list())
-    } catch (error) {
-      this.showFailure(error)
+    } catch {
+      this.failed.set(true)
     } finally {
       this.loading.set(false)
     }
