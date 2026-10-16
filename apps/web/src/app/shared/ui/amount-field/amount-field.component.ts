@@ -1,19 +1,20 @@
 import { Component, computed, inject, input, output } from '@angular/core'
 import { formatMoney } from '../../../domain/money'
-import { IconComponent } from '../../../shared/icons/icon.component'
-import { AmountKeypadComponent } from '../../../shared/ui/amount-keypad/amount-keypad.component'
-import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
+import { IconComponent } from '../../icons/icon.component'
+import { AmountKeypadComponent } from '../amount-keypad/amount-keypad.component'
+import { APP_LOCALE } from '../app-locale.token'
 
 let nextId = 0
 
 /**
- * A money field for the goal form: a label, the amount in a field-shaped
- * button (tabular figures) and, when open, the amount keypad under it.
+ * A money field for forms (goals, payslips): a label, the amount in a
+ * field-shaped button (tabular figures) and, when open, the amount keypad
+ * under it.
  * Money is never typed as text (DESIGN.md, Text field). The error replaces
  * the hint, with an icon, like a text field's.
  */
 @Component({
-  selector: 'app-goal-amount-field',
+  selector: 'app-amount-field',
   imports: [AmountKeypadComponent, IconComponent],
   template: `
     <span [id]="labelId" class="text-label text-ink-2">{{ label() }}</span>
@@ -53,7 +54,7 @@ let nextId = 0
   `,
   host: { class: 'flex flex-col gap-2' },
 })
-export class GoalAmountFieldComponent {
+export class AmountFieldComponent {
   private readonly locale = inject(APP_LOCALE)
 
   readonly label = input.required<string>()
@@ -66,9 +67,9 @@ export class GoalAmountFieldComponent {
   readonly changed = output<number>()
 
   private readonly id = nextId++
-  protected readonly labelId = `goal-amount-${this.id}-label`
-  protected readonly valueId = `goal-amount-${this.id}-value`
-  protected readonly messageId = `goal-amount-${this.id}-message`
+  protected readonly labelId = `amount-field-${this.id}-label`
+  protected readonly valueId = `amount-field-${this.id}-value`
+  protected readonly messageId = `amount-field-${this.id}-message`
 
   protected readonly text = computed(() => formatMoney(this.cents(), this.locale()))
 }
