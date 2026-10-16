@@ -98,9 +98,19 @@ test.group('Reports', () => {
     const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
 
     response.assertStatus(200)
-    const { topMovers, committed, previous, topExpenses, insight, ...summary } =
-      response.body().data
+    const {
+      topMovers,
+      committed,
+      previous,
+      previousToDate,
+      previousMonthsToDate,
+      topExpenses,
+      insight,
+      ...summary
+    } = response.body().data
     assert.exists(previous)
+    assert.isDefined(previousToDate)
+    assert.isDefined(previousMonthsToDate)
     assert.isArray(topExpenses)
     assert.exists(insight)
     // No recurring payments yet: nothing committed.
@@ -206,6 +216,95 @@ test.group('Reports', () => {
       incomeCents: 0,
       expenseCents: 6_000,
       netCents: -6_000,
+    })
+  })
+
+  test('test_running_month_carries_the_previous_month_up_to_the_same_day', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    // 16 October at noon in Brisbane.
+    cleanup(freezeClock('2026-10-16T02:00:00Z'))
+    const { owner, member, household, accounts, categories } = await seededLedger()
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      createdByUserId: owner.id,
+      date: '2026-09-10',
+      amountCents: -2_500,
+      categoryId: categories.groceries.id,
+      paidByUserId: owner.id,
+    }).create()
+
+    const october = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
+
+    october.assertStatus(200)
+    const data = october.body().data
+    // The whole of September stays in `previous`; up to the 16th it is the 25.00 only.
+    assert.equal(data.previous.expenseCents, 12_499)
+    assert.deepEqual(data.previousToDate, {
+      throughDay: 16,
+      incomeCents: 0,
+      expenseCents: 2_500,
+      netCents: -2_500,
+    })
+    assert.deepEqual(
+      data.previousMonthsToDate.map((entry: any) => [
+        entry.month,
+        entry.throughDay,
+        entry.expenseCents,
+      ]),
+      [
+        ['2026-07', 16, 0],
+        ['2026-08', 16, 0],
+        ['2026-09', 16, 2_500],
+      ]
+    )
+    assert.deepEqual(
+      data.previousMonthsToDate[2].byGroup.map((line: any) => [line.groupId, line.amountCents]),
+      [[categories.groceries.categoryGroupId, 2_500]]
+    )
+
+    // The payer filter applies to the comparison too: the member paid nothing in September.
+    const memberOnly = await client
+      .get(`/api/v1/reports/month?month=2026-10&paidByUserId=${member.id}`)
+      .actingAs(owner)
+    assert.include(memberOnly.body().data.previousToDate, { throughDay: 16, expenseCents: 0 })
+  })
+
+  test('test_closed_months_carry_no_month_to_date_comparison', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    cleanup(freezeClock('2026-10-16T02:00:00Z'))
+    const { owner } = await seededLedger()
+
+    const september = await client.get('/api/v1/reports/month?month=2026-09').actingAs(owner)
+
+    september.assertStatus(200)
+    assert.isNull(september.body().data.previousToDate)
+    assert.isNull(september.body().data.previousMonthsToDate)
+  })
+
+  test('test_month_to_date_counts_days_in_the_household_time_zone', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    // Still 30 September in UTC, already 1 October in Brisbane.
+    cleanup(freezeClock('2026-09-30T20:00:00Z'))
+    const { owner } = await seededLedger()
+
+    const response = await client.get('/api/v1/reports/month').actingAs(owner)
+
+    // Up to 1 September: the 99.99 of the 30th is not "the same point".
+    assert.deepEqual(response.body().data.previousToDate, {
+      throughDay: 1,
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
     })
   })
 
