@@ -93,7 +93,7 @@ export function importsApiMock(rows: ImportRow[] = []): ImportsApiMock {
 
 export interface ImportTestingOptions {
   api: ImportsApiMock
-  months?: { invalidate: Mock; select: Mock }
+  months?: { invalidate: Mock; select: Mock; current?: () => string }
   accounts?: Partial<Record<'list' | 'create' | 'update', Mock>>
 }
 
@@ -107,7 +107,10 @@ export function importTestingProviders(options: ImportTestingOptions): Provider[
     { provide: ImportsApi, useValue: options.api },
     {
       provide: MonthStore,
-      useValue: options.months ?? { invalidate: vi.fn(), select: vi.fn() },
+      useValue: {
+        current: () => '2026-10',
+        ...(options.months ?? { invalidate: vi.fn(), select: vi.fn() }),
+      },
     },
     {
       provide: AccountsApi,

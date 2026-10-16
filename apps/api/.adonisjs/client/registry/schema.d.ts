@@ -1075,6 +1075,78 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rules_controller').default['apply']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'recurring.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/recurring'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['index']>>>
+    }
+  }
+  'recurring.merchants': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/recurring/merchants'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['merchants']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['merchants']>>>
+    }
+  }
+  'recurring.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/recurring'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/recurring').createRecurringValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/recurring').createRecurringValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'recurring.detect': {
+    methods: ["POST"]
+    pattern: '/api/v1/recurring/detect'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['detect']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['detect']>>>
+    }
+  }
+  'recurring.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/recurring/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/recurring').updateRecurringValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/recurring').updateRecurringValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'recurring.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/recurring/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/recurring').recurringParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/recurring').recurringParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/recurring_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'uploads.presign': {
     methods: ["POST"]
     pattern: '/api/v1/uploads/presign'

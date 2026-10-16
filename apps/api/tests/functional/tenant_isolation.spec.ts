@@ -7,6 +7,7 @@ import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
 import Payslip from '#models/payslip'
 import SavingsGoal from '#models/savings_goal'
+import RecurringItem from '#models/recurring_item'
 import MonthlyInsight from '#models/monthly_insight'
 import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
@@ -44,6 +45,7 @@ interface Victim {
   batch: ImportBatch
   row: ImportRow
   rule: MerchantRule
+  recurringItem: RecurringItem
   /** One of the bank defaults seeded with the taxonomy (`origin = 'system'`). */
   systemRule: MerchantRule
   /** An uploaded receipt photo, still in (fake) storage. */
@@ -254,6 +256,17 @@ const cases: IsolationCase[] = [
   { route: 'rules.destroy', method: 'delete', url: (v) => `/api/v1/rules/${v.rule.id}` },
   { route: 'rules.apply', method: 'post', url: (v) => `/api/v1/rules/${v.rule.id}/apply` },
   {
+    route: 'recurring.update',
+    method: 'patch',
+    url: (v) => `/api/v1/recurring/${v.recurringItem.id}`,
+    body: { payee: 'Hijacked', status: 'dismissed', amountCents: 1 },
+  },
+  {
+    route: 'recurring.destroy',
+    method: 'delete',
+    url: (v) => `/api/v1/recurring/${v.recurringItem.id}`,
+  },
+  {
     route: 'receipts.scan',
     method: 'post',
     url: () => '/api/v1/receipts/scan',
@@ -390,6 +403,16 @@ async function victimHousehold(): Promise<Victim> {
     categoryId: category.id,
     origin: 'user',
   })
+  const recurringItem = await RecurringItem.create({
+    householdId: household.household.id,
+    merchantKey: 'victim lettings',
+    payee: 'Victim lettings',
+    cadence: 'weekly',
+    amountCents: 50_000,
+    nextExpectedDate: '2026-10-20',
+    categoryId: category.id,
+    accountId: account.id,
+  })
   const systemRule = await MerchantRule.query()
     .where('household_id', household.household.id)
     .where('origin', 'system')
@@ -410,6 +433,7 @@ async function victimHousehold(): Promise<Victim> {
     batch,
     row,
     rule,
+    recurringItem,
     systemRule,
     receiptKey: receiptKey(household.household.id, randomUUID(), 'image/jpeg'),
   }
@@ -481,6 +505,12 @@ test.group('Tenant isolation', () => {
       assert.isNull(victim.row.decision)
       await victim.rule.refresh()
       assert.equal(victim.rule.pattern, 'VICTIM')
+      await victim.recurringItem.refresh()
+      assert.include(victim.recurringItem.serialize(), {
+        payee: 'Victim lettings',
+        status: 'active',
+        amountCents: 50_000,
+      })
       const { pattern, origin } = victim.systemRule
       await victim.systemRule.refresh()
       assert.include(victim.systemRule.serialize(), { pattern, origin })
@@ -561,6 +591,13 @@ test.group('Tenant isolation', () => {
     const goals = await client.get('/api/v1/goals').actingAs(attacker.owner)
     assert.deepEqual(goals.body().data, [])
 
+    const recurring = await client.get('/api/v1/recurring').actingAs(attacker.owner)
+    assert.deepEqual(recurring.body().data, [])
+    assert.deepInclude(month.body().data.committed, { recurringCount: 0, items: [] })
+    const detected = await client.post('/api/v1/recurring/detect').actingAs(attacker.owner)
+    assert.deepEqual(detected.body().data, { created: 0, updated: 0 })
+    await victim.recurringItem.refresh()
+    assert.equal(victim.recurringItem.status, 'active')
     const payslips = await client.get('/api/v1/payslips').actingAs(attacker.owner)
     assert.deepEqual(payslips.body().data, [])
     const victimPayslips = await client

@@ -134,5 +134,14 @@ export default {
         origin: shared('RuleOrigin'),
       },
     },
+    recurring_items: {
+      columns: {
+        cadence: shared('RecurringCadence'),
+        status: shared('RecurringStatus'),
+        source: shared('RecurringSource'),
+        // jsonb: stringified on write (see database/json_column.ts).
+        edited_fields: json('string[]'),
+      },
+    },
   },
 } satisfies SchemaRules

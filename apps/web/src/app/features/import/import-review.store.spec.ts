@@ -42,7 +42,7 @@ describe('ImportReviewStore', () => {
     'show' | 'batch' | 'decide' | 'decideMany' | 'classify' | 'confirm' | 'cancel',
     ReturnType<typeof vi.fn>
   >
-  let months: { invalidate: ReturnType<typeof vi.fn> }
+  let months: { invalidate: ReturnType<typeof vi.fn>; current: () => string }
 
   async function setup(initial: ImportRow[] = rows(), batch = anImportBatch()) {
     api = {
@@ -71,7 +71,7 @@ describe('ImportReviewStore', () => {
       })),
       cancel: vi.fn(async () => anImportBatch({ status: 'cancelled' })),
     }
-    months = { invalidate: vi.fn() }
+    months = { invalidate: vi.fn(), current: () => '2026-10' }
     TestBed.configureTestingModule({
       providers: [
         ImportReviewStore,
@@ -107,7 +107,7 @@ describe('ImportReviewStore', () => {
           provide: ImportsApi,
           useValue: { show: vi.fn(async () => Promise.reject(new TypeError('x'))) },
         },
-        { provide: MonthStore, useValue: { invalidate: vi.fn() } },
+        { provide: MonthStore, useValue: { invalidate: vi.fn(), current: () => '2026-10' } },
         { provide: HouseholdDirectory, useValue: { load: vi.fn(async () => undefined) } },
         { provide: SessionStore, useValue: { onClear: () => undefined } },
       ],
@@ -453,7 +453,28 @@ describe('ImportReviewStore', () => {
     expect(result?.created).toBe(3)
     expect(TestBed.inject(ImportResults).get(7)?.result.created).toBe(3)
     expect(TestBed.inject(ImportResults).get(7)?.batch.dateTo).toBe('2026-09-27')
-    expect(months.invalidate.mock.calls.map((call) => call[0])).toEqual(['2026-08', '2026-09'])
+    // The file's months, then the current one (recurring payments were detected again).
+    expect(months.invalidate.mock.calls.map((call) => call[0])).toEqual([
+      '2026-08',
+      '2026-09',
+      '2026-10',
+    ])
+  })
+
+  it('test_confirming_an_old_file_still_refreshes_the_current_month', async () => {
+    const store = await setup()
+    months.current = () => '2027-04'
+    await store.decide(3, { categoryId: 22 })
+
+    await store.confirm()
+
+    // August and September 2026 are far outside April's trend window; April
+    // still reloads, since detection may have found a new recurring payment.
+    expect(months.invalidate.mock.calls.map((call) => call[0])).toEqual([
+      '2026-08',
+      '2026-09',
+      '2027-04',
+    ])
   })
 
   it('test_confirm_waits_while_rows_need_a_decision', async () => {

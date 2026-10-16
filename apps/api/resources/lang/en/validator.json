@@ -77,6 +77,9 @@
       "byteSize": "file size",
       "key": "photo",
       "source": "origin",
+      "cadence": "frequency",
+      "nextExpectedDate": "next due date",
+      "amountTolerancePct": "amount tolerance",
       "grossCents": "gross amount",
       "deductions": "deductions",
       "transferId": "transfer"
@@ -135,6 +138,8 @@
       "matchTransactionId.sameAccount": "Choose a transaction of the imported account",
       "categoryId.required": "Choose a category or a transfer account",
       "pattern.taken": "Another rule already uses this pattern",
+      "payee.merchantKey": "Use the merchant's name (letters, not only numbers)",
+      "payee.taken": "This merchant already has a recurring payment",
       "pattern.regex": "This is not a valid regular expression",
       "pattern.unsafeRegex": "This expression could take too long to run. Avoid nested repetitions like (a+)+",
       "matchType.locked": "Bank default rules keep their rule type. Add a new rule if you need another one",
