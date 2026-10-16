@@ -11,6 +11,8 @@ import db from '@adonisjs/lucid/services/db'
 import TransactionSplit from '#models/transaction_split'
 import { findInHousehold } from '#repositories/scoped'
 import { FieldError } from '#exceptions/field_error'
+import logger from '@adonisjs/core/services/logger'
+import RecurringDetector from '#services/recurring/recurring_detector'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import RuleLearner from '#services/rules/rule_learner'
@@ -66,13 +68,17 @@ interface Tally {
  * Then rules are learned, the opening balance is derived on the account's
  * first import, the batch closes and the ledger is reconciled with the
  * bank's balance. Any failure rolls everything back.
+ *
+ * Once committed, recurring payments are detected again over the new
+ * ledger (best effort: a failure there is logged, never the confirm's).
  */
 @inject()
 export default class ImportConfirmer {
   constructor(
     protected decisions: ImportDecisions,
     protected learner: RuleLearner,
-    protected bookkeeping: ImportBookkeeping
+    protected bookkeeping: ImportBookkeeping,
+    protected recurring: RecurringDetector
   ) {}
 
   async confirm(
@@ -84,6 +90,30 @@ export default class ImportConfirmer {
   ): Promise<ConfirmResult> {
     await findInHousehold(ImportBatch, household, batchId)
 
+    const result = await this.confirmInTransaction(household, actor, batchId, input, mode)
+    await this.detectRecurring(household)
+    return result
+  }
+
+  /** Recurring payments over the ledger the confirm just wrote; never fails the confirm. */
+  protected async detectRecurring(household: Household) {
+    try {
+      await this.recurring.detect(household)
+    } catch (error) {
+      logger.warn(
+        { err: error, householdId: household.id },
+        'import confirm: recurring payment detection failed'
+      )
+    }
+  }
+
+  protected async confirmInTransaction(
+    household: Household,
+    actor: User,
+    batchId: number,
+    input: ConfirmInput,
+    mode: ConfirmMode
+  ): Promise<ConfirmResult> {
     return db.transaction(async (trx) => {
       const batch = await this.lockBatch(household, batchId, trx)
       if (!batch.isStaged) throw new ImportBatchClosed()

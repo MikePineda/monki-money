@@ -76,7 +76,10 @@
       "contentType": "tipo de archivo",
       "byteSize": "tamaño del archivo",
       "key": "foto",
-      "source": "origen"
+      "source": "origen",
+      "cadence": "frecuencia",
+      "nextExpectedDate": "próxima fecha de pago",
+      "amountTolerancePct": "tolerancia del monto"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -125,6 +128,8 @@
       "matchTransactionId.sameAccount": "Elige un movimiento de la cuenta importada",
       "categoryId.required": "Elige una categoría o una cuenta de transferencia",
       "pattern.taken": "Otra regla ya usa este patrón",
+      "payee.merchantKey": "Usa el nombre del comercio (con letras, no solo números)",
+      "payee.taken": "Este comercio ya tiene un pago recurrente",
       "pattern.regex": "Esta no es una expresión regular válida",
       "pattern.unsafeRegex": "Esta expresión podría tardar demasiado. Evita repeticiones anidadas como (a+)+",
       "resolution.zeroAmount": "Un movimiento de 0.00 solo se puede ignorar",

@@ -76,7 +76,10 @@
       "contentType": "file type",
       "byteSize": "file size",
       "key": "photo",
-      "source": "origin"
+      "source": "origin",
+      "cadence": "frequency",
+      "nextExpectedDate": "next due date",
+      "amountTolerancePct": "amount tolerance"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -125,6 +128,8 @@
       "matchTransactionId.sameAccount": "Choose a transaction of the imported account",
       "categoryId.required": "Choose a category or a transfer account",
       "pattern.taken": "Another rule already uses this pattern",
+      "payee.merchantKey": "Use the merchant's name (letters, not only numbers)",
+      "payee.taken": "This merchant already has a recurring payment",
       "pattern.regex": "This is not a valid regular expression",
       "pattern.unsafeRegex": "This expression could take too long to run. Avoid nested repetitions like (a+)+",
       "resolution.zeroAmount": "A movement of 0.00 can only be ignored",

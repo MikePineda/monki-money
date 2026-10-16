@@ -130,6 +130,13 @@ export interface ApiDefinition {
     destroy: typeof routes['rules.destroy']
     apply: typeof routes['rules.apply']
   }
+  recurring: {
+    index: typeof routes['recurring.index']
+    store: typeof routes['recurring.store']
+    detect: typeof routes['recurring.detect']
+    update: typeof routes['recurring.update']
+    destroy: typeof routes['recurring.destroy']
+  }
   uploads: {
     presign: typeof routes['uploads.presign']
   }

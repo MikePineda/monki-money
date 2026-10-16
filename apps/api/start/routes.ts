@@ -319,6 +319,24 @@ router
               .as('rules')
 
             /*
+             * Recurring payments (rent, phone, gym, subscriptions): detected
+             * from the ledger or typed by hand.
+             */
+            router
+              .group(() => {
+                router.get('/', [controllers.Recurring, 'index']).as('index')
+                router.post('/', [controllers.Recurring, 'store']).as('store')
+                router.post('detect', [controllers.Recurring, 'detect']).as('detect')
+                router.patch(':id', [controllers.Recurring, 'update']).where('id', id).as('update')
+                router
+                  .delete(':id', [controllers.Recurring, 'destroy'])
+                  .where('id', id)
+                  .as('destroy')
+              })
+              .prefix('recurring')
+              .as('recurring')
+
+            /*
              * Direct uploads: the browser PUTs the file to the bucket with a
              * presigned URL; the API never receives the bytes.
              */
