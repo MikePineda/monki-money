@@ -119,6 +119,19 @@ the difference to the total, `domain/receipt-draft.ts`). Saving posts
 Nothing of the photo stays on the device: the preview is a `blob:` URL
 revoked once the draft is back, on cancel and when the screen goes away.
 
+**Recurring payments.** `recurring_items` (one per household and merchant
+key) are found by a pure detector (`app/domain/recurring`) over whole expense
+transactions (`MerchantPaymentsRepository`, not report postings: a payment is
+what left the account once, split or not), keyed with the importer's
+`merchantKey`. `RecurringDetector` upserts what it finds under a per-household
+advisory lock (`pg_advisory_xact_lock`), never recreating a dismissed item nor
+overwriting `edited_fields`; it runs on demand and after every confirmed
+import. `reports.month` adds `committed` (paid / still due this month,
+`app/domain/recurring/committed.ts`) so the Month view's card needs no extra
+call; "Free after bills" is computed on the client. The web screen
+`/recurring` is lazy and reached from More; any change there invalidates the
+current month.
+
 ## Offline outbox (web)
 
 Quick add never loses an entry. Every create carries a `clientId` (uuid)
@@ -157,6 +170,7 @@ the outbox, not the SW, is what makes writes survive offline.
 | `/api/v1/transactions*`, `/api/v1/transfers*`, `/api/v1/reports/*`                           | The ledger and its reports (see `docs/CONTRACTS.md`).                                                                       |
 | `/api/v1/imports*`, `/api/v1/rules*`                                                         | Bank imports and merchant rules (see `docs/CONTRACTS.md`).                                                                  |
 | `/api/v1/goals*`, `/api/v1/insights/*`                                                       | Savings goals with their projection and the LLM-written monthly insights (see `docs/CONTRACTS.md`).                         |
+| `/api/v1/recurring*`                                                                         | Recurring payments, detected from the ledger or typed by hand (see `docs/CONTRACTS.md`).                                    |
 | `POST /api/v1/uploads/presign`, `POST /api/v1/receipts/scan`                                 | Direct uploads to the bucket and receipt scanning (see `docs/CONTRACTS.md`).                                                |
 | static `public/`                                                                             | Angular build with the PWA cache policy.                                                                                    |
 | `GET *` (last route)                                                                         | SPA fallback to `index.html`; unknown `/api/*` stays a JSON 404.                                                            |
