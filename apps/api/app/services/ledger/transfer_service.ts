@@ -47,27 +47,7 @@ export default class TransferService {
 
     try {
       const transferId = await db.transaction(async (trx) => {
-        const transfer = await Transfer.create(
-          {
-            householdId: household.id,
-            date: input.date,
-            amountCents: input.amountCents,
-            fromAccountId: from.id,
-            toAccountId: to.id,
-            memo: input.memo ?? null,
-            clientId: input.clientId ?? null,
-            createdByUserId: actor.id,
-            updatedByUserId: actor.id,
-          },
-          { client: trx }
-        )
-        await Transaction.createMany(
-          [
-            this.leg(transfer, from, -transfer.amountCents, actor),
-            this.leg(transfer, to, transfer.amountCents, actor),
-          ],
-          { client: trx }
-        )
+        const transfer = await this.insert(household, actor, { ...input, from, to }, trx)
         return transfer.id
       })
       return { transfer: await this.find(household, transferId), created: true }
@@ -78,6 +58,44 @@ export default class TransferService {
       }
       throw error
     }
+  }
+
+  /**
+   * Writes the transfer row and both legs inside the caller's DB
+   * transaction (a payslip creates its payout this way). `from` and `to`
+   * must come from {@link accounts}: checked, of the household, different.
+   */
+  async insert(
+    household: Household,
+    actor: User,
+    input: Omit<CreateTransferInput, 'fromAccountId' | 'toAccountId'> & {
+      from: Account
+      to: Account
+    },
+    trx: TransactionClientContract
+  ) {
+    const transfer = await Transfer.create(
+      {
+        householdId: household.id,
+        date: input.date,
+        amountCents: input.amountCents,
+        fromAccountId: input.from.id,
+        toAccountId: input.to.id,
+        memo: input.memo ?? null,
+        clientId: input.clientId ?? null,
+        createdByUserId: actor.id,
+        updatedByUserId: actor.id,
+      },
+      { client: trx }
+    )
+    await Transaction.createMany(
+      [
+        this.leg(transfer, input.from, -transfer.amountCents, actor),
+        this.leg(transfer, input.to, transfer.amountCents, actor),
+      ],
+      { client: trx }
+    )
+    return transfer
   }
 
   /**
@@ -135,7 +153,7 @@ export default class TransferService {
   }
 
   /** Both accounts of the household (422 each) and different (422 on `toAccountId`). */
-  protected async accounts(household: HouseholdRef, fromAccountId: number, toAccountId: number) {
+  async accounts(household: HouseholdRef, fromAccountId: number, toAccountId: number) {
     if (fromAccountId === toAccountId) throw new FieldError('toAccountId', 'sameAccount')
     return {
       from: await this.references.account(household, fromAccountId, 'fromAccountId'),

@@ -76,7 +76,10 @@
       "contentType": "tipo de archivo",
       "byteSize": "tamaño del archivo",
       "key": "foto",
-      "source": "origen"
+      "source": "origen",
+      "grossCents": "monto bruto",
+      "deductions": "deducciones",
+      "transferId": "transferencia"
     },
     "messages": {
       "required": "Escribe el campo {field}",
@@ -118,6 +121,12 @@
       "categoryId.split": "Un movimiento dividido toma sus categorías de sus líneas",
       "amountCents.splitSum": "Cambia las líneas de la división junto con el monto",
       "toAccountId.sameAccount": "Elige dos cuentas distintas",
+      "deductions.exceedsGross": "Las deducciones deben ser menores que el monto bruto",
+      "deductions.netMismatch": "El bruto menos las deducciones debe ser igual a lo que llegó al banco",
+      "transferId.required": "Elige la transferencia que llevó el dinero al banco, o una cuenta de destino",
+      "transferId.linked": "Esta transferencia ya pertenece a otro recibo de pago",
+      "transferId.wrongAccount": "Elige una transferencia que salga de esta cuenta",
+      "toAccountId.exclusive": "Elige una transferencia existente o una cuenta de destino, no ambas",
       "month.future": "Este mes todavía no empieza",
       "month.noActivity": "Todavía no hay ingresos ni gastos en este mes",
       "file.required": "Elige el archivo CSV que exportaste de tu banco",

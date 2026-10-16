@@ -19,7 +19,8 @@ import RuleLearner from '#services/rules/rule_learner'
 import LedgerReferences from '#services/ledger/ledger_references'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import TransactionListing from '#services/ledger/transaction_listing'
-import { PrivateTransaction, TransferLegReadOnly } from '#exceptions/errors'
+import { touchesPayslipTotals } from '#domain/payslips/line_edits'
+import { PayslipLineReadOnly, PrivateTransaction, TransferLegReadOnly } from '#exceptions/errors'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
 import type {
@@ -45,8 +46,9 @@ function definedOnly<T extends object>(input: T): Partial<T> {
  * Expenses and income of the household (transfers have TransferService).
  * Every write runs in one DB transaction; ids in the path are
  * household-scoped (404), ids in the body are checked (422). Transfer legs
- * are read-only here (409) and a partner's private transaction can only be
- * read, masked (403 on writes).
+ * are read-only here (409), a payslip's rows keep their amount, kind,
+ * account, date and existence (409: the payslip owns them) and a partner's
+ * private transaction can only be read, masked (403 on writes).
  */
 @inject()
 export default class TransactionService {
@@ -179,6 +181,9 @@ export default class TransactionService {
   ) {
     await db.transaction(async (trx) => {
       const transaction = await this.lockForWrite(household, actor, transactionId, trx)
+      if (transaction.payslipId !== null && touchesPayslipTotals(transaction, input)) {
+        throw new PayslipLineReadOnly()
+      }
 
       const account =
         input.accountId !== undefined && input.accountId !== transaction.accountId
@@ -241,6 +246,7 @@ export default class TransactionService {
   async destroy(household: Household, actor: User, transactionId: number) {
     await db.transaction(async (trx) => {
       const transaction = await this.lockForWrite(household, actor, transactionId, trx)
+      if (transaction.payslipId !== null) throw new PayslipLineReadOnly()
       await trx
         .from('import_rows')
         .where('household_id', transaction.householdId)

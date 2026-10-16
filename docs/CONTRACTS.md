@@ -39,6 +39,7 @@ The SPA fallback route (`spa.fallback`) is excluded from the registry
   `config/plans.ts`), 409
   `E_ACCOUNT_IN_USE` / `E_CATEGORY_IN_USE` / `E_GROUP_NOT_EMPTY` /
   `E_ALREADY_IN_HOUSEHOLD` / `E_TRANSFER_LEG` (edit the transfer, not its leg) /
+  `E_PAYSLIP_LINE` (a payslip row's amount, kind, account, date or existence) /
   `E_CONFLICT` (a unique-constraint race; a foreign-key race answers
   `E_CATEGORY_IN_USE` / `E_ACCOUNT_IN_USE` when the delete lost it) /
   `E_CONCURRENT_UPDATE` (a deadlock or serialization failure: nothing was
@@ -103,7 +104,7 @@ there is one); _authenticated_ (`auth`, session version, 300 req/min per user:
 `households.store`); _household_
 (authenticated, verified email and household context: everything under
 `/household`, `/accounts`, `/category-groups`, `/categories`, `/transactions`,
-`/transfers`, `/reports`, `/goals`, `/insights`).
+`/transfers`, `/payslips`, `/reports`, `/goals`, `/insights`).
 `household.restore` is the only household route allowed while the household
 is pending deletion.
 
@@ -208,6 +209,38 @@ isMasked, tags[], createdByUserId, updatedByUserId, createdAt, updatedAt }`.
 | `reports.trend`               | `GET /reports/trend`                 | `?months=6` (1–24), `?month=` (last month), `?groupBy=group\|category` → `{ months[], groupBy, totals[{ month, incomeCents, expenseCents, netCents }], series[{ bucket, id, kind, totalCents, points[{ month, amountCents }] }] }`                                                                                                                                                                                                                                                                                                                                                                |
 | `reports.category`            | `GET /reports/category/:id`          | `?months=6&month=` → `{ months[], categoryId, kind, totalCents, averageCents, points[] }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `reports.balances`            | `GET /reports/balances`              | `{ accounts[{ accountId, currencyCode, isActive, clearedBalanceCents, availableBalanceCents }], totals: { [currencyCode]: { clearedBalanceCents, availableBalanceCents } } }` (never adds up different currencies)                                                                                                                                                                                                                                                                                                                                                                                |
+
+### Payslips
+
+A payout from an umbrella service (an account of kind `wallet`, any name):
+the client pays the gross into the wallet, the service keeps the tax and its
+fee, and transfers the net to the bank. A payslip records it as one income
+row (the gross, category `salary`, payer = `userId`) and one expense row per
+deduction in that account, every row carrying `payslipId`, and links the
+wallet -> bank transfer of the net (one payslip per transfer). The rows are
+ordinary ledger rows, so `reports.month` counts the gross as income and the
+deductions as expenses with no special case. Invariant: `grossCents -
+sum(deductions) = netCents = transfer amount`. Their amount, kind, account,
+date and existence belong to the payslip: `PATCH`/`DELETE /transactions/:id`
+answer 409 `E_PAYSLIP_LINE` when they would change them (category, payee,
+notes, tags and privacy stay editable). There is no update: delete the
+payslip and record it again. Deleting the linked transfer keeps the payslip
+with `transferId: null`.
+
+`Payslip` = `{ id, accountId, userId (null = joint), date, grossCents,
+netCents, deductionsCents, memo, transferId, transfer: { id, date,
+amountCents, fromAccountId, toAccountId } | null, lines[{ transactionId, kind
+(income|expense), categoryId, amountCents (signed: the gross positive first,
+then the deductions negative), memo, isMasked }], createdByUserId, createdAt,
+updatedAt }`. A line the partner made private keeps its amount but not its
+category or memo (`isMasked: true`).
+
+| Name                  | Method and path                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `payslips.index`      | `GET /payslips`                       | `?accountId=` (optional) → `Payslip[]`, newest first (`date`, then `id`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `payslips.store`      | `POST /payslips`                      | `{ accountId, date, userId? (null = joint; omitted = the account's owner), grossCents > 0, deductions[{ categoryId, amountCents > 0, memo? }] (0 to 3 lines), transferId? \| toAccountId?, memo? }` → 201 `Payslip`. One DB transaction: `transferId` links a transfer that left `accountId` (locked), `toAccountId` creates the `accountId` → `toAccountId` transfer of the net (`memo` as its memo). 422: `deductions`/`exceedsGross` (net <= 0), `deductions`/`netMismatch` (net differs from the transfer; with `netCents`, `transferCents`, `differenceCents`), `transferId`/`required` (neither), `toAccountId`/`exclusive` (both), `toAccountId`/`sameAccount`, `transferId`/`wrongAccount` (it does not leave the account), `transferId`/`linked` (another payslip has it, also under a race), foreign ids `<field>`/`database.exists` (`accountId`, `transferId`, `toAccountId`, `userId`, `deductions`) |
+| `payslips.candidates` | `GET /payslips/candidates?accountId=` | `[{ transferId, date, amountCents, toAccountId, memo }]`: transfers leaving the account that no payslip links yet, newest first (at most 50); `accountId` required (422)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `payslips.destroy`    | `DELETE /payslips/:id`                | 204: the gross and deduction rows go, the transfer stays and is a candidate again                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ### Goals and insights
 
