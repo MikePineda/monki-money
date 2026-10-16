@@ -12,14 +12,20 @@ export function readPreference(view: Window, key: string): string | null {
   }
 }
 
-export function writePreference(view: Window, key: string, value: string | null): void {
+/**
+ * Writes (or, with null, removes) a value; false when the storage refused
+ * it (full quota, private mode, blocked site data). Callers that only keep
+ * a preference may ignore the answer: it then lasts for this session only.
+ */
+export function writePreference(view: Window, key: string, value: string | null): boolean {
   try {
     if (value === null) {
       view.localStorage.removeItem(key)
     } else {
       view.localStorage.setItem(key, value)
     }
+    return true
   } catch {
-    // Storage blocked: the preference lasts for this session only.
+    return false
   }
 }

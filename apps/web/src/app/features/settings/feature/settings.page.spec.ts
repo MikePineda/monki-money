@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core'
+import { Component, computed, signal, type WritableSignal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { Router, provideRouter } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
@@ -15,16 +15,37 @@ import type { Household } from '../../../core/api/api-types'
 import { AuthApi } from '../../../core/auth/auth.api'
 import { SessionStore } from '../../../core/auth/session.store'
 import { HouseholdApi } from '../../../core/household/household.api'
+import { OutboxStore } from '../../../core/outbox/outbox.store'
 import { InstallService } from '../../../core/pwa/install.service'
 import { UpdateService } from '../../../core/pwa/update.service'
+import { enqueue, type OutboxEntry, type OutboxItem } from '../../../domain/outbox'
+import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import SettingsPage from './settings.page'
 
 @Component({ template: '<p>elsewhere</p>' })
 class Elsewhere {}
 
+const QUEUED: OutboxItem = {
+  kind: 'transaction',
+  payload: {
+    clientId: '00000000-0000-4000-8000-000000000201',
+    kind: 'expense',
+    accountId: 1,
+    date: '2026-10-16',
+    amountCents: 4250,
+    categoryId: null,
+    payee: null,
+    description: null,
+    paidByUserId: 1,
+    isPrivate: false,
+    tags: [],
+  },
+}
+
 describe('SettingsPage', () => {
   let households: Record<string, ReturnType<typeof vi.fn>>
   let session: Record<string, unknown> & { load: ReturnType<typeof vi.fn> }
+  let outbox: { entries: WritableSignal<OutboxEntry[]>; isSyncing: WritableSignal<boolean> }
 
   async function open(kind: Extract<SessionKind, 'owner' | 'member'>) {
     const role = signal<MemberRole | null>(kind)
@@ -51,6 +72,7 @@ describe('SettingsPage', () => {
       }),
       logout: vi.fn(async () => undefined),
     }
+    outbox = { entries: signal<OutboxEntry[]>([]), isSyncing: signal(false) }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
       providers: [
@@ -60,6 +82,7 @@ describe('SettingsPage', () => {
           { path: '**', component: Elsewhere },
         ]),
         { provide: SessionStore, useValue: session },
+        { provide: OutboxStore, useValue: outbox },
         { provide: HouseholdApi, useValue: households },
         { provide: AuthApi, useValue: { health: async () => ({ version: '1.2.3' }) } },
         {
@@ -149,5 +172,28 @@ describe('SettingsPage', () => {
     )
     expect(session.load).not.toHaveBeenCalled()
     expect(TestBed.inject(Router).url).toBe('/settings')
+  })
+
+  it('test_logout_with_nothing_queued_logs_out', async () => {
+    const { root } = await open('member')
+
+    root.querySelector<HTMLButtonElement>('[data-testid="settings.logout"]')?.click()
+
+    await vi.waitFor(() => expect(session['logout']).toHaveBeenCalledTimes(1))
+  })
+
+  it('test_logout_warns_while_entries_are_queued', async () => {
+    const { root } = await open('member')
+    outbox.entries.set(enqueue([], QUEUED, new Date('2026-10-16T09:30:00.000Z')))
+
+    root.querySelector<HTMLButtonElement>('[data-testid="settings.logout"]')?.click()
+
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="outbox.logout.body"]')?.textContent).toContain(
+        '1 movement is waiting to sync and will be lost if you log out.'
+      )
+    )
+    expect(session['logout']).not.toHaveBeenCalled()
+    TestBed.inject(BottomSheetService).closeAll()
   })
 })

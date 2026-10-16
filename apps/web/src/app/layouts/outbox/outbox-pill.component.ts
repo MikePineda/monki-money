@@ -6,9 +6,13 @@ import { IconComponent } from '../../shared/icons/icon.component'
 import { BottomSheetService } from '../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { OutboxSheetComponent } from './outbox-sheet.component'
 
-/** Relative to the scope this component provides: t(outbox.pill.pending, outbox.pill.failed) */
+/**
+ * Relative to the scope this component provides:
+ * t(outbox.pill.pending, outbox.pill.failed, outbox.pill.notPersisted)
+ */
 const PENDING_KEY = 'pill.pending'
 const FAILED_KEY = 'pill.failed'
+const NOT_PERSISTED_KEY = 'pill.notPersisted'
 
 const CHIP =
   'pointer-events-auto relative inline-flex h-9 items-center gap-1.5 rounded-md border bg-surface-1 ' +
@@ -19,7 +23,8 @@ const CHIP =
  * The sync pill (shell, above the tab bar): what is saved on this phone but
  * not on the server yet, the single place that tells. Hidden when the
  * outbox is empty; "2 pending" (spinning while a sync runs, a no-signal
- * glyph while offline) and "1 failed" with the warning icon and border.
+ * glyph while offline), "1 failed" with the warning icon and border, and
+ * "not persisted" (warning too) while the device refuses to store them.
  * A tap opens the sheet to retry, edit or discard entries.
  *
  * The label is computed here (translateSignal), which also loads the
@@ -41,7 +46,7 @@ const CHIP =
         >
           @if (outbox.isSyncing()) {
             <app-icon name="loader-circle" class="animate-spin text-ink-2" [size]="16" />
-          } @else if (outbox.failedCount() > 0) {
+          } @else if (warning()) {
             <app-icon name="triangle-alert" class="text-status-warning" [size]="16" />
           } @else if (!outbox.isOnline()) {
             <app-icon name="wifi-off" class="text-ink-2" [size]="16" />
@@ -70,6 +75,7 @@ export class OutboxPillComponent {
     FAILED_KEY,
     computed(() => ({ count: this.outbox.failedCount() }))
   )
+  private readonly notPersistedText = translateSignal(NOT_PERSISTED_KEY)
 
   protected readonly label = computed(() => {
     const parts: string[] = []
@@ -79,12 +85,19 @@ export class OutboxPillComponent {
     if (this.outbox.failedCount() > 0) {
       parts.push(this.failedText())
     }
+    if (!this.outbox.isPersisted()) {
+      parts.push(this.notPersistedText())
+    }
     return parts.join(' · ')
   })
 
+  /** Something needs the person: a refused entry, or entries only in memory. */
+  protected readonly warning = computed(
+    () => this.outbox.failedCount() > 0 || !this.outbox.isPersisted()
+  )
+
   protected readonly classes = computed(
-    () =>
-      `${CHIP} ${this.outbox.failedCount() > 0 ? 'border-status-warning' : 'border-line-strong'}`
+    () => `${CHIP} ${this.warning() ? 'border-status-warning' : 'border-line-strong'}`
   )
 
   protected open(): void {

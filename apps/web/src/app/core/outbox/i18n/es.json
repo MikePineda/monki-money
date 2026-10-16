@@ -1,11 +1,13 @@
 {
   "pill": {
     "pending": "{count, plural, one {# pendiente} other {# pendientes}}",
-    "failed": "{count, plural, one {# con error} other {# con error}}"
+    "failed": "{count, plural, one {# con error} other {# con error}}",
+    "notPersisted": "sin guardar en el dispositivo"
   },
   "sheet": {
     "title": "Sin sincronizar",
     "body": "Guardados en este teléfono. Se sincronizan solos cuando hay conexión.",
+    "notPersisted": "Este teléfono no pudo guardarlos (almacenamiento lleno o navegación privada): solo duran hasta que cierres la app, así que mantenla abierta hasta que se sincronicen.",
     "retryAll": "Reintentar todo",
     "status": {
       "pending": "En espera de sincronizar",
@@ -27,5 +29,13 @@
       "income": "Ingreso",
       "transfer": "Transferencia"
     }
+  },
+  "logout": {
+    "title": "¿Cerrar sesión antes de sincronizar?",
+    "body": "{count, plural, one {# movimiento espera sincronizarse y se perderá si cierras sesión.} other {# movimientos esperan sincronizarse y se perderán si cierras sesión.}}",
+    "stuck": "No se pudo sincronizar todo. Revisa la conexión e inténtalo de nuevo, o cierra sesión de todos modos.",
+    "sync": "Sincronizar ahora",
+    "confirm": "Cerrar sesión de todos modos",
+    "cancel": "Cancelar"
   }
 }

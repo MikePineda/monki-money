@@ -146,15 +146,29 @@ versioned serialization that drops corrupt entries instead of throwing);
 in localStorage (`outbox:<userId>`, written synchronously before the toast)
 and synced one entry at a time on sign-in, on the `online` event, when the
 app returns to the foreground, after every successful quick-add save and on
-the backoff timer, never while signed out. A synced entry invalidates its
-month (`MonthStore`); a 409 counts as synced. An explicit logout deletes
-the outbox from the device (`SessionStore.onLogout`); an expired session
-keeps it for the next login of the same person. The sync pill above the
-tab bar is the only place that shows what is not on the server yet (lists
-and the Month view never merge queued entries): it opens a sheet to retry,
-edit (quick add with `?outbox=<id>`, which holds the entry and replaces it
-keeping its client id) or discard. The service worker never caches `/api`;
-the outbox, not the SW, is what makes writes survive offline.
+the backoff timer, never while signed out. Open tabs share that copy: every
+change starts from it (`reconcile`: the device copy wins, an entry this tab
+is sending stays `syncing`) and the `storage` event reloads it, so neither
+tab drops the other's newest entry; both may send the same entry, which the
+client id makes harmless. When localStorage refuses the write (quota,
+private mode) the outbox works from memory until the app closes, the pill
+says "not persisted" and quick add's toast says to keep the app open. A
+synced entry invalidates its month (`MonthStore`); a 409 counts as synced.
+"Undo" on the "Saved offline" toast drops the queued entry, or deletes the
+row it became once synced (the store remembers the created ids for the
+session). An explicit logout deletes the outbox from the device
+(`SessionStore.onLogout`), so the More tab's "Log out" goes through
+`layouts/outbox/safe-logout.ts`: while entries wait it asks first ("N
+movements are waiting to sync and will be lost": Sync now, which logs out
+once nothing is left, Log out anyway, Cancel). An expired session keeps the
+outbox for the next login of the same person. The sync pill above the tab
+bar is the only place that shows what is not on the server yet (lists and
+the Month view never merge queued entries): it opens a sheet to retry, edit
+(quick add with `?outbox=<id>`, which holds the entry and replaces it
+keeping its client id) or discard. Quick add's own rankings (category
+tiles, payees, routes) do count queued entries (`queuedAsRecent`). The
+service worker never caches `/api`; the outbox, not the SW, is what makes
+writes survive offline.
 
 ## Runtime surface today
 
