@@ -12,6 +12,7 @@ import { privacyViewer } from '#services/ledger/privacy_viewer'
 import {
   deleteHouseholdValidator,
   exportHouseholdValidator,
+  transferOwnershipValidator,
   updateHouseholdValidator,
 } from '#validators/household'
 
@@ -82,6 +83,25 @@ export default class HouseholdController {
   async leave(ctx: HttpContext) {
     await this.households.leave(ctx.membership, ctx.auth.getUserOrFail())
     return ctx.response.noContent()
+  }
+
+  /**
+   * POST /household/transfer-ownership (owner, password): another member
+   * becomes the owner and the caller a member. Wrong passwords count toward
+   * the same per-user limit as PATCH /me and the household delete.
+   */
+  async transferOwnership(ctx: HttpContext) {
+    const { userId, password } = await ctx.request.validateUsing(transferOwnershipValidator)
+    await ctx.bouncer.with(HouseholdPolicy).authorize('transferOwnership', ctx.membership)
+
+    const owner = ctx.auth.getUserOrFail()
+    const [throttled, members] = await authAttempts().penalize(
+      throttleKey('password', owner.id),
+      () => this.households.transferOwnership(ctx.household, owner, userId, password)
+    )
+    if (throttled) throw throttled
+
+    return ctx.serialize(MemberTransformer.transform(members))
   }
 
   /**

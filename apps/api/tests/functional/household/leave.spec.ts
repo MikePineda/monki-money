@@ -51,12 +51,13 @@ test.group('Household / leave', (group) => {
     english.assertStatus(422)
     english.assertBody({
       code: 'E_OWNER_CANNOT_LEAVE',
-      message: 'Owners cannot leave their household. Delete it instead',
+      message:
+        'Owners cannot leave their household. Make another member the owner first, or delete it',
     })
     spanish.assertStatus(422)
     assert.equal(
       spanish.body().message,
-      'Quien administra el hogar no puede salir de él. Bórralo en su lugar'
+      'Quien administra el hogar no puede salir de él. Pasa la administración a otra persona o bórralo'
     )
     await owner.refresh()
     assert.equal(owner.currentHouseholdId, household.id)

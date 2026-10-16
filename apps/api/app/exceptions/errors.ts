@@ -72,7 +72,7 @@ export const AlreadyInHousehold = domainError(
   'User already belongs to a household'
 )
 
-/** Owners cannot leave their household: they delete it (transfer comes later). */
+/** Owners cannot leave their household: they transfer ownership first, or delete it. */
 export const OwnerCannotLeave = domainError(
   'E_OWNER_CANNOT_LEAVE',
   422,
@@ -210,3 +210,9 @@ export const UploadNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')
  * private ones, whose tags the reader cannot see): 404 like any missing row.
  */
 export const TagNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')
+
+/**
+ * A user who is not a member of the current household (another
+ * household's, or nobody's): 404 like any missing row, never 403.
+ */
+export const MemberNotFound = domainError('E_ROW_NOT_FOUND', 404, 'Not found')

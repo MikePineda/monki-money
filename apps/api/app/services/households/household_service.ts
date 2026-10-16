@@ -7,6 +7,8 @@ import db from '@adonisjs/lucid/services/db'
 import type Household from '#models/household'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import HouseholdMember from '#models/household_member'
+import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
+import { AuthorizationResponse, errors as bouncerErrors } from '@adonisjs/bouncer'
 import { FieldError } from '#exceptions/field_error'
 import HouseholdCreator from '#services/households/household_creator'
 import { canRestore, deletionDate } from '#domain/households/deletion_window'
@@ -14,6 +16,7 @@ import type { NewHouseholdInput, UpdateHouseholdInput } from '#services/househol
 import {
   AlreadyInHousehold,
   HouseholdNotPendingDeletion,
+  MemberNotFound,
   OwnerCannotLeave,
   RestoreWindowExpired,
 } from '#exceptions/errors'
@@ -122,6 +125,51 @@ export default class HouseholdService {
         Account.query({ client: trx }).where('household_id', householdId).select('id')
       )
       .update({ user_id: null, updated_at: now })
+  }
+
+  /**
+   * The owner hands the household over to another member (who becomes the
+   * owner) and stays as a member, so they can then leave. Needs the
+   * owner's password, like deleting. `userId` must be another member of
+   * this household: anyone else answers 404 (never 403), the owner
+   * themselves 422. Both memberships are locked and re-read in the
+   * transaction, so two concurrent transfers cannot leave two owners (the
+   * loser finds it is no longer the owner: 403). The handover is audited
+   * in `household_ownership_transfers`.
+   */
+  async transferOwnership(household: Household, owner: User, userId: number, password: string) {
+    if (userId === owner.id) throw new FieldError('userId', 'self')
+    const target = await HouseholdMember.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .where('user_id', userId)
+      .first()
+    if (!target) throw new MemberNotFound()
+    if (!(await owner.verifyPassword(password))) throw new FieldError('password', 'matches')
+
+    await db.transaction(async (trx) => {
+      const memberships = await HouseholdMember.query({ client: trx })
+        .withScopes((scopes) => scopes.forHousehold(household))
+        .whereIn('user_id', [owner.id, userId])
+        .orderBy('id')
+        .forUpdate()
+      const current = memberships.find((membership) => membership.userId === owner.id)
+      const next = memberships.find((membership) => membership.userId === userId)
+      if (!current?.isOwner)
+        throw new bouncerErrors.E_AUTHORIZATION_FAILURE(AuthorizationResponse.deny())
+      if (!next) throw new MemberNotFound()
+
+      // Demote first: the household never has two owners, not even mid-transaction.
+      current.role = 'member'
+      await current.save()
+      next.role = 'owner'
+      await next.save()
+      await HouseholdOwnershipTransfer.create(
+        { householdId: household.id, fromUserId: owner.id, toUserId: userId },
+        { client: trx }
+      )
+    })
+
+    return this.members(household)
   }
 
   /** Needs the owner's password: deleting is irreversible after the window. */
