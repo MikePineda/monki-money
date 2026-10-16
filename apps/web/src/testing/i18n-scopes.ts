@@ -18,6 +18,8 @@ import insightsEn from '../app/features/month/ui/insight-summary/i18n/en.json'
 import insightsEs from '../app/features/month/ui/insight-summary/i18n/es.json'
 import onboardingEn from '../app/features/onboarding/i18n/en.json'
 import onboardingEs from '../app/features/onboarding/i18n/es.json'
+import payslipsEn from '../app/features/payslips/i18n/en.json'
+import payslipsEs from '../app/features/payslips/i18n/es.json'
 import quickAddEn from '../app/features/quick-add/i18n/en.json'
 import quickAddEs from '../app/features/quick-add/i18n/es.json'
 import rulesEn from '../app/features/rules/i18n/en.json'
@@ -53,6 +55,7 @@ export const SCOPE_CATALOGUES = {
   month: { en: monthEn, es: monthEs },
   onboarding: { en: onboardingEn, es: onboardingEs },
   outbox: { en: outboxEn, es: outboxEs },
+  payslips: { en: payslipsEn, es: payslipsEs },
   quickAdd: { en: quickAddEn, es: quickAddEs },
   rules: { en: rulesEn, es: rulesEs },
   scan: { en: scanEn, es: scanEs },
