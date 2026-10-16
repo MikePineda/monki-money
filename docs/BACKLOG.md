@@ -29,7 +29,6 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Move `TransactionForm`/`TransferForm` to `shared/` (or host quick add under `features/transactions`) so the add page can reuse them without a cross-feature import.
 - 2026-10-16 Insights: run the monthly cron (`0 8 1 * *` Brisbane) once a worker exists, and let dev opt into the fake LLM for insights (today only the test suite may; dev answers 503 without a key).
 - 2026-10-16 `test_reset_wipes_the_database_and_seeds_the_e2e_household` fails when its file runs alone: `RESTART IDENTITY` gives the new E2E household the leftover's id 1 (passes in the full suite).
-- 2026-10-16 After a member leaves, `accounts.owner_user_id` and `account_cards.user_id` still point at them, so `defaultPayer` gives new rows on those accounts/cards to the ex-member: decide whether leaving makes their accounts joint or the default payer skips non-members.
 - 2026-10-16 Household ownership transfer (owners can only delete today, `household.leave` answers 422 for them), and letting a member leave while the household is pending deletion (today 403 like every household route).
 - 2026-10-16 The Month summary card asks `GET /insights/:month` on every month it shows (404 until generated); a flag on the month report (or `GET /insights?from=&to=`) would save the call.
 - 2026-10-16 The web initial bundle is ~364 kB after the outbox and product-gap merges, past its 350 kB warning budget (it was already over before WP 5.2; the goals routes add ~0.2 kB): trim the eager app or raise the budget.
