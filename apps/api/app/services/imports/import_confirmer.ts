@@ -16,6 +16,7 @@ import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import RuleLearner from '#services/rules/rule_learner'
 import { decodeHtmlEntities } from '#importers/html_entities'
 import type { LearningDecision } from '#domain/importing/learning'
+import { linkedHolderKey } from '#domain/importing/linked_accounts'
 import ImportDecisions from '#services/imports/import_decisions'
 import ImportBookkeeping from '#services/imports/import_bookkeeping'
 import { ImportBatchClosed, ImportRowsUndecided } from '#exceptions/errors'
@@ -432,6 +433,12 @@ export default class ImportConfirmer {
    * under review the person did not change) teaches nothing; a person's
    * explicit decisions come last so they win over the guesses for the
    * same merchant.
+   *
+   * An internal transfer that names its linked holder teaches the holder's
+   * rule (`linkedHolderKey`) instead of its merchant key: the memo NAB
+   * shows changes from one transfer to the next, the holder does not. It
+   * teaches even when a rule proposed the account, since the bank's
+   * generic `Linked Acc Trns` rule says nothing about the holder.
    */
   protected async learn(
     household: Household,
@@ -448,15 +455,24 @@ export default class ImportConfirmer {
       if (action !== 'create' && action !== 'transfer') continue
       if (!effective.decided && row.suggestionNeedsReview && action === 'create') continue
 
+      const holderKey =
+        action === 'transfer'
+          ? linkedHolderKey({
+              details: decodeHtmlEntities(row.descriptionRaw),
+              nabCategory: row.nabCategory,
+            })
+          : null
       decisions.push({
         action,
-        merchantFullKey: row.merchantFullKey,
+        merchantFullKey: holderKey ?? row.merchantFullKey,
         suggested: {
           categoryId: row.suggestedCategoryId,
           transferAccountId: row.suggestedTransferAccountId,
           paidByUserId: row.suggestedPaidByUserId,
           fromRule:
-            action === 'transfer' ? row.transferSignal === 'rule' : row.suggestionSource === 'rule',
+            action === 'transfer'
+              ? holderKey === null && row.transferSignal === 'rule'
+              : row.suggestionSource === 'rule',
         },
         final: {
           categoryId:

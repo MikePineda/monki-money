@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type {
   CandidateTx,
+  HouseholdAccount,
   MerchantRule,
   ParsedRow,
   StagedRow,
@@ -114,6 +115,16 @@ export function transferLeg(overrides: Partial<TransferLeg> = {}): TransferLeg {
     date: '2026-07-31',
     transactionId: 500,
     externalHash: null,
+    ...overrides,
+  }
+}
+
+export function householdAccount(overrides: Partial<HouseholdAccount> = {}): HouseholdAccount {
+  return {
+    id: 2,
+    institution: 'NAB',
+    kind: 'savings',
+    isActive: true,
     ...overrides,
   }
 }

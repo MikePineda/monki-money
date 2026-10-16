@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import type Account from '#models/account'
+import Account from '#models/account'
 import Category from '#models/category'
 import ImportRow from '#models/import_row'
 import Transaction from '#models/transaction'
@@ -12,6 +12,7 @@ import CandidatesRepository, { type MatchCandidate } from '#repositories/candida
 import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
 import type {
   CandidateTx,
+  HouseholdAccount,
   MerchantRule as RuleValue,
   ResolverContext,
   StagedRow,
@@ -20,8 +21,8 @@ import type {
 
 /**
  * Loads, as plain values, what the pure import pipeline needs from the
- * database (app/domain/importing): rules, categories, payers, stored
- * hashes, match candidates and the other legs of possible transfers.
+ * database (app/domain/importing): rules, categories, accounts, payers,
+ * stored hashes, match candidates and the other legs of possible transfers.
  */
 @inject()
 export default class ImportContextLoader {
@@ -30,6 +31,20 @@ export default class ImportContextLoader {
   async rules(household: HouseholdRef): Promise<RuleValue[]> {
     const rules = await MerchantRule.query().withScopes((scopes) => scopes.forHousehold(household))
     return rules.map((rule) => rule.toRule())
+  }
+
+  /** Every account of the household, for the counterpart of internal transfers. */
+  async accounts(household: HouseholdRef): Promise<HouseholdAccount[]> {
+    const accounts = await Account.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .select('id', 'institution', 'kind', 'is_active')
+      .orderBy('id')
+    return accounts.map((account) => ({
+      id: account.id,
+      institution: account.institution,
+      kind: account.kind,
+      isActive: account.isActive,
+    }))
   }
 
   async categoryIdBySlug(household: HouseholdRef): Promise<Map<string, number>> {
@@ -83,6 +98,7 @@ export default class ImportContextLoader {
     options: {
       existingHashes: ReadonlySet<string>
       rules: readonly RuleValue[]
+      accounts: readonly HouseholdAccount[]
       otherStaged: readonly StagedRow[]
       /** The person uploading: only their own private rows may be a transfer leg. */
       actorId: number
@@ -94,6 +110,7 @@ export default class ImportContextLoader {
         candidates: [],
         transferLegs: [],
         rules: options.rules,
+        accounts: options.accounts,
       }
     }
     const dates = rows.map((row) => row.date).sort()
@@ -126,6 +143,7 @@ export default class ImportContextLoader {
       candidates: candidates.map(toCandidateTx),
       transferLegs: [...ledgerLegs, ...stagedLegs],
       rules: options.rules,
+      accounts: options.accounts,
     }
   }
 

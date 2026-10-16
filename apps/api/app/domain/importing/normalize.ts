@@ -107,6 +107,25 @@ export function normalizeDescription(details: string): string {
     .trim()
 }
 
+/** A word of a name as NAB prints it: upper case, maybe joined by `'` or `-` (`O'NEIL-WARD`). */
+const NAME_WORD = /^[A-Z]+(?:['-][A-Z]+)*$/
+
+/**
+ * Holder of the linked account a NAB internal transfer names: the trailing
+ * run of upper-case words of the details. NAB writes `ONLINE A1234567890
+ * Linked Acc Trns SMITH JO`, and when the person typed a memo it replaces
+ * `Linked Acc Trns` with it (`ONLINE A1234567890 Honeymoon SMITH JO`) while
+ * the holder stays. Null when the details end in anything else (a
+ * lower-case memo, a reference with digits). Only meaningful on rows the
+ * bank marks as internal transfers.
+ */
+export function linkedAccountHolder(details: string): string | null {
+  const words = normalizeDescription(details).split(' ')
+  let start = words.length
+  while (start > 0 && NAME_WORD.test(words[start - 1])) start--
+  return start === words.length ? null : words.slice(start).join(' ')
+}
+
 export interface MerchantSource {
   nabMerchant: string | null
   /** Normalized description, used when the bank names no merchant. */

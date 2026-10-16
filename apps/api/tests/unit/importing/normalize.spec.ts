@@ -5,6 +5,7 @@ import {
   effectiveDate,
   extractPurchaseDate,
   isPending,
+  linkedAccountHolder,
   merchantFullKey,
   merchantKey,
   normalizeDescription,
@@ -188,5 +189,38 @@ test.group('Importing / descriptions and merchants', () => {
     assert.isTrue(isPending(''))
     assert.isTrue(isPending('   '))
     assert.isFalse(isPending('27 Sept 26'))
+  })
+})
+
+test.group('Importing / linked account holder', () => {
+  test('test_linked_account_holder_is_the_trailing_run_of_upper_case_words', ({ assert }) => {
+    assert.equal(linkedAccountHolder('ONLINE A1000000001 Linked Acc Trns SMITH JO'), 'SMITH JO')
+    // A memo typed in the bank app replaces `Linked Acc Trns`; the holder stays.
+    assert.equal(linkedAccountHolder('ONLINE A1000000002 Honeymoon SMITH JO'), 'SMITH JO')
+    assert.equal(linkedAccountHolder('ONLINE A1000000003 xd SMITH JO'), 'SMITH JO')
+    assert.equal(linkedAccountHolder('ONLINE  A1000000004   Car rego   SMITH  JO '), 'SMITH JO')
+    assert.equal(
+      linkedAccountHolder('ONLINE A1000000005 Linked Acc Trns SAMPLE HOUSEHO'),
+      'SAMPLE HOUSEHO'
+    )
+  })
+
+  test('test_a_compound_holder_name_is_kept_whole', ({ assert }) => {
+    assert.equal(linkedAccountHolder('ONLINE A1000000006 Rent DE LA CRUZ MA'), 'DE LA CRUZ MA')
+    assert.equal(
+      linkedAccountHolder("ONLINE A1000000007 Linked Acc Trns O'NEIL-WARD PK"),
+      "O'NEIL-WARD PK"
+    )
+  })
+
+  test('test_a_single_word_holder_is_read', ({ assert }) => {
+    assert.equal(linkedAccountHolder('ONLINE A1000000008 Groceries split NGUYEN'), 'NGUYEN')
+  })
+
+  test('test_details_without_a_trailing_name_have_no_holder', ({ assert }) => {
+    assert.isNull(linkedAccountHolder('ONLINE C1000000010 Monthly saving'))
+    assert.isNull(linkedAccountHolder('ONLINE A1000000009'))
+    assert.isNull(linkedAccountHolder('INTERNET BPAY DEFT REAL ESTATE 0012345678'))
+    assert.isNull(linkedAccountHolder(''))
   })
 })

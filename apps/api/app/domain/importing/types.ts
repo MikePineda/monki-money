@@ -10,6 +10,7 @@ import {
   IMPORT_RESOLUTIONS,
   RULE_MATCH_TYPES,
   SUGGESTION_SOURCES,
+  type AccountKind,
   type ImportResolution,
   type ImportSource,
   type RuleMatchType,
@@ -156,6 +157,14 @@ export interface TransferLeg {
   externalHash: string | null
 }
 
+/** A household account as transfer detection sees it (the importing one included). */
+export interface HouseholdAccount {
+  id: number
+  institution: string | null
+  kind: AccountKind
+  isActive: boolean
+}
+
 export interface TransferDetection {
   /** Why the row is an internal transfer. */
   signal: 'rule' | 'bank_category' | 'linked_account_memo'
@@ -201,4 +210,6 @@ export interface ResolverContext {
   /** Movements in the household's other accounts, for the opposite leg of transfers. */
   transferLegs: readonly TransferLeg[]
   rules: readonly MerchantRule[]
+  /** Every account of the household: an internal transfer's only possible counterpart. */
+  accounts: readonly HouseholdAccount[]
 }

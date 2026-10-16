@@ -77,7 +77,8 @@ export class ZeroAmountStep implements ResolverStep {
 
 /**
  * Internal transfers become `transfer_leg` when the other account is known
- * (opposite leg or rule), else `needs_confirmation` so the user picks it.
+ * (opposite leg, rule, or the only possible account), else
+ * `needs_confirmation` so the user picks it.
  * Each opposite leg is claimed by one row only.
  */
 export class TransferStep implements ResolverStep {
@@ -86,7 +87,11 @@ export class TransferStep implements ResolverStep {
     return rows.map((resolved) => {
       if (resolved.settled) return resolved
       const legs = context.transferLegs.filter((leg) => !claimed.has(leg))
-      const transfer = detectTransfer(resolved.row, { rules: context.rules, legs })
+      const transfer = detectTransfer(resolved.row, {
+        rules: context.rules,
+        legs,
+        accounts: context.accounts,
+      })
       if (!transfer) return resolved
       if (transfer.oppositeLeg) claimed.add(transfer.oppositeLeg)
 
