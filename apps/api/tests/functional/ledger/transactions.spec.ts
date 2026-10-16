@@ -415,6 +415,36 @@ test.group('Transactions: list', () => {
     tooBig.assertBodyContains({ errors: [{ field: 'perPage' }] })
   })
 
+  test('test_list_filters_joint_rows_with_paid_by_joint', async ({ client, assert }) => {
+    const { owner, member, household, accounts } = await createHousehold({
+      users: 2,
+      accounts: [{}],
+    })
+    const base = { householdId: household.id, accountId: accounts[0].id, date: '2026-10-03' }
+    const joint = await TransactionFactory.merge({ ...base, paidByUserId: null }).create()
+    const mine = await TransactionFactory.merge({ ...base, paidByUserId: owner.id }).create()
+    await TransactionFactory.merge({ ...base, paidByUserId: member.id }).create()
+
+    const jointOnly = await client.get('/api/v1/transactions?paidBy=joint').actingAs(owner)
+    const byPayer = await client
+      .get(`/api/v1/transactions?paidByUserId=${owner.id}`)
+      .actingAs(owner)
+    const invalid = await client.get('/api/v1/transactions?paidBy=partner').actingAs(owner)
+
+    jointOnly.assertStatus(200)
+    assert.deepEqual(
+      jointOnly.body().data.map((row: any) => row.id),
+      [joint.id]
+    )
+    // The member filter keeps working.
+    assert.deepEqual(
+      byPayer.body().data.map((row: any) => row.id),
+      [mine.id]
+    )
+    invalid.assertStatus(422)
+    invalid.assertBodyContains({ errors: [{ field: 'paidBy' }] })
+  })
+
   test('test_list_sorts_by_amount_and_filters_triage', async ({ client, assert }) => {
     const { owner, household, accounts } = await createHousehold({
       taxonomy: true,

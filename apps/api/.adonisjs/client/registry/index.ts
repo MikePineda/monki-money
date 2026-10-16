@@ -300,6 +300,12 @@ const routes = {
     tokens: [{"old":"/api/v1/transactions/quick","type":0,"val":"api","end":""},{"old":"/api/v1/transactions/quick","type":0,"val":"v1","end":""},{"old":"/api/v1/transactions/quick","type":0,"val":"transactions","end":""},{"old":"/api/v1/transactions/quick","type":0,"val":"quick","end":""}],
     types: placeholder as Registry['transactions.quick']['types'],
   },
+  'transactions.suggestions': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/transactions/suggestions',
+    tokens: [{"old":"/api/v1/transactions/suggestions","type":0,"val":"api","end":""},{"old":"/api/v1/transactions/suggestions","type":0,"val":"v1","end":""},{"old":"/api/v1/transactions/suggestions","type":0,"val":"transactions","end":""},{"old":"/api/v1/transactions/suggestions","type":0,"val":"suggestions","end":""}],
+    types: placeholder as Registry['transactions.suggestions']['types'],
+  },
   'transactions.bulkCategorize': {
     methods: ["POST"],
     pattern: '/api/v1/transactions/bulk-categorize',
@@ -335,6 +341,12 @@ const routes = {
     pattern: '/api/v1/transfers',
     tokens: [{"old":"/api/v1/transfers","type":0,"val":"api","end":""},{"old":"/api/v1/transfers","type":0,"val":"v1","end":""},{"old":"/api/v1/transfers","type":0,"val":"transfers","end":""}],
     types: placeholder as Registry['transfers.store']['types'],
+  },
+  'transfers.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/transfers/:id',
+    tokens: [{"old":"/api/v1/transfers/:id","type":0,"val":"api","end":""},{"old":"/api/v1/transfers/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/transfers/:id","type":0,"val":"transfers","end":""},{"old":"/api/v1/transfers/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['transfers.show']['types'],
   },
   'transfers.update': {
     methods: ["PATCH"],

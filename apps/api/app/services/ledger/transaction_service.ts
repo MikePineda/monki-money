@@ -1,6 +1,6 @@
 import type User from '#models/user'
 import Clock from '#services/clock'
-import Account from '#models/account'
+import { firstActiveAccount, lastAccountUsed } from '#services/ledger/last_account'
 import { inject } from '@adonisjs/core'
 import type Household from '#models/household'
 import Transaction from '#models/transaction'
@@ -396,24 +396,9 @@ export default class TransactionService {
     }
   }
 
+  /** The account this person used last, else the first active one. */
   protected async defaultAccountId(household: Household, actor: User) {
-    const last = await Transaction.query()
-      .withScopes((scopes) => scopes.forHousehold(household))
-      .where('created_by_user_id', actor.id)
-      .whereNot('kind', 'transfer')
-      .whereHas('account', (account) => account.where('is_active', true))
-      .orderBy('created_at', 'desc')
-      .orderBy('id', 'desc')
-      .first()
-    if (last) return last.accountId
-
-    const first = await Account.query()
-      .withScopes((scopes) => scopes.forHousehold(household))
-      .where('is_active', true)
-      .orderBy('sort_order')
-      .orderBy('id')
-      .first()
-    return first?.id ?? null
+    return (await lastAccountUsed(household, actor)) ?? firstActiveAccount(household)
   }
 
   /** Signed split lines checked against the parent amount (422 on `splits`). */

@@ -33,6 +33,7 @@ export default class TransactionListing {
 
     if (filters.accountId?.length) query.whereIn('account_id', filters.accountId)
     if (filters.paidByUserId !== undefined) query.where('paid_by_user_id', filters.paidByUserId)
+    if (filters.paidBy === 'joint') query.whereNull('paid_by_user_id')
     if (filters.kind) query.where('kind', filters.kind)
     if (filters.status) query.where('status', filters.status)
     if (filters.needsReview !== undefined) {

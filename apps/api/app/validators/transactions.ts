@@ -125,6 +125,8 @@ export const listTransactionsValidator = vine.create({
   categoryId: oneOrMany(id()).optional(),
   uncategorized: vine.boolean().optional(),
   paidByUserId: id().optional(),
+  /** `joint`: only rows paid by "both of us" (no payer), which `paidByUserId` cannot ask for. */
+  paidBy: vine.enum(['joint'] as const).optional(),
   kind: vine.enum(TRANSACTION_KINDS).optional(),
   status: vine.enum(TRANSACTION_STATUSES).optional(),
   needsReview: vine.boolean().optional(),

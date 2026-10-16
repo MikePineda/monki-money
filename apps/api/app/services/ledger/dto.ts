@@ -97,6 +97,8 @@ export interface TransactionFilters {
   /** Only rows with nothing to report under (no category, not split, not a transfer). */
   uncategorized?: boolean
   paidByUserId?: number
+  /** Only joint rows (no payer). */
+  paidBy?: 'joint'
   kind?: TransactionKind
   status?: TransactionStatus
   needsReview?: boolean

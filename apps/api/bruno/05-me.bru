@@ -14,6 +14,7 @@ assert {
   res.status: eq 200
   res.body.data.membership.role: eq owner
   res.body.data.entitlements: isDefined
+  res.body.data.members: isArray
 }
 
 tests {
@@ -25,7 +26,7 @@ tests {
 
 docs {
   `auth.me`: the SPA's boot call. `{ data: { user, household, membership,
-  entitlements, flags } }`; 401 for guests (who still get the XSRF-TOKEN
+  entitlements, flags, members, partner } }`; 401 for guests (who still get the XSRF-TOKEN
   cookie). The smoke user owns the "Smoke" household (created by the
   production bootstrap seeder from SMOKE_EMAIL / SMOKE_PASSWORD).
 }

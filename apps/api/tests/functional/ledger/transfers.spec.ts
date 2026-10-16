@@ -66,6 +66,51 @@ test.group('Transfers', () => {
     assert.equal(legs[0].description, 'Rainy day')
   })
 
+  test('test_show_transfer_returns_both_legs_and_the_memo', async ({ client, assert }) => {
+    const { owner, member, household, accounts } = await twoAccounts()
+    const [everyday, savings] = accounts
+    const created = await client
+      .post('/api/v1/transfers')
+      .json({
+        fromAccountId: everyday.id,
+        toAccountId: savings.id,
+        date: '2026-10-04',
+        amountCents: 25_000,
+        memo: 'Rainy day',
+        tags: ['bali'],
+      })
+      .actingAs(owner)
+    const transferId = created.body().data.id
+
+    // Any member reads it, in one call (the sheet no longer searches that day's legs).
+    const response = await client.get(`/api/v1/transfers/${transferId}`).actingAs(member)
+
+    response.assertStatus(200)
+    const transfer = response.body().data
+    assert.include(transfer, {
+      id: transferId,
+      date: '2026-10-04',
+      amountCents: 25_000,
+      fromAccountId: everyday.id,
+      toAccountId: savings.id,
+      memo: 'Rainy day',
+    })
+    assert.deepEqual(
+      transfer.legs.map((leg: any) => [leg.accountId, leg.amountCents, leg.tags]),
+      [
+        [everyday.id, -25_000, ['bali']],
+        [savings.id, 25_000, ['bali']],
+      ]
+    )
+    assert.isTrue(transfer.legs.every((leg: any) => leg.transferId === transferId && !leg.isMasked))
+
+    const missing = await client.get(`/api/v1/transfers/${transferId + 1_000}`).actingAs(owner)
+    missing.assertStatus(404)
+    missing.assertBodyContains({ code: 'E_ROW_NOT_FOUND' })
+    const stored = await Transfer.findOrFail(transferId)
+    assert.equal(stored.householdId, household.id)
+  })
+
   test('test_transfer_to_the_same_account_is_rejected', async ({ client, assert }) => {
     const { owner, household, accounts } = await twoAccounts()
 

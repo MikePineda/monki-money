@@ -595,6 +595,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['quick']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'transactions.suggestions': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/transactions/suggestions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['suggestions']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['suggestions']>>>
+    }
+  }
   'transactions.bulkCategorize': {
     methods: ["POST"]
     pattern: '/api/v1/transactions/bulk-categorize'
@@ -665,6 +677,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/transfers').createTransferValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'transfers.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/transfers/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/transfers').transferParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'transfers.update': {

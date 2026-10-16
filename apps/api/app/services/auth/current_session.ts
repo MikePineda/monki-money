@@ -1,5 +1,6 @@
 import type User from '#models/user'
 import { entitlementsFor } from '#config/plans'
+import type Household from '#models/household'
 import HouseholdMember from '#models/household_member'
 
 /**
@@ -24,5 +25,26 @@ export async function describeSession(user: User) {
     membership,
     entitlements: household ? entitlementsFor(household.plan) : null,
     flags: household?.settings.flags ?? [],
+  }
+}
+
+/**
+ * The household's members (in the order of `GET /household/members`: who
+ * joined first) and the partner, the first member who is not `user`, so
+ * screens that only show names and colours need no other call. Nobody
+ * without a household.
+ */
+export async function householdPeople(user: User, household: Household | null) {
+  if (!household) return { members: [], partner: null }
+
+  const members = await HouseholdMember.query()
+    .withScopes((scopes) => scopes.forHousehold(household))
+    .preload('user')
+    .orderBy('joined_at', 'asc')
+    .orderBy('id', 'asc')
+
+  return {
+    members,
+    partner: members.find((member) => member.userId !== user.id) ?? null,
   }
 }

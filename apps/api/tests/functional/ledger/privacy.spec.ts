@@ -121,6 +121,41 @@ test.group('Private transactions', () => {
     assert.equal(trend.body().data.totalCents, 0)
   })
 
+  test('test_month_report_masks_the_partners_private_top_expense', async ({ client, assert }) => {
+    const { owner, member, gift, gifts } = await surpriseGift()
+
+    const partner = await client.get('/api/v1/reports/month?month=2026-10').actingAs(member)
+    const payer = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
+
+    // Like the transaction resource: amount, date and payer, nothing about the gift.
+    assert.deepEqual(partner.body().data.topExpenses, [
+      {
+        id: gift.id,
+        date: '2026-10-10',
+        payee: null,
+        description: null,
+        amountCents: -20_000,
+        categoryId: null,
+        isSplit: false,
+        paidByUserId: owner.id,
+        isMasked: true,
+      },
+    ])
+    assert.notInclude(JSON.stringify(partner.body()), 'Jewellery')
+    assert.notInclude(JSON.stringify(partner.body()), 'Anniversary')
+    assert.deepEqual(payer.body().data.topExpenses[0], {
+      id: gift.id,
+      date: '2026-10-10',
+      payee: 'Jewellery store',
+      description: 'Anniversary ring',
+      amountCents: -20_000,
+      categoryId: gifts.id,
+      isSplit: false,
+      paidByUserId: owner.id,
+      isMasked: false,
+    })
+  })
+
   test('test_bulk_categorize_skips_the_partners_private_rows', async ({ client, assert }) => {
     const { member, household, accounts, gift, gifts } = await surpriseGift()
     const books = await categoryBySlug(household.id, 'books-courses')

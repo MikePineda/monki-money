@@ -147,6 +147,7 @@ const cases: IsolationCase[] = [
     url: (v) => `/api/v1/transactions/${v.transaction.id}/splits`,
     body: { splits: [] },
   },
+  { route: 'transfers.show', method: 'get', url: (v) => `/api/v1/transfers/${v.transfer.id}` },
   {
     route: 'transfers.update',
     method: 'patch',

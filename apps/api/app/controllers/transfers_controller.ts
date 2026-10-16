@@ -27,6 +27,16 @@ export default class TransfersController {
     )
   }
 
+  /** GET /transfers/:id: both legs (masked for the reader) and the memo in one call. */
+  async show(ctx: HttpContext) {
+    const { params } = await ctx.request.validateUsing(transferParamsValidator)
+    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
+
+    const transfer = await this.transfers.find(ctx.household, params.id)
+
+    return ctx.serialize(TransferTransformer.transform(transfer, viewer))
+  }
+
   /** PATCH /transfers/:id: both legs follow. */
   async update(ctx: HttpContext) {
     const { params, ...payload } = await ctx.request.validateUsing(updateTransferValidator)

@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import ReportService from '#services/reports/report_service'
+import { requestLocale } from '#services/http/request_locale'
 import {
   categoryReportValidator,
   monthReportValidator,
@@ -20,7 +21,10 @@ export default class ReportsController {
   async month(ctx: HttpContext) {
     const input = await ctx.request.validateUsing(monthReportValidator)
 
-    const summary = await this.reports.month(ctx.household, ctx.auth.getUserOrFail(), input)
+    const summary = await this.reports.month(ctx.household, ctx.auth.getUserOrFail(), {
+      ...input,
+      locale: requestLocale(ctx),
+    })
 
     return { data: summary }
   }

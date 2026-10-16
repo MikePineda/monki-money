@@ -80,6 +80,7 @@ export interface ApiDefinition {
     index: typeof routes['transactions.index']
     store: typeof routes['transactions.store']
     quick: typeof routes['transactions.quick']
+    suggestions: typeof routes['transactions.suggestions']
     bulkCategorize: typeof routes['transactions.bulkCategorize']
     show: typeof routes['transactions.show']
     update: typeof routes['transactions.update']
@@ -90,6 +91,7 @@ export interface ApiDefinition {
   }
   transfers: {
     store: typeof routes['transfers.store']
+    show: typeof routes['transfers.show']
     update: typeof routes['transfers.update']
     destroy: typeof routes['transfers.destroy']
   }

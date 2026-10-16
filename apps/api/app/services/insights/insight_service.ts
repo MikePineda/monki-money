@@ -7,6 +7,7 @@ import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import type Household from '#models/household'
 import { LlmProvider } from '#llm/llm_provider'
+import type { HouseholdRef } from '#models/mixins/household_scoped'
 import type { Locale } from '@monkimoney/shared'
 import MonthlyInsight from '#models/monthly_insight'
 import { FieldError } from '#exceptions/field_error'
@@ -28,6 +29,18 @@ import type { GeneratedInsight, GenerateInsightOptions } from '#services/insight
 
 /** Slug of the line that gathers what is not categorized yet. */
 const UNCATEGORIZED = 'uncategorized'
+
+/**
+ * The stored summary of a household's month in one language, as a query
+ * (one row at most): the insights endpoints read it, and the month report
+ * says whether it exists without loading the text.
+ */
+export function storedInsight(household: HouseholdRef, month: Month, locale: Locale) {
+  return MonthlyInsight.query()
+    .withScopes((scopes) => scopes.forHousehold(household))
+    .where('month', month)
+    .where('locale', locale)
+}
 
 /**
  * LLM-written summaries of a month, stored once per household, month and
@@ -115,10 +128,7 @@ export default class InsightService {
   }
 
   protected stored(household: Household, month: Month, locale: Locale) {
-    return MonthlyInsight.query()
-      .withScopes((scopes) => scopes.forHousehold(household))
-      .where('month', month)
-      .where('locale', locale)
+    return storedInsight(household, month, locale)
   }
 
   /**

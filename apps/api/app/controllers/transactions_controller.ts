@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import TransactionService from '#services/ledger/transaction_service'
+import TransactionSuggestions from '#services/ledger/transaction_suggestions'
 import TransactionTransformer from '#transformers/transaction_transformer'
 import {
   bulkCategorizeValidator,
@@ -15,7 +16,18 @@ import {
 /** Expenses and income of the current household (any member). */
 @inject()
 export default class TransactionsController {
-  constructor(protected transactions: TransactionService) {}
+  constructor(
+    protected transactions: TransactionService,
+    protected suggestionsFor: TransactionSuggestions
+  ) {}
+
+  /**
+   * GET /transactions/suggestions: quick add's categories, payees, transfer
+   * routes and last account for the reader, ranked on the server.
+   */
+  async suggestions(ctx: HttpContext) {
+    return { data: await this.suggestionsFor.for(ctx.household, ctx.auth.getUserOrFail()) }
+  }
 
   /** GET /transactions: filtered, paginated (`{ data, metadata }`, perPage <= 100). */
   async index(ctx: HttpContext) {
