@@ -8,7 +8,8 @@
  * the screen can show the outcome of a decision before the server answers:
  *
  * - {@link toneOf}: the visual state (auto, doubtful, new, duplicate,
- *   transfer, ignored);
+ *   transfer, ignored), with {@link isGuessedTransfer} for a transfer whose
+ *   other account the importer guessed;
  * - {@link allowedActions}: what the triage sheet offers for a row;
  * - {@link applyDecision}: the optimistic preview of a `PATCH`;
  * - {@link bulkAcceptSuggested}, {@link assignCategoryChanges},
@@ -123,6 +124,8 @@ export interface ReviewableRow {
   isMasked: boolean
   isPending: boolean
   resolution: ImportResolution
+  /** Why the row ended where it did (`IMPORT_ROW_REASONS`). */
+  reasons: readonly string[]
   match: {
     transactionId: number
     score: number | null
@@ -216,10 +219,31 @@ function effectiveMatch(row: ReviewableRow): number | null {
   return pick(row, 'matchTransactionId', row.match?.transactionId ?? null)
 }
 
+/** `IMPORT_ROW_REASONS`: the other account is the only plausible one, not evidence. */
+const GUESSED_TRANSFER_REASON = 'transfer_destination_guessed'
+
+/**
+ * A transfer leg whose other account the importer guessed (API
+ * `isGuessedTransfer`): still open, with a proposed account, and nobody
+ * decided the row yet. Any decision settles it, as it does for the API:
+ * confirm then records the transfer and learns from it. The reason is the
+ * signal, not `needsReview`, which a future-dated row carries too.
+ */
+export function isGuessedTransfer(row: ReviewableRow): boolean {
+  return (
+    row.resolution === 'transfer_leg' &&
+    isOpen(row) &&
+    row.decidedAt === null &&
+    row.reasons.includes(GUESSED_TRANSFER_REASON) &&
+    effectiveTransferAccount(row) !== null
+  )
+}
+
 /**
  * The visual state of a row (DESIGN.md, Review row). A confirmed row (by
  * this screen or by `import:nab --confirm-auto`) is done: it keeps the tone
- * of what happened to it and is never "to review" or "new" again.
+ * of what happened to it and is never "to review" or "new" again. A
+ * transfer to a guessed account is "to review" until a person decides it.
  */
 export function toneOf(row: ReviewableRow): ReviewTone {
   switch (row.resolution) {
@@ -229,7 +253,7 @@ export function toneOf(row: ReviewableRow): ReviewTone {
     case 'superseded':
       return 'ignored'
     case 'transfer_leg':
-      return 'transfer'
+      return isGuessedTransfer(row) ? 'doubtful' : 'transfer'
     case 'auto_matched':
       return 'auto'
   }
@@ -321,6 +345,10 @@ export function acceptChange(row: ReviewableRow): RowChange | null {
   if (row.resolution === 'new' && toneOf(row) === 'doubtful') {
     const categoryId = row.suggestion?.categoryId ?? null
     return categoryId === null ? null : { categoryId }
+  }
+  if (isGuessedTransfer(row)) {
+    // Stating the proposed account is the person's decision (the API learns from it).
+    return { resolution: 'transfer_leg', transferAccountId: effectiveTransferAccount(row) }
   }
   return null
 }
