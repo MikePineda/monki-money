@@ -93,10 +93,12 @@ test.group('Scheduler', () => {
     )
 
     scheduler.start()
-    await sleep(80)
+    // Polls instead of sleeping a fixed time: a busy machine delays timers.
+    const deadline = Date.now() + 1_500
+    while (ticks < 2 && Date.now() < deadline) await sleep(5)
     await scheduler.stop()
     const stoppedAt = ticks
-    await sleep(40)
+    await sleep(50)
 
     assert.isAtLeast(stoppedAt, 2)
     assert.equal(ticks, stoppedAt, 'no tick after stop()')
