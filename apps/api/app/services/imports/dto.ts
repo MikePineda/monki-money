@@ -14,15 +14,24 @@ export interface StageInput {
   accountId?: number
 }
 
-/** `PATCH /imports/:id/rows/:rowId`: what a person decided for one row. */
+/**
+ * `PATCH /imports/:id/rows/:rowId`: what a person decided for one row.
+ * `reset` drops the person's decision first: the row goes back to the
+ * importer's proposal (resolution included) and counts as undecided
+ * unless the change sets something else. Never sent inline with confirm.
+ */
 export interface DecideInput extends ImportRowDecision {
   resolution?: ImportDecision
+  reset?: boolean
 }
 
 /** A decision sent inline with confirm. */
 export interface InlineDecision extends DecideInput {
   rowId: number
 }
+
+/** One change of `PATCH /imports/:id/rows` (the same fields as one row, plus its id). */
+export type RowChange = InlineDecision
 
 export interface ConfirmInput {
   decisions?: InlineDecision[]

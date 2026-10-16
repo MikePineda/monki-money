@@ -25,6 +25,7 @@ export const controllers = {
   PublicConfig: () => import('#controllers/public_config_controller'),
   PushSubscriptions: () => import('#controllers/push_subscriptions_controller'),
   Receipts: () => import('#controllers/receipts_controller'),
+  Recurring: () => import('#controllers/recurring_controller'),
   Reports: () => import('#controllers/reports_controller'),
   Rules: () => import('#controllers/rules_controller'),
   Sessions: () => import('#controllers/sessions_controller'),

@@ -156,6 +156,69 @@ test.group('Imports: classify', (group) => {
     assert.equal(rows.filter((row) => row.suggestionSource === 'nab_map').length, 10)
   })
 
+  test('test_classify_with_the_sync_queue_answers_the_run_already_finished', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, csv)
+    const batch = upload.body().data[0]
+    assert.include(batch, { classifying: false, classifiedAt: null })
+
+    const classify = await client.post(`/api/v1/imports/${batch.id}/classify`).actingAs(home.owner)
+
+    // QUEUE_DRIVER=sync: the run ended inside the request.
+    classify.assertStatus(202)
+    assert.isFalse(classify.body().data.classifying)
+    assert.isString(classify.body().data.classifiedAt)
+    const stored = await ImportBatch.findOrFail(batch.id)
+    assert.isNull(stored.classifyStartedAt)
+    assert.isNotNull(stored.classifyFinishedAt)
+    const summary = await client.get(`/api/v1/imports/${batch.id}?rows=0`).actingAs(home.owner)
+    assert.include(summary.body().data, { classifying: false })
+  })
+
+  test('test_batch_says_classifying_while_a_live_run_holds_its_claim', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, csv)
+    const batchId = upload.body().data[0].id
+    const running = await ImportBatch.findOrFail(batchId)
+    running.classifyStartedAt = DateTime.now().minus({ minutes: 1 })
+    await running.save()
+
+    const during = await client.get(`/api/v1/imports/${batchId}?rows=0`).actingAs(home.member)
+
+    assert.include(during.body().data, { classifying: true, classifiedAt: null })
+    const listed = await client.get('/api/v1/imports?status=staged').actingAs(home.member)
+    assert.isTrue(listed.body().data[0].classifying)
+
+    // A claim older than 10 minutes belongs to a run that died.
+    running.classifyStartedAt = DateTime.now().minus({ minutes: 30 })
+    await running.save()
+    const stale = await client.get(`/api/v1/imports/${batchId}?rows=0`).actingAs(home.member)
+    assert.isFalse(stale.body().data.classifying)
+  })
+
+  test('test_a_classify_run_the_model_fails_still_ends_the_run', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, csv)
+    const batch = upload.body().data[0]
+    const { LlmProvider } = await import('#llm/llm_provider')
+    const { LlmProviderError } = await import('#llm/errors')
+    const { default: app } = await import('@adonisjs/core/services/app')
+    const llm = (await app.container.make(LlmProvider)) as any
+    llm.script(new LlmProviderError('vendor down', 503))
+
+    const classify = await client.post(`/api/v1/imports/${batch.id}/classify`).actingAs(home.owner)
+
+    classify.assertStatus(202)
+    assert.isFalse(classify.body().data.classifying)
+    assert.isString(classify.body().data.classifiedAt)
+  })
+
   test('test_concurrent_classify_of_a_batch_is_a_conflict', async ({ client, assert }) => {
     const home = await nabHousehold()
     const upload = await uploadCsv(client, home.owner, csv)

@@ -2,11 +2,18 @@ import { Component, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
-import { aGoal, aProjection, anOpenEndedProjection } from '../../../../testing/goal-fixtures'
+import {
+  aGoalWithProjection,
+  aReachedProjection,
+  anOpenEndedProjection,
+} from '../../../../testing/goal-fixtures'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aMember, aUser, networkError } from '../../../../testing/session-fixtures'
+import type { GoalWithProjection } from '../../../core/api/api-types'
 import { SessionStore } from '../../../core/auth/session.store'
 import { HouseholdApi } from '../../../core/household/household.api'
+import { CLOCK } from '../../../core/platform/clock.token'
+import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { GoalsApi } from '../data-access/goals.api'
 import GoalsListPage from './goals-list.page'
@@ -16,28 +23,39 @@ class Stub {}
 
 describe('GoalsListPage', () => {
   let api: {
-    list: ReturnType<typeof vi.fn>
-    projection: ReturnType<typeof vi.fn>
+    listWithProjections: ReturnType<typeof vi.fn>
     reorder: ReturnType<typeof vi.fn>
   }
 
-  async function open(options: { goals?: ReturnType<typeof aGoal>[]; failFirst?: boolean } = {}) {
+  async function open(
+    options: {
+      goals?: GoalWithProjection[]
+      reached?: GoalWithProjection[]
+      failFirst?: boolean
+    } = {}
+  ) {
     const active = options.goals ?? [
-      aGoal({ id: 1, name: 'Emergency fund', userId: null }),
-      aGoal({ id: 2, name: 'Holiday', userId: 1 }),
-      aGoal({ id: 3, name: 'New bike', userId: 2 }),
+      aGoalWithProjection({ id: 1, name: 'Emergency fund', userId: null }),
+      aGoalWithProjection({ id: 2, name: 'Holiday', userId: 1 }),
+      aGoalWithProjection(
+        { id: 3, name: 'New bike', userId: 2 },
+        anOpenEndedProjection({ goalId: 3 })
+      ),
+    ]
+    const reached = options.reached ?? [
+      aGoalWithProjection(
+        { id: 9, name: 'Laptop', status: 'reached', reachedAt: '2026-11-02T21:30:00.000Z' },
+        aReachedProjection({ goalId: 9 })
+      ),
     ]
     api = {
-      list: vi.fn(async (status: string) =>
-        status === 'active' ? active : [aGoal({ id: 9, name: 'Laptop', status: 'reached' })]
-      ),
-      projection: vi.fn(async (id: number) =>
-        id === 3 ? anOpenEndedProjection({ goalId: id }) : aProjection({ goalId: id })
+      listWithProjections: vi.fn(async (status: string) =>
+        status === 'active' ? active : reached
       ),
       reorder: vi.fn(async () => undefined),
     }
     if (options.failFirst) {
-      api.list.mockRejectedValueOnce(networkError())
+      api.listWithProjections.mockRejectedValueOnce(networkError())
     }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -67,6 +85,8 @@ describe('GoalsListPage', () => {
           useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
         },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
+        { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
+        { provide: CLOCK, useValue: () => new Date('2026-11-20T00:00:00.000Z') },
       ],
     })
     const harness = await RouterTestingHarness.create()
@@ -107,7 +127,7 @@ describe('GoalsListPage', () => {
       'Projected June 2027 · You',
       'Needs a plan · Alex',
     ])
-    expect(api.list).toHaveBeenCalledWith('active')
+    expect(api.listWithProjections).toHaveBeenCalledWith('active')
   })
 
   it('test_filter_chips_show_reached_and_archived_goals', async () => {
@@ -120,9 +140,33 @@ describe('GoalsListPage', () => {
     reached?.click()
     await settle(harness, root)
 
-    expect(api.list).toHaveBeenLastCalledWith('reached')
+    expect(api.listWithProjections).toHaveBeenLastCalledWith('reached')
     expect(reached?.getAttribute('aria-pressed')).toBe('true')
     expect(cards(root)).toEqual(['Laptop'])
+  })
+
+  it('test_reached_goals_and_goals_at_their_target_wear_the_reached_badge', async () => {
+    const { harness, root } = await open({
+      goals: [
+        aGoalWithProjection({ id: 1, name: 'Emergency fund' }),
+        aGoalWithProjection({ id: 2, name: 'Laptop' }, aReachedProjection({ goalId: 2 })),
+      ],
+    })
+
+    const badges = [...root.querySelectorAll('[data-testid="goals.card"]')].map((card) =>
+      text(card, '[data-testid="goals.card.badge"]')
+    )
+    expect(badges).toEqual(['', 'Reached'])
+    expect(text(root, '[data-id="2"] [data-testid="goals.card.outlook"]')).toBe(
+      'Target met: mark it as reached · Household'
+    )
+
+    root.querySelector<HTMLButtonElement>('[data-testid="goals.filter.reached"]')?.click()
+    await settle(harness, root)
+
+    expect(text(root, '[data-testid="goals.card.badge"]')).toBe('Reached')
+    // Marked at 21:30 UTC on 2 Nov: 3 Nov in Brisbane.
+    expect(text(root, '[data-testid="goals.card.outlook"]')).toBe('Reached on 3 Nov · Household')
   })
 
   it('test_an_empty_list_offers_to_create_the_first_goal', async () => {

@@ -22,6 +22,7 @@ import type MerchantRuleTransformer from '#transformers/merchant_rule_transforme
 import type MonthlyInsightTransformer from '#transformers/monthly_insight_transformer'
 import type PayslipTransformer from '#transformers/payslip_transformer'
 import type PushSubscriptionTransformer from '#transformers/push_subscription_transformer'
+import type RecurringItemTransformer from '#transformers/recurring_item_transformer'
 import type TransactionSplitTransformer from '#transformers/transaction_split_transformer'
 import type TransactionTransformer from '#transformers/transaction_transformer'
 import type TransferTransformer from '#transformers/transfer_transformer'
@@ -95,6 +96,10 @@ export namespace Data {
   export type PushSubscription = InferData<PushSubscriptionTransformer>
   export namespace PushSubscription {
     export type Variants = InferVariants<PushSubscriptionTransformer>
+  }
+  export type RecurringItem = InferData<RecurringItemTransformer>
+  export namespace RecurringItem {
+    export type Variants = InferVariants<RecurringItemTransformer>
   }
   export type TransactionSplit = InferData<TransactionSplitTransformer>
   export namespace TransactionSplit {

@@ -1,10 +1,12 @@
 /**
  * Savings goals on the client: the form's draft and the API body it
  * becomes, and how a projection reads (progress, reached / projected /
- * open-ended, on track or behind, why it is open-ended). Pure: no Angular,
- * and the wire shapes are restated structurally so domain stays free of
- * core.
+ * open-ended, on track or behind, why it is open-ended, the day it was
+ * marked reached). Pure: no Angular, and the wire shapes are restated
+ * structurally so domain stays free of core.
  */
+import { formatShortDay } from './dates'
+import { todayIn, type IsoDate } from './month'
 
 export type GoalStatus = 'active' | 'reached' | 'archived'
 /** Whose goal it is: the household's (no user), yours or your partner's. */
@@ -60,6 +62,8 @@ export interface ProjectionFacts {
   requiredMonthlyForTargetDate: number | null
   onTrack: boolean | null
   series: readonly { month: string; projectedCents: number }[]
+  /** Saved at each month end, oldest first, the current month last. */
+  history: readonly { month: string; balanceCents: number }[]
 }
 
 export type GoalOutlook = 'reached' | 'projected' | 'openEnded'
@@ -178,11 +182,55 @@ export interface ProjectionPoint {
   valueCents: number
 }
 
-/** The projection chart's input: point 0 is today's saved amount, the rest are estimates. */
-export function projectionPoints(series: ProjectionFacts['series']): {
+/**
+ * The projection chart's input: the actual line runs through the month-end
+ * history (today's saved amount when there is none), and the estimate
+ * continues from its last point, today.
+ */
+export function projectionPoints(projection: Pick<ProjectionFacts, 'history' | 'series'>): {
   history: ProjectionPoint[]
   projection: ProjectionPoint[]
 } {
-  const points = series.map((point) => ({ x: point.month, valueCents: point.projectedCents }))
-  return { history: points.slice(0, 1), projection: points.slice(1) }
+  const series = projection.series.map((point) => ({
+    x: point.month,
+    valueCents: point.projectedCents,
+  }))
+  const history =
+    projection.history.length > 0
+      ? projection.history.map((point) => ({ x: point.month, valueCents: point.balanceCents }))
+      : series.slice(0, 1)
+  const today = history.at(-1)?.x ?? ''
+  return { history, projection: series.filter((point) => point.x > today) }
+}
+
+/** A goal reads as reached once marked so, or while active with nothing left to save. */
+export function readsReached(
+  status: GoalStatus,
+  projection: Pick<ProjectionFacts, 'remainingCents'> | null
+): boolean {
+  return status === 'reached' || readyToMarkReached(status, projection)
+}
+
+/** Active with nothing left to save: the person can mark it as reached. */
+export function readyToMarkReached(
+  status: GoalStatus,
+  projection: Pick<ProjectionFacts, 'remainingCents'> | null
+): boolean {
+  return status === 'active' && projection?.remainingCents === 0
+}
+
+/** The household's calendar day a goal was marked reached, from its `reachedAt` timestamp. */
+export function reachedDay(reachedAt: string | null, timeZone: string): IsoDate | null {
+  return reachedAt === null ? null : todayIn(timeZone, new Date(reachedAt))
+}
+
+/** That day for "Reached on {date}": "3 Nov", with the year when it is not this one. */
+export function reachedOnText(
+  reachedAt: string | null,
+  locale: string,
+  timeZone: string,
+  now: Date
+): string | null {
+  const day = reachedDay(reachedAt, timeZone)
+  return day === null ? null : formatShortDay(day, locale, todayIn(timeZone, now))
 }

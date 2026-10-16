@@ -18,6 +18,8 @@ export type TransactionSplit = Data.TransactionSplit
 export type Transfer = Data.Transfer
 /** A savings goal (`userId` null = the household's). */
 export type Goal = Data.Goal
+/** `GET /goals?include=projection`: a goal and its projection (null when none was computed). */
+export type GoalWithProjection = Data.Goal.Variants['withProjection']
 /** A payout recorded as its gross and deductions, linked to the transfer of the net. */
 export type Payslip = Data.Payslip
 /** The LLM-written summary of a month, in the reader's language. */
@@ -30,3 +32,5 @@ export type ImportBatchDetail = Data.ImportBatchDetail
 export type ImportRow = Data.ImportRow
 /** A merchant rule (`origin`: user, learned or system). */
 export type MerchantRule = Data.MerchantRule
+/** A recurring payment (rent, a subscription): detected from the ledger or typed by hand. */
+export type RecurringItem = Data.RecurringItem

@@ -113,6 +113,7 @@ export default {
       columns: {
         resolution: shared('ImportResolution'),
         // Nullable columns get `| null` from the generator.
+        proposed_resolution: shared('ImportResolution'),
         suggestion_source: shared('SuggestionSource'),
         // jsonb: stringified on write (see database/json_column.ts).
         raw: json('Record<string, string>'),
@@ -131,6 +132,15 @@ export default {
       columns: {
         match_type: shared('RuleMatchType'),
         origin: shared('RuleOrigin'),
+      },
+    },
+    recurring_items: {
+      columns: {
+        cadence: shared('RecurringCadence'),
+        status: shared('RecurringStatus'),
+        source: shared('RecurringSource'),
+        // jsonb: stringified on write (see database/json_column.ts).
+        edited_fields: json('string[]'),
       },
     },
     push_subscriptions: {

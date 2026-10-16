@@ -42,6 +42,8 @@
     "projected": "Projected {date}",
     "needsPlan": "Needs a plan",
     "reached": "Reached",
+    "reachedOn": "Reached on {date}",
+    "ready": "Target met: mark it as reached",
     "archived": "Archived",
     "unknown": "Projection unavailable",
     "onTrack": "On track",
@@ -99,6 +101,7 @@
     "of": "of {target}",
     "remaining": "{amount} to go",
     "reached": "Goal reached",
+    "reachedOn": "Reached on {date}",
     "progressLabel": "{percent}% saved",
     "badge": {
       "reached": "Reached",
@@ -134,6 +137,10 @@
       "zeroContribution": "Your monthly contribution is $0.00, so this goal is never reached.",
       "tooSlow": "At this monthly rate the goal is more than 100 years away.",
       "action": "Set a monthly contribution"
+    },
+    "atTarget": {
+      "title": "You reached your target",
+      "body": "Mark it as reached to move it to Reached. You can reopen it any time."
     },
     "actions": {
       "label": "Goal actions",

@@ -11,11 +11,24 @@ export class FieldError extends Exception {
   static override status = 422
   static override code = 'E_FIELD_ERROR'
 
+  /** Where the field sits in the body (`changes.2`), or null at the top. */
+  path: string | null = null
+
   constructor(
     public field: string,
     public rule: string,
     public meta: Record<string, unknown> = {}
   ) {
     super(`${field}: ${rule}`)
+  }
+
+  /**
+   * The same failure for an item of a list in the body: rendered as
+   * `<path>.<field>` (`changes.2.categoryId`), worded like the plain field.
+   */
+  within(path: string): FieldError {
+    const nested = new FieldError(this.field, this.rule, this.meta)
+    nested.path = path
+    return nested
   }
 }

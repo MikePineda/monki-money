@@ -73,9 +73,10 @@ export const IMPORT_BATCH_STATUSES = ['staged', 'completed', 'cancelled'] as con
 export type ImportBatchStatus = (typeof IMPORT_BATCH_STATUSES)[number]
 
 /**
- * What an imported bank row is. `duplicate` rows are counted but never
- * stored (their hash already is); `superseded` marks the row of a pending
- * movement once its posted copy took over the transaction.
+ * What an imported bank row is. `duplicate` rows (their hash was imported
+ * before) are stored settled, for the review to list them, and take no
+ * decision; `superseded` marks the row of a pending movement once its
+ * posted copy took over the transaction.
  */
 export const IMPORT_RESOLUTIONS = [
   'new',
@@ -136,6 +137,31 @@ export const GOAL_STATUSES = ['active', 'reached', 'archived'] as const
 export type GoalStatus = (typeof GOAL_STATUSES)[number]
 
 /**
+ * How often a recurring payment falls due, shortest first. Monthly-based
+ * cadences keep the day of the month (clamped to short months).
+ */
+export const RECURRING_CADENCES = [
+  'weekly',
+  'fortnightly',
+  'monthly',
+  'quarterly',
+  'yearly',
+] as const
+export type RecurringCadence = (typeof RECURRING_CADENCES)[number]
+
+/**
+ * Lifecycle of a recurring payment: `paused` stops counting it as committed
+ * while keeping it, `dismissed` means "not a bill" and detection never
+ * brings it back.
+ */
+export const RECURRING_STATUSES = ['active', 'paused', 'dismissed'] as const
+export type RecurringStatus = (typeof RECURRING_STATUSES)[number]
+
+/** Where a recurring payment came from: found in the ledger, or typed by a person. */
+export const RECURRING_SOURCES = ['detected', 'manual'] as const
+export type RecurringSource = (typeof RECURRING_SOURCES)[number]
+
+/**
  * Native Postgres enum types, by type name. Migrations hardcode the same
  * literals (migrations are immutable history); the API test
  * `test_native_enums_match_shared_enums` keeps both in sync.
@@ -159,4 +185,7 @@ export const POSTGRES_ENUMS = {
   suggestion_source: SUGGESTION_SOURCES,
   rule_match_type: RULE_MATCH_TYPES,
   rule_origin: RULE_ORIGINS,
+  recurring_cadence: RECURRING_CADENCES,
+  recurring_status: RECURRING_STATUSES,
+  recurring_source: RECURRING_SOURCES,
 } as const satisfies Record<string, readonly string[]>

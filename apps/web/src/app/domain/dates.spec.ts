@@ -1,4 +1,10 @@
-import { formatDateRange, formatDay, formatDayMonth, formatWeekdayDate } from './dates'
+import {
+  formatDateRange,
+  formatDay,
+  formatDayMonth,
+  formatShortDay,
+  formatWeekdayDate,
+} from './dates'
 
 describe('formatDay', () => {
   it('test_formats_day_first_with_a_short_month_in_both_locales', () => {
@@ -33,6 +39,14 @@ describe('formatDayMonth', () => {
   it('test_day_and_month_without_the_year', () => {
     expect(formatDayMonth('2026-10-05', 'en-AU')).toBe('5 Oct')
     expect(formatDayMonth('2026-10-05', 'es-MX')).toBe('5 oct')
+  })
+})
+
+describe('formatShortDay', () => {
+  it('test_a_day_of_this_year_drops_the_year_and_any_other_keeps_it', () => {
+    expect(formatShortDay('2026-11-03', 'en-AU', '2026-12-31')).toBe('3 Nov')
+    expect(formatShortDay('2026-11-03', 'es-MX', '2026-11-03')).toBe('3 nov')
+    expect(formatShortDay('2025-11-03', 'en-AU', '2026-01-02')).toBe('3 Nov 2025')
   })
 })
 

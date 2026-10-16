@@ -62,6 +62,25 @@ describe('AmountDisplayComponent', () => {
     expect(host.querySelector('.pnum')).not.toBeNull()
   })
 
+  it('test_a_signed_hero_shows_the_true_minus_only_when_negative', async () => {
+    TestBed.configureTestingModule({
+      imports: [i18nTesting()],
+      providers: [i18nTestingProviders(), { provide: APP_LOCALE, useValue: signal('en-AU') }],
+    })
+    const fixture = TestBed.createComponent(AmountDisplayComponent)
+    fixture.componentRef.setInput('cents', -12_345)
+    fixture.componentRef.setInput('variant', 'hero')
+    fixture.componentRef.setInput('signed', true)
+    await fixture.whenStable()
+    const host = fixture.nativeElement as HTMLElement
+
+    expect(host.textContent?.trim()).toBe(`${MINUS}$123.45`)
+
+    fixture.componentRef.setInput('cents', 12_345)
+    await fixture.whenStable()
+    expect(host.textContent?.trim()).toBe('$123.45')
+  })
+
   it('test_stat_rounds_to_whole_dollars', async () => {
     const { text } = await render(514040, 'total', 'stat')
 

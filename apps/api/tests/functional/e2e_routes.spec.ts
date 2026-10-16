@@ -7,8 +7,17 @@ import SavingsGoal from '#models/savings_goal'
 import app from '@adonisjs/core/services/app'
 import { execFile } from 'node:child_process'
 import router from '@adonisjs/core/services/router'
+import Transaction from '#models/transaction'
+import RecurringItem from '#models/recurring_item'
+import { freezeClock } from '#tests/helpers/ledger'
 import { createHousehold } from '#tests/helpers/household'
-import { E2E_MEMBER_EMAIL, E2E_OWNER_EMAIL, E2E_PASSWORD } from '#services/e2e/e2e_seed'
+import RecurringDetector from '#services/recurring/recurring_detector'
+import {
+  E2E_MEMBER_EMAIL,
+  E2E_OWNER_EMAIL,
+  E2E_PASSWORD,
+  E2E_WEEKLY_PAYEE,
+} from '#services/e2e/e2e_seed'
 
 const run = promisify(execFile)
 
@@ -82,6 +91,36 @@ test.group('Test-support routes', () => {
       accountId: null,
       userId: null,
       status: 'active',
+    })
+  })
+
+  test('test_reset_seeds_weekly_rent_before_this_month_for_recurring_detection', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    cleanup(freezeClock('2026-10-16T09:00:00+10:00'))
+    await client.post('/api/test/reset')
+
+    const [household] = await Household.all()
+    const rent = await Transaction.query().where('household_id', household.id).orderBy('date')
+    assert.deepEqual(
+      rent.map((row) => [row.date, row.amountCents, row.payee]),
+      ['2026-09-09', '2026-09-16', '2026-09-23', '2026-09-30'].map((date) => [
+        date,
+        -45_000,
+        E2E_WEEKLY_PAYEE,
+      ])
+    )
+    // Nothing in the current month: its Month view stays empty until detection runs.
+    const detector = await app.container.make(RecurringDetector)
+    assert.deepEqual(await detector.detect(household), { created: 1, updated: 0 })
+    const item = await RecurringItem.query().where('household_id', household.id).firstOrFail()
+    assert.include(item.serialize(), {
+      payee: E2E_WEEKLY_PAYEE,
+      cadence: 'weekly',
+      amountCents: 45_000,
+      nextExpectedDate: '2026-10-21',
     })
   })
 

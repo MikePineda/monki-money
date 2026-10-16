@@ -1,0 +1,65 @@
+{
+  "title": "Pagos recurrentes",
+  "back": "Volver a ajustes",
+  "intro": "Pagos que vuelven solos: renta, teléfono, gimnasio, suscripciones. La vista del mes cuenta lo que aún se llevan este mes.",
+  "loading": "Cargando pagos recurrentes",
+  "detect": "Volver a detectar",
+  "detecting": "Buscando…",
+  "add": "Agregar a mano",
+  "error": {
+    "title": "No se cargaron los pagos recurrentes",
+    "body": "Revisa tu conexión e inténtalo de nuevo."
+  },
+  "empty": {
+    "title": "Aún no hay pagos recurrentes",
+    "body": "Para detectarlos hacen falta unos tres pagos al mismo comercio. Importa el CSV de tu banco o agrega uno a mano.",
+    "detect": "Detectar pagos recurrentes"
+  },
+  "sections": {
+    "paused": "En pausa",
+    "dismissed": "Descartados"
+  },
+  "cadence": {
+    "weekly": "Semanal",
+    "fortnightly": "Quincenal",
+    "monthly": "Mensual",
+    "quarterly": "Trimestral",
+    "yearly": "Anual"
+  },
+  "next": "Próximo {date}",
+  "noCategory": "Sin categoría",
+  "pausedByDetection": "En pausa: sin pagos desde el {date}",
+  "actions": {
+    "edit": "Editar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "dismiss": "No es un pago fijo",
+    "restore": "Restaurar"
+  },
+  "sheet": {
+    "addTitle": "Agregar un pago recurrente",
+    "editTitle": "Editar {payee}",
+    "payee": "Comercio",
+    "payeeHint": "Como aparece en tu estado de cuenta.",
+    "suggestions": "Pagados hace poco",
+    "suggestionMeta": "{amount} · {count, plural, one {# pago} other {# pagos}}",
+    "amount": "Monto habitual",
+    "cadence": "Cada cuánto",
+    "nextDate": "Próxima fecha de pago",
+    "category": "Categoría",
+    "person": "Quién paga",
+    "save": "Guardar"
+  },
+  "people": {
+    "you": "Tú",
+    "joint": "Compartido"
+  },
+  "toast": {
+    "found": "{count, plural, =0 {No hay pagos recurrentes nuevos} one {Encontramos # pago recurrente} other {Encontramos # pagos recurrentes}}",
+    "saved": "{payee} guardado",
+    "paused": "{payee} en pausa: ya no cuenta como comprometido",
+    "resumed": "{payee} vuelve a contar como comprometido",
+    "dismissed": "{payee} descartado: la detección no lo volverá a traer",
+    "restored": "{payee} restaurado"
+  }
+}

@@ -15,7 +15,8 @@ export type AmountKind = TransactionKind | 'total'
 
 /**
  * Amounts by role (DESIGN.md, Amount display):
- * - hero: display size, proportional figures, no sign, cents in ink-2;
+ * - hero: display size, proportional figures, no sign (unless `signed` and
+ *   negative), cents in ink-2;
  * - stat: title size, whole dollars, proportional figures;
  * - row: tabular, right-aligned; expense "−$84.20" in ink, income "+$3,200.00"
  *   in the income green, transfer "$500.00" in ink-3 after the arrow glyph.
@@ -27,7 +28,8 @@ export type AmountKind = TransactionKind | 'total'
     @switch (variant()) {
       @case ('hero') {
         <span class="text-display pnum text-ink-1"
-          >{{ heroParts().whole }}<span class="text-ink-2">{{ heroParts().fraction }}</span></span
+          >{{ heroParts().sign }}{{ heroParts().whole
+          }}<span class="text-ink-2">{{ heroParts().fraction }}</span></span
         >
       }
       @case ('stat') {
@@ -55,9 +57,14 @@ export class AmountDisplayComponent {
   readonly cents = input.required<number>()
   readonly kind = input<AmountKind>('total')
   readonly variant = input<AmountVariant>('row')
+  /**
+   * Hero only: show the true minus when the amount is negative (a goal's
+   * saved amount can be). Month's hero is a period total and stays unsigned.
+   */
+  readonly signed = input(false)
 
   protected readonly heroParts = computed(() =>
-    formatMoneyParts(this.cents(), this.locale(), { sign: 'never' })
+    formatMoneyParts(this.cents(), this.locale(), { sign: this.signed() ? 'auto' : 'never' })
   )
 
   protected readonly statText = computed(() =>

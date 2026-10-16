@@ -96,7 +96,9 @@ test.group('Reports', () => {
     const response = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
 
     response.assertStatus(200)
-    const { topMovers, ...summary } = response.body().data
+    const { topMovers, committed, ...summary } = response.body().data
+    // No recurring payments yet: nothing committed.
+    assert.deepEqual(committed, { paidCents: 0, upcomingCents: 0, recurringCount: 0, items: [] })
     // Hand-computed totals.
     assert.include(summary, {
       month: '2026-10',

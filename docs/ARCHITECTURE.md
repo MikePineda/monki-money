@@ -132,6 +132,19 @@ another one ("Show photo", folded above the fields) only while the review
 is open; both go on cancel, on discard, with a new photo and when the screen
 goes away.
 
+**Recurring payments.** `recurring_items` (one per household and merchant
+key) are found by a pure detector (`app/domain/recurring`) over whole expense
+transactions (`MerchantPaymentsRepository`, not report postings: a payment is
+what left the account once, split or not), keyed with the importer's
+`merchantKey`. `RecurringDetector` upserts what it finds under a per-household
+advisory lock (`pg_advisory_xact_lock`), never recreating a dismissed item nor
+overwriting `edited_fields`; it runs on demand and after every confirmed
+import. `reports.month` adds `committed` (paid / still due this month,
+`app/domain/recurring/committed.ts`) so the Month view's card needs no extra
+call; "Free after bills" is computed on the client. The web screen
+`/recurring` is lazy and reached from More; any change there invalidates the
+current month.
+
 ## Offline outbox (web)
 
 Quick add never loses an entry. Every create carries a `clientId` (uuid)
@@ -185,6 +198,7 @@ writes survive offline.
 | `/api/v1/payslips*`                                                                          | Payouts of an umbrella service: gross and deductions linked to the transfer of the net (see `docs/CONTRACTS.md`).           |
 | `/api/v1/imports*`, `/api/v1/rules*`                                                         | Bank imports and merchant rules (see `docs/CONTRACTS.md`).                                                                  |
 | `/api/v1/goals*`, `/api/v1/insights/*`                                                       | Savings goals with their projection and the LLM-written monthly insights (see `docs/CONTRACTS.md`).                         |
+| `/api/v1/recurring*`                                                                         | Recurring payments, detected from the ledger or typed by hand (see `docs/CONTRACTS.md`).                                    |
 | `POST /api/v1/uploads/presign`, `POST /api/v1/receipts/scan`                                 | Direct uploads to the bucket and receipt scanning (see `docs/CONTRACTS.md`).                                                |
 | `/api/v1/push/subscriptions`, `/api/v1/me/notifications`                                     | This device's Web Push subscription and the person's notification preferences (see `docs/CONTRACTS.md`).                    |
 | static `public/`                                                                             | Angular build with the PWA cache policy.                                                                                    |

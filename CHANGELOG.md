@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.0](https://github.com/MikePineda/monki-money/compare/v0.2.0...v0.3.0) (2026-10-16)
+
+
+### Added
+
+* **api:** generate the monthly insight on the 1st with an in-process scheduler ([#16](https://github.com/MikePineda/monki-money/issues/16)) ([09564c6](https://github.com/MikePineda/monki-money/commit/09564c6c006c806f27b099d3a663bf4faeabeb46))
+* **api:** resolve NAB transfers with a free memo to the linked account ([#7](https://github.com/MikePineda/monki-money/issues/7)) ([26c8beb](https://github.com/MikePineda/monki-money/commit/26c8beb7a0ca45003d68cf50f2ce5f177efa7d81))
+* goal projections inline, month-end history and reached goals ([#19](https://github.com/MikePineda/monki-money/issues/19)) ([85dafd3](https://github.com/MikePineda/monki-money/commit/85dafd34868c86badfb54a7b90d65759e85eca90))
+* import review polish (classify state, duplicates, bulk undo) ([#18](https://github.com/MikePineda/monki-money/issues/18)) ([5ef07ce](https://github.com/MikePineda/monki-money/commit/5ef07cef211fc5956b80f96e981fa8111f095f61))
+* payslips with gross income and deductions linked to the bank transfer ([#12](https://github.com/MikePineda/monki-money/issues/12)) ([33083e2](https://github.com/MikePineda/monki-money/commit/33083e2b16dfdfa251f09aaa1b38f3b96efa25b4))
+* recurring payments and the committed part of the month ([#15](https://github.com/MikePineda/monki-money/issues/15)) ([27c3ba2](https://github.com/MikePineda/monki-money/commit/27c3ba283749da5e8e3a9baeed95d1be4bbcafbc))
+* tag filter and per-tag totals ([#14](https://github.com/MikePineda/monki-money/issues/14)) ([c4b10ba](https://github.com/MikePineda/monki-money/commit/c4b10ba238043836562f90f128ffbdc17dc403a9))
+* **web:** create and edit merchant rules, show account balances and opening balance ([#11](https://github.com/MikePineda/monki-money/issues/11)) ([a7f036a](https://github.com/MikePineda/monki-money/commit/a7f036a5ceb6a3c1652a9c1a8df9ae2c97f98460))
+* **web:** receipt scanner and offline outbox polish ([#20](https://github.com/MikePineda/monki-money/issues/20)) ([b7189f3](https://github.com/MikePineda/monki-money/commit/b7189f3fff1df1a5438ec2709597ec543f0bfa11))
+
+
+### Fixed
+
+* **api:** return rule counters on create and keep bank-default rules locked ([#13](https://github.com/MikePineda/monki-money/issues/13)) ([1caf80c](https://github.com/MikePineda/monki-money/commit/1caf80cf232a7c78501af57b70d57504955fe1dc))
+* **web:** keep the initial bundle under budget and harden flaky tests ([#8](https://github.com/MikePineda/monki-money/issues/8)) ([2294dac](https://github.com/MikePineda/monki-money/commit/2294dacb2cc4fa6b356186c5bd5f57f13f0fb61d))
+* **web:** review guessed transfer accounts and accept them in bulk ([#10](https://github.com/MikePineda/monki-money/issues/10)) ([3d5d240](https://github.com/MikePineda/monki-money/commit/3d5d24015e85e1e8745e29fcc42e9ba656aad5f9))
+* **web:** show confirmed import rows as done and isolate the blocking ones ([#4](https://github.com/MikePineda/monki-money/issues/4)) ([37be9ef](https://github.com/MikePineda/monki-money/commit/37be9efa00bf04283f5531cefe6d1c2d006a5150))
+
+
+### Dependencies
+
+* **e2e:** give every E2E run its own stack slot ([#9](https://github.com/MikePineda/monki-money/issues/9)) ([536afc8](https://github.com/MikePineda/monki-money/commit/536afc857fd25879755b14d37c81c49bd65f11f6))
+
 ## [0.2.0](https://github.com/MikePineda/monki-money/compare/v0.1.0...v0.2.0) (2026-10-16)
 
 

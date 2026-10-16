@@ -22,6 +22,8 @@ import payslipsEn from '../app/features/payslips/i18n/en.json'
 import payslipsEs from '../app/features/payslips/i18n/es.json'
 import quickAddEn from '../app/features/quick-add/i18n/en.json'
 import quickAddEs from '../app/features/quick-add/i18n/es.json'
+import recurringEn from '../app/features/recurring/i18n/en.json'
+import recurringEs from '../app/features/recurring/i18n/es.json'
 import rulesEn from '../app/features/rules/i18n/en.json'
 import rulesEs from '../app/features/rules/i18n/es.json'
 import scanEn from '../app/features/scan/i18n/en.json'
@@ -62,6 +64,7 @@ export const SCOPE_CATALOGUES = {
   outbox: { en: outboxEn, es: outboxEs },
   payslips: { en: payslipsEn, es: payslipsEs },
   quickAdd: { en: quickAddEn, es: quickAddEs },
+  recurring: { en: recurringEn, es: recurringEs },
   rules: { en: rulesEn, es: rulesEs },
   scan: { en: scanEn, es: scanEs },
   settings: { en: settingsEn, es: settingsEs },

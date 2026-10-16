@@ -7,6 +7,9 @@ import {
   IMPORT_RESOLUTIONS,
   LOCALES,
   POSTGRES_ENUMS,
+  RECURRING_CADENCES,
+  RECURRING_SOURCES,
+  RECURRING_STATUSES,
   TRANSACTION_KINDS,
   isLocale,
 } from './enums.ts'
@@ -74,4 +77,16 @@ test('the import enums are backed by native Postgres types', () => {
 test('a row decision is one of the final resolutions a person may pick', () => {
   assert.deepEqual([...IMPORT_DECISIONS], ['new', 'auto_matched', 'transfer_leg', 'ignored'])
   for (const decision of IMPORT_DECISIONS) assert.ok(IMPORT_RESOLUTIONS.includes(decision))
+})
+
+test('recurring payments: cadences shortest first, active first, backed by native Postgres types', () => {
+  assert.deepEqual(
+    [...RECURRING_CADENCES],
+    ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']
+  )
+  assert.deepEqual([...RECURRING_STATUSES], ['active', 'paused', 'dismissed'])
+  assert.deepEqual([...RECURRING_SOURCES], ['detected', 'manual'])
+  assert.deepEqual(POSTGRES_ENUMS.recurring_cadence, RECURRING_CADENCES)
+  assert.deepEqual(POSTGRES_ENUMS.recurring_status, RECURRING_STATUSES)
+  assert.deepEqual(POSTGRES_ENUMS.recurring_source, RECURRING_SOURCES)
 })

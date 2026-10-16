@@ -1,6 +1,6 @@
 {
   "name": "monkimoney",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "monkimoney: a couples' finance PWA (AUD). AdonisJS 7 API + Angular 22 PWA monorepo.",

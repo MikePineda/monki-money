@@ -88,12 +88,19 @@ export type ScannedRoutes = {
     'imports.classify': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.confirm': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.cancel': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.rows.bulk': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }
     'rules.index': { paramsTuple?: []; params?: {} }
     'rules.store': { paramsTuple?: []; params?: {} }
     'rules.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'recurring.index': { paramsTuple?: []; params?: {} }
+    'recurring.merchants': { paramsTuple?: []; params?: {} }
+    'recurring.store': { paramsTuple?: []; params?: {} }
+    'recurring.detect': { paramsTuple?: []; params?: {} }
+    'recurring.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'uploads.presign': { paramsTuple?: []; params?: {} }
     'receipts.scan': { paramsTuple?: []; params?: {} }
     'push.subscriptions.store': { paramsTuple?: []; params?: {} }
@@ -132,6 +139,8 @@ export type ScannedRoutes = {
     'imports.index': { paramsTuple?: []; params?: {} }
     'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.index': { paramsTuple?: []; params?: {} }
+    'recurring.index': { paramsTuple?: []; params?: {} }
+    'recurring.merchants': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
@@ -166,6 +175,8 @@ export type ScannedRoutes = {
     'imports.index': { paramsTuple?: []; params?: {} }
     'imports.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.index': { paramsTuple?: []; params?: {} }
+    'recurring.index': { paramsTuple?: []; params?: {} }
+    'recurring.merchants': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
@@ -202,6 +213,8 @@ export type ScannedRoutes = {
     'imports.cancel': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.store': { paramsTuple?: []; params?: {} }
     'rules.apply': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'recurring.store': { paramsTuple?: []; params?: {} }
+    'recurring.detect': { paramsTuple?: []; params?: {} }
     'uploads.presign': { paramsTuple?: []; params?: {} }
     'receipts.scan': { paramsTuple?: []; params?: {} }
     'push.subscriptions.store': { paramsTuple?: []; params?: {} }
@@ -216,8 +229,10 @@ export type ScannedRoutes = {
     'transactions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'imports.rows.bulk': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }
     'rules.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'recurring.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
     'household.invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -230,6 +245,7 @@ export type ScannedRoutes = {
     'payslips.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'goals.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'push.subscriptions.destroy': { paramsTuple?: []; params?: {} }
   }
   PUT: {

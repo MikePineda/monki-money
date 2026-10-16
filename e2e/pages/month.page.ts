@@ -19,6 +19,14 @@ export class MonthPage {
   get addButton() {
     return this.page.getByRole('link', { name: 'Add transaction' }).first()
   }
+  /** "Committed this month" (the current month, once the household has recurring payments). */
+  get committed() {
+    return this.page.getByTestId('month.committed')
+  }
+  /** The one-line hint that offers to detect recurring payments while there are none. */
+  get committedHint() {
+    return this.page.getByTestId('month.committed.hint')
+  }
   /** The AI-written monthly summary card in the insights slot. */
   get summary() {
     return this.page.getByTestId('month.summary')
