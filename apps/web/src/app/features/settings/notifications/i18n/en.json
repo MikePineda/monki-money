@@ -1,0 +1,20 @@
+{
+  "title": "Notifications",
+  "loading": "Checking notifications on this device",
+  "intro": "Get a heads-up when your monthly summary is ready and, if you like, an evening nudge on days you logged nothing.",
+  "iosHint": "On iPhone and iPad, notifications only work in the installed app: add monkimoney to your Home Screen and open it from there.",
+  "enable": "Turn on notifications",
+  "enableFailed": "Notifications could not be turned on. Try again.",
+  "unsupported": "This browser cannot show notifications.",
+  "unsupportedIos": "On iPhone and iPad, notifications only work in the installed app. Add monkimoney to your Home Screen (Share, then Add to Home Screen), open it from there and come back here.",
+  "unavailable": "Notifications are not available right now.",
+  "denied": "Notifications are blocked for monkimoney. Allow them in your browser or device settings, then come back here.",
+  "enabled": "On for this device.",
+  "summary": "Monthly summary is ready",
+  "summaryHint": "On the 1st, once last month’s summary is written.",
+  "reminder": "Daily reminder",
+  "reminderHint": "Only on days you have not logged anything.",
+  "reminderTime": "Remind me at",
+  "timeZone": "Time zone: {zone}",
+  "disable": "Turn off on this device"
+}

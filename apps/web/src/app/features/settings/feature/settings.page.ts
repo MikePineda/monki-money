@@ -32,6 +32,7 @@ import {
   type SegmentOption,
 } from '../../../shared/ui/segmented-control/segmented-control.component'
 import { openSelectSheet } from '../../../shared/ui/select-sheet/select-sheet.component'
+import { NotificationsSectionComponent } from '../notifications/notifications-section.component'
 import { provideSettingsScope } from '../settings.scope'
 import {
   DeleteHouseholdSheetComponent,
@@ -67,8 +68,8 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
  * Settings (DESIGN mock `settings`), one scrolling page of cards: profile
  * (name, language, password), appearance, the household (name, time zone,
  * members, invitations), accounts, the app (install, version, updates),
- * legal, and the danger zone (the owner exports or deletes, a member
- * leaves). Every change saves at once; owner-only controls are hidden from
+ * notifications (their own section), legal, and the danger zone (the owner
+ * exports or deletes, a member leaves). Every change saves at once; owner-only controls are hidden from
  * members (the API enforces the same rule).
  */
 @Component({
@@ -78,6 +79,7 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
     CardComponent,
     IconButtonComponent,
     IconComponent,
+    NotificationsSectionComponent,
     PersonDotComponent,
     RouterLink,
     SegmentedControlComponent,
@@ -304,6 +306,9 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
           {{ 'settings.app.checkUpdate' | transloco }}
         </button>
       </app-card>
+
+      <!-- Notifications (its own section: features/settings/notifications) -->
+      <app-notifications-section />
 
       <!-- Legal -->
       <app-card class="gap-0! overflow-hidden p-0!">

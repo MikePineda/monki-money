@@ -6,8 +6,8 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core'
-import { provideRouter, withComponentInputBinding } from '@angular/router'
-import { provideServiceWorker } from '@angular/service-worker'
+import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
+import { SwPush, provideServiceWorker } from '@angular/service-worker'
 import { routes } from './app.routes'
 import { provideAuth } from './core/auth/auth.providers'
 import { provideI18n } from './core/i18n/i18n.providers'
@@ -39,6 +39,13 @@ export const appConfig: ApplicationConfig = {
       const injector = inject(Injector)
       void import('./core/outbox/outbox.store').then(({ OutboxStore }) =>
         injector.get(OutboxStore).start()
+      )
+      // A tapped push notification routes the running app to its page; the
+      // listener loads the same way, handed the app's SwPush and Router.
+      const sw = inject(SwPush)
+      const router = inject(Router)
+      void import('./core/push/notification-clicks').then(({ followNotificationClicks }) =>
+        followNotificationClicks(sw, router)
       )
     }),
   ],

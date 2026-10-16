@@ -1,0 +1,20 @@
+{
+  "title": "Notificaciones",
+  "loading": "Revisando las notificaciones de este dispositivo",
+  "intro": "Te avisamos cuando tu resumen del mes esté listo y, si quieres, te recordamos en la noche los días en que no registraste nada.",
+  "iosHint": "En iPhone y iPad las notificaciones solo funcionan en la app instalada: agrega monkimoney a tu pantalla de inicio y ábrela desde ahí.",
+  "enable": "Activar notificaciones",
+  "enableFailed": "No se pudieron activar las notificaciones. Inténtalo de nuevo.",
+  "unsupported": "Este navegador no puede mostrar notificaciones.",
+  "unsupportedIos": "En iPhone y iPad las notificaciones solo funcionan en la app instalada. Agrega monkimoney a tu pantalla de inicio (Compartir y luego Agregar a inicio), ábrela desde ahí y vuelve aquí.",
+  "unavailable": "Las notificaciones no están disponibles por ahora.",
+  "denied": "Las notificaciones de monkimoney están bloqueadas. Permítelas en la configuración del navegador o del dispositivo y vuelve aquí.",
+  "enabled": "Activadas en este dispositivo.",
+  "summary": "Resumen del mes listo",
+  "summaryHint": "El día 1, cuando se escribe el resumen del mes anterior.",
+  "reminder": "Recordatorio diario",
+  "reminderHint": "Solo los días en que no hayas registrado nada.",
+  "reminderTime": "Recuérdame a las",
+  "timeZone": "Zona horaria: {zone}",
+  "disable": "Desactivar en este dispositivo"
+}

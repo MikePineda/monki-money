@@ -150,6 +150,13 @@ describe('architecture', () => {
     expect(eager.filter((rel) => /^(core\/outbox|core\/month)\//.test(rel))).toEqual([])
   })
 
+  it('test_the_initial_bundle_loads_web_push_on_demand', () => {
+    // The click listener starts from a dynamic import at app start; the
+    // settings section (a lazy route) carries the rest.
+    const eager = [...staticClosure(EAGER_ENTRIES).keys()]
+    expect(eager.filter((rel) => /^(core\/push|domain\/push)/.test(rel))).toEqual([])
+  })
+
   it('test_the_initial_bundle_loads_angular_locale_data_on_demand', () => {
     // Locale data is registered while the first catalogue loads, from its
     // own chunks; no static import may pull it back into the initial bundle.

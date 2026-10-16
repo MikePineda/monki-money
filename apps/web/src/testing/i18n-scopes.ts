@@ -28,6 +28,8 @@ import scanEn from '../app/features/scan/i18n/en.json'
 import scanEs from '../app/features/scan/i18n/es.json'
 import settingsEn from '../app/features/settings/i18n/en.json'
 import settingsEs from '../app/features/settings/i18n/es.json'
+import notificationsEn from '../app/features/settings/notifications/i18n/en.json'
+import notificationsEs from '../app/features/settings/notifications/i18n/es.json'
 import tagsEn from '../app/features/tags/i18n/en.json'
 import tagsEs from '../app/features/tags/i18n/es.json'
 import transactionsEn from '../app/features/transactions/i18n/en.json'
@@ -55,6 +57,7 @@ export const SCOPE_CATALOGUES = {
   kit: { en: kitEn, es: kitEs },
   legal: { en: legalEn, es: legalEs },
   month: { en: monthEn, es: monthEs },
+  notifications: { en: notificationsEn, es: notificationsEs },
   onboarding: { en: onboardingEn, es: onboardingEs },
   outbox: { en: outboxEn, es: outboxEs },
   payslips: { en: payslipsEn, es: payslipsEs },
