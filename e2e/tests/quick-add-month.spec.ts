@@ -98,7 +98,8 @@ test.describe('journey 3: quick add feeds the month', () => {
     const lastMonth = previousMonth(thisMonth)
     const headers = { 'X-XSRF-TOKEN': await xsrfToken(context) }
     const expenses: [string, number, string][] = [
-      [`${lastMonth}-15`, 8_500, 'Old Grocer'],
+      // On the 1st: inside "the same point last month" whatever today's date is.
+      [`${lastMonth}-01`, 8_500, 'Old Grocer'],
       [today, 3_000, 'Hardware Barn'],
       [today, 2_000, 'Book Nook'],
       [today, 1_000, 'Cafe Uno'],
@@ -124,9 +125,11 @@ test.describe('journey 3: quick add feeds the month', () => {
     const month = new MonthPage(page)
     await month.goto()
 
-    // 30 + 20 + 10 + 7 + 5 + 1 = 73.00 this month against 85.00 last month.
+    // 30 + 20 + 10 + 7 + 5 + 1 = 73.00 so far against 85.00 by the same day last month.
     await expect(month.hero).toHaveText('$73.00')
-    await expect(month.delta).toHaveText(/^14% less than [A-Z][a-z]+( \d{4})? \(\$85\.00\)$/)
+    await expect(month.delta).toHaveText(
+      /^14% less than at the same point in [A-Z][a-z]+( \d{4})? \(\$85\.00\)$/
+    )
     await expect(month.topRows).toHaveCount(5)
     await expect(month.topRows.first()).toContainText('Hardware Barn')
     await expect(month.top).not.toContainText('Gum Stand')
