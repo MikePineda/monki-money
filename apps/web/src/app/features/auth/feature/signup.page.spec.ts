@@ -11,7 +11,6 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { TURNSTILE_SCRIPT_URL } from '../../../core/auth/turnstile.service'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import authEn from '../i18n/en.json'
 import SignupPage from './signup.page'
 
 @Component({ template: '<p>landed</p>' })
@@ -31,7 +30,7 @@ describe('SignupPage', () => {
     }
     session = { load: vi.fn(async () => undefined) }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'auth/en': authEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([

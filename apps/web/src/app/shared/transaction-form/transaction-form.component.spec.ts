@@ -8,7 +8,6 @@ import { AmountKeypadHarness } from '../ui/amount-keypad/amount-keypad.harness'
 import { BottomSheetService } from '../ui/bottom-sheet/bottom-sheet.service'
 import { SelectSheetHarness } from '../ui/select-sheet/select-sheet.harness'
 import { TextFieldHarness } from '../ui/text-field/text-field.harness'
-import transactionFormEn from './i18n/en.json'
 import type { TransactionDraft } from './transaction-draft'
 import { TransactionFormComponent } from './transaction-form.component'
 
@@ -56,7 +55,7 @@ class Host {
 describe('TransactionFormComponent', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'transactionForm/en': transactionFormEn } })],
+      imports: [i18nTesting()],
       providers: [i18nTestingProviders()],
     })
     const fixture = TestBed.createComponent(Host)

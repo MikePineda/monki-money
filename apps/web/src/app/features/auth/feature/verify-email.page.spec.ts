@@ -8,7 +8,6 @@ import { aUser, httpError, validationError } from '../../../../testing/session-f
 import { AuthApi } from '../../../core/auth/auth.api'
 import { SessionStore } from '../../../core/auth/session.store'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import authEn from '../i18n/en.json'
 import VerifyEmailPage from './verify-email.page'
 
 @Component({ template: '<p>landed</p>' })
@@ -60,7 +59,7 @@ describe('VerifyEmailPage', () => {
       logout: vi.fn(async () => undefined),
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'auth/en': authEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([

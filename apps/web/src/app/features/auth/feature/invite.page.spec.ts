@@ -9,7 +9,6 @@ import type { User } from '../../../core/api/api-types'
 import { AuthApi } from '../../../core/auth/auth.api'
 import { SessionStore } from '../../../core/auth/session.store'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import authEn from '../i18n/en.json'
 import InvitePage from './invite.page'
 
 @Component({ template: '<p>landed</p>' })
@@ -49,7 +48,7 @@ describe('InvitePage', () => {
       logout: vi.fn(async () => undefined),
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'auth/en': authEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter(

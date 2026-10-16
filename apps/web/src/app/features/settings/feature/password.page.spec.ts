@@ -10,7 +10,6 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { ToastStore } from '../../../core/ui/toast.store'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import settingsEn from '../i18n/en.json'
 import PasswordPage from './password.page'
 
 @Component({ template: '<p>settings</p>' })
@@ -24,7 +23,7 @@ describe('PasswordPage', () => {
     api = { updateProfile: vi.fn(async () => aUser()) }
     session = { patchUser: vi.fn() }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'settings/en': settingsEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([
