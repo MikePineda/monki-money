@@ -1,5 +1,5 @@
 import type ImportRow from '#models/import_row'
-import type { ImportSplitLine } from '@monkimoney/shared'
+import type { ImportRowReason, ImportSplitLine } from '@monkimoney/shared'
 import type { ReviewRow } from '#domain/importing/review'
 
 /** An import row's proposal with the person's decision applied (absent keys keep the proposal). */
@@ -38,6 +38,13 @@ export function effectiveRow(row: ImportRow): EffectiveRow {
   }
 }
 
+const GUESSED_TRANSFER: ImportRowReason = 'transfer_destination_guessed'
+
+/** The importer guessed the transfer's other account and nobody decided the row since. */
+export function isGuessedTransfer(row: ImportRow, effective = effectiveRow(row)): boolean {
+  return !effective.decided && row.reasons.includes(GUESSED_TRANSFER)
+}
+
 /** The row as the pure review step (app/domain/importing/review.ts) sees it. */
 export function reviewRowOf(row: ImportRow, effective = effectiveRow(row)): ReviewRow {
   return {
@@ -47,5 +54,6 @@ export function reviewRowOf(row: ImportRow, effective = effectiveRow(row)): Revi
     transferAccountId: effective.transferAccountId,
     categoryId: effective.categoryId,
     hasSplits: effective.splits.length > 0,
+    guessedTransfer: isGuessedTransfer(row, effective),
   }
 }

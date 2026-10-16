@@ -1,6 +1,9 @@
 # Ephemeral stack for `npm run e2e` (scripts/e2e.sh brings it up and tears it
 # down with -v). Different ports from docker-compose.yml so both can run at
 # once, and no named volumes: data lives in tmpfs and dies with the stack.
+# One copy per E2E slot: scripts/e2e.sh sets the project name (-p) and exports
+# the host ports. The fallbacks below are slot 0's, so a plain
+# `docker compose -f docker-compose.test.yml down -v` still reaches slot 0.
 name: monkimoney-test
 
 services:
@@ -11,7 +14,7 @@ services:
       POSTGRES_PASSWORD: monkimoney
       POSTGRES_DB: monkimoney_e2e
     ports:
-      - '127.0.0.1:5433:5432'
+      - '127.0.0.1:${E2E_DB_PORT:-5433}:5432'
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
@@ -26,8 +29,8 @@ services:
       MINIO_ROOT_USER: monkimoney
       MINIO_ROOT_PASSWORD: monkimoney-secret
     ports:
-      - '127.0.0.1:9100:9000'
-      - '127.0.0.1:9101:9001'
+      - '127.0.0.1:${E2E_S3_PORT:-9100}:9000'
+      - '127.0.0.1:${E2E_S3_CONSOLE_PORT:-9101}:9001'
     tmpfs:
       - /bitnami/minio/data
     healthcheck:

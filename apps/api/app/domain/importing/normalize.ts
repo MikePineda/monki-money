@@ -107,6 +107,44 @@ export function normalizeDescription(details: string): string {
     .trim()
 }
 
+/**
+ * A word of a name as NAB prints it: upper-case letters of any alphabet,
+ * maybe joined by `'` or `-` (`O'NEIL-WARD`, `MÜLLER`), maybe an initial
+ * with a dot (`J.`), or the `&` of a joint account (`SMITH JO & DOE AL`).
+ */
+const NAME_WORD = /^(?:\p{Lu}+(?:['-]\p{Lu}+)*\.?|&)$/u
+const HAS_TWO_LETTERS = /\p{Lu}{2}/u
+
+/** Longer runs of capitals are not a name NAB prints (it truncates holders). */
+const MAX_HOLDER_WORDS = 6
+const MAX_HOLDER_LENGTH = 60
+
+/**
+ * Holder of the linked account a NAB internal transfer names: the trailing
+ * run of upper-case words of the details. NAB writes `ONLINE A1234567890
+ * Linked Acc Trns SMITH JO`, and when the person typed a memo it replaces
+ * `Linked Acc Trns` with it (`ONLINE A1234567890 Honeymoon SMITH JO`) while
+ * the holder stays. Null when the details end in anything else (a
+ * lower-case memo, a reference with digits), in a lone initial (`rent X`),
+ * or in a run longer than a name (`MAX_HOLDER_WORDS`, `MAX_HOLDER_LENGTH`).
+ * Only meaningful on rows the bank marks as internal transfers.
+ */
+export function linkedAccountHolder(details: string): string | null {
+  const words = normalizeDescription(details).split(' ')
+  let start = words.length
+  while (start > 0 && NAME_WORD.test(words[start - 1])) start--
+  while (start < words.length && words[start] === '&') start++
+
+  const holder = words.slice(start)
+  const text = holder.join(' ')
+  const plausible =
+    holder.length > 0 &&
+    holder.length <= MAX_HOLDER_WORDS &&
+    text.length <= MAX_HOLDER_LENGTH &&
+    holder.some((word) => HAS_TWO_LETTERS.test(word))
+  return plausible ? text : null
+}
+
 export interface MerchantSource {
   nabMerchant: string | null
   /** Normalized description, used when the bank names no merchant. */

@@ -22,7 +22,9 @@ apps/api/tmp
 # Test and E2E artifacts
 coverage
 playwright-report
+playwright-report-*
 test-results
+test-results-*
 e2e/.cache
 bruno/environments/*.local.bru
 apps/api/bruno/environments/*.local.bru

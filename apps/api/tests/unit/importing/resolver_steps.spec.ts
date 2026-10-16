@@ -15,6 +15,7 @@ import { NAB_SYSTEM_RULES, resolveSystemRules } from '#importers/nab/system_rule
 import { parseBankCsv } from '#importers/registry'
 import {
   candidate,
+  householdAccount,
   merchantRule,
   nabFixture,
   stagedRow,
@@ -48,7 +49,14 @@ function stagingSuggester(rules: readonly MerchantRule[]): CategorySuggester {
 }
 
 function context(overrides: Partial<ResolverContext> = {}): ResolverContext {
-  return { existingHashes: new Set(), candidates: [], transferLegs: [], rules: [], ...overrides }
+  return {
+    existingHashes: new Set(),
+    candidates: [],
+    transferLegs: [],
+    rules: [],
+    accounts: [],
+    ...overrides,
+  }
 }
 
 function resolve(rows: StagedRow[], ctx: ResolverContext) {
@@ -125,6 +133,42 @@ test.group('Importing / resolver', () => {
     assert.equal(resolved.resolution, 'needs_confirmation')
     assert.deepEqual(resolved.reasons, ['transfer_destination_unknown'])
     assert.isNull(resolved.suggestion)
+  })
+
+  test('test_a_guessed_transfer_destination_is_a_transfer_leg_flagged_for_review', async ({
+    assert,
+  }) => {
+    const freeMemo = {
+      ...linkedTransfer,
+      details: 'ONLINE A1000000002 Honeymoon SAMPLE HOUSEHO',
+      detailsRaw: 'ONLINE A1000000002 Honeymoon SAMPLE HOUSEHO',
+      descriptionNormalized: 'Honeymoon SAMPLE HOUSEHO',
+      merchantKey: 'honeymoon sample househo',
+      merchantFullKey: 'honeymoon sample househo',
+    }
+    const accounts = [
+      householdAccount({ id: EVERYDAY, institution: 'NAB', kind: 'transaction' }),
+      householdAccount({ id: SAVINGS, institution: 'NAB', kind: 'savings' }),
+      householdAccount({ id: HNRY, institution: 'Hnry', kind: 'wallet' }),
+    ]
+
+    const [resolved] = await resolve([freeMemo], context({ rules: systemRules(), accounts }))
+    assert.equal(resolved.resolution, 'transfer_leg')
+    assert.equal(resolved.transfer?.counterpartAccountId, SAVINGS)
+    assert.isTrue(resolved.needsReview, 'the only possible account is a guess')
+    assert.deepEqual(resolved.reasons, ['transfer_destination_guessed'])
+    assert.isNull(resolved.suggestion)
+
+    // A known leg or rule is no guess.
+    const [linked] = await resolve([linkedTransfer], context({ rules: systemRules(), accounts }))
+    assert.equal(linked.resolution, 'transfer_leg')
+    assert.isFalse(linked.needsReview)
+    assert.deepEqual(linked.reasons, [])
+
+    const twoSavings = [...accounts, householdAccount({ id: 4, institution: 'NAB' })]
+    const [ambiguous] = await resolve([freeMemo], context({ accounts: twoSavings }))
+    assert.equal(ambiguous.resolution, 'needs_confirmation')
+    assert.deepEqual(ambiguous.reasons, ['transfer_destination_unknown'])
   })
 
   test('test_transfer_already_entered_by_hand_is_offered_as_a_match', async ({ assert }) => {

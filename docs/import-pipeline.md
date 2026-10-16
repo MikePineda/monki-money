@@ -19,7 +19,7 @@ buffer --parseBankCsv--> ParsedRow[] --groupByAccountNumber--> per account:
 | Read the upload   | `parseBankCsv(buffer): { source, rows: ParsedRow[] }` (`#importers/registry`)                                                                               | Cap the multipart read at `MAX_CSV_BYTES` (2 MB); `MAX_CSV_ROWS` = 20 000. Throws `CsvImportError` subclasses (422, `code` `E_CSV_TOO_LARGE`, `E_CSV_TOO_MANY_ROWS`, `E_CSV_ENCODING`, `E_CSV_UNKNOWN_FORMAT`, `E_CSV_MALFORMED`, `E_CSV_INVALID_VALUE`, with `line` / `column`). Add the `errors.E_CSV_*` translations.                |
 | Split by account  | `groupByAccountNumber(rows): Map<accountNumber, ParsedRow[]>`                                                                                               | One batch per account; unknown numbers -> 422 with the list to map.                                                                                                                                                                                                                                                                     |
 | Stage             | `stageRows(rows, { accountId, today, payers? }): StagedRow[]`                                                                                               | File order matters (occurrence). `payers = { accountOwnerUserId, cardOwners: Map<suffix, userId>, fallbackUserId }`.                                                                                                                                                                                                                    |
-| Resolve           | `resolveRows(staged, context, defaultResolverSteps(chain)): Promise<ResolvedRow[]>`                                                                         | `context = { existingHashes, candidates: CandidateTx[], transferLegs: TransferLeg[], rules: MerchantRule[] }`. Staging chain: `new CategorySuggesterChain([new RuleSuggester(rules), new NabCategorySuggester(mapNabCategory, categoryIdBySlug), new NoneSuggester()])`.                                                                |
+| Resolve           | `resolveRows(staged, context, defaultResolverSteps(chain)): Promise<ResolvedRow[]>`                                                                         | `context = { existingHashes, candidates: CandidateTx[], transferLegs: TransferLeg[], rules: MerchantRule[], accounts: HouseholdAccount[] }`. Staging chain: `new CategorySuggesterChain([new RuleSuggester(rules), new NabCategorySuggester(mapNabCategory, categoryIdBySlug), new NoneSuggester()])`.                                  |
 | Classify (job)    | same chain with `new LlmSuggester(classify, categoryIdBySlug)` before `NoneSuggester`, over `suggestionInputFor(row)` of rows whose suggestion needs review | `classify(requests)` wraps `LlmProvider.classifyTransactions`: `ClassifyRow { id: String(index), date, amountCents, description, merchant, bankCategory: nabCategory }` and back `{ index: Number(id), slug: categorySlug, confidence, payee }`. Batches of 50; only known slugs; confidence >= 0.8 is trusted; quota errors propagate. |
 | Confirm           | `learnRules(decisions, existingRules): RuleUpsert[]`                                                                                                        | Upsert on `(household, 'merchant', merchantFullKey)`; `existingRuleId` says which rule is overwritten.                                                                                                                                                                                                                                  |
 | Reconcile         | `balanceChainBreaks(rows)`, `openingBalanceCents(rows)`                                                                                                     | First import of an account: opening = oldest balance - its amount.                                                                                                                                                                                                                                                                      |
@@ -53,9 +53,21 @@ hashes, so re-importing is all `duplicate` (ignored rows included: an
 3. **Transfer**: the winning rule decides first (`transferAccountId` -> transfer;
    category -> not a transfer). Otherwise NAB `Internal transfers` or the
    `Linked Acc Trns` memo. The other account holds the opposite amount within
-   +/- 2 days (closest wins, one row per leg), else the rule's account. Known
+   +/- 2 days (closest wins, one row per leg), else the rule's account. With
+   only the bank's signal and no leg: the learned rule of the linked holder
+   (`linkedHolderKey`: a `merchant` rule whose pattern is the key NAB's own
+   memo gives the holder, `linked acc trns smith jo`, so a typed memo such as
+   `ONLINE <ref> Honeymoon SMITH JO` reaches it too; a rule on that key that
+   names a category sends nothing and blocks the guess, so a person decides), else a guess: the only other active
+   account at the same institution, when it is a savings/transaction account
+   that is joint or has the importing account's owner (a card or loan at the
+   bank, or a partner's personal account, means no guess). A guess is a
+   `transfer_leg` with `needsReview` and the reason
+   `transfer_destination_guessed`, never auto-confirmed; confirmed without a
+   decision, both legs keep `needs_review`. Known
    account -> `transfer_leg` (no leg in the ledger: confirm creates it), unknown
-   -> `needs_confirmation`. PayID to friends (`Transfers in/out`) are spending/income.
+   -> `needs_confirmation`. PayID to friends (`Transfers in/out`) are spending/income,
+   even when the person shares a linked holder's name.
 4. **Match** against `CandidateTx` (same account, same amount, date in
    `[date - 3, bankDate + 1]`, `manual|receipt|telegram`, or `import` still
    `pending`). Score: date +40 exact / +30 within 2 days / +15 within 3 (to the
@@ -89,12 +101,17 @@ full merchant key, `created_by = 'system'`) when the final category or
 transfer account differs from the suggestion, the suggestion did not come
 from a rule (LLM, NAB map, none), or the user changed the payer. Matched,
 ignored, uncategorized and opted-out rows teach nothing; the last decision
-for a merchant in a batch wins.
+for a merchant in a batch wins. A confirmed transfer row carrying NAB's
+internal-transfer signal and a linked holder teaches the holder's rule
+(`linked acc trns <holder>`) instead of its memo-specific merchant key, even
+when a rule proposed the account (the bank's generic `Linked Acc Trns` rule
+says nothing about the holder).
 
 The service adds two filters before `learnRules`: a guess nobody looked at
-(a suggestion still under review that the person did not change) teaches
-nothing, and rows a person decided go last, so their decision wins over
-the guesses for the same merchant. `PATCH /transactions/:id` with
+(a suggestion still under review, or a guessed transfer account, that the
+person did not change) teaches nothing, and rows a person decided go last,
+so their decision wins over the guesses for the same merchant. A linked
+holder's key never replaces a rule on it that names a category. `PATCH /transactions/:id` with
 `applyToFuture: true` and a category learns the same kind of rule from the
 bank row the transaction came from (`RuleLearner.learnFromEdit`).
 

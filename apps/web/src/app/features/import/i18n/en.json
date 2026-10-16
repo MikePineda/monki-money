@@ -176,6 +176,7 @@
   "reason": {
     "possible_match": "It may be a movement you already added.",
     "transfer_destination_unknown": "It looks like a transfer, but the other account is unknown.",
+    "transfer_destination_guessed": "The other account is a guess: it is the only one it could be. Check it.",
     "category_needs_review": "The category is a guess.",
     "future_date": "It is dated in the future.",
     "zero_amount": "Its amount is $0.00.",
