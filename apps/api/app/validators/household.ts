@@ -25,7 +25,7 @@ export const deleteHouseholdValidator = vine.create({
 })
 
 export const exportHouseholdValidator = vine.create({
-  /** json: everything; csv: the ledger, one row per posting (formula-escaped). */
+  /** json: one object, an array per table; csv: a zip, one CSV per table (formula-escaped). */
   format: vine.enum(['json', 'csv'] as const).optional(),
 })
 

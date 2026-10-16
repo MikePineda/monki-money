@@ -7,7 +7,6 @@ import MemberTransformer from '#transformers/member_transformer'
 import HouseholdService from '#services/households/household_service'
 import HouseholdTransformer from '#transformers/household_transformer'
 import HouseholdExporter from '#services/households/household_exporter'
-import LedgerCsvExporter from '#services/households/ledger_csv_exporter'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import {
   deleteHouseholdValidator,
@@ -20,8 +19,7 @@ import {
 export default class HouseholdController {
   constructor(
     protected households: HouseholdService,
-    protected exporter: HouseholdExporter,
-    protected csvExporter: LedgerCsvExporter
+    protected exporter: HouseholdExporter
   ) {}
 
   /** GET /household */
@@ -46,8 +44,9 @@ export default class HouseholdController {
   }
 
   /**
-   * GET /household/export?format=json|csv (owner): streamed download. JSON
-   * has everything; CSV has the ledger, one row per posting.
+   * GET /household/export?format=json|csv (owner): streamed download of
+   * every table of the household. JSON: one object, one array per table;
+   * CSV: a zip with one CSV per table plus the readable ledger.
    */
   async export(ctx: HttpContext) {
     const { format } = await ctx.request.validateUsing(exportHouseholdValidator)
@@ -58,12 +57,12 @@ export default class HouseholdController {
     ctx.response.header('Cache-Control', 'no-store')
 
     if (format === 'csv') {
-      ctx.response.header('Content-Type', 'text/csv; charset=utf-8')
+      ctx.response.header('Content-Type', 'application/zip')
       ctx.response.header(
         'Content-Disposition',
-        `attachment; filename="monkimoney-transactions-${date}.csv"`
+        `attachment; filename="monkimoney-export-${date}.zip"`
       )
-      ctx.response.stream(Readable.from(this.csvExporter.csv(ctx.household, viewer, ctx.i18n)))
+      ctx.response.stream(Readable.from(this.exporter.zip(ctx.household, viewer, ctx.i18n)))
       return
     }
 

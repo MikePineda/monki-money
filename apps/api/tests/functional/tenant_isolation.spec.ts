@@ -19,6 +19,9 @@ import router from '@adonisjs/core/services/router'
 import CategoryGroup from '#models/category_group'
 import { receiptKey } from '#domain/receipts/receipt_key'
 import { createHousehold, type TestHousehold } from '#tests/helpers/household'
+import { download, unzip } from '#tests/helpers/zip'
+import db from '@adonisjs/lucid/services/db'
+import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
 import { FACTORY_PASSWORD } from '#database/factories/user_factory'
 import { fakeObjectStorage, restoreObjectStorage } from '#tests/helpers/storage'
 import { generateInvitationToken, hashInvitationToken } from '#domain/households/invitation_token'
@@ -548,6 +551,72 @@ test.group('Tenant isolation', () => {
       [...new Set(cases.map((entry) => entry.route))].sort(),
       'Every route with an :id needs a tenant isolation case (or a reason in NOT_ID_SCOPED)'
     )
+  })
+
+  test('test_export_never_includes_another_households_rows', async ({ client, assert }) => {
+    const victim = await victimHousehold()
+    await db.table('llm_usage').insert({
+      household_id: victim.household.household.id,
+      purpose: 'classify',
+      provider: 'fake',
+      model: 'fake',
+      status: 'ok',
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    await HouseholdOwnershipTransfer.create({
+      householdId: victim.household.household.id,
+      fromUserId: victim.household.owner.id,
+      toUserId: victim.household.owner.id,
+    })
+    const attacker = await createHousehold({ taxonomy: true, accounts: [{ name: 'Mine' }] })
+    await TransactionFactory.merge({
+      householdId: attacker.household.id,
+      accountId: attacker.accounts[0].id,
+      payee: 'Mine',
+    }).create()
+
+    const json = await client.get('/api/v1/household/export').actingAs(attacker.owner)
+    const { response, archive } = await download(
+      client.get('/api/v1/household/export?format=csv').actingAs(attacker.owner)
+    )
+
+    json.assertStatus(200)
+    response.assertStatus(200)
+    // Every victim row is named "Victim ..." (or VICTIM): none of them leaks.
+    assert.notMatch(json.text(), /victim/i)
+    assert.notInclude(json.text(), victim.household.owner.email)
+    for (const [file, text] of unzip(archive)) {
+      assert.notMatch(text, /victim/i, file)
+      assert.notInclude(text, victim.household.owner.email, file)
+    }
+    const body = json.body()
+    assert.deepEqual(
+      body.members.map((member: { userId: number }) => member.userId),
+      [attacker.owner.id]
+    )
+    assert.deepEqual(
+      body.accounts.map((account: { id: number }) => account.id),
+      [attacker.accounts[0].id]
+    )
+    assert.deepEqual(body.accountCards, [])
+    assert.lengthOf(body.transactions, 1)
+    for (const table of [
+      'transfers',
+      'transactionSplits',
+      'payslips',
+      'payslipLines',
+      'importBatches',
+      'importRows',
+      'savingsGoals',
+      'recurringItems',
+      'monthlyInsights',
+      'llmUsage',
+      'ownershipTransfers',
+    ]) {
+      assert.deepEqual(body[table], [], table)
+    }
+    assert.isFalse(body.merchantRules.some((rule: { id: number }) => rule.id === victim.rule.id))
   })
 
   test('test_lists_only_show_the_current_household', async ({ client, assert }) => {
