@@ -1,8 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import type { Household, User } from '../api/api-types'
-import { toApiError } from '../api/http-errors'
 import { SessionExpiry } from '../api/session-expiry'
+import { isClientErrorAnswer } from '../api/tuyau-error'
 import { LangStore } from '../i18n/lang.store'
 import { WINDOW } from '../platform/window.token'
 import { ThemeStore } from '../theme/theme.store'
@@ -76,9 +76,9 @@ export class SessionStore {
       this.set(await this.api.me())
       this._unreachable.set(false)
     } catch (error) {
-      const failure = toApiError(error)
       this._me.set(null)
-      this._unreachable.set(failure.kind === 'offline' || failure.kind === 'server')
+      // A 4xx (401 above all) is an answer; no network or a 5xx is not.
+      this._unreachable.set(!isClientErrorAnswer(error))
     }
   }
 

@@ -157,6 +157,15 @@ describe('architecture', () => {
     expect(eager.filter((rel) => /^(core\/push|domain\/push)/.test(rel))).toEqual([])
   })
 
+  it('test_the_initial_bundle_leaves_the_error_mapping_and_accounts_access_to_the_screens', () => {
+    // The session store only asks "did the API answer?" (tuyau-error.ts) and
+    // the guards only list accounts (accounts-probe.ts).
+    const eager = new Set(staticClosure(EAGER_ENTRIES).keys())
+    expect(eager.has('core/auth/session.store.ts')).toBe(true)
+    expect(eager.has('core/api/http-errors.ts')).toBe(false)
+    expect(eager.has('core/household/accounts.api.ts')).toBe(false)
+  })
+
   it('test_the_initial_bundle_loads_angular_locale_data_on_demand', () => {
     // Locale data is registered while the first catalogue loads, from its
     // own chunks; no static import may pull it back into the initial bundle.

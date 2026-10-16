@@ -8,6 +8,7 @@ import { App } from './app'
 import { routes } from './app.routes'
 import { AuthApi } from './core/auth/auth.api'
 import { SessionStore } from './core/auth/session.store'
+import { AccountsProbe } from './core/auth/accounts-probe'
 import { AccountsApi } from './core/household/accounts.api'
 import { CategoriesApi } from './core/household/categories.api'
 import { HouseholdApi } from './core/household/household.api'
@@ -25,6 +26,9 @@ describe('app routes', () => {
     state: State = 'owner',
     options: { accounts?: number } = {}
   ): Promise<HTMLElement> {
+    const accounts = {
+      list: async () => Array.from({ length: options.accounts ?? 1 }, () => anAccount()),
+    }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
       providers: [
@@ -44,12 +48,9 @@ describe('app routes', () => {
             health: async () => ({ status: 'ok', version: '0.1.0', sha: 'abc', checks: {} }),
           },
         },
-        {
-          provide: AccountsApi,
-          useValue: {
-            list: async () => Array.from({ length: options.accounts ?? 1 }, () => anAccount()),
-          },
-        },
+        // The guards list accounts through the probe, the screens through AccountsApi.
+        { provide: AccountsProbe, useValue: accounts },
+        { provide: AccountsApi, useValue: accounts },
         {
           provide: HouseholdApi,
           useValue: { members: async () => [aMember()], invitations: async () => [] },
