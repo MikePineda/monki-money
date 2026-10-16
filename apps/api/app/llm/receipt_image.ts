@@ -1,8 +1,9 @@
+import { MAX_RECEIPT_BYTES } from '@monkimoney/shared'
 import { FieldError } from '#exceptions/field_error'
 import { RECEIPT_MEDIA_TYPES, type ReceiptImage } from '#llm/types'
 
-/** Vendor limit for inline images (MiniMax and Anthropic both accept 10 MB). */
-export const MAX_RECEIPT_BYTES = 10 * 1024 * 1024
+// The vendor limit for inline images (MiniMax and Anthropic both accept
+// 10 MB) is the upload limit too: `MAX_RECEIPT_BYTES` in @monkimoney/shared.
 
 /** Longest side sent to the model: plenty for receipt text, cheaper in tokens. */
 export const MAX_RECEIPT_SIDE = 1600
