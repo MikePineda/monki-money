@@ -10,7 +10,9 @@ import {
   IMPORT_RESOLUTIONS,
   RULE_MATCH_TYPES,
   SUGGESTION_SOURCES,
+  type AccountKind,
   type ImportResolution,
+  type ImportRowReason,
   type ImportSource,
   type RuleMatchType,
   type SuggestionSource,
@@ -156,6 +158,16 @@ export interface TransferLeg {
   externalHash: string | null
 }
 
+/** A household account as transfer detection sees it (the importing one included). */
+export interface HouseholdAccount {
+  id: number
+  institution: string | null
+  kind: AccountKind
+  isActive: boolean
+  /** Null for a joint account. */
+  ownerUserId: number | null
+}
+
 export interface TransferDetection {
   /** Why the row is an internal transfer. */
   signal: 'rule' | 'bank_category' | 'linked_account_memo'
@@ -165,16 +177,15 @@ export interface TransferDetection {
   counterpartAccountId: number | null
   oppositeLeg: TransferLeg | null
   ruleId: number | null
+  /**
+   * The other account is only the one plausible account at the bank, not
+   * a leg or a rule: proposed, but a person must check it.
+   */
+  guessed: boolean
 }
 
-/** Why a row ended up where it did (review screen hints). */
-export type ResolutionReason =
-  | 'duplicate_hash'
-  | 'zero_amount'
-  | 'future_date'
-  | 'possible_match'
-  | 'transfer_destination_unknown'
-  | 'category_needs_review'
+/** Why a row ended up where it did (review screen hints; `IMPORT_ROW_REASONS`). */
+export type ResolutionReason = ImportRowReason
 
 /** A staged row after the resolver chain: what `import_rows` stores before the user decides. */
 export interface ResolvedRow {
@@ -201,4 +212,6 @@ export interface ResolverContext {
   /** Movements in the household's other accounts, for the opposite leg of transfers. */
   transferLegs: readonly TransferLeg[]
   rules: readonly MerchantRule[]
+  /** Every account of the household: an internal transfer's only possible counterpart. */
+  accounts: readonly HouseholdAccount[]
 }

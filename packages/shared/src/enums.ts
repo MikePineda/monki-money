@@ -96,6 +96,23 @@ export type ImportResolution = (typeof IMPORT_RESOLUTIONS)[number]
 export const IMPORT_DECISIONS = ['new', 'auto_matched', 'transfer_leg', 'ignored'] as const
 export type ImportDecision = (typeof IMPORT_DECISIONS)[number]
 
+/**
+ * Why an imported row ended where it did (`import_rows.reasons`, JSON, not a
+ * Postgres enum): hints for the review screen, one translation each.
+ * `transfer_destination_guessed`: the other account of an internal
+ * transfer is the only plausible one, not evidence; a person should check it.
+ */
+export const IMPORT_ROW_REASONS = [
+  'duplicate_hash',
+  'zero_amount',
+  'future_date',
+  'possible_match',
+  'transfer_destination_unknown',
+  'transfer_destination_guessed',
+  'category_needs_review',
+] as const
+export type ImportRowReason = (typeof IMPORT_ROW_REASONS)[number]
+
 /** Where a category suggestion came from. */
 export const SUGGESTION_SOURCES = ['rule', 'nab_map', 'llm', 'none'] as const
 export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number]

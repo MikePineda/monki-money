@@ -175,9 +175,10 @@ export default class ImportStager {
     accounts: Map<string, Account>
   ): Promise<AccountPlan[]> {
     const today = todayIn(this.clock.now(), household.timezone)
-    const [rules, categoryIdBySlug] = await Promise.all([
+    const [rules, categoryIdBySlug, householdAccounts] = await Promise.all([
       this.loader.rules(household),
       this.loader.categoryIdBySlug(household),
+      this.loader.accounts(household),
     ])
     const suggester = stagingSuggester(rules, categoryIdBySlug)
 
@@ -201,6 +202,7 @@ export default class ImportStager {
       const context = await this.loader.context(household, plan.account.id, plan.staged, {
         existingHashes: plan.existing,
         rules,
+        accounts: householdAccounts,
         otherStaged,
         actorId: actor.id,
       })

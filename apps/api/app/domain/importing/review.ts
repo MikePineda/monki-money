@@ -22,6 +22,8 @@ export interface ReviewRow {
   /** Category of the new transaction (decision, else the suggestion). */
   categoryId: number | null
   hasSplits: boolean
+  /** The transfer's other account is the importer's guess and nobody decided the row yet. */
+  guessedTransfer: boolean
 }
 
 /**
@@ -49,12 +51,13 @@ export function confirmActionFor(row: ReviewRow): ConfirmAction | null {
 
 /**
  * Rows the unattended backfill may confirm on its own: matches, known
- * transfers, ignored checks and new rows that already have a category.
- * The rest stays staged for the review screen.
+ * transfers (not a guessed account), ignored checks and new rows that
+ * already have a category. The rest stays staged for the review screen.
  */
 export function isAutoConfirmable(row: ReviewRow): boolean {
   const action = confirmActionFor(row)
   if (action === null) return false
+  if (action === 'transfer') return !row.guessedTransfer
   return action !== 'create' || row.categoryId !== null || row.hasSplits
 }
 

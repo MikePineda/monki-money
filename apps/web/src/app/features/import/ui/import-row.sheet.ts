@@ -42,7 +42,7 @@ const NOT_A_TRANSFER = -1
  * t(import.triage.notTransfer, import.triage.card, import.triage.pending)
  * t(import.reason.possible_match, import.reason.transfer_destination_unknown)
  * t(import.reason.category_needs_review, import.reason.future_date, import.reason.zero_amount)
- * t(import.reason.duplicate_hash, import.triage.accept)
+ * t(import.reason.duplicate_hash, import.reason.transfer_destination_guessed, import.triage.accept)
  */
 const KEYS = {
   categoryTitle: 'import.triage.categoryTitle',
