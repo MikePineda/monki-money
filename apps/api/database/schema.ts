@@ -141,6 +141,21 @@ export class HouseholdMemberSchema extends BaseModel {
   declare userId: number
 }
 
+export class HouseholdOwnershipTransferSchema extends BaseModel {
+  static $columns = ['createdAt', 'fromUserId', 'householdId', 'id', 'toUserId'] as const
+  $columns = HouseholdOwnershipTransferSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare fromUserId: number | null
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare toUserId: number | null
+}
+
 export class HouseholdSchema extends BaseModel {
   static $columns = ['createdAt', 'currencyCode', 'deletionScheduledAt', 'id', 'locale', 'name', 'plan', 'settings', 'status', 'stripeCustomerId', 'timezone', 'updatedAt'] as const
   $columns = HouseholdSchema.$columns

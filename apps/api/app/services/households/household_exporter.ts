@@ -1,216 +1,99 @@
 import { DateTime } from 'luxon'
-import Account from '#models/account'
-import Category from '#models/category'
-import Transfer from '#models/transfer'
+import type { I18n } from '@adonisjs/i18n'
 import type Household from '#models/household'
-import Transaction from '#models/transaction'
-import CategoryGroup from '#models/category_group'
-import HouseholdMember from '#models/household_member'
-import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
+import { csvRow, flatCell } from '#domain/export/csv'
+import type { PrivacyViewer } from '#domain/ledger/privacy'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
+import { zipStream, type ZipEntry } from '#domain/export/zip'
+import LedgerCsvExporter from '#services/households/ledger_csv_exporter'
+import {
+  exportTables,
+  householdRow,
+  type ExportRow,
+  type ExportTable,
+} from '#services/households/export_tables'
 
 const PAGE_SIZE = 500
 
 /**
- * Full JSON export of a household ("download my data"), streamed as it is
- * read so memory stays flat as tables grow. Sections are read page by page
- * in id order with a keyset (`id > last`), so rows added or deleted while
- * the export runs never shift a page (no duplicates, no gaps). Never includes secrets (password hashes, tokens). The
- * partner's private transactions keep their amount but not their details
- * (same rule as the API, app/domain/ledger/privacy.ts).
+ * Full export of a household ("download my data"), streamed as it is read
+ * so memory stays flat as tables grow (app/services/households/export_tables.ts
+ * has the tables, their scoping, paging and privacy rules).
+ *
+ * - JSON: one object with the household and one array per table.
+ * - CSV: a zip with one CSV per table (same columns as the JSON rows,
+ *   UTF-8 BOM, every text cell escaped against formula injection) plus
+ *   `ledger.csv`, the ledger as a spreadsheet in the reader's language
+ *   (LedgerCsvExporter). A zip rather than one multi-section CSV: each
+ *   table keeps its own header and opens as a sheet of its own.
  */
 export default class HouseholdExporter {
-  constructor(protected pageSize = PAGE_SIZE) {}
+  constructor(
+    protected pageSize = PAGE_SIZE,
+    protected ledger = new LedgerCsvExporter(pageSize)
+  ) {}
 
   async *json(household: Household, viewer: PrivacyViewer): AsyncGenerator<string> {
-    yield `{"format":"monkimoney-export","version":1,"exportedAt":${JSON.stringify(
+    yield `{"format":"monkimoney-export","version":2,"exportedAt":${JSON.stringify(
       isoTimestamp(DateTime.now())
     )}`
-    yield `,"household":${JSON.stringify({
-      id: household.id,
-      name: household.name,
-      plan: household.plan,
-      status: household.status,
-      currencyCode: household.currencyCode,
-      locale: household.locale,
-      timezone: household.timezone,
-      settings: household.settings,
-      createdAt: isoTimestamp(household.createdAt),
-    })}`
+    yield `,"household":${JSON.stringify(householdRow(household))}`
 
-    yield* this.section('members', (afterId) =>
-      HouseholdMember.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .preload('user')
-        .orderBy('id')
-        .where('id', '>', afterId)
-        .limit(this.pageSize)
-        .then((rows) =>
-          rows.map((member) => ({
-            id: member.id,
-            userId: member.userId,
-            fullName: member.user.fullName,
-            email: member.user.email,
-            role: member.role,
-            displayName: member.displayName,
-            joinedAt: isoTimestamp(member.joinedAt),
-          }))
-        )
-    )
-
-    yield* this.section('accounts', (afterId) =>
-      Account.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .preload('cards')
-        .orderBy('id')
-        .where('id', '>', afterId)
-        .limit(this.pageSize)
-        .then((rows) =>
-          rows.map((account) => ({
-            id: account.id,
-            name: account.name,
-            institution: account.institution,
-            kind: account.kind,
-            ownerUserId: account.ownerUserId,
-            currencyCode: account.currencyCode,
-            externalAccountNumber: account.externalAccountNumber,
-            openingBalanceCents: account.openingBalanceCents,
-            openingBalanceDate: account.openingBalanceDate,
-            isActive: account.isActive,
-            cards: account.cards.map((card) => ({
-              cardSuffix: card.cardSuffix,
-              userId: card.userId,
-              label: card.label,
-            })),
-          }))
-        )
-    )
-
-    yield* this.section('categoryGroups', (afterId) =>
-      CategoryGroup.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .orderBy('id')
-        .where('id', '>', afterId)
-        .limit(this.pageSize)
-        .then((rows) =>
-          rows.map((group) => ({
-            id: group.id,
-            slug: group.slug,
-            name: group.name,
-            kind: group.kind,
-            isHidden: group.isHidden,
-            isSystem: group.isSystem,
-          }))
-        )
-    )
-
-    yield* this.section('categories', (afterId) =>
-      Category.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .orderBy('id')
-        .where('id', '>', afterId)
-        .limit(this.pageSize)
-        .then((rows) =>
-          rows.map((category) => ({
-            id: category.id,
-            categoryGroupId: category.categoryGroupId,
-            slug: category.slug,
-            name: category.name,
-            icon: category.icon,
-            isHidden: category.isHidden,
-            isSystem: category.isSystem,
-          }))
-        )
-    )
-
-    yield* this.section('transfers', (afterId) =>
-      Transfer.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .orderBy('id')
-        .where('id', '>', afterId)
-        .limit(this.pageSize)
-        .then((rows) =>
-          rows.map((transfer) => ({
-            id: transfer.id,
-            date: transfer.date,
-            amountCents: transfer.amountCents,
-            fromAccountId: transfer.fromAccountId,
-            toAccountId: transfer.toAccountId,
-            memo: transfer.memo,
-            createdByUserId: transfer.createdByUserId,
-            createdAt: isoTimestamp(transfer.createdAt),
-          }))
-        )
-    )
-
-    yield* this.section('transactions', (afterId) =>
-      Transaction.query()
-        .withScopes((scopes) => scopes.forHousehold(household))
-        .preload('splits', (splits) => splits.orderBy('sort_order').orderBy('id'))
-        .orderBy('id')
-        .where('id', '>', afterId)
-        .limit(this.pageSize)
-        .then((rows) => rows.map((transaction) => this.transaction(transaction, viewer)))
-    )
+    for (const table of exportTables(household, viewer, this.pageSize)) {
+      yield* this.section(table)
+    }
 
     yield '}\n'
   }
 
-  protected transaction(transaction: Transaction, viewer: PrivacyViewer) {
-    const masked = isHiddenFrom(transaction, viewer)
-    return {
-      id: transaction.id,
-      accountId: transaction.accountId,
-      kind: transaction.kind,
-      date: transaction.date,
-      bankDate: transaction.bankDate,
-      amountCents: transaction.amountCents,
-      currencyCode: transaction.currencyCode,
-      payee: masked ? null : transaction.payee,
-      description: masked ? null : transaction.description,
-      rawDescription: masked ? null : transaction.rawDescription,
-      categoryId: masked ? null : transaction.categoryId,
-      isSplit: masked ? false : transaction.isSplit,
-      splits: masked
-        ? []
-        : transaction.splits.map((line) => ({
-            categoryId: line.categoryId,
-            amountCents: line.amountCents,
-            memo: line.memo,
-          })),
-      transferId: transaction.transferId,
-      paidByUserId: transaction.paidByUserId,
-      status: transaction.status,
-      source: transaction.source,
-      needsReview: transaction.needsReview,
-      cardSuffix: transaction.cardSuffix,
-      isPrivate: transaction.isPrivate,
-      tags: masked ? [] : transaction.tags,
-      createdByUserId: transaction.createdByUserId,
-      createdAt: isoTimestamp(transaction.createdAt),
+  zip(household: Household, viewer: PrivacyViewer, i18n?: I18n): AsyncGenerator<Buffer> {
+    const tables = exportTables(household, viewer, this.pageSize)
+    const ledger = this.ledger
+    async function* entries(): AsyncGenerator<ZipEntry> {
+      yield { name: 'ledger.csv', content: ledger.csv(household, viewer, i18n) }
+      yield { name: 'household.csv', content: csvFile(householdTable(household)) }
+      for (const table of tables) yield { name: table.file, content: csvFile(table) }
     }
+    return zipStream(entries())
   }
 
-  /**
-   * One JSON array, read with a keyset on `id`: `load(afterId)` returns the
-   * next page in id order, already shaped for the export.
-   */
-  protected async *section(
-    name: string,
-    load: (afterId: number) => Promise<Array<{ id: number }>>
-  ): AsyncGenerator<string> {
-    yield `,${JSON.stringify(name)}:[`
+  /** One JSON array, a row per chunk. */
+  protected async *section(table: ExportTable): AsyncGenerator<string> {
+    yield `,${JSON.stringify(table.name)}:[`
     let first = true
-    let afterId = 0
-    for (;;) {
-      const page = await load(afterId)
-      for (const row of page) {
-        yield `${first ? '' : ','}${JSON.stringify(row)}`
-        first = false
-      }
-      if (page.length < this.pageSize) break
-      afterId = page[page.length - 1].id
+    for await (const row of table.rows()) {
+      yield `${first ? '' : ','}${JSON.stringify(row)}`
+      first = false
     }
     yield ']'
   }
+}
+
+/** The household as a one-row table. */
+function householdTable(household: Household): ExportTable {
+  const row = householdRow(household)
+  return {
+    name: 'household',
+    file: 'household.csv',
+    columns: Object.keys(row),
+    async *rows() {
+      yield row
+    },
+  }
+}
+
+/** Characters gathered before a chunk goes to the compressor. */
+const CHUNK_SIZE = 64 * 1024
+
+/** A table as CSV: BOM, header, one escaped record per row. */
+async function* csvFile(table: ExportTable): AsyncGenerator<string> {
+  let chunk = `\uFEFF${csvRow([...table.columns])}`
+  for await (const row of table.rows()) {
+    chunk += csvRow(table.columns.map((column) => flatCell((row as ExportRow)[column])))
+    if (chunk.length >= CHUNK_SIZE) {
+      yield chunk
+      chunk = ''
+    }
+  }
+  if (chunk) yield chunk
 }

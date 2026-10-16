@@ -77,4 +77,38 @@ test.group('Export pagination', () => {
       rows.map((row) => row.id)
     )
   })
+
+  test('test_every_table_reads_all_its_rows_whatever_the_page_size', async ({ assert }) => {
+    const { household, accounts, users, viewer } = await ledger()
+    await TransactionFactory.merge({ householdId: household.id, accountId: accounts[0].id })
+      .apply('split')
+      .createMany(2)
+    // The partner's private split: its lines are skipped without ending the table.
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      paidByUserId: users[1].id,
+      createdByUserId: users[1].id,
+    })
+      .apply('split', 'private')
+      .create()
+    await TransactionFactory.merge({ householdId: household.id, accountId: accounts[0].id })
+      .apply('split')
+      .create()
+
+    async function exported(pageSize: number) {
+      let text = ''
+      for await (const chunk of new HouseholdExporter(pageSize).json(household, viewer)) {
+        text += chunk
+      }
+      const body = JSON.parse(text)
+      delete body.exportedAt
+      return body
+    }
+
+    const rowByRow = await exported(1)
+    assert.deepEqual(rowByRow, await exported(500))
+    assert.lengthOf(rowByRow.transactions, 8)
+    assert.lengthOf(rowByRow.transactionSplits, 6)
+  })
 })

@@ -32,6 +32,15 @@
       "owner": "Administra",
       "member": "Miembro"
     },
+    "makeOwner": "Ceder administración",
+    "ownerSheet": {
+      "title": "¿Ceder la administración a {name}?",
+      "body": "{name} administrará el hogar: su nombre, zona horaria, invitaciones, exportación y eliminación. Tú sigues como miembro y después puedes salir si quieres.",
+      "password": "Tu contraseña",
+      "confirm": "Ceder la administración a {name}",
+      "wrongPassword": "Esa contraseña no es correcta.",
+      "done": "Ahora {name} administra el hogar."
+    },
     "nameSheet": {
       "title": "Nombre del hogar",
       "label": "Nombre"
@@ -154,10 +163,10 @@
     },
     "leaveSheet": {
       "title": "¿Salir de {name}?",
-      "body": "Todo lo que agregaste se queda en {name}: sus miembros siguen viendo tus movimientos, cuentas y tarjetas.",
+      "body": "Todo lo que agregaste se queda en {name}: sus miembros siguen viendo tus movimientos. Tus cuentas y tarjetas también se quedan, como conjuntas.",
       "after": "Pierdes el acceso al momento. Después puedes crear tu propio hogar o unirte a otro con una invitación.",
       "confirm": "Salir del hogar",
-      "ownerCannot": "Quien administra el hogar no puede salir de él."
+      "ownerCannot": "Quien administra el hogar no puede salir de él. Primero cede la administración a tu pareja."
     }
   },
   "password": {
