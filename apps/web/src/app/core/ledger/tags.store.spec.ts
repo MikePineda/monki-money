@@ -91,6 +91,23 @@ describe('TagsStore', () => {
     expect(store.names()).toEqual(['Bali 2027', 'camping'])
   })
 
+  it('test_a_load_in_flight_at_logout_never_refills_the_next_persons_tags', async () => {
+    const store = setup()
+    let answer: (tags: unknown) => void = () => undefined
+    api.list.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
+    const inFlight = store.load()
+
+    clearHooks.forEach((hook) => hook())
+    answer([aTagSummary({ tag: 'Previous household' })])
+    await inFlight
+
+    expect(store.names()).toEqual([])
+    expect(store.status()).toBe('loading')
+    await store.load()
+    expect(api.list).toHaveBeenCalledTimes(2)
+    expect(store.names()).toEqual(['Bali 2027', 'camping'])
+  })
+
   it('test_logout_forgets_the_tags', async () => {
     const store = setup()
     await store.load()

@@ -22,6 +22,8 @@ export class TagsStore {
   /** The ledger revision the list on hand was read at; null before the first good read. */
   private loadedAt: number | null = null
   private pending: Promise<void> | null = null
+  /** Bumped on logout: an answer for an earlier session is dropped, never shown to the next person. */
+  private session = 0
 
   /** Every tag in use, most recently used first. */
   readonly tags = this._tags.asReadonly()
@@ -32,6 +34,7 @@ export class TagsStore {
 
   constructor() {
     inject(SessionStore).onClear(() => {
+      this.session++
       this._tags.set([])
       this._status.set('loading')
       this.loadedAt = null
@@ -49,23 +52,34 @@ export class TagsStore {
 
   /** Reads the list again, whatever changed. */
   refresh(): Promise<void> {
-    this.pending ??= this.fetch().finally(() => {
-      this.pending = null
-    })
+    if (!this.pending) {
+      const pending = this.fetch().finally(() => {
+        // A request from before a logout must not clear the one that replaced it.
+        if (this.pending === pending) {
+          this.pending = null
+        }
+      })
+      this.pending = pending
+    }
     return this.pending
   }
 
   private async fetch(): Promise<void> {
+    const session = this.session
     const revision = this.revision()
     if (this.loadedAt === null) {
       this._status.set('loading')
     }
     try {
-      this._tags.set(await this.api.list())
+      const tags = await this.api.list()
+      if (session !== this.session) {
+        return
+      }
+      this._tags.set(tags)
       this.loadedAt = revision
       this._status.set('ready')
     } catch {
-      if (this.loadedAt === null) {
+      if (session === this.session && this.loadedAt === null) {
         this._status.set('error')
       }
     }
