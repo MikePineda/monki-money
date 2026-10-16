@@ -1,8 +1,7 @@
 import { Component, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
-import { chartsI18nTesting } from '../../../../testing/charts-testing'
-import { i18nTestingProviders } from '../../../../testing/i18n-testing'
+import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { ChartTableSource, type ChartTable } from '../chart-table'
 import { ChartFrameComponent, type ChartState, type ChartView } from './chart-frame.component'
 import { ChartFrameHarness } from './chart-frame.harness'
@@ -53,7 +52,7 @@ class Host {
 describe('ChartFrameComponent', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [chartsI18nTesting()],
+      imports: [i18nTesting()],
       providers: [i18nTestingProviders()],
     })
     const fixture = TestBed.createComponent(Host)

@@ -2,6 +2,7 @@ import { Location } from '@angular/common'
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, provideTranslocoScope, translateSignal } from '@jsverse/transloco'
+import { TagsStore } from '../../core/ledger/tags.store'
 import { flattenCategories } from '../../domain/category-tree'
 import { formatWeekdayDate } from '../../domain/dates'
 import { formatTransactionAmount } from '../../domain/money'
@@ -187,6 +188,7 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
                     [people]="peopleOptions()"
                     [categories]="categoryOptions()"
                     [payees]="store.payees()"
+                    [tagSuggestions]="tags.names()"
                     [serverErrors]="store.fieldErrors()"
                     [(draft)]="store.entry"
                     [(detailsOpen)]="detailsOpen"
@@ -235,6 +237,7 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
 })
 export default class QuickAddPage {
   protected readonly store = inject(QuickAddStore)
+  protected readonly tags = inject(TagsStore)
   private readonly router = inject(Router)
   private readonly location = inject(Location)
   private readonly locale = inject(APP_LOCALE)
@@ -322,6 +325,8 @@ export default class QuickAddPage {
   })
 
   constructor() {
+    // Suggestions only: quick add works without them (offline included).
+    void this.tags.load()
     // The query parameters are read once, when the screen opens.
     effect(() => {
       const type = this.type()

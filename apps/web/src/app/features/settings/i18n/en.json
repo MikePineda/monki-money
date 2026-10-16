@@ -58,6 +58,9 @@
   "goals": {
     "title": "Savings goals"
   },
+  "tags": {
+    "title": "Tags"
+  },
   "import": {
     "title": "Import bank CSV"
   },

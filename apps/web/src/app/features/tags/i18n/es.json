@@ -1,0 +1,52 @@
+{
+  "title": "Etiquetas",
+  "back": "Atrás",
+  "loading": "Cargando tus etiquetas",
+  "count": "{count, plural, one {# movimiento} other {# movimientos}}",
+  "totals": {
+    "spent": "Gastado",
+    "income": "Ingresos",
+    "setAside": "Apartado",
+    "net": "Neto"
+  },
+  "empty": {
+    "title": "Aún no hay etiquetas",
+    "body": "Abre un movimiento o una transferencia al ahorro y agrégale una etiqueta, como \"Bali 2027\". Todo lo que la lleve se suma aquí.",
+    "action": "Ir a movimientos"
+  },
+  "error": {
+    "title": "No se pudieron cargar tus etiquetas",
+    "body": "Revisa tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar"
+  },
+  "detail": {
+    "eyebrow": "Gastado con esta etiqueta",
+    "loading": "Cargando la etiqueta",
+    "error": "No se pudo cargar esta etiqueta.",
+    "retry": "Reintentar",
+    "notFound": {
+      "title": "Esta etiqueta ya no se usa",
+      "body": "Ningún movimiento que puedas ver la lleva.",
+      "back": "Todas las etiquetas"
+    },
+    "spend": {
+      "title": "Gasto por categoría",
+      "header": "Categoría",
+      "empty": "No se gastó nada con esta etiqueta.",
+      "uncategorized": "Sin categoría",
+      "unknown": "Categoría desconocida"
+    },
+    "trend": {
+      "title": "Mes a mes",
+      "spent": "Gastado",
+      "setAside": "Apartado"
+    },
+    "whoPaid": {
+      "title": "Quién pagó",
+      "empty": "No se gastó nada con esta etiqueta.",
+      "you": "Tú",
+      "joint": "Compartido"
+    },
+    "movements": "Ver estos movimientos"
+  }
+}

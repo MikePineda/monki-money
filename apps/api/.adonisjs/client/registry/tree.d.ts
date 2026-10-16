@@ -105,6 +105,10 @@ export interface ApiDefinition {
     category: typeof routes['reports.category']
     balances: typeof routes['reports.balances']
   }
+  tags: {
+    index: typeof routes['tags.index']
+    show: typeof routes['tags.show']
+  }
   goals: {
     index: typeof routes['goals.index']
     store: typeof routes['goals.store']

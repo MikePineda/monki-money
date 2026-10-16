@@ -4,7 +4,6 @@ import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing
 import { aCategoryTree } from '../../../testing/ledger-fixtures'
 import { flattenCategories } from '../../domain/category-tree'
 import type { CategoryTile } from './category-grid.component'
-import transactionFormEn from './i18n/en.json'
 import type { TransactionDraft } from './transaction-draft'
 import { TransactionFormComponent } from './transaction-form.component'
 import {
@@ -74,7 +73,7 @@ class QuickHost {
 describe('the forms in their quick-add shape', () => {
   async function setup(transfer = false) {
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'transactionForm/en': transactionFormEn } })],
+      imports: [i18nTesting()],
       providers: [i18nTestingProviders()],
     })
     const fixture = TestBed.createComponent(QuickHost)

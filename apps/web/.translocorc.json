@@ -25,6 +25,7 @@
     "recurring": "src/app/features/recurring/i18n",
     "scan": "src/app/features/scan/i18n",
     "outbox": "src/app/core/outbox/i18n",
-    "payslips": "src/app/features/payslips/i18n"
+    "payslips": "src/app/features/payslips/i18n",
+    "tags": "src/app/features/tags/i18n"
   }
 }

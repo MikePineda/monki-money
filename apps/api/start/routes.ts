@@ -265,6 +265,18 @@ router
               .prefix('reports')
               .as('reports')
 
+            /*
+             * Tags: `:tag` is the URL-encoded label, validated like the
+             * transaction form's tags (unknown in the household: 404).
+             */
+            router
+              .group(() => {
+                router.get('/', [controllers.Tags, 'index']).as('index')
+                router.get(':tag', [controllers.Tags, 'show']).as('show')
+              })
+              .prefix('tags')
+              .as('tags')
+
             router
               .group(() => {
                 router.get('/', [controllers.Goals, 'index']).as('index')

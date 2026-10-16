@@ -58,6 +58,9 @@
   "goals": {
     "title": "Metas de ahorro"
   },
+  "tags": {
+    "title": "Etiquetas"
+  },
   "import": {
     "title": "Importar CSV del banco"
   },

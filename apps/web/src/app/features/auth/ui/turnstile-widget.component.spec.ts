@@ -7,7 +7,6 @@ import { LangStore } from '../../../core/i18n/lang.store'
 import { ThemeStore } from '../../../core/theme/theme.store'
 import type { AppLang } from '../../../domain/locale'
 import { provideAuthScope } from '../auth.scope'
-import authEn from '../i18n/en.json'
 import { TurnstileWidgetComponent } from './turnstile-widget.component'
 
 @Component({
@@ -34,7 +33,7 @@ describe('TurnstileWidgetComponent', () => {
     theme = signal('light')
     lang = signal('en')
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'auth/en': authEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         { provide: ThemeStore, useValue: { resolved: theme } },

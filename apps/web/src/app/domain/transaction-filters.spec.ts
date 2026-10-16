@@ -25,6 +25,7 @@ describe('toListQuery', () => {
       paidByUserId: 7,
       category: { type: 'category', id: 12 },
       q: '  woolworths ',
+      tag: 'Bali 2027',
     }
 
     expect(toListQuery(filters, 2, 25)).toEqual({
@@ -33,9 +34,16 @@ describe('toListQuery', () => {
       paidByUserId: 7,
       categoryId: [12],
       q: 'woolworths',
+      tag: 'Bali 2027',
       page: 2,
       perPage: 25,
     })
+  })
+
+  it('test_a_tag_over_every_month_sends_no_month', () => {
+    const filters: TransactionFilters = { ...initialFilters(october), month: null, tag: 'Bali' }
+
+    expect(toListQuery(filters, 1)).toEqual({ tag: 'Bali', page: 1, perPage: 50 })
   })
 
   it('test_uncategorized_is_its_own_flag', () => {
@@ -55,6 +63,7 @@ describe('hasNarrowingFilters and clearFilters', () => {
     expect(hasNarrowingFilters(initialFilters(october))).toBe(false)
     expect(hasNarrowingFilters({ ...initialFilters(october), accountId: 1 })).toBe(true)
     expect(hasNarrowingFilters({ ...initialFilters(october), q: 'x' })).toBe(true)
+    expect(hasNarrowingFilters({ ...initialFilters(october), tag: 'Bali' })).toBe(true)
   })
 
   it('test_clearing_keeps_the_month', () => {
@@ -64,6 +73,7 @@ describe('hasNarrowingFilters and clearFilters', () => {
       paidByUserId: 7,
       category: { type: 'uncategorized' },
       q: 'x',
+      tag: 'Bali',
     }
 
     expect(clearFilters(filters)).toEqual(initialFilters(october))

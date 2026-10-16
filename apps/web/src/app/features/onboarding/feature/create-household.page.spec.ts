@@ -18,7 +18,6 @@ import { HouseholdApi } from '../../../core/household/household.api'
 import { deviceTimeZone } from '../../../domain/time-zones'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import onboardingEn from '../i18n/en.json'
 import CreateHouseholdPage from './create-household.page'
 
 @Component({ template: '<p>landed</p>' })
@@ -50,7 +49,7 @@ describe('CreateHouseholdPage', () => {
       onClear: () => undefined,
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'onboarding/en': onboardingEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([

@@ -252,6 +252,9 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
         <a appSettingsRow data-testid="settings.goals" routerLink="/goals">
           {{ 'settings.goals.title' | transloco }}
         </a>
+        <a appSettingsRow data-testid="settings.tags" routerLink="/tags">
+          {{ 'settings.tags.title' | transloco }}
+        </a>
         <a appSettingsRow data-testid="settings.import" routerLink="/import">
           {{ 'settings.import.title' | transloco }}
         </a>
