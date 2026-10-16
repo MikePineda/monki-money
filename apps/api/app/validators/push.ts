@@ -1,30 +1,43 @@
 import vine from '@vinejs/vine'
-import { REMINDER_TIME_PATTERN } from '@monkimoney/shared'
+import { isReminderTime } from '@monkimoney/shared'
+import type { FieldContext } from '@vinejs/vine/types'
+import { isAuthSecret, isP256dhKey, isPushServiceEndpoint } from '#domain/push/push_subscription'
 
-/** A push service endpoint: always https (a capability URL, never logged). */
-const endpoint = () =>
-  vine
-    .string()
-    .trim()
-    .maxLength(2048)
-    .url({ protocols: ['https'], require_protocol: true })
+/** One of the push services the API sends to (domain/push/push_subscription.ts). */
+const pushEndpointRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
+  if (typeof value !== 'string' || !isPushServiceEndpoint(value)) {
+    field.report('The {{ field }} is not a supported push service', 'pushEndpoint', field)
+  }
+})
 
-/** URL-safe base64 as the browser exports the subscription keys. */
-const base64url = (max: number) =>
-  vine
-    .string()
-    .trim()
-    .minLength(1)
-    .maxLength(max)
-    .regex(/^[\w-]+=*$/)
+const p256dhRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
+  if (typeof value !== 'string' || !isP256dhKey(value)) {
+    field.report('The {{ field }} is not a valid push key', 'pushKey', field)
+  }
+})
+
+const authSecretRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
+  if (typeof value !== 'string' || !isAuthSecret(value)) {
+    field.report('The {{ field }} is not a valid push key', 'pushKey', field)
+  }
+})
+
+const reminderTimeRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
+  if (!isReminderTime(value)) {
+    field.report('The {{ field }} must be a time from 00:00 to 23:30', 'reminderTime', field)
+  }
+})
+
+/** A push service endpoint (a capability URL, never logged). */
+const endpoint = () => vine.string().trim().maxLength(2048).use(pushEndpointRule())
 
 /** `POST /push/subscriptions`: `PushSubscription.toJSON()` of the browser. */
 export const storePushSubscriptionValidator = vine.create({
   endpoint: endpoint(),
   expirationTime: vine.number().nullable().optional(),
   keys: vine.object({
-    p256dh: base64url(200),
-    auth: base64url(100),
+    p256dh: vine.string().trim().maxLength(200).use(p256dhRule()),
+    auth: vine.string().trim().maxLength(100).use(authSecretRule()),
   }),
 })
 
@@ -37,5 +50,5 @@ export const destroyPushSubscriptionValidator = vine.create({
 export const updateNotificationSettingsValidator = vine.create({
   summaryReady: vine.boolean({ strict: true }).optional(),
   dailyReminder: vine.boolean({ strict: true }).optional(),
-  reminderTime: vine.string().regex(REMINDER_TIME_PATTERN).optional(),
+  reminderTime: vine.string().use(reminderTimeRule()).optional(),
 })

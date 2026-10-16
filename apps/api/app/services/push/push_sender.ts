@@ -12,6 +12,12 @@ export interface PushOptions {
   ttlSeconds: number
 }
 
+/** What PushNotifier hands a sender on top of the options. */
+export interface PushSendOptions extends PushOptions {
+  /** Aborted once the send's deadline passed: drop the request, the delivery is already `failed`. */
+  signal: AbortSignal
+}
+
 /**
  * - `sent`: the push service accepted the message.
  * - `gone`: 404/410, the subscription no longer exists (delete it).
@@ -32,6 +38,6 @@ export abstract class PushSender {
   abstract send(
     target: PushTarget,
     payload: PushPayload,
-    options: PushOptions
+    options: PushSendOptions
   ): Promise<PushDelivery>
 }

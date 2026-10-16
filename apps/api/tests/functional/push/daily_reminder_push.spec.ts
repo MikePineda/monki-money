@@ -5,6 +5,15 @@ import db from '@adonisjs/lucid/services/db'
 import PushSubscription from '#models/push_subscription'
 import { createHousehold } from '#tests/helpers/household'
 import SchedulerRuns from '#services/scheduler/scheduler_runs'
+import { Scheduler } from '#services/scheduler/scheduler'
+import PushNotifier from '#services/push/push_notifier'
+import type { PushPayload } from '#domain/push/push_payload'
+import {
+  PushSender,
+  type PushDelivery,
+  type PushSendOptions,
+  type PushTarget,
+} from '#services/push/push_sender'
 import DailyReminderJob, { DAILY_REMINDER_JOB } from '#services/push/daily_reminder_job'
 import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 import { fakePush, preferNotifications, subscribeDevice } from '#tests/helpers/push'
@@ -274,6 +283,59 @@ test.group('Daily reminder push', () => {
       },
     ])
     assert.notMatch(JSON.stringify(push.sent.map((sent) => sent.payload)), /Woolworths|42[.,]50|\$/)
+  })
+})
+
+test.group('Daily reminder push: a push service that never answers', () => {
+  test('test_a_send_that_never_settles_fails_at_its_deadline_and_the_tick_finishes', async ({
+    assert,
+    cleanup,
+  }) => {
+    /** A push service that accepts the request and never answers. */
+    class HangingSender extends PushSender {
+      readonly signals: AbortSignal[] = []
+      send(_target: PushTarget, _payload: PushPayload, options: PushSendOptions) {
+        this.signals.push(options.signal)
+        return new Promise<PushDelivery>(() => {})
+      }
+    }
+    class QuickDeadlineNotifier extends PushNotifier {
+      protected override sendTimeoutMs = 50
+    }
+    const sender = new HangingSender()
+    app.container.swap(PushNotifier, () => new QuickDeadlineNotifier(sender))
+    cleanup(() => app.container.restore(PushNotifier))
+    const first = await reminded()
+    const second = await reminded()
+    const scheduler = new Scheduler([await app.container.make(DailyReminderJob)], () => EVENING, {
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    })
+    const started = Date.now()
+
+    await scheduler.tick()
+
+    assert.isBelow(Date.now() - started, 2_000, 'the tick did not wait on the push service')
+    assert.lengthOf(sender.signals, 2, 'the next person still got their turn')
+    assert.isTrue(
+      sender.signals.every((signal) => signal.aborted),
+      'each request was dropped'
+    )
+    for (const fixture of [first, second]) {
+      const [run] = await runsOf(fixture.owner.id)
+      assert.include(run, { attempts: 1, outcome: 'failed' })
+      await fixture.phone.refresh()
+      assert.equal(fixture.phone.failures, 1)
+    }
+    const errors = await db
+      .from('scheduler_runs')
+      .whereIn('user_id', [first.owner.id, second.owner.id])
+      .select('error')
+    assert.deepEqual(
+      errors.map((row) => row.error),
+      ['E_PUSH_TIMEOUT: no answer within 50 ms', 'E_PUSH_TIMEOUT: no answer within 50 ms']
+    )
   })
 })
 

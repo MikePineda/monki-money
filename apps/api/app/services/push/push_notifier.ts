@@ -16,6 +16,13 @@ export interface PushReport {
   errors: string[]
 }
 
+/**
+ * The longest one send may take. web-push's own `timeout` only covers an
+ * idle socket; past this the send is a failure and its request is dropped,
+ * so a slow push service can never hold up the scheduler's tick.
+ */
+export const PUSH_SEND_TIMEOUT_MS = 10_000
+
 /** Outcome of one device, for `node ace push:test`. */
 export interface DeviceDelivery {
   subscription: PushSubscription
@@ -26,10 +33,13 @@ export interface DeviceDelivery {
  * Sends one notification to every device of a person and keeps the
  * subscriptions tidy: a delivered message stamps `last_used_at` and resets
  * `failures`, a 404/410 deletes the subscription, any other failure adds
- * one to `failures`. Never throws for a device's sake.
+ * one to `failures`. Every send has a hard deadline (PUSH_SEND_TIMEOUT_MS).
+ * Never throws for a device's sake.
  */
 @inject()
 export default class PushNotifier {
+  protected sendTimeoutMs = PUSH_SEND_TIMEOUT_MS
+
   constructor(protected sender: PushSender) {}
 
   /** The person's devices registered in their current household. */
@@ -75,16 +85,33 @@ export default class PushNotifier {
     payload: PushPayload,
     options: PushOptions
   ): Promise<PushDelivery> {
+    const deadline = new AbortController()
+    let timer: NodeJS.Timeout | undefined
+    const timedOut = new Promise<PushDelivery>((resolve) => {
+      timer = setTimeout(() => {
+        deadline.abort()
+        resolve({
+          status: 'failed',
+          error: `E_PUSH_TIMEOUT: no answer within ${this.sendTimeoutMs} ms`,
+          statusCode: null,
+        })
+      }, this.sendTimeoutMs)
+    })
     try {
-      return await this.sender.send(
-        { endpoint: subscription.endpoint, p256dh: subscription.p256Dh, auth: subscription.auth },
-        payload,
-        options
-      )
+      return await Promise.race([
+        this.sender.send(
+          { endpoint: subscription.endpoint, p256dh: subscription.p256Dh, auth: subscription.auth },
+          payload,
+          { ...options, signal: deadline.signal }
+        ),
+        timedOut,
+      ])
     } catch (error) {
       // Senders answer failures; this only guards against a bug in one.
       const message = error instanceof Error ? error.message : String(error)
       return { status: 'failed', error: `E_PUSH_FAILED: ${message}`, statusCode: null }
+    } finally {
+      clearTimeout(timer)
     }
   }
 }

@@ -18,9 +18,9 @@ export function fakePush(cleanup: Cleanup): FakePushSender {
   return sender
 }
 
-/** A synthetic push service endpoint (unique per call). */
-export function anEndpoint(service = 'push.example.test'): string {
-  return `https://${service}/send/${randomUUID()}`
+/** A synthetic endpoint on an allowed push service (unique per call; never contacted in tests). */
+export function anEndpoint(): string {
+  return `https://fcm.googleapis.com/fcm/send/${randomUUID()}`
 }
 
 /** What `PushSubscription.toJSON()` gives the browser (synthetic keys). */

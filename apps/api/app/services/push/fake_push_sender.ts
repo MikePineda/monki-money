@@ -3,6 +3,7 @@ import {
   PushSender,
   type PushDelivery,
   type PushOptions,
+  type PushSendOptions,
   type PushTarget,
 } from '#services/push/push_sender'
 
@@ -30,9 +31,13 @@ export default class FakePushSender extends PushSender {
   async send(
     target: PushTarget,
     payload: PushPayload,
-    options: PushOptions
+    options: PushSendOptions
   ): Promise<PushDelivery> {
-    this.sent.push({ endpoint: target.endpoint, payload, options })
+    this.sent.push({
+      endpoint: target.endpoint,
+      payload,
+      options: { ttlSeconds: options.ttlSeconds },
+    })
     return this.#answers.get(target.endpoint) ?? { status: 'sent' }
   }
 

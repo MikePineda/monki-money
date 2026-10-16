@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
+import db from '@adonisjs/lucid/services/db'
 import HouseholdMember from '#models/household_member'
+import { MAX_DEVICES_PER_PERSON } from '#services/push/push_subscription_service'
 import PushSubscription from '#models/push_subscription'
 import { createHousehold } from '#tests/helpers/household'
 import { aBrowserSubscription, anEndpoint, subscribeDevice } from '#tests/helpers/push'
@@ -46,7 +48,7 @@ test.group('Push subscriptions', () => {
     const { household, owner } = await createHousehold()
     const existing = await subscribeDevice(owner, household, { failures: 4 })
     const renewed = aBrowserSubscription(existing.endpoint)
-    renewed.keys.auth = 'bmV3LWF1dGgtc2VjcmV0'
+    renewed.keys.auth = 'bmV3LWF1dGgtc2VjcmV0IQ'
 
     const response = await client.post('/api/v1/push/subscriptions').json(renewed).actingAs(owner)
 
@@ -55,7 +57,7 @@ test.group('Push subscriptions', () => {
     assert.lengthOf(devices, 1)
     assert.include(devices[0].serialize(), {
       id: existing.id,
-      auth: 'bmV3LWF1dGgtc2VjcmV0',
+      auth: 'bmV3LWF1dGgtc2VjcmV0IQ',
       failures: 0,
     })
   })
@@ -151,7 +153,10 @@ test.group('Push subscriptions', () => {
     assert,
   }) => {
     const { owner } = await createHousehold()
-    const plainHttp = { ...aBrowserSubscription(), endpoint: 'http://push.example.test/send/1' }
+    const plainHttp = {
+      ...aBrowserSubscription(),
+      endpoint: 'http://fcm.googleapis.com/fcm/send/1',
+    }
     const noKeys = { endpoint: anEndpoint() }
     const badKey = aBrowserSubscription()
     badKey.keys.p256dh = 'not base64!'
@@ -163,6 +168,108 @@ test.group('Push subscriptions', () => {
     const missing = await client.delete('/api/v1/push/subscriptions').json({}).actingAs(owner)
     missing.assertStatus(422)
     assert.lengthOf(await devicesOf(owner.id), 0)
+  })
+
+  test('test_only_endpoints_of_the_known_push_services_are_accepted', async ({
+    client,
+    assert,
+  }) => {
+    const { owner } = await createHousehold()
+
+    for (const endpoint of [
+      'https://127.0.0.1:6379/x',
+      'https://169.254.169.254/latest/meta-data/iam',
+      'https://[::1]:5432/',
+      'https://tarpit.example.test/send/1',
+      'https://fcm.googleapis.com:8443/fcm/send/1',
+    ]) {
+      const response = await client
+        .post('/api/v1/push/subscriptions')
+        .json(aBrowserSubscription(endpoint))
+        .actingAs(owner)
+
+      response.assertStatus(422)
+      assert.deepInclude(response.body().errors, {
+        field: 'endpoint',
+        rule: 'pushEndpoint',
+        message: 'The push address is not a supported push service',
+      })
+    }
+    assert.lengthOf(await devicesOf(owner.id), 0)
+
+    for (const endpoint of [
+      'https://updates.push.services.mozilla.com/wpush/v2/gAAAAAB',
+      'https://web.push.apple.com/QGuQyavXutnMHW',
+      'https://wns2-par02p.notify.windows.com/w/?token=BQYAAAB',
+    ]) {
+      const response = await client
+        .post('/api/v1/push/subscriptions')
+        .json(aBrowserSubscription(endpoint))
+        .actingAs(owner)
+      response.assertStatus(201)
+    }
+  })
+
+  test('test_keys_must_be_a_real_p256_point_and_a_16_byte_secret', async ({ client, assert }) => {
+    const { owner } = await createHousehold()
+    const weak = { endpoint: anEndpoint(), keys: { p256dh: 'A', auth: 'A' } }
+
+    const response = await client.post('/api/v1/push/subscriptions').json(weak).actingAs(owner)
+
+    response.assertStatus(422)
+    const fields = response
+      .body()
+      .errors.map((error: { field: string; rule: string }) => [error.field, error.rule])
+    assert.sameDeepMembers(fields, [
+      ['keys.p256dh', 'pushKey'],
+      ['keys.auth', 'pushKey'],
+    ])
+    assert.lengthOf(await devicesOf(owner.id), 0)
+  })
+
+  test('test_a_person_keeps_ten_devices_and_the_least_recent_one_goes', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    const partners = await subscribeDevice(member, household)
+    const old = []
+    for (let index = 0; index < MAX_DEVICES_PER_PERSON; index += 1) {
+      const device = await subscribeDevice(owner, household)
+      // Registered a minute apart, oldest first.
+      await db
+        .from('push_subscriptions')
+        .where('id', device.id)
+        .update({
+          updated_at: DateTime.now()
+            .minus({ minutes: 60 - index })
+            .toJSDate(),
+        })
+      old.push(device)
+    }
+    // Refreshed today with nothing new: no longer the least recent one.
+    await client
+      .post('/api/v1/push/subscriptions')
+      .header('user-agent', 'Test browser')
+      .json(aBrowserSubscription(old[0].endpoint))
+      .actingAs(owner)
+
+    const response = await client
+      .post('/api/v1/push/subscriptions')
+      .json(aBrowserSubscription())
+      .actingAs(owner)
+
+    response.assertStatus(201)
+    const kept = await devicesOf(owner.id)
+    assert.lengthOf(kept, MAX_DEVICES_PER_PERSON)
+    const keptIds = kept.map((device) => device.id)
+    assert.notInclude(keptIds, old[1].id, 'the least recently registered one went')
+    assert.include(keptIds, old[0].id)
+    assert.include(keptIds, response.body().data.id)
+    assert.isNotNull(
+      await PushSubscription.find(partners.id),
+      'per person: the partner keeps theirs'
+    )
   })
 
   test('test_subscribing_needs_a_signed_in_person', async ({ client }) => {

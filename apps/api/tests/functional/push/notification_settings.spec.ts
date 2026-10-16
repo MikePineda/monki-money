@@ -61,6 +61,7 @@ test.group('Notification preferences', () => {
 
     for (const [field, value] of [
       ['reminderTime', '24:00'],
+      ['reminderTime', '23:45'],
       ['reminderTime', '7:30'],
       ['reminderTime', '19:30:00'],
       ['reminderTime', 1930],
@@ -76,6 +77,32 @@ test.group('Notification preferences', () => {
       assert.equal(response.body().errors[0].field, field, `${field}: ${value}`)
     }
     assert.isNull(await UserNotificationSetting.findBy('user_id', owner.id))
+  })
+
+  test('test_the_reminder_time_goes_up_to_23_30_so_a_tick_still_catches_it', async ({ client }) => {
+    const { owner } = await createHousehold()
+
+    const latest = await client
+      .patch('/api/v1/me/notifications')
+      .json({ reminderTime: '23:30' })
+      .actingAs(owner)
+    latest.assertStatus(200)
+    latest.assertBodyContains({ data: { reminderTime: '23:30' } })
+
+    const tooLate = await client
+      .patch('/api/v1/me/notifications')
+      .json({ reminderTime: '23:31' })
+      .actingAs(owner)
+    tooLate.assertStatus(422)
+    tooLate.assertBodyContains({
+      errors: [
+        {
+          field: 'reminderTime',
+          rule: 'reminderTime',
+          message: 'The reminder time must be a time from 00:00 to 23:30',
+        },
+      ],
+    })
   })
 
   test('test_preferences_belong_to_one_person_only', async ({ client }) => {

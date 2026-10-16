@@ -362,11 +362,25 @@ scheduler (production only, `SCHEDULER=off` stops them with the insights):
   add, receipt, import, transfer); otherwise the day is recorded as
   `skipped:logged-today`. No amounts, merchants or names in any payload.
 
-A push no device accepted is retried an hour later, 3 attempts at most (the
-scheduler's rule); a 404/410 from the push service deletes that subscription,
+Every send has a hard 10 s deadline (`PUSH_SEND_TIMEOUT_MS`): past it the
+request is dropped and counts as a failure, so a slow push service never holds
+up the tick. A push no device accepted is retried an hour later, 3 attempts at
+most (the scheduler's rule); a 404/410 from the push service deletes that subscription,
 any other failure adds one to `push_subscriptions.failures`. iPhone and iPad
 only receive pushes in the installed app (iOS 16.4+); each person turns
 notifications on per device in Settings → Notifications.
+
+**Push services.** The API only stores and contacts endpoints on the hosts
+listed in `PUSH_SERVICE_HOSTS` (`apps/api/app/domain/push/push_subscription.ts`):
+`fcm.googleapis.com` (Chrome and every Chromium browser), `*.push.services.mozilla.com`
+(Firefox), `*.push.apple.com` (Safari) and `*.notify.windows.com` (Edge on
+Windows), https on the default port, never an IP literal; anything else is 422
+`endpoint`/`pushEndpoint`. A browser on another push service cannot turn
+notifications on until its host is added there (exact name, or a suffix
+starting with a dot) with a test case in `tests/unit/push/push_subscription.spec.ts`.
+Each person keeps at most 10 devices: registering an eleventh drops the least
+recently registered one. The reminder time goes up to 23:30 (two ticks before
+midnight).
 
 **Keys.** Nothing to configure. On the first `GET /api/v1/config` the app
 generates a VAPID key pair with `web-push` and stores it in `app_settings`
