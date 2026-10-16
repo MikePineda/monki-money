@@ -3,6 +3,7 @@ import {
   categorizeLines,
   confidenceLevel,
   dropLines,
+  foreignCurrency,
   linesFromReceipt,
   linesIssues,
   mergeLines,
@@ -57,6 +58,23 @@ describe('receipt draft defaults', () => {
     expect(confidenceLevel(0.8)).toBe('high')
     expect(confidenceLevel(0.6)).toBe('medium')
     expect(confidenceLevel(0.49)).toBe('low')
+  })
+})
+
+describe('receipt currency', () => {
+  it('test_a_receipt_in_another_currency_is_flagged_with_its_code', () => {
+    expect(foreignCurrency({ ...RECEIPT, currencyCode: 'USD' }, 'AUD')).toBe('USD')
+    expect(foreignCurrency({ ...RECEIPT, currencyCode: ' idr ' }, 'AUD')).toBe('IDR')
+  })
+
+  it('test_a_receipt_in_the_households_currency_is_not_flagged_whatever_its_case', () => {
+    expect(foreignCurrency(RECEIPT, 'AUD')).toBeNull()
+    expect(foreignCurrency({ ...RECEIPT, currencyCode: 'aud' }, 'AUD')).toBeNull()
+  })
+
+  it('test_a_receipt_without_a_readable_currency_is_not_flagged', () => {
+    expect(foreignCurrency({ ...RECEIPT, currencyCode: null }, 'AUD')).toBeNull()
+    expect(foreignCurrency({ ...RECEIPT, currencyCode: '  ' }, 'AUD')).toBeNull()
   })
 })
 

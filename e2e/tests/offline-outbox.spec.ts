@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 import { MonthPage } from '../pages/month.page.ts'
 import { OutboxPage } from '../pages/outbox.page.ts'
 import { QuickAddPage } from '../pages/quick-add.page.ts'
+import { SettingsPage } from '../pages/settings.page.ts'
 import { expect, signUpOwner, test, xsrfToken } from '../support/fixtures.ts'
 
 interface LedgerRow {
@@ -120,5 +121,41 @@ test.describe('offline outbox: quick add never loses an entry', () => {
     const response = await context.request.get('/api/v1/transactions')
     const { data } = (await response.json()) as { data: LedgerRow[] }
     expect(data).toEqual([])
+  })
+
+  test('logging out with an entry still queued warns before it is lost', async ({
+    page,
+    context,
+  }) => {
+    await signUpOwner(context)
+    const quickAdd = await openQuickAdd(page)
+
+    await context.setOffline(true)
+    await quickAdd.press('1', '2', '00')
+    await quickAdd.saveOffline()
+    await quickAdd.done.click()
+    await expect(page).toHaveURL(/\/month$/)
+
+    // Back online, but the entry never reaches the API: it stays queued.
+    await page.route(`**${QUICK_ENDPOINT}`, (route) => route.abort('internetdisconnected'))
+    await context.setOffline(false)
+    const settings = new SettingsPage(page)
+    await settings.goto()
+    const outbox = new OutboxPage(page)
+    await expect(outbox.pill).toHaveText('1 pending')
+
+    await settings.logout.click()
+    await expect(outbox.logoutWarning).toContainText(
+      '1 movement is waiting to sync and will be lost if you log out.'
+    )
+    await outbox.logoutCancel.click()
+    await expect(outbox.logoutWarning).toBeHidden()
+    await expect(page).toHaveURL(/\/settings$/)
+    expect(await queuedIds(page)).toHaveLength(1)
+
+    await settings.logout.click()
+    await outbox.logoutAnyway.click()
+    await expect(page).toHaveURL(/\/login/)
+    expect(await queuedIds(page)).toEqual([])
   })
 })

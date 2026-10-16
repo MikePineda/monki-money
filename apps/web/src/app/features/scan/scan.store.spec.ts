@@ -30,10 +30,16 @@ const RECEIPT: ReceiptDraft = {
   key: 'receipts/1/first.webp',
 }
 
-function photo(type = 'image/jpeg', size = 3_000_000): File {
-  const file = new File(['original pixels'], 'IMG_0001.jpg', { type })
+function photo(type = 'image/jpeg', size = 3_000_000, name = 'IMG_0001.jpg'): File {
+  const file = new File(['original pixels'], name, { type })
   Object.defineProperty(file, 'size', { value: size })
   return file
+}
+
+/** A blob that claims `size` bytes without allocating them. */
+function sized(blob: Blob, size: number): Blob {
+  Object.defineProperty(blob, 'size', { value: size })
+  return blob
 }
 
 function presigned(key: string): PresignedUpload {
@@ -71,7 +77,8 @@ describe('ScanStore', () => {
       scan: vi.fn(async (key: string) => ({ ...RECEIPT, key })),
     }
     optimizer = { optimize: vi.fn(async () => optimized) }
-    urls = { create: vi.fn(() => 'blob:preview-1'), revoke: vi.fn() }
+    let created = 0
+    urls = { create: vi.fn(() => `blob:preview-${++created}`), revoke: vi.fn() }
     view = { navigator: { onLine: true } }
     TestBed.configureTestingModule({
       providers: [
@@ -163,6 +170,67 @@ describe('ScanStore', () => {
     expect(seen).toBe('blob:preview-1')
     expect(urls.revoke).toHaveBeenCalledWith('blob:preview-1')
     expect(store.preview()).toBeNull()
+  })
+
+  it('test_the_review_keeps_only_the_reduced_photo_in_memory_to_compare', async () => {
+    const store = setup()
+
+    await store.pick(photo())
+
+    // The original goes; the reduced copy (what was uploaded) stays as a blob: URL.
+    expect(urls.create).toHaveBeenLastCalledWith(optimized.blob)
+    expect(store.reviewPhoto()).toBe('blob:preview-2')
+    expect(urls.revoke).not.toHaveBeenCalledWith('blob:preview-2')
+  })
+
+  it('test_discarding_the_review_releases_its_photo', async () => {
+    const store = setup()
+    await store.pick(photo())
+
+    store.reset()
+
+    expect(urls.revoke).toHaveBeenCalledWith('blob:preview-2')
+    expect(store.reviewPhoto()).toBeNull()
+  })
+
+  it('test_leaving_the_review_releases_its_photo', async () => {
+    const store = setup()
+    await store.pick(photo())
+
+    TestBed.resetTestingModule()
+
+    expect(urls.revoke).toHaveBeenCalledWith('blob:preview-2')
+  })
+
+  it('test_a_new_photo_releases_the_previous_reviews_photo', async () => {
+    const store = setup()
+    await store.pick(photo())
+
+    await store.pick(photo())
+
+    expect(urls.revoke).toHaveBeenCalledWith('blob:preview-2')
+    expect(store.reviewPhoto()).toBe('blob:preview-4')
+  })
+
+  it('test_a_photo_over_the_upload_limit_is_refused_before_asking_for_a_url', async () => {
+    const store = setup()
+    optimized = { ...optimized, blob: sized(new Blob(['huge']), 10 * 1024 * 1024 + 1) }
+    optimizer.optimize.mockResolvedValueOnce(optimized)
+
+    await store.pick(photo())
+
+    expect(store.step()).toEqual({ step: 'error', problem: 'tooLarge', retryable: false })
+    expect(api.presign).not.toHaveBeenCalled()
+  })
+
+  it('test_a_photo_of_a_type_the_bucket_refuses_is_said_before_asking_for_a_url', async () => {
+    const store = setup()
+    optimizer.optimize.mockResolvedValueOnce({ ...optimized, contentType: 'image/gif' as never })
+
+    await store.pick(photo())
+
+    expect(store.step()).toEqual({ step: 'error', problem: 'wrongType', retryable: false })
+    expect(api.presign).not.toHaveBeenCalled()
   })
 
   it('test_an_expired_upload_url_is_presigned_again_once', async () => {
@@ -274,13 +342,31 @@ describe('ScanStore', () => {
     expect(store.step()).toEqual({ step: 'error', problem: 'failed', retryable: true })
   })
 
-  it('test_a_photo_the_device_cannot_decode_asks_for_another_one', async () => {
+  it('test_a_damaged_photo_the_device_cannot_decode_asks_for_another_one', async () => {
     const store = setup()
     optimizer.optimize.mockRejectedValueOnce(new ImageUnreadableError())
 
-    await store.pick(photo('image/heic'))
+    await store.pick(photo('image/jpeg'))
 
     expect(store.step()).toEqual({ step: 'error', problem: 'unreadablePhoto', retryable: false })
+    expect(api.presign).not.toHaveBeenCalled()
+  })
+
+  it('test_a_heic_photo_neither_decoder_opens_names_its_format', async () => {
+    const store = setup()
+    optimizer.optimize.mockRejectedValue(new ImageUnreadableError())
+
+    await store.pick(photo('image/heic', 2_000_000, 'IMG_0001.HEIC'))
+    expect(store.step()).toEqual({
+      step: 'error',
+      problem: 'unreadablePhoto',
+      retryable: false,
+      format: 'HEIC',
+    })
+
+    // Some pickers leave the type blank: the extension still names it.
+    await store.pick(photo('', 2_000_000, 'IMG_0002.heic'))
+    expect(store.step()).toMatchObject({ problem: 'unreadablePhoto', format: 'HEIC' })
     expect(api.presign).not.toHaveBeenCalled()
   })
 

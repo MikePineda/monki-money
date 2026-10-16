@@ -39,8 +39,9 @@ interface OutboxRow {
  * on the server yet, oldest first, with its amount, payee or category (or
  * "from → to"), date and status, the API's message when it was refused,
  * and what to do: retry, edit in quick add (`/add?outbox=<id>`) or discard
- * (asked first). "Retry all" sends everything again now. Closes by itself
- * once nothing is left.
+ * (asked first). "Retry all" sends everything again now. While the device
+ * refuses to store them it says they last only until the app closes.
+ * Closes by itself once nothing is left.
  */
 @Component({
   selector: 'app-outbox-sheet',
@@ -58,6 +59,16 @@ interface OutboxRow {
     >
       <div data-testid="outbox.sheet">
         <p class="px-4 pb-2 text-body text-ink-2">{{ 'outbox.sheet.body' | transloco }}</p>
+        @if (!outbox.isPersisted()) {
+          <p
+            class="mx-4 mb-2 flex items-start gap-1.5 text-label text-ink-1"
+            role="status"
+            data-testid="outbox.sheet.notPersisted"
+          >
+            <app-icon name="triangle-alert" class="shrink-0 text-status-warning" [size]="16" />
+            <span>{{ 'outbox.sheet.notPersisted' | transloco }}</span>
+          </p>
+        }
         <ul role="list">
           @for (row of rows(); track row.id) {
             <li

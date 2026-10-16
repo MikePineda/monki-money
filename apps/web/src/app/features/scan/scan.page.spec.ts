@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
+import type { Mock } from 'vitest'
 import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
 import {
   aReceipt,
@@ -9,6 +10,7 @@ import {
   type ReceiptsApiMock,
 } from '../../../testing/scan-testing'
 import { httpError } from '../../../testing/session-fixtures'
+import { ImageOptimizer, ImageUnreadableError } from '../../core/platform/image-optimizer'
 import { WINDOW } from '../../core/platform/window.token'
 import type { ReceiptDraft } from '../../domain/receipt-draft'
 import { BottomSheetService } from '../../shared/ui/bottom-sheet/bottom-sheet.service'
@@ -166,6 +168,22 @@ describe('ScanPage', () => {
       offline.mockRestore()
     })
 
+    it('test_a_heic_photo_this_browser_cannot_open_names_the_format', async () => {
+      const { root, pick } = await open()
+      const optimizer = TestBed.inject(ImageOptimizer) as unknown as { optimize: Mock }
+      optimizer.optimize.mockRejectedValueOnce(new ImageUnreadableError())
+
+      await pick(new File(['heic'], 'IMG_0001.HEIC', { type: 'image/heic' }))
+
+      await vi.waitFor(() =>
+        expect(text(root, '[data-testid="scan.capture.problem"]')).toBe(
+          'This browser cannot open HEIC photos. Choose a JPEG or PNG, or take the photo with the camera button.'
+        )
+      )
+      expect(el(root, 'scan.capture.retry')).toBeNull()
+      expect(api.presign).not.toHaveBeenCalled()
+    })
+
     it('test_cancel_goes_back_to_the_capture', async () => {
       const { root, pick, settle } = await open()
       api.scan.mockImplementationOnce(() => new Promise(() => undefined))
@@ -197,6 +215,58 @@ describe('ScanPage', () => {
         'Read clearly. Check the details before saving.'
       )
       expect(text(root, '[data-testid="scan.review.save"]')).toBe('Save −$23.45')
+    })
+
+    it('test_show_photo_puts_the_receipt_above_the_fields_to_compare', async () => {
+      const { root, pick, settle } = await open()
+      await pick(photo())
+      await reviewOpen(root)
+
+      const toggle = el(root, 'scan.review.photoToggle')
+      expect(toggle.textContent?.trim()).toBe('Show photo')
+      expect(toggle.getAttribute('aria-expanded')).toBe('false')
+      expect(el(root, 'scan.review.photo')).toBeNull()
+
+      toggle.click()
+      await settle()
+
+      expect(el<HTMLImageElement>(root, 'scan.review.photo').getAttribute('src')).toBe(
+        'blob:preview'
+      )
+      expect(el(root, 'scan.review.photoToggle').textContent?.trim()).toBe('Hide photo')
+      expect(el(root, 'scan.review.photoToggle').getAttribute('aria-expanded')).toBe('true')
+    })
+
+    it('test_a_receipt_in_another_currency_warns_and_continues_with_the_typed_amounts', async () => {
+      const { root, pick, settle } = await open(aReceipt({ currencyCode: 'USD' }))
+      await pick(photo())
+      await vi.waitFor(() => expect(el(root, 'scan.review.currency')).not.toBeNull())
+
+      expect(text(root, '[data-testid="scan.review.currency"]')).toContain(
+        'This receipt is in USD. It will be saved in AUD with the amounts as you type them, without converting.'
+      )
+      expect(el(root, 'scan.review.save').disabled).toBe(true)
+
+      el(root, 'scan.review.currency.continue').click()
+      await settle()
+
+      expect(el(root, 'scan.review.currency')).toBeNull()
+      el(root, 'scan.review.save').click()
+      await settle()
+      await vi.waitFor(() => expect(api.save).toHaveBeenCalled())
+      expect(api.save.mock.calls[0]?.[0]).toMatchObject({ amountCents: 2345 })
+    })
+
+    it('test_cancelling_a_receipt_in_another_currency_goes_back_to_the_capture', async () => {
+      const { root, pick, settle } = await open(aReceipt({ currencyCode: 'USD' }))
+      await pick(photo())
+      await vi.waitFor(() => expect(el(root, 'scan.review.currency.cancel')).not.toBeNull())
+
+      el(root, 'scan.review.currency.cancel').click()
+      await settle()
+
+      await vi.waitFor(() => expect(text(root, 'h1')).toBe('Scan a receipt'))
+      expect(api.save).not.toHaveBeenCalled()
     })
 
     it('test_a_low_confidence_reading_asks_to_check_every_field', async () => {

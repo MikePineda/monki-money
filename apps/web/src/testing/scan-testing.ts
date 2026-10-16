@@ -13,7 +13,7 @@ import type { ReceiptDraft } from '../app/domain/receipt-draft'
 import { ReceiptsApi } from '../app/features/scan/data-access/receipts.api'
 import { APP_LOCALE } from '../app/shared/ui/app-locale.token'
 import { aCategoryTree, aTransaction } from './ledger-fixtures'
-import { aMember, aUser, anAccount } from './session-fixtures'
+import { aHousehold, aMember, aUser, anAccount } from './session-fixtures'
 
 /** A scanned receipt like the fake model's (Groceries is category 20 in aCategoryTree). */
 export function aReceipt(overrides: Partial<ReceiptDraft> = {}): ReceiptDraft {
@@ -61,7 +61,7 @@ export interface ScanTestingOptions {
 
 /**
  * What the scanner needs around it in a spec: the household (NAB Everyday
- * 1, NAB Savings 2, the category tree, two members), the session, the time
+ * 1, NAB Savings 2, the category tree, two members, AUD), the session, the time
  * zone and locale, a MonthStore stand-in, an optimiser that answers a small
  * WebP and object URLs that are only counted.
  */
@@ -91,7 +91,11 @@ export function scanTestingProviders(options: ScanTestingOptions): Provider[] {
     },
     {
       provide: SessionStore,
-      useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
+      useValue: {
+        user: signal(aUser({ id: 1 })),
+        household: signal(aHousehold()),
+        onClear: () => undefined,
+      },
     },
     {
       provide: ImageOptimizer,

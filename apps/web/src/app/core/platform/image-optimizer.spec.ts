@@ -1,6 +1,33 @@
 import { DOCUMENT } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { ImageOptimizer, ImageUnreadableError } from './image-optimizer'
+import { OBJECT_URLS } from './object-urls'
+
+/** An `<img>` that loads (or fails) as soon as it gets a source, like a browser decoding a blob. */
+class FakeImage {
+  naturalWidth: number
+  naturalHeight: number
+  onload: (() => void) | null = null
+  onerror: (() => void) | null = null
+  private source = ''
+
+  constructor(
+    private readonly loads: boolean,
+    size: { width: number; height: number }
+  ) {
+    this.naturalWidth = size.width
+    this.naturalHeight = size.height
+  }
+
+  get src(): string {
+    return this.source
+  }
+
+  set src(value: string) {
+    this.source = value
+    queueMicrotask(() => (this.loads ? this.onload?.() : this.onerror?.()))
+  }
+}
 
 /** A canvas that records what was drawn and answers toBlob like a browser would. */
 class FakeCanvas {
@@ -33,18 +60,24 @@ describe('ImageOptimizer', () => {
   let canvas: FakeCanvas
   let bitmap: { width: number; height: number; close: ReturnType<typeof vi.fn> }
   let decode: ReturnType<typeof vi.fn>
+  let image: FakeImage
+  let urls: { create: ReturnType<typeof vi.fn>; revoke: ReturnType<typeof vi.fn> }
 
-  function setup(options: { writesWebp?: boolean; width?: number; height?: number } = {}) {
+  function setup(
+    options: { writesWebp?: boolean; width?: number; height?: number; imgLoads?: boolean } = {}
+  ) {
+    const size = { width: options.width ?? 4032, height: options.height ?? 3024 }
     canvas = new FakeCanvas(options.writesWebp ?? true)
-    bitmap = { width: options.width ?? 4032, height: options.height ?? 3024, close: vi.fn() }
+    bitmap = { ...size, close: vi.fn() }
+    image = new FakeImage(options.imgLoads ?? true, size)
     decode = vi.fn(() => Promise.resolve(bitmap))
+    urls = { create: vi.fn(() => 'blob:photo-1'), revoke: vi.fn() }
     vi.stubGlobal('createImageBitmap', decode)
+    const elements: Record<string, unknown> = { canvas, img: image }
     TestBed.configureTestingModule({
       providers: [
-        {
-          provide: DOCUMENT,
-          useValue: { createElement: (tag: string) => (tag === 'canvas' ? canvas : null) },
-        },
+        { provide: DOCUMENT, useValue: { createElement: (tag: string) => elements[tag] ?? null } },
+        { provide: OBJECT_URLS, useValue: urls },
       ],
     })
     return TestBed.inject(ImageOptimizer)
@@ -107,12 +140,51 @@ describe('ImageOptimizer', () => {
     expect({ width: canvas.width, height: canvas.height }).toEqual({ width: 0, height: 0 })
   })
 
-  it('test_a_file_the_browser_cannot_decode_is_reported_as_unreadable', async () => {
+  it('test_a_heic_photo_falls_back_to_the_img_decoder', async () => {
+    // Safari opens HEIC in an <img> although createImageBitmap refuses it.
+    const optimizer = setup({ width: 3024, height: 4032 })
+    decode.mockRejectedValueOnce(new DOMException('unsupported', 'InvalidStateError'))
+    const photo = new Blob(['heic'], { type: 'image/heic' })
+
+    const result = await optimizer.optimize(photo)
+
+    expect(urls.create).toHaveBeenCalledWith(photo)
+    expect(image.src).toBe('blob:photo-1')
+    expect(canvas.context.drawImage).toHaveBeenCalledWith(image, 0, 0, 1200, 1600)
+    expect(result.contentType).toBe('image/webp')
+    expect({ width: result.width, height: result.height }).toEqual({ width: 1200, height: 1600 })
+    // The blob URL lives only while the photo is drawn.
+    expect(urls.revoke).toHaveBeenCalledWith('blob:photo-1')
+  })
+
+  it('test_a_browser_without_create_image_bitmap_uses_the_img_decoder', async () => {
     const optimizer = setup()
+    vi.stubGlobal('createImageBitmap', undefined)
+
+    const result = await optimizer.optimize(new Blob(['photo'], { type: 'image/jpeg' }))
+
+    expect(canvas.context.drawImage).toHaveBeenCalledWith(image, 0, 0, 1600, 1200)
+    expect(result.contentType).toBe('image/webp')
+  })
+
+  it('test_a_file_neither_decoder_can_open_is_reported_as_unreadable', async () => {
+    const optimizer = setup({ imgLoads: false })
     decode.mockRejectedValueOnce(new DOMException('bad image', 'InvalidStateError'))
 
     await expect(optimizer.optimize(new Blob(['not an image']))).rejects.toBeInstanceOf(
       ImageUnreadableError
     )
+    expect(urls.revoke).toHaveBeenCalledWith('blob:photo-1')
+    expect(canvas.context.drawImage).not.toHaveBeenCalled()
+  })
+
+  it('test_an_img_that_loads_without_pixels_is_unreadable', async () => {
+    const optimizer = setup({ width: 0, height: 0 })
+    decode.mockRejectedValueOnce(new DOMException('bad image', 'InvalidStateError'))
+
+    await expect(optimizer.optimize(new Blob(['empty']))).rejects.toBeInstanceOf(
+      ImageUnreadableError
+    )
+    expect(urls.revoke).toHaveBeenCalledWith('blob:photo-1')
   })
 })

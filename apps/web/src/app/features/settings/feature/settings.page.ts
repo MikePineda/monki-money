@@ -19,6 +19,7 @@ import { formatDay } from '../../../domain/dates'
 import type { AppLang } from '../../../domain/locale'
 import { initial } from '../../../domain/people'
 import { supportedTimeZones } from '../../../domain/time-zones'
+import { SafeLogout } from '../../../layouts/outbox/safe-logout'
 import { IconComponent } from '../../../shared/icons/icon.component'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
@@ -382,6 +383,7 @@ export default class SettingsPage implements OnInit {
   protected readonly install = inject(InstallService)
   private readonly updates = inject(UpdateService)
   private readonly router = inject(Router)
+  private readonly safeLogout = inject(SafeLogout)
 
   private readonly themeLabels = translateSignal(THEME_KEYS)
   private readonly languageLabels = translateSignal(LANGUAGE_KEYS)
@@ -604,8 +606,9 @@ export default class SettingsPage implements OnInit {
     this.sheets.open<boolean>(LeaveHouseholdSheetComponent, { data, injector: this.injector })
   }
 
+  /** Warns first while the offline outbox still holds entries (they would be lost). */
   protected async logout(): Promise<void> {
-    await this.session.logout()
+    await this.safeLogout.logout()
   }
 
   private async scheduleDeletion(password: string): Promise<DeleteOutcome> {

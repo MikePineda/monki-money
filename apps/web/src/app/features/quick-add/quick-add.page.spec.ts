@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core'
+import { Component, signal, type WritableSignal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
@@ -32,12 +32,14 @@ import { enqueue, type OutboxEntry, type OutboxItem } from '../../domain/outbox'
 import { AmountKeypadHarness } from '../../shared/ui/amount-keypad/amount-keypad.harness'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { SegmentedControlHarness } from '../../shared/ui/segmented-control/segmented-control.harness'
+import { QuickAddStore } from './data-access/quick-add.store'
 import QuickAddPage from './quick-add.page'
 
 @Component({ template: '<p data-testid="month.page">Month</p>' })
 class MonthStub {}
 
 const TZ = 'Australia/Brisbane'
+const NOW = new Date('2026-10-16T09:30:00.000Z')
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 describe('QuickAddPage', () => {
@@ -50,12 +52,15 @@ describe('QuickAddPage', () => {
   }
   let months: { invalidate: ReturnType<typeof vi.fn> }
   let outbox: {
+    entries: WritableSignal<OutboxEntry[]>
+    isPersisted: WritableSignal<boolean>
     enqueue: ReturnType<typeof vi.fn<(item: OutboxItem) => void>>
     flush: ReturnType<typeof vi.fn>
     entry: ReturnType<typeof vi.fn<(id: string) => OutboxEntry | null>>
     hold: ReturnType<typeof vi.fn>
     release: ReturnType<typeof vi.fn>
     replace: ReturnType<typeof vi.fn<(id: string, item: OutboxItem) => Promise<void>>>
+    undo: ReturnType<typeof vi.fn<(id: string) => Promise<'removed' | 'missing'>>>
   }
   /** Entries the fake outbox holds (for editing a queued entry). */
   let queued: OutboxEntry[] = []
@@ -92,13 +97,21 @@ describe('QuickAddPage', () => {
       removeTransfer: vi.fn(async () => undefined),
     }
     months = { invalidate: vi.fn() }
+    const entries = signal<OutboxEntry[]>(queued)
     outbox = {
-      enqueue: vi.fn(),
+      entries,
+      isPersisted: signal(true),
+      // Like the real one: the entry is in the outbox (and its signal) when this returns.
+      enqueue: vi.fn((item: OutboxItem) => entries.update((list) => enqueue(list, item, NOW))),
       flush: vi.fn(async () => undefined),
-      entry: vi.fn((id: string) => queued.find((entry) => entry.id === id) ?? null),
+      entry: vi.fn((id: string) => entries().find((entry) => entry.id === id) ?? null),
       hold: vi.fn(),
       release: vi.fn(async () => undefined),
       replace: vi.fn(async () => undefined),
+      undo: vi.fn(async (id: string) => {
+        entries.update((list) => list.filter((entry) => entry.id !== id))
+        return 'removed' as const
+      }),
     }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -357,8 +370,114 @@ describe('QuickAddPage', () => {
     expect(TestBed.inject(Router).url).toBe('/add')
     expect(heroText(root)).toBe('$0.00')
     expect(toastText(root)).toContain('Saved offline · will sync')
-    expect(toastButtons(root)).not.toContain('Undo')
+    expect(toastButtons(root)).toContain('Undo')
     expect(localStorage.getItem('qa:account:1')).toBe('1')
+  })
+
+  /**
+   * Saves $1.00 offline and taps "Undo" on the "Saved offline" toast; the
+   * outbox's undo answers `answer` when given (else it drops the entry).
+   */
+  async function queueAndUndo(answer?: () => Promise<'removed' | 'missing'>) {
+    const { root, loader, harness } = await open()
+    if (answer) {
+      outbox.undo.mockImplementation(answer)
+    }
+    goOffline()
+    await (await loader.getHarness(AmountKeypadHarness)).press('1', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+    const clientId = outbox.enqueue.mock.calls[0]?.[0].payload.clientId
+    const undo = [...(root.querySelector('app-toast')?.querySelectorAll('button') ?? [])].find(
+      (button) => button.textContent?.includes('Undo')
+    )
+    undo?.click()
+    await settle(harness)
+    return { root, clientId }
+  }
+
+  it('test_undo_on_the_saved_offline_toast_removes_the_queued_entry', async () => {
+    const { root, clientId } = await queueAndUndo()
+
+    expect(outbox.undo).toHaveBeenCalledWith(clientId)
+    await vi.waitFor(() => expect(toastText(root)).toBe('Removed'))
+    expect(outbox.entries()).toEqual([])
+    expect(api.remove).not.toHaveBeenCalled()
+  })
+
+  it('test_undo_of_an_entry_another_tab_already_synced_says_so', async () => {
+    const { root } = await queueAndUndo(async () => 'missing')
+
+    await vi.waitFor(() =>
+      expect(toastText(root)).toBe('It already synced. Delete it from Transactions instead.')
+    )
+  })
+
+  it('test_an_undo_that_cannot_reach_the_server_says_why', async () => {
+    const { root } = await queueAndUndo(async () => {
+      throw networkError()
+    })
+
+    await vi.waitFor(() => expect(toastText(root)).toContain('Can’t reach monkimoney'))
+  })
+
+  it('test_an_entry_this_device_could_not_store_says_to_keep_the_app_open', async () => {
+    const { root, loader, harness } = await open()
+    outbox.enqueue.mockImplementationOnce((item: OutboxItem) => {
+      outbox.entries.update((list) => enqueue(list, item, NOW))
+      outbox.isPersisted.set(false)
+    })
+    goOffline()
+    await (await loader.getHarness(AmountKeypadHarness)).press('1', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(toastText(root)).toContain('Saved offline · keep the app open until it syncs')
+    expect(toastButtons(root)).toContain('Undo')
+  })
+
+  it('test_a_queued_expense_ranks_its_category_and_payee_before_it_syncs', async () => {
+    // Groceries (20) is last in the default order; one queued use puts it first.
+    queued = enqueue(
+      [],
+      {
+        kind: 'transaction',
+        payload: {
+          clientId: '00000000-0000-4000-8000-000000000045',
+          kind: 'expense',
+          accountId: 1,
+          date: todayIn(TZ),
+          amountCents: 850,
+          categoryId: 20,
+          payee: 'Bakery',
+          description: null,
+          paidByUserId: 1,
+          isPrivate: false,
+          tags: [],
+        },
+      },
+      NOW
+    )
+    const { root, harness } = await open('/add', [], { listFails: true })
+
+    const tiles = [
+      ...root.querySelectorAll('[data-testid="transactions.form.categoryGrid"] [data-category]'),
+    ]
+    expect(tiles[0]?.getAttribute('data-category')).toBe('20')
+    expect(harness.routeDebugElement?.injector.get(QuickAddStore).payees()).toEqual(['Bakery'])
+  })
+
+  it('test_an_expense_queued_on_this_screen_feeds_the_ranking_at_once', async () => {
+    const { root, loader, harness } = await open()
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    goOffline()
+    store?.entry.update((entry) => ({ ...entry, categoryId: 20, payee: 'Bakery' }))
+    await (await loader.getHarness(AmountKeypadHarness)).press('8', '5', '0')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(store?.payees()).toEqual(['Bakery'])
+    expect(store?.categoryTiles()[0]?.category.id).toBe(20)
   })
 
   it('test_a_network_error_queues_the_entry_with_the_client_id_it_tried', async () => {

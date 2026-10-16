@@ -101,12 +101,17 @@ as Tuyau), since fetch cannot report upload progress.
 **Receipt scanner (web).** `/scan` (camera with `capture="environment"`,
 or the photo library; entry points in the quick add header and the More
 menu) never uploads the photo as taken: `core/platform/image-optimizer.ts`
-decodes it with `createImageBitmap` (EXIF rotation applied), draws it at
+decodes it with `createImageBitmap` (EXIF rotation applied), or with an
+`<img>` from a `blob:` URL where that refuses it (HEIC on Safari), draws it at
 most 1600 px on its longest side on a canvas (every metadata field is
 dropped) and writes WebP 0.8, or JPEG 0.82 where the browser cannot write
-WebP (the math is pure in `domain/image-optimizer.ts`). The store
-(`features/scan/scan.store.ts`) asks `POST /uploads/presign` for a URL
-sized to that blob, PUTs it straight to the bucket with
+WebP (the math is pure in `domain/image-optimizer.ts`); a photo neither
+decoder opens is refused naming its format ("This browser cannot open HEIC
+photos"). The store (`features/scan/scan.store.ts`) checks the reduced photo
+against the upload limits shared with the API (`@monkimoney/shared`
+`receipts.ts`: JPEG, PNG or WebP, at most 10 MB), asks
+`POST /uploads/presign` for a URL sized to that blob, PUTs it straight to
+the bucket with
 `UploadService.putToUrl` (only the signed headers, no cookies or CSRF
 token, real progress; a 403 from an expired URL gets one fresh presign)
 and calls `POST /receipts/scan` with the key. Scanning needs the network:
@@ -115,10 +120,16 @@ offline is said, never queued, and "Try again" uploads under a new key
 (merchant, date, total, offered category, last used account, you as the
 payer) with a confidence hint, and "Split by lines" lists the printed lines
 in `ReviewList` with `BulkBar` (merge, drop, category; the last line takes
-the difference to the total, `domain/receipt-draft.ts`). Saving posts
+the difference to the total, `domain/receipt-draft.ts`). A receipt whose
+`currencyCode` differs from the household's opens with a warning: saving
+waits for "Continue" (the amounts are saved as typed, in the household's
+currency, never converted) and "Cancel" drops the draft. Saving posts
 `POST /transactions` with `source: 'receipt'` and one client id per review.
-Nothing of the photo stays on the device: the preview is a `blob:` URL
-revoked once the draft is back, on cancel and when the screen goes away.
+The photo is never persisted: the original's preview is a `blob:` URL
+revoked once the draft is back, and the reduced copy stays in memory as
+another one ("Show photo", folded above the fields) only while the review
+is open; both go on cancel, on discard, with a new photo and when the screen
+goes away.
 
 ## Offline outbox (web)
 
@@ -136,15 +147,29 @@ versioned serialization that drops corrupt entries instead of throwing);
 in localStorage (`outbox:<userId>`, written synchronously before the toast)
 and synced one entry at a time on sign-in, on the `online` event, when the
 app returns to the foreground, after every successful quick-add save and on
-the backoff timer, never while signed out. A synced entry invalidates its
-month (`MonthStore`); a 409 counts as synced. An explicit logout deletes
-the outbox from the device (`SessionStore.onLogout`); an expired session
-keeps it for the next login of the same person. The sync pill above the
-tab bar is the only place that shows what is not on the server yet (lists
-and the Month view never merge queued entries): it opens a sheet to retry,
-edit (quick add with `?outbox=<id>`, which holds the entry and replaces it
-keeping its client id) or discard. The service worker never caches `/api`;
-the outbox, not the SW, is what makes writes survive offline.
+the backoff timer, never while signed out. Open tabs share that copy: every
+change starts from it (`reconcile`: the device copy wins, an entry this tab
+is sending stays `syncing`) and the `storage` event reloads it, so neither
+tab drops the other's newest entry; both may send the same entry, which the
+client id makes harmless. When localStorage refuses the write (quota,
+private mode) the outbox works from memory until the app closes, the pill
+says "not persisted" and quick add's toast says to keep the app open. A
+synced entry invalidates its month (`MonthStore`); a 409 counts as synced.
+"Undo" on the "Saved offline" toast drops the queued entry, or deletes the
+row it became once synced (the store remembers the created ids for the
+session). An explicit logout deletes the outbox from the device
+(`SessionStore.onLogout`), so the More tab's "Log out" goes through
+`layouts/outbox/safe-logout.ts`: while entries wait it asks first ("N
+movements are waiting to sync and will be lost": Sync now, which logs out
+once nothing is left, Log out anyway, Cancel). An expired session keeps the
+outbox for the next login of the same person. The sync pill above the tab
+bar is the only place that shows what is not on the server yet (lists and
+the Month view never merge queued entries): it opens a sheet to retry, edit
+(quick add with `?outbox=<id>`, which holds the entry and replaces it
+keeping its client id) or discard. Quick add's own rankings (category
+tiles, payees, routes) do count queued entries (`queuedAsRecent`). The
+service worker never caches `/api`; the outbox, not the SW, is what makes
+writes survive offline.
 
 ## Runtime surface today
 

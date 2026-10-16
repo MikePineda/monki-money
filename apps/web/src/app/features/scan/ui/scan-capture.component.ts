@@ -12,6 +12,8 @@ import type { ScanProblem, ScanStep } from '../scan.store'
  * t(scan.capture.problem.notImage, scan.capture.problem.unreadablePhoto, scan.capture.problem.offline)
  * t(scan.capture.problem.quota, scan.capture.problem.unavailable, scan.capture.problem.unreadable)
  * t(scan.capture.problem.throttled, scan.capture.problem.upload, scan.capture.problem.failed)
+ * t(scan.capture.problem.tooLarge, scan.capture.problem.wrongType)
+ * t(scan.capture.problem.unsupportedFormat)
  */
 const STATUS_KEYS: Partial<Record<ScanStep['step'], string>> = {
   optimizing: 'scan.capture.optimizing',
@@ -75,7 +77,7 @@ const MANUAL: ReadonlySet<ScanProblem> = new Set(['quota', 'unavailable'])
             status="critical"
             data-testid="scan.capture.problem"
             [attr.data-problem]="current.problem"
-            [message]="'scan.capture.problem.' + current.problem | transloco"
+            [message]="problemKey() | transloco: { format: current.format ?? '' }"
           />
           @if (current.retryable) {
             <button
@@ -174,6 +176,16 @@ export class ScanCaptureComponent {
   protected readonly problem = computed(() => {
     const step = this.step()
     return step.step === 'error' ? step : null
+  })
+  /** What went wrong; a photo the browser cannot open names its format when that is why. */
+  protected readonly problemKey = computed(() => {
+    const problem = this.problem()
+    if (problem === null) {
+      return ''
+    }
+    return problem.format
+      ? 'scan.capture.problem.unsupportedFormat'
+      : `scan.capture.problem.${problem.problem}`
   })
   protected readonly manual = computed(() => {
     const problem = this.problem()

@@ -77,6 +77,7 @@ class FakeOutbox {
   readonly entries = signal<OutboxEntry[]>(anOutbox())
   readonly isSyncing = signal(false)
   readonly isOnline = signal(true)
+  readonly isPersisted = signal(true)
   readonly pendingCount = computed(
     () => this.entries().filter((entry) => entry.status !== 'failed').length
   )
@@ -262,5 +263,17 @@ describe('OutboxSheetComponent', () => {
     await fixture.whenStable()
 
     await vi.waitFor(() => expect(sheet()).toBeNull())
+  })
+
+  it('test_the_sheet_explains_entries_this_device_could_not_store', async () => {
+    const { outbox, fixture } = await openSheet()
+    expect(document.querySelector('[data-testid="outbox.sheet.notPersisted"]')).toBeNull()
+
+    outbox.isPersisted.set(false)
+    await fixture.whenStable()
+
+    expect(textOf(document.querySelector('[data-testid="outbox.sheet.notPersisted"]'))).toBe(
+      'This phone could not store them (storage full or private browsing): they stay only until the app closes, so keep it open until they sync.'
+    )
   })
 })
