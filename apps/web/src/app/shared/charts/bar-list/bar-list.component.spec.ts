@@ -1,8 +1,7 @@
 import { Component, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
-import { chartsI18nTesting } from '../../../../testing/charts-testing'
-import { i18nTestingProviders } from '../../../../testing/i18n-testing'
+import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import type { BarListDatum } from '../../../domain/charts/bar-list'
 import { APP_LOCALE } from '../../ui/app-locale.token'
 import { ChartFrameComponent } from '../chart-frame/chart-frame.component'
@@ -42,7 +41,7 @@ class Host {
 describe('BarListComponent', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [chartsI18nTesting()],
+      imports: [i18nTesting()],
       providers: [i18nTestingProviders(), { provide: APP_LOCALE, useValue: signal('en-AU') }],
     })
     const fixture = TestBed.createComponent(Host)

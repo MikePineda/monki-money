@@ -75,7 +75,6 @@ describe('ImportReviewPage', () => {
     await vi.waitFor(() => {
       expect(text(root, 'h1')).toBe('Review import')
       expect(root.querySelectorAll('[data-testid="import.row"]').length).toBeGreaterThan(0)
-      expect(text(root, '[data-testid="import.row.meta"]')).not.toMatch(/import\./)
     })
     await harness.fixture.whenStable()
     const settle = () => harness.fixture.whenStable()

@@ -5,16 +5,14 @@ import { provideRouter } from '@angular/router'
 import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
 import { BarListHarness } from '../../shared/charts/bar-list/bar-list.harness'
 import { ChartFrameHarness } from '../../shared/charts/chart-frame/chart-frame.harness'
-import chartsEn from '../../shared/charts/i18n/en.json'
 import { APP_LOCALE } from '../../shared/ui/app-locale.token'
 import { ChipHarness } from '../../shared/ui/chip/chip.harness'
-import kitEn from '../i18n/en.json'
 import KitChartsPage from './kit-charts.page'
 
 describe('KitChartsPage', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'kit/en': kitEn, 'charts/en': chartsEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([]),
