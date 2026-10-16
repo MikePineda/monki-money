@@ -111,6 +111,66 @@ test.group('Transfers', () => {
     assert.equal(stored.householdId, household.id)
   })
 
+  test('test_a_private_leg_is_masked_and_only_its_owner_changes_the_transfer', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, accounts } = await twoAccounts()
+    const [everyday, savings] = accounts
+    const created = await client
+      .post('/api/v1/transfers')
+      .json({
+        fromAccountId: everyday.id,
+        toAccountId: savings.id,
+        date: '2026-10-04',
+        amountCents: 25_000,
+        memo: 'Ring fund',
+        tags: ['ring'],
+      })
+      .actingAs(owner)
+    const transferId = created.body().data.id
+    // The owner's leg (Everyday, paid by them) is private.
+    await Transaction.query()
+      .where('transfer_id', transferId)
+      .where('account_id', everyday.id)
+      .update({ is_private: true })
+
+    const partner = await client.get(`/api/v1/transfers/${transferId}`).actingAs(member)
+    partner.assertStatus(200)
+    const [privateLeg, savingsLeg] = partner.body().data.legs
+    assert.include(privateLeg, {
+      accountId: everyday.id,
+      amountCents: -25_000,
+      isMasked: true,
+      description: null,
+    })
+    assert.deepEqual(privateLeg.tags, [])
+    assert.isFalse(savingsLeg.isMasked)
+    // The memo is the private leg's note too.
+    assert.isNull(partner.body().data.memo)
+    const payer = await client.get(`/api/v1/transfers/${transferId}`).actingAs(owner)
+    assert.equal(payer.body().data.memo, 'Ring fund')
+    assert.isFalse(payer.body().data.legs[0].isMasked)
+
+    for (const request of [
+      client.patch(`/api/v1/transfers/${transferId}`).json({ memo: 'Hijacked', amountCents: 1 }),
+      client.delete(`/api/v1/transfers/${transferId}`),
+    ]) {
+      const response = await request.actingAs(member)
+      response.assertStatus(403)
+      response.assertBodyContains({ code: 'E_TRANSACTION_PRIVATE' })
+    }
+    const untouched = await Transfer.findOrFail(transferId)
+    assert.include(untouched.serialize(), { memo: 'Ring fund', amountCents: 25_000 })
+
+    const own = await client
+      .patch(`/api/v1/transfers/${transferId}`)
+      .json({ memo: 'Anniversary' })
+      .actingAs(owner)
+    own.assertStatus(200)
+    own.assertBodyContains({ data: { memo: 'Anniversary' } })
+  })
+
   test('test_transfer_to_the_same_account_is_rejected', async ({ client, assert }) => {
     const { owner, household, accounts } = await twoAccounts()
 

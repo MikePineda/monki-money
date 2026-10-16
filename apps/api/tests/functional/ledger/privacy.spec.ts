@@ -156,6 +156,46 @@ test.group('Private transactions', () => {
     })
   })
 
+  test('test_a_private_split_top_expense_hides_its_lines_and_that_it_is_split', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household, accounts } = await surpriseGift()
+    const split = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      date: '2026-10-12',
+      amountCents: -90_000,
+      payee: 'Travel agent',
+      paidByUserId: owner.id,
+      createdByUserId: owner.id,
+    })
+      .apply('split', 'private')
+      .create()
+
+    const partner = await client.get('/api/v1/reports/month?month=2026-10').actingAs(member)
+    const payer = await client.get('/api/v1/reports/month?month=2026-10').actingAs(owner)
+
+    assert.deepEqual(partner.body().data.topExpenses[0], {
+      id: split.id,
+      date: '2026-10-12',
+      payee: null,
+      description: null,
+      amountCents: -90_000,
+      categoryId: null,
+      isSplit: false,
+      paidByUserId: owner.id,
+      isMasked: true,
+    })
+    assert.notInclude(JSON.stringify(partner.body().data.topExpenses), 'Travel agent')
+    assert.include(payer.body().data.topExpenses[0], {
+      id: split.id,
+      payee: 'Travel agent',
+      isSplit: true,
+      isMasked: false,
+    })
+  })
+
   test('test_bulk_categorize_skips_the_partners_private_rows', async ({ client, assert }) => {
     const { member, household, accounts, gift, gifts } = await surpriseGift()
     const books = await categoryBySlug(household.id, 'books-courses')

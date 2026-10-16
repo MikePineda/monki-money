@@ -130,6 +130,7 @@
       "transferId.required": "Elige la transferencia que llevó el dinero al banco, o una cuenta de destino",
       "transferId.linked": "Esta transferencia ya pertenece a otro recibo de pago",
       "transferId.wrongAccount": "Elige una transferencia que salga de esta cuenta",
+      "paidBy.exclusive": "Elige los movimientos conjuntos o a una persona, no ambos",
       "toAccountId.exclusive": "Elige una transferencia existente o una cuenta de destino, no ambas",
       "expenseCategory": "Elige una categoría de gasto para esta deducción",
       "month.future": "Este mes todavía no empieza",

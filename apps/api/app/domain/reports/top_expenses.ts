@@ -23,9 +23,9 @@ export type LargestExpense = {
 }
 
 /**
- * The `limit` largest expense rows (kind `expense`) dated in `month`,
- * biggest first, ties to the latest row. Income, refunds entered as income
- * and transfer legs are not expenses. Pure: postings arrive already masked
+ * The `limit` largest expense rows (kind `expense`, adding up to money
+ * out) dated in `month`, biggest first, ties to the latest row. Income,
+ * refunds entered as income and transfer legs are not expenses. Pure: postings arrive already masked
  * for the reader (app/domain/ledger/privacy.ts).
  */
 export function largestExpenses(
@@ -54,12 +54,16 @@ export function largestExpenses(
     })
   }
 
-  return [...byTransaction.values()]
-    .sort(
-      (a, b) =>
-        a.amountCents - b.amountCents ||
-        (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) ||
-        b.transactionId - a.transactionId
-    )
-    .slice(0, limit)
+  return (
+    [...byTransaction.values()]
+      // Only money that left: a positive "expense" (or one that nets to zero) is not spending.
+      .filter((expense) => expense.amountCents < 0)
+      .sort(
+        (a, b) =>
+          a.amountCents - b.amountCents ||
+          (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) ||
+          b.transactionId - a.transactionId
+      )
+      .slice(0, limit)
+  )
 }

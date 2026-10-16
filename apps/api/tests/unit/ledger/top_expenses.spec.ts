@@ -100,6 +100,22 @@ test.group('Reports: largest expenses', () => {
     })
   })
 
+  test('test_an_expense_row_that_adds_up_to_money_in_never_shows', ({ assert }) => {
+    // Typed as an expense but positive (a refund keyed the wrong way), and a
+    // split whose lines net to zero: neither is money spent.
+    const positive = posting({ ...GROCERIES, amountCents: 2_500 })
+    const netZero = [
+      posting({ ...GROCERIES, transactionId: 800, splitId: 1, amountCents: -1_000 }),
+      posting({ ...ALCOHOL, transactionId: 800, splitId: 2, amountCents: 1_000 }),
+    ]
+    const spent = posting({ ...GROCERIES, amountCents: -300 })
+
+    assert.deepEqual(
+      largestExpenses([positive, ...netZero, spent], '2026-10').map((row) => row.transactionId),
+      [spent.transactionId]
+    )
+  })
+
   test('test_largest_expenses_default_to_five', ({ assert }) => {
     const postings = Array.from({ length: 7 }, (_, index) =>
       posting({ ...GROCERIES, amountCents: -(index + 1) * 100 })

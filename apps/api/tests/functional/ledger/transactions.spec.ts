@@ -443,6 +443,13 @@ test.group('Transactions: list', () => {
     )
     invalid.assertStatus(422)
     invalid.assertBodyContains({ errors: [{ field: 'paidBy' }] })
+
+    // Joint rows have no payer: asking for both could only answer nothing.
+    const both = await client
+      .get(`/api/v1/transactions?paidBy=joint&paidByUserId=${owner.id}`)
+      .actingAs(owner)
+    both.assertStatus(422)
+    both.assertBodyContains({ errors: [{ field: 'paidBy', rule: 'exclusive' }] })
   })
 
   test('test_list_sorts_by_amount_and_filters_triage', async ({ client, assert }) => {

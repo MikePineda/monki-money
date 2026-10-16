@@ -14,7 +14,7 @@ import { FieldError } from '#exceptions/field_error'
 import logger from '@adonisjs/core/services/logger'
 import RecurringDetector from '#services/recurring/recurring_detector'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
-import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
+import { hasPrivateOwner, isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
 import RuleLearner from '#services/rules/rule_learner'
 import { decodeHtmlEntities } from '#importers/html_entities'
 import type { LearningDecision } from '#domain/importing/learning'
@@ -375,8 +375,9 @@ export default class ImportConfirmer {
         amountCents: row.amountCents,
         currencyCode: account.currencyCode,
         paidByUserId: effective.paidByUserId,
-        // A reused movement keeps its tags; both legs of a transfer carry the same ones.
-        tags: existing ? [...existing.tags] : [],
+        // A reused movement keeps its tags and both legs carry the same ones,
+        // unless it is private: its tags must not show on this visible leg.
+        tags: existing && !hasPrivateOwner(existing, viewer.memberIds) ? [...existing.tags] : [],
       },
       { client: trx }
     )

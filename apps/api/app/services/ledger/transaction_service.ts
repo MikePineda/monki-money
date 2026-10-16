@@ -59,7 +59,11 @@ export default class TransactionService {
     protected learner: RuleLearner = new RuleLearner()
   ) {}
 
+  /** `paidBy=joint` (no payer) and a `paidByUserId` exclude each other (422). */
   list(household: Household, viewer: PrivacyViewer, filters: TransactionFilters) {
+    if (filters.paidBy === 'joint' && filters.paidByUserId !== undefined) {
+      throw new FieldError('paidBy', 'exclusive')
+    }
     return this.listing.paginate(household, viewer, filters)
   }
 

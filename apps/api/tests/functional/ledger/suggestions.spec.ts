@@ -137,6 +137,55 @@ test.group('Transactions: quick add suggestions', (group) => {
     )
   })
 
+  test('test_a_private_row_the_viewer_entered_for_the_partner_stays_hidden', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household, accounts, categories } = await couple()
+    // Typed by the owner, paid by the partner, private: the partner's secret.
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      date: '2026-10-14',
+      payee: 'Surprise Florist',
+      categoryId: categories.gifts.id,
+      paidByUserId: member.id,
+      createdByUserId: owner.id,
+    })
+      .apply('private')
+      .create()
+
+    const typist = await client.get(URL).actingAs(owner)
+    const payer = await client.get(URL).actingAs(member)
+
+    assert.notInclude(JSON.stringify(typist.body()), 'Surprise Florist')
+    assert.deepEqual(typist.body().data.categories.expense, [])
+    assert.deepEqual(
+      payer.body().data.payees.expense.map((line: any) => line.payee),
+      ['Surprise Florist']
+    )
+  })
+
+  test('test_another_households_rows_never_reach_the_suggestions', async ({ client, assert }) => {
+    const { owner } = await couple()
+    const other = await createHousehold({ accounts: [{ name: 'Elsewhere' }] })
+    await TransactionFactory.merge({
+      householdId: other.household.id,
+      accountId: other.accounts[0].id,
+      date: '2026-10-14',
+      payee: 'Neighbour Bakery',
+      createdByUserId: other.owner.id,
+      paidByUserId: other.owner.id,
+    }).createMany(3)
+
+    const response = await client.get(URL).actingAs(owner)
+
+    response.assertStatus(200)
+    assert.notInclude(JSON.stringify(response.body()), 'Neighbour Bakery')
+    assert.deepEqual(response.body().data.payees, { expense: [], income: [] })
+    assert.isNull(response.body().data.lastAccountId)
+  })
+
   test('test_suggestions_read_the_viewers_rows_beyond_the_households_last_hundred', async ({
     client,
     assert,
