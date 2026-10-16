@@ -225,6 +225,35 @@ describe('ImportReviewStore', () => {
     expect(store.selection().size).toBe(0)
   })
 
+  it('test_accept_suggested_counts_and_accepts_guessed_transfers_with_their_account', async () => {
+    const store = await setup([
+      ...rows(),
+      anImportRow({
+        id: 6,
+        resolution: 'transfer_leg',
+        needsReview: true,
+        reasons: ['transfer_destination_guessed'],
+        transfer: {
+          signal: 'linked_account_memo',
+          accountId: 2,
+          legTransactionId: null,
+          ruleId: null,
+        },
+      }),
+    ])
+
+    expect(store.summary()).toMatchObject({ doubtful: 2, transfer: 0, acceptable: 2, blocking: 0 })
+    expect(store.canConfirm()).toBe(true)
+    await expect(store.acceptSuggested()).resolves.toBe(2)
+
+    expect(api.decide).toHaveBeenCalledWith(7, 2, { categoryId: 21 })
+    expect(api.decide).toHaveBeenCalledWith(7, 6, {
+      resolution: 'transfer_leg',
+      transferAccountId: 2,
+    })
+    expect(store.summary()).toMatchObject({ doubtful: 0, transfer: 1, acceptable: 0 })
+  })
+
   it('test_assign_category_and_ignore_apply_to_the_selected_rows', async () => {
     const store = await setup()
     store.selection.set(new Set([2, 3, 4]))

@@ -43,6 +43,7 @@ const NOT_A_TRANSFER = -1
  * t(import.reason.possible_match, import.reason.transfer_destination_unknown)
  * t(import.reason.category_needs_review, import.reason.future_date, import.reason.zero_amount)
  * t(import.reason.duplicate_hash, import.reason.transfer_destination_guessed, import.triage.accept)
+ * t(import.triage.acceptTransfer)
  */
 const KEYS = {
   categoryTitle: 'import.triage.categoryTitle',
@@ -331,10 +332,17 @@ export class ImportRowSheetComponent {
     return (row && acceptChange(row)) ?? {}
   })
 
-  /** "Accept Groceries" for a suggested category; the link row covers a match. */
+  /**
+   * "Accept Groceries" for a suggested category, "Accept transfer to
+   * Savings" for a guessed transfer account; the link row covers a match.
+   */
   protected readonly acceptText = computed(() => {
     this.catalogue()
     const change = this.accept()
+    if (change.transferAccountId) {
+      const account = this.directory.account(change.transferAccountId)?.name ?? ''
+      return this.t('import.triage.acceptTransfer', { account })
+    }
     if (!change.categoryId) {
       return ''
     }

@@ -36,6 +36,19 @@ const withBlocking = (): ImportRow[] => [
   }),
 ]
 
+/** A transfer to NAB Savings (2) the importer guessed: the only account it could be. */
+const aGuessedTransfer = (): ImportRow =>
+  anImportRow({
+    id: 6,
+    nabMerchant: null,
+    description: 'ONLINE A1B2C3 Honeymoon SAMPLE HOLDER',
+    amountCents: -50000,
+    resolution: 'transfer_leg',
+    needsReview: true,
+    reasons: ['transfer_destination_guessed'],
+    transfer: { signal: 'linked_account_memo', accountId: 2, legTransactionId: null, ruleId: null },
+  })
+
 describe('ImportReviewPage', () => {
   let api: ImportsApiMock
 
@@ -182,6 +195,71 @@ describe('ImportReviewPage', () => {
     await settle()
 
     await vi.waitFor(() => expect(api.decide).toHaveBeenCalledWith(7, 2, { categoryId: 10 }))
+  })
+
+  it('test_a_guessed_transfer_is_to_review_and_says_which_account_was_guessed', async () => {
+    const { root, settle } = await open([...rows(), aGuessedTransfer()])
+
+    expect(row(root, 6).dataset['tone']).toBe('doubtful')
+    expect(text(row(root, 6), '[data-testid="import.row.meta"]')).toBe(
+      'Sun 27 Sept · Transfer to NAB Savings (guessed)'
+    )
+    expect(text(row(root, 6), '[data-testid="import.row.status"]')).toBe('Review')
+    expect(root.querySelector('[data-testid="import.review.blocking"]')).toBeNull()
+    expect(button(root, 'import.review.confirm').disabled).toBe(false)
+
+    tab(root, 'To review').click()
+    await settle()
+    expect(visibleIds(root)).toEqual(['2', '6'])
+  })
+
+  it('test_accept_suggested_counts_guessed_transfers_and_takes_their_account', async () => {
+    const { root, settle } = await open([...rows(), aGuessedTransfer()])
+
+    expect(text(root, '[data-testid="import.review.acceptAll"]')).toBe('Accept suggested (2)')
+    root.querySelector<HTMLInputElement>('input[aria-label^="Select ONLINE A1B2C3"]')?.click()
+    await settle()
+    expect(text(root, '[data-testid="import.review.bulk.accept"]')).toBe('Accept (1)')
+    button(root, 'import.review.bulk.accept').click()
+    await settle()
+
+    await vi.waitFor(() =>
+      expect(api.decide).toHaveBeenCalledWith(7, 6, {
+        resolution: 'transfer_leg',
+        transferAccountId: 2,
+      })
+    )
+    expect(api.decide).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(row(root, 6).dataset['tone']).toBe('transfer'))
+    expect(text(row(root, 6), '[data-testid="import.row.meta"]')).toBe(
+      'Sun 27 Sept · Transfer to NAB Savings'
+    )
+  })
+
+  it('test_the_triage_sheet_of_a_guessed_transfer_offers_to_accept_its_account', async () => {
+    const { root, settle } = await open([...rows(), aGuessedTransfer()])
+
+    row(root, 6).click()
+    await settle()
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="import.triage.accept"]')).not.toBeNull()
+    )
+    expect(text(document, '[data-testid="import.triage.accept"]')).toBe(
+      'Accept transfer to NAB Savings'
+    )
+    expect(text(document, '[data-testid="import.triage"]')).toContain(
+      'The other account is a guess: it is the only one it could be. Check it.'
+    )
+    document.querySelector<HTMLButtonElement>('[data-testid="import.triage.accept"]')?.click()
+    await settle()
+
+    expect(api.decide).toHaveBeenCalledWith(7, 6, {
+      resolution: 'transfer_leg',
+      transferAccountId: 2,
+    })
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="import.triage.accept"]')).toBeNull()
+    )
   })
 
   it('test_confirm_waits_while_a_row_needs_a_decision', async () => {

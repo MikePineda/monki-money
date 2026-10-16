@@ -3,6 +3,7 @@ import { formatWeekdayDate } from '../../../domain/dates'
 import {
   acceptChange,
   allowedActions,
+  isGuessedTransfer,
   rowState,
   rowTitle,
   type ReviewTone,
@@ -53,6 +54,8 @@ export interface ImportRowContext {
     bySource: { rule: string; nab_map: string; llm: (percent: number | null) => string }
     split: (count: number) => string
     transferTo: (account: string) => string
+    /** A transfer whose other account the importer guessed. */
+    transferGuessed: (account: string) => string
     matches: (payee: string) => string
     possibleMatch: (payee: string) => string
     suggestion: (category: string) => string
@@ -108,10 +111,16 @@ function whatItIs(row: ImportRow, context: ImportRowContext): string[] {
   if (row.resolution === 'ignored' || row.resolution === 'superseded') {
     return []
   }
-  if (state.tone === 'transfer' || (row.resolution === 'needs_confirmation' && row.transfer)) {
+  if (
+    row.resolution === 'transfer_leg' ||
+    (row.resolution === 'needs_confirmation' && row.transfer)
+  ) {
     const account =
       state.transferAccountId === null ? null : context.account(state.transferAccountId)
-    return [account ? labels.transferTo(account) : labels.transferUnknown]
+    if (!account) {
+      return [labels.transferUnknown]
+    }
+    return [isGuessedTransfer(row) ? labels.transferGuessed(account) : labels.transferTo(account)]
   }
   if (row.resolution === 'auto_matched') {
     return [labels.matches(row.match?.transaction?.payee ?? '')].filter(Boolean)
@@ -155,8 +164,9 @@ function sourceLabel(
 export function importRowView(row: ImportRow, context: ImportRowContext): ImportRowView {
   const state = rowState(row)
   const tone = state.tone
-  const kind: TransactionKind =
-    tone === 'transfer' ? 'transfer' : row.amountCents < 0 ? 'expense' : 'income'
+  // A guessed transfer is still a transfer leg, only "to review".
+  const transfer = row.resolution === 'transfer_leg'
+  const kind: TransactionKind = transfer ? 'transfer' : row.amountCents < 0 ? 'expense' : 'income'
   const amountText = formatTransactionAmount(row.amountCents, kind, context.locale)
   const title = row.isMasked ? context.labels.private : rowTitle(row)
   const date = formatWeekdayDate(row.date, context.locale)
@@ -173,7 +183,7 @@ export function importRowView(row: ImportRow, context: ImportRowContext): Import
     masked: row.isMasked,
     meta: [date, ...(row.isMasked ? [] : whatItIs(row, context))].join(' · '),
     person: row.isMasked || tone === 'ignored' ? null : context.person(state.paidByUserId),
-    personLabel: joint && tone === 'transfer' ? '' : context.personLabel(state.paidByUserId),
+    personLabel: joint && transfer ? '' : context.personLabel(state.paidByUserId),
     amountCents: row.amountCents,
     kind,
     amountText,

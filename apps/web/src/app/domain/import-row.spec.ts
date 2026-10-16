@@ -9,6 +9,7 @@ import {
   decisionsFor,
   filterRows,
   ignoreChanges,
+  isGuessedTransfer,
   reconciliationMessage,
   restoreChange,
   rowState,
@@ -31,6 +32,7 @@ function aRow(overrides: Partial<ReviewableRow> = {}): ReviewableRow {
     isMasked: false,
     isPending: false,
     resolution: 'new',
+    reasons: [],
     match: null,
     suggestion: null,
     transfer: null,
@@ -59,6 +61,25 @@ const tentative = (categoryId: number, confidence = 0.55) => ({
   ruleId: null,
   payee: null,
 })
+
+/**
+ * A transfer leg whose other account (3) the importer guessed because it is
+ * the only one it could be (API `TransferStep`, PR #7).
+ */
+const aGuessedTransfer = (overrides: Partial<ReviewableRow> = {}) =>
+  aRow({
+    resolution: 'transfer_leg',
+    reasons: ['transfer_destination_guessed'],
+    transfer: { signal: 'linked_account_memo', accountId: 3, legTransactionId: null, ruleId: null },
+    ...overrides,
+  })
+
+const aRuleTransfer = (overrides: Partial<ReviewableRow> = {}) =>
+  aRow({
+    resolution: 'transfer_leg',
+    transfer: { signal: 'rule', accountId: 3, legTransactionId: null, ruleId: 1 },
+    ...overrides,
+  })
 
 const aMatch = (transactionId = 900) => ({
   transactionId,
@@ -437,6 +458,87 @@ describe('summary and filters', () => {
       acceptable: 1,
     })
     expect(filterRows(partly, 'doubtful').map((row) => row.id)).toEqual([6, 7])
+  })
+})
+
+describe('guessed transfers', () => {
+  it('test_a_guessed_transfer_leg_is_doubtful_until_a_person_decides_it', () => {
+    const guessed = aGuessedTransfer()
+
+    expect(toneOf(guessed)).toBe('doubtful')
+    expect(filterRows([guessed, aRuleTransfer({ id: 2 })], 'doubtful')).toEqual([guessed])
+    expect(toneOf(aRuleTransfer())).toBe('transfer')
+
+    const accepted = applyDecision(guessed, acceptChange(guessed) ?? {}, 'x')
+    expect(toneOf(accepted)).toBe('transfer')
+    expect(acceptChange(accepted)).toBeNull()
+
+    const elsewhere = applyDecision(guessed, { resolution: 'transfer_leg', transferAccountId: 4 })
+    expect(toneOf(elsewhere)).toBe('transfer')
+    expect(rowState(elsewhere).transferAccountId).toBe(4)
+  })
+
+  it('test_accepting_a_guessed_transfer_sets_its_proposed_account', () => {
+    const rows = [
+      aRow({ id: 1, suggestion: tentative(20) }),
+      aGuessedTransfer({ id: 2 }),
+      aRuleTransfer({ id: 3 }),
+    ]
+
+    expect(acceptChange(rows[1])).toEqual({ resolution: 'transfer_leg', transferAccountId: 3 })
+    expect(allowedActions(rows[1]).has('accept')).toBe(true)
+    expect(bulkAcceptSuggested(rows)).toEqual([
+      { rowId: 1, change: { categoryId: 20 } },
+      { rowId: 2, change: { resolution: 'transfer_leg', transferAccountId: 3 } },
+    ])
+    expect(summary(rows)).toMatchObject({ doubtful: 2, transfer: 1, acceptable: 2 })
+  })
+
+  it('test_a_guessed_transfer_does_not_block_the_confirm', () => {
+    const rows = [aGuessedTransfer({ id: 1 }), aRow({ id: 2, resolution: 'needs_confirmation' })]
+
+    expect(rowState(rows[0]).blocking).toBe(false)
+    expect(blockingRowIds(rows)).toEqual([2])
+    expect(filterRows(rows, 'blocking').map((row) => row.id)).toEqual([2])
+    expect(summary(rows).blocking).toBe(1)
+  })
+
+  it('test_a_transfer_leg_without_a_proposed_account_is_not_accepted_in_bulk', () => {
+    const rows = [
+      aGuessedTransfer({
+        id: 1,
+        transfer: {
+          signal: 'bank_category',
+          accountId: null,
+          legTransactionId: null,
+          ruleId: null,
+        },
+      }),
+      aRow({ id: 2, resolution: 'transfer_leg' }),
+    ]
+
+    expect(rows.map(acceptChange)).toEqual([null, null])
+    expect(bulkAcceptSuggested(rows)).toEqual([])
+    expect(rows.map(toneOf)).toEqual(['transfer', 'transfer'])
+    expect(blockingRowIds(rows)).toEqual([1, 2])
+  })
+
+  it('test_a_confirmed_guessed_transfer_is_shown_as_a_transfer', () => {
+    const confirmed = aGuessedTransfer({ confirmedAt: '2026-10-15T00:00:00.000Z' })
+
+    expect(toneOf(confirmed)).toBe('transfer')
+    expect(acceptChange(confirmed)).toBeNull()
+    expect(allowedActions(confirmed).size).toBe(0)
+    expect(summary([confirmed])).toMatchObject({ doubtful: 0, transfer: 1, acceptable: 0 })
+  })
+
+  it('test_a_transfer_flagged_for_another_reason_is_not_taken_for_a_guess', () => {
+    const futureDated = aRuleTransfer({ reasons: ['future_date'] })
+
+    expect(toneOf(futureDated)).toBe('transfer')
+    expect(acceptChange(futureDated)).toBeNull()
+    expect(isGuessedTransfer(futureDated)).toBe(false)
+    expect(isGuessedTransfer(aGuessedTransfer())).toBe(true)
   })
 })
 

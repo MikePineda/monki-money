@@ -25,11 +25,22 @@ export class SignupPage {
     await expect(this.submit).toBeVisible()
   }
 
+  /**
+   * Fills the form, submits it and waits for the API's answer: the server
+   * hashes the password, which takes seconds under load, so the checks that
+   * follow never race that answer against their own timeout (as LoginPage).
+   */
   async signUp(account: { fullName: string; email: string; password: string }): Promise<void> {
     await this.name.fill(account.fullName)
     await this.email.fill(account.email)
     await this.password.fill(account.password)
     await this.terms.check()
+    const answered = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/api/v1/auth/signup'
+    )
     await this.submit.click()
+    await answered
   }
 }

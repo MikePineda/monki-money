@@ -17,8 +17,9 @@ The PR gate for this repo. Nothing gets a pull request while it is red.
      `git status apps/api/.adonisjs` (commit any change with the code that caused it).
 2. Run `npm run verify` from the repo root. It runs
    `turbo run lint typecheck test build` and then `npm run e2e`
-   (ephemeral `docker-compose.test.yml` on ports 5433/9100, Playwright on
-   `mobile-chromium` and `mobile-webkit`). For a quicker loop while iterating
+   (ephemeral `docker-compose.test.yml` on the first free E2E slot, 5433/9100
+   for slot 0, Playwright on `mobile-chromium` and `mobile-webkit`; other
+   worktrees running E2E at the same time get other slots). For a quicker loop while iterating
    use `npm run verify:quick` (no E2E), but the final answer needs the full run.
 3. Summarize by layer, in this order, one line each with the failing
    package/test names: **lint**, **typecheck**, **unit** (Japa `unit`, Vitest
@@ -32,8 +33,10 @@ The PR gate for this repo. Nothing gets a pull request while it is red.
 
 ## Notes
 
-- Flaky E2E? First check leftovers: `docker compose -f docker-compose.test.yml
-down -v` and that nothing else listens on 3334/5433/9100.
+- Flaky E2E? First check leftovers of your own run: the script prints its
+  slot; `docker compose -p <project> -f docker-compose.test.yml down -v`
+  removes that slot's stack (`monkimoney-test` for slot 0). Never tear down
+  another run's project.
 - Turbo caches lint/typecheck/build; tests and E2E never cache. `--force`
   reruns everything.
 - Never "fix" a red gate by skipping, deleting or loosening a test without the

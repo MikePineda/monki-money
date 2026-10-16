@@ -11,6 +11,10 @@ export interface AccountInput {
   isActive?: boolean
   /** The bank's account number, as bank exports print it (CSV imports map rows by it). */
   externalAccountNumber?: string | null
+  /** Integer cents the account held before the first movement in the app; negative for a debt. */
+  openingBalanceCents?: number
+  /** `YYYY-MM-DD` the opening balance was true at the end of; null = before every movement. */
+  openingBalanceDate?: string | null
 }
 
 /** Data access for the household's accounts and their cards. */
