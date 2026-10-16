@@ -95,6 +95,16 @@ export const TransferLegReadOnly = domainError(
 )
 
 /**
+ * The amount, kind, account, date and existence of a payslip's rows belong
+ * to the payslip (gross - deductions = net): delete it and record it again.
+ */
+export const PayslipLineReadOnly = domainError(
+  'E_PAYSLIP_LINE',
+  409,
+  'Edit this movement from its payslip'
+)
+
+/**
  * A domain error that carries extra fields for the client (rendered next
  * to `message` and `code`, e.g. the account numbers to map). Only plain,
  * non-sensitive values go in `details`.

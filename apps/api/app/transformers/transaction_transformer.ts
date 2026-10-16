@@ -40,6 +40,8 @@ export default class TransactionTransformer extends BaseTransformer<Transaction>
       isSplit: masked ? false : transaction.isSplit,
       splits: TransactionSplitTransformer.transform(masked ? [] : (transaction.splits ?? [])),
       transferId: transaction.transferId,
+      /** Set on the gross and deduction rows of a payslip (their amounts belong to it). */
+      payslipId: transaction.payslipId,
       paidByUserId: transaction.paidByUserId,
       status: transaction.status,
       source: transaction.source,
