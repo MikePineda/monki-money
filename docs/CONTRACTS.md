@@ -231,7 +231,10 @@ carry the same tables, rows and columns (`app/services/households/export_tables.
 - The privacy rule holds for the owner too: the partner's private
   transactions keep their amount but not their payee, notes, category,
   tags or split lines (`isMasked: true`, no `transactionSplits` rows, and
-  their payslip line or import decision masked the same way).
+  their payslip line or import decision masked the same way). A payslip
+  whose gross line is the partner's private row loses its memo, also where
+  it was copied: its transfer's `memo` and the legs' `description`. The
+  owner's own private rows are exported in full.
 - CSV: a zip rather than one multi-section CSV, so each table keeps its own
   header and opens as a sheet of its own; the zip is written with
   node:zlib (no archive dependency). Each file is UTF-8 with a BOM, CRLF

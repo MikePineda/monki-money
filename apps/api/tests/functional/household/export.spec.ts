@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { parse } from 'csv-parse/sync'
 import Payslip from '#models/payslip'
+import Transaction from '#models/transaction'
 import ImportRow from '#models/import_row'
 import db from '@adonisjs/lucid/services/db'
 import ImportBatch from '#models/import_batch'
@@ -608,6 +609,175 @@ test.group('Household / export', (group) => {
     assert.notInclude(allFiles, 'anniversary')
     assert.include(files.get('ledger.csv'), ',-500.00,AUD,Private,')
     assert.lengthOf(csvLines(files.get('transaction_splits.csv')!), 1)
+  })
+
+  test('test_export_masks_a_partners_private_payslip_wherever_its_memo_was_copied', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household, accounts } = await createHousehold({
+      users: 2,
+      taxonomy: true,
+      accounts: [{ name: 'Everyday' }, { name: 'Payroll wallet', kind: 'wallet', owner: 1 }],
+    })
+    const [everyday, wallet] = accounts
+    const tax = await categoryBySlug(household.id, 'taxes')
+    // The partner records a payout: its memo lands on the payslip, the gross
+    // line, the new transfer and both of its legs.
+    const recorded = await client
+      .post('/api/v1/payslips')
+      .json({
+        accountId: wallet.id,
+        date: '2026-10-10',
+        grossCents: 10_000,
+        deductions: [{ categoryId: tax.id, amountCents: 2_000, memo: 'PAYG' }],
+        toAccountId: everyday.id,
+        memo: 'Secret bonus',
+      })
+      .actingAs(member)
+    recorded.assertStatus(201)
+    const payslip = recorded.body().data
+    // ...and then makes the gross line private.
+    await Transaction.query()
+      .where('payslip_id', payslip.id)
+      .where('kind', 'income')
+      .update({ is_private: true })
+
+    const json = await client.get('/api/v1/household/export').actingAs(owner)
+    const { archive } = await download(
+      client.get('/api/v1/household/export?format=csv').actingAs(owner)
+    )
+
+    const body = json.body()
+    assert.include(body.payslips[0], { id: payslip.id, grossCents: 10_000, memo: null })
+    const gross = body.payslipLines.find((line: any) => line.kind === 'income')
+    assert.include(gross, { amountCents: 10_000, categoryId: null, memo: null, isMasked: true })
+    // The deduction is not private: it keeps its category and memo.
+    const deduction = body.payslipLines.find((line: any) => line.kind === 'expense')
+    assert.include(deduction, { categoryId: tax.id, memo: 'PAYG', isMasked: false })
+    assert.include(body.transfers[0], { id: payslip.transferId, memo: null, amountCents: 8_000 })
+    const legs = body.transactions.filter((row: any) => row.transferId === payslip.transferId)
+    assert.lengthOf(legs, 2)
+    for (const leg of legs) assert.isNull(leg.description)
+    assert.notInclude(json.text(), 'Secret bonus')
+    for (const [file, text] of unzip(archive)) assert.notInclude(text, 'Secret bonus', file)
+  })
+
+  test('test_export_masks_import_decisions_linked_to_the_partners_private_rows', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member, household, accounts } = await createHousehold({
+      users: 2,
+      taxonomy: true,
+      accounts: [{ name: 'Joint' }],
+    })
+    const groceries = await categoryBySlug(household.id, 'groceries')
+    const secret = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      amountCents: -50_000,
+      paidByUserId: member.id,
+      createdByUserId: member.id,
+    })
+      .apply('private')
+      .create()
+    const ordinary = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      amountCents: -1_500,
+    }).create()
+    const batch = await ImportBatch.create({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      source: 'nab_csv',
+      status: 'completed',
+      fileHash: 'e'.repeat(64),
+    })
+    const row = (rowIndex: number, linked: { id: number; amountCents: number }, payee: string) =>
+      ImportRow.create({
+        importBatchId: batch.id,
+        householdId: household.id,
+        accountId: accounts[0].id,
+        rowIndex,
+        externalHash: `${rowIndex}`.repeat(64),
+        raw: {},
+        bankDate: '2026-10-01',
+        date: '2026-10-01',
+        amountCents: linked.amountCents,
+        descriptionRaw: 'CARD PURCHASE',
+        descriptionNormalized: 'CARD PURCHASE',
+        resolution: 'new',
+        reasons: [],
+        transactionId: linked.id,
+        decision: { categoryId: groceries.id, payee },
+        decidedAt: DateTime.now(),
+        confirmedAt: DateTime.now(),
+      })
+    const hidden = await row(0, secret, 'Secret jeweller')
+    const visible = await row(1, ordinary, 'Corner shop')
+
+    const json = await client.get('/api/v1/household/export').actingAs(owner)
+    const { archive } = await download(
+      client.get('/api/v1/household/export?format=csv').actingAs(owner)
+    )
+
+    const rows = json.body().importRows
+    assert.include(
+      rows.find((item: any) => item.id === hidden.id),
+      { transactionId: secret.id, resolution: 'new', decision: null }
+    )
+    assert.deepEqual(rows.find((item: any) => item.id === visible.id).decision, {
+      categoryId: groceries.id,
+      payee: 'Corner shop',
+    })
+    assert.notInclude(json.text(), 'Secret jeweller')
+    assert.notInclude(unzip(archive).get('import_rows.csv'), 'Secret jeweller')
+    assert.include(unzip(archive).get('import_rows.csv'), 'Corner shop')
+  })
+
+  test('test_export_keeps_the_owners_own_private_rows_in_full', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({
+      users: 2,
+      taxonomy: true,
+      accounts: [{ name: 'Joint' }],
+    })
+    const mine = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      amountCents: -20_000,
+      payee: 'Anniversary dinner',
+      tags: ['surprise'],
+      paidByUserId: owner.id,
+      createdByUserId: owner.id,
+    })
+      .apply('private', 'split')
+      .create()
+
+    const json = await client.get('/api/v1/household/export').actingAs(owner)
+    const { archive } = await download(
+      client.get('/api/v1/household/export?format=csv').actingAs(owner)
+    )
+
+    const body = json.body()
+    assert.include(body.transactions[0], {
+      id: mine.id,
+      payee: 'Anniversary dinner',
+      isSplit: true,
+      isPrivate: true,
+      isMasked: false,
+    })
+    assert.deepEqual(body.transactions[0].tags, ['surprise'])
+    assert.lengthOf(body.transactionSplits, 2)
+    const files = unzip(archive)
+    const ledger = csvLines(files.get('ledger.csv')!).slice(1)
+    assert.lengthOf(ledger, 2)
+    for (const line of ledger) {
+      assert.include(line, 'Anniversary dinner')
+      // Its lines keep their categories instead of the "Private" bucket.
+      assert.notInclude(line, 'AUD,Private,')
+    }
+    assert.lengthOf(csvLines(files.get('transaction_splits.csv')!), 3)
   })
 
   test('test_a_member_cannot_export', async ({ client }) => {

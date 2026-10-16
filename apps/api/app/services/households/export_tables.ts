@@ -35,7 +35,8 @@ import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
  * - The privacy rule of the API holds (app/domain/ledger/privacy.ts): the
  *   partner's private transactions keep their amount but lose payee, notes,
  *   category, tags and split lines, and whatever else would reveal them
- *   (their payslip line's category and memo, their import row's decision).
+ *   (their payslip line's category and memo, the payslip's memo where it
+ *   was copied to its transfer and legs, their import row's decision).
  */
 
 /** A value of an exported row: what JSON can carry. */
@@ -96,6 +97,51 @@ async function* keyset<Model extends { id: number }, Row>(
 /** The fields the privacy rule reads, for preloads that need nothing else. */
 const PRIVACY_COLUMNS = ['id', 'is_private', 'paid_by_user_id', 'created_by_user_id']
 
+/**
+ * Memos of payslips whose gross line `viewer` may not see, by the transfer
+ * they were copied to: a payslip that creates its transfer gives it its
+ * memo, and the transfer gives it to both legs' description. Read in
+ * pages; only (transfer id, memo) pairs of private payslips are kept.
+ */
+export async function hiddenPayslipMemos(
+  household: Household,
+  viewer: PrivacyViewer,
+  pageSize = PAGE_SIZE
+): Promise<Map<number, string>> {
+  const memos = new Map<number, string>()
+  const pages = keyset(
+    pageSize,
+    (afterId, limit) =>
+      Payslip.query()
+        .withScopes((scopes) => scopes.forHousehold(household))
+        .whereNotNull('transfer_id')
+        .whereNotNull('memo')
+        .preload('lines', (query) =>
+          query.where('kind', 'income').select([...PRIVACY_COLUMNS, 'kind', 'payslip_id'])
+        )
+        .where('id', '>', afterId)
+        .orderBy('id')
+        .limit(limit),
+    (payslip) => {
+      const gross = payslip.lines[0]
+      return gross && isHiddenFrom(gross, viewer)
+        ? { transferId: payslip.transferId!, memo: payslip.memo! }
+        : null
+    }
+  )
+  for await (const { transferId, memo } of pages) memos.set(transferId, memo)
+  return memos
+}
+
+/** `text`, unless it is the memo of a private payslip copied onto that transfer. */
+export function unlessPayslipMemo(
+  text: string | null,
+  transferId: number | null,
+  memos: ReadonlyMap<number, string>
+) {
+  return text !== null && transferId !== null && memos.get(transferId) === text ? null : text
+}
+
 /** The household itself, as the single row of `household.csv`. */
 export function householdRow(household: Household) {
   return {
@@ -116,6 +162,10 @@ export function exportTables(
   viewer: PrivacyViewer,
   pageSize = PAGE_SIZE
 ): ExportTable[] {
+  // Read once, when the first table that needs it starts.
+  let memos: Promise<Map<number, string>> | null = null
+  const payslipMemos = () => (memos ??= hiddenPayslipMemos(household, viewer, pageSize))
+
   return [
     table(
       'members',
@@ -283,8 +333,9 @@ export function exportTables(
         'createdByUserId',
         'createdAt',
       ],
-      () =>
-        keyset(
+      async function* () {
+        const hidden = await payslipMemos()
+        yield* keyset(
           pageSize,
           (afterId, limit) =>
             Transfer.query()
@@ -298,11 +349,12 @@ export function exportTables(
             amountCents: transfer.amountCents,
             fromAccountId: transfer.fromAccountId,
             toAccountId: transfer.toAccountId,
-            memo: transfer.memo,
+            memo: unlessPayslipMemo(transfer.memo, transfer.id, hidden),
             createdByUserId: transfer.createdByUserId,
             createdAt: isoTimestamp(transfer.createdAt),
           })
         )
+      }
     ),
 
     table(
@@ -334,8 +386,9 @@ export function exportTables(
         'createdByUserId',
         'createdAt',
       ],
-      () =>
-        keyset(
+      async function* () {
+        const hidden = await payslipMemos()
+        yield* keyset(
           pageSize,
           (afterId, limit) =>
             Transaction.query()
@@ -354,7 +407,9 @@ export function exportTables(
               amountCents: transaction.amountCents,
               currencyCode: transaction.currencyCode,
               payee: masked ? null : transaction.payee,
-              description: masked ? null : transaction.description,
+              description: masked
+                ? null
+                : unlessPayslipMemo(transaction.description, transaction.transferId, hidden),
               rawDescription: masked ? null : transaction.rawDescription,
               categoryId: masked ? null : transaction.categoryId,
               isSplit: masked ? false : transaction.isSplit,
@@ -373,6 +428,7 @@ export function exportTables(
             }
           }
         )
+      }
     ),
 
     table(
