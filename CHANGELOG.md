@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/MikePineda/monki-money/compare/v0.3.0...v0.4.0) (2026-10-16)
+
+
+### Added
+
+* complete household export, ownership transfer and the leaving-member rule ([#21](https://github.com/MikePineda/monki-money/issues/21)) ([758280e](https://github.com/MikePineda/monki-money/commit/758280e7f736c5442516ae35a7c5c2d655b7b340))
+* fewer Month calls, richer /auth/me, transfers by id, joint filter, server suggestions ([#23](https://github.com/MikePineda/monki-money/issues/23)) ([8a80eb7](https://github.com/MikePineda/monki-money/commit/8a80eb72e8071c644715fbc5d6a4fe91904d56ac))
+* web push for the monthly summary and an opt-in daily reminder ([#24](https://github.com/MikePineda/monki-money/issues/24)) ([5a2d521](https://github.com/MikePineda/monki-money/commit/5a2d5214ee0095818849735cba9f63144cc1b908))
+
 ## [0.3.0](https://github.com/MikePineda/monki-money/compare/v0.2.0...v0.3.0) (2026-10-16)
 
 
