@@ -134,10 +134,12 @@ describe('PushService', () => {
   it('test_without_the_permission_the_device_is_off_without_waiting_for_the_worker', async () => {
     const push = setup()
     // A worker that is not registered yet never answers.
-    const waits = vi.spyOn(sw.subscription, 'pipe')
+    const waits = vi.spyOn(sw.subscription, 'subscribe')
 
     expect(await push.state()).toBe('off')
+    expect(await push.disable()).toBe('off')
     expect(waits).not.toHaveBeenCalled()
+    expect(sw.unsubscribe).not.toHaveBeenCalled()
   })
 
   it('test_enabling_asks_permission_subscribes_with_the_served_key_and_registers_the_device', async () => {
@@ -188,6 +190,8 @@ describe('PushService', () => {
     api.subscribe.mockRejectedValueOnce(httpError(404, { code: 'E_ROW_NOT_FOUND' }))
     expect(await push.enable()).toBe('on')
     expect(sw.unsubscribe).toHaveBeenCalled()
+    // Asked to forget it too: the API answers 404 for someone else's, which is fine.
+    expect(api.unsubscribe).toHaveBeenCalledWith(previousPerson.endpoint)
     expect(sw.subscription.value?.endpoint).not.toBe(previousPerson.endpoint)
     expect(api.subscribe).toHaveBeenLastCalledWith(
       expect.objectContaining({ endpoint: sw.subscription.value!.endpoint })
@@ -201,6 +205,7 @@ describe('PushService', () => {
     expect(await push.state()).toBe('on')
 
     expect(sw.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(api.unsubscribe).toHaveBeenCalledWith(stale.endpoint)
     expect(sw.requestSubscription).toHaveBeenCalledWith({ serverPublicKey: KEY })
     expect(api.subscribe).toHaveBeenCalledTimes(1)
     expect(api.subscribe).not.toHaveBeenCalledWith(

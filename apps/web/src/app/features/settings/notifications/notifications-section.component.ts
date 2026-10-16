@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core'
 import { TranslocoPipe, provideTranslocoScope } from '@jsverse/transloco'
-import { isReminderTime, type NotificationSettings } from '@monkimoney/shared'
+import { LATEST_REMINDER_TIME, isReminderTime, type NotificationSettings } from '@monkimoney/shared'
 import { failureMessage } from '../../../core/api/error-messages'
 import { toApiError } from '../../../core/api/http-errors'
 import { SessionStore } from '../../../core/auth/session.store'
@@ -146,6 +146,8 @@ let nextId = 0
                   <input
                     type="time"
                     step="300"
+                    min="00:00"
+                    [max]="latestTime"
                     data-testid="notifications.reminderTime"
                     class="h-11 rounded-md border border-line-strong bg-surface-1 px-3 text-body text-ink-1 tabular-nums"
                     [id]="timeId"
@@ -200,6 +202,7 @@ export class NotificationsSectionComponent implements OnInit {
     () => this.session.household()?.timezone.replaceAll('_', ' ') ?? ''
   )
 
+  protected readonly latestTime = LATEST_REMINDER_TIME
   protected readonly timeId = `notifications-time-${nextId}`
   protected readonly zoneId = `notifications-zone-${nextId++}`
 
@@ -258,8 +261,11 @@ export class NotificationsSectionComponent implements OnInit {
     }
   }
 
+  /** A time after 23:30 becomes 23:30 (a later one could miss the last tick before midnight). */
   protected changeTime(event: Event): void {
-    const value = (event.target as HTMLInputElement).value
+    const input = event.target as HTMLInputElement
+    const value = input.value > LATEST_REMINDER_TIME ? LATEST_REMINDER_TIME : input.value
+    input.value = value || (this.settings()?.reminderTime ?? '')
     if (isReminderTime(value) && value !== this.settings()?.reminderTime) {
       void this.change({ reminderTime: value })
     }

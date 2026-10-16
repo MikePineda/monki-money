@@ -157,6 +157,24 @@ describe('architecture', () => {
     expect(eager.filter((rel) => /^(core\/push|domain\/push)/.test(rel))).toEqual([])
   })
 
+  it('test_the_push_chunk_started_at_app_start_imports_only_types_and_pure_code', () => {
+    // A value import of an Angular package or an app service from this
+    // chunk would make it share part of the initial vendor chunk and split
+    // it (about 2 kB more at start): app.config hands it SwPush, the router
+    // and the session instead.
+    const lazyAtStart = ['core/push/push-startup.ts', 'core/push/push-device.ts']
+    const bad = lazyAtStart.flatMap((rel) => {
+      const text = readFileSync(join(appRoot, rel), 'utf8')
+      return [...text.matchAll(STATIC_IMPORT)]
+        .map((match) => match[1])
+        .filter((specifier) => !/^(\.\/push-device|\.\.\/\.\.\/domain\/)/.test(specifier))
+        .map((specifier) => `${rel} -> ${specifier}`)
+    })
+    expect(bad).toEqual([])
+    const config = readFileSync(join(appRoot, 'app.config.ts'), 'utf8')
+    expect(config).toMatch(/import\('\.\/core\/push\/push-startup'\)/)
+  })
+
   it('test_the_initial_bundle_leaves_the_error_mapping_and_accounts_access_to_the_screens', () => {
     // The session store only asks "did the API answer?" (tuyau-error.ts) and
     // the guards only list accounts (accounts-probe.ts).

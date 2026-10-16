@@ -10,6 +10,9 @@ import { clearAppStorage } from './app-storage'
 import { AuthApi, type Me } from './auth.api'
 import { hasFlag, homePath, type SessionSnapshot } from './entitlements'
 
+/** The longest a logout waits for its `beforeLogout` hooks. */
+export const BEFORE_LOGOUT_MS = 3_000
+
 /**
  * Who is signed in, read from `GET /api/v1/auth/me` at boot and after every
  * login, sign-up or invitation acceptance. Screens and guards read the
@@ -32,6 +35,7 @@ export class SessionStore {
   private readonly _unreachable = signal(false)
   private readonly clearHooks = new Set<() => void>()
   private readonly logoutHooks = new Set<() => void>()
+  private readonly beforeLogoutHooks = new Set<() => Promise<unknown>>()
 
   readonly me = this._me.asReadonly()
   /** The boot call could not reach the API (offline or server error). */
@@ -124,8 +128,23 @@ export class SessionStore {
     this.logoutHooks.add(hook)
   }
 
+  /**
+   * Work that needs the session still open on an explicit logout (forget
+   * this device for push): awaited before the API ends the session, best
+   * effort, never longer than BEFORE_LOGOUT_MS in all.
+   */
+  beforeLogout(hook: () => Promise<unknown>): void {
+    this.beforeLogoutHooks.add(hook)
+  }
+
   /** Ends this session on the server (best effort) and everywhere in the app. */
   async logout(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([
+      Promise.allSettled([...this.beforeLogoutHooks].map((hook) => Promise.resolve().then(hook))),
+      new Promise((resolve) => (timer = setTimeout(resolve, BEFORE_LOGOUT_MS))),
+    ])
+    clearTimeout(timer)
     try {
       await this.api.logout()
     } catch {

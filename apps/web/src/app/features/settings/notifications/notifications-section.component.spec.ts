@@ -224,6 +224,23 @@ describe('NotificationsSectionComponent', () => {
     expect(api.updateSettings).toHaveBeenCalledTimes(1)
   })
 
+  it('test_the_reminder_time_goes_up_to_23_30', async () => {
+    const { fixture, root } = await render({
+      state: 'on',
+      settings: { ...DEFAULTS, dailyReminder: true },
+    })
+    const time = root.querySelector<HTMLInputElement>('[data-testid="notifications.reminderTime"]')!
+    expect(time.max).toBe('23:30')
+
+    // A later time could miss the last check before midnight: it becomes 23:30.
+    time.value = '23:50'
+    time.dispatchEvent(new Event('change'))
+    await fixture.whenStable()
+
+    expect(api.updateSettings).toHaveBeenCalledExactlyOnceWith({ reminderTime: '23:30' })
+    expect(time.value).toBe('23:30')
+  })
+
   it('test_a_refused_change_rolls_back_and_says_why', async () => {
     const { fixture, root } = await render({ state: 'on' })
     api.updateSettings.mockRejectedValueOnce(networkError())

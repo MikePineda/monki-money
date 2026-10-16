@@ -7,7 +7,7 @@ import { LangStore } from '../i18n/lang.store'
 import { ThemeStore } from '../theme/theme.store'
 import { ToastStore } from '../ui/toast.store'
 import { AuthApi, type Me } from './auth.api'
-import { SessionStore } from './session.store'
+import { BEFORE_LOGOUT_MS, SessionStore } from './session.store'
 
 @Component({ template: '' })
 class Blank {}
@@ -130,6 +130,45 @@ describe('SessionStore', () => {
     await store.logout()
 
     expect(seen).toEqual(['logout:1', 'clear'])
+  })
+
+  it('test_before_logout_hooks_run_while_the_session_is_still_open', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const seen: string[] = []
+    store.beforeLogout(async () => {
+      seen.push(`before:${api.logout.mock.calls.length}`)
+    })
+    store.beforeLogout(async () => {
+      throw new Error('best effort')
+    })
+    store.onLogout(() => seen.push('logout'))
+
+    await store.logout()
+
+    expect(seen).toEqual(['before:0', 'logout'])
+    expect(api.logout).toHaveBeenCalledTimes(1)
+    expect(store.isAuthenticated()).toBe(false)
+  })
+
+  it('test_a_before_logout_hook_that_hangs_delays_the_logout_by_three_seconds_at_most', async () => {
+    vi.useFakeTimers()
+    try {
+      const store = setup(async () => aMe())
+      await store.load()
+      store.beforeLogout(() => new Promise(() => undefined))
+
+      const loggingOut = store.logout()
+      await vi.advanceTimersByTimeAsync(BEFORE_LOGOUT_MS - 1)
+      expect(api.logout).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      await loggingOut
+
+      expect(api.logout).toHaveBeenCalledTimes(1)
+      expect(store.isAuthenticated()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('test_an_expired_session_clears_without_running_the_logout_hooks', async () => {

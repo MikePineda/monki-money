@@ -1,11 +1,11 @@
 import { Injectable, inject } from '@angular/core'
 import { SwPush } from '@angular/service-worker'
-import { firstValueFrom, of, timeout } from 'rxjs'
 import { sameServerKey } from '../../domain/push'
 import { hasStatus, toApiError } from '../api/http-errors'
 import { ConfigStore } from '../auth/config.store'
 import { WINDOW } from '../platform/window.token'
 import { PushApi, type BrowserSubscription } from './push.api'
+import { currentSubscription } from './push-device'
 
 /**
  * Web Push on this device:
@@ -112,7 +112,8 @@ export class PushService {
     if (!this.supported) {
       return 'unsupported'
     }
-    const current = await this.current()
+    // Without the permission there is no subscription to drop.
+    const current = this.permission() === 'granted' ? await this.current() : null
     if (current) {
       // A device the API cannot forget now stops anyway: its next push answers 410.
       await this.api.unsubscribe(current.endpoint).catch(() => undefined)
@@ -139,9 +140,7 @@ export class PushService {
   }
 
   private current(): Promise<PushSubscription | null> {
-    return firstValueFrom(
-      this.sw!.subscription.pipe(timeout({ first: SUBSCRIPTION_WAIT_MS, with: () => of(null) }))
-    )
+    return currentSubscription(this.sw!, SUBSCRIPTION_WAIT_MS)
   }
 
   /** Tells the API about this device; false when the endpoint belongs to someone else (404). */
@@ -158,8 +157,16 @@ export class PushService {
     }
   }
 
-  /** Drops whatever this browser holds and subscribes with `key` for the signed-in person. */
+  /**
+   * Drops whatever this browser holds (on the API too, best effort: a
+   * stale or someone else's endpoint answers 404) and subscribes with `key`
+   * for the signed-in person.
+   */
   private async subscribeAnew(key: string): Promise<void> {
+    const previous = await this.current()
+    if (previous) {
+      await this.api.unsubscribe(previous.endpoint).catch(() => undefined)
+    }
     await this.sw!.unsubscribe().catch(() => undefined)
     const subscription = await this.sw!.requestSubscription({ serverPublicKey: key })
     await this.api.subscribe(bodyOf(subscription))
