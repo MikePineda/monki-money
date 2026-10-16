@@ -4,6 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
+import { tagsStoreStub } from '../../../testing/tag-fixtures'
 import { aCategoryTree, aTransaction } from '../../../testing/ledger-fixtures'
 import {
   aMember,
@@ -112,6 +113,7 @@ describe('QuickAddPage', () => {
         ),
         { provide: TransactionsApi, useValue: api },
         { provide: MonthStore, useValue: months },
+        tagsStoreStub(),
         { provide: OutboxStore, useValue: outbox },
         {
           provide: AccountsApi,

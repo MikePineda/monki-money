@@ -8,7 +8,6 @@ import { AmountKeypadHarness } from '../ui/amount-keypad/amount-keypad.harness'
 import { BottomSheetService } from '../ui/bottom-sheet/bottom-sheet.service'
 import { SelectSheetHarness } from '../ui/select-sheet/select-sheet.harness'
 import { TextFieldHarness } from '../ui/text-field/text-field.harness'
-import transactionFormEn from './i18n/en.json'
 import type { TransactionDraft } from './transaction-draft'
 import { TransactionFormComponent } from './transaction-form.component'
 
@@ -20,6 +19,7 @@ import { TransactionFormComponent } from './transaction-form.component'
     [people]="people"
     [categories]="categories"
     [payees]="payees"
+    [tagSuggestions]="knownTags"
     [serverErrors]="errors()"
   />`,
 })
@@ -47,13 +47,15 @@ class Host {
   ]
   readonly categories = flattenCategories(aCategoryTree())
   readonly payees = ['Corner Grocer', 'Coffee Cart', 'Bus Ticket']
+  /** The household's tags, most recently used first. */
+  readonly knownTags = ['Bali 2027', 'camping', 'Work trip']
   readonly form = viewChild.required(TransactionFormComponent)
 }
 
 describe('TransactionFormComponent', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'transactionForm/en': transactionFormEn } })],
+      imports: [i18nTesting()],
       providers: [i18nTestingProviders()],
     })
     const fixture = TestBed.createComponent(Host)
@@ -128,6 +130,42 @@ describe('TransactionFormComponent', () => {
     ;(suggestions[1] as HTMLElement).click()
     await fixture.whenStable()
     expect(host.draft().payee).toBe('Coffee Cart')
+  })
+
+  it('test_recent_tags_are_offered_as_chips_and_a_tap_adds_one', async () => {
+    const { host, fixture, loader, element } = await setup()
+    const suggested = () =>
+      [...element.querySelectorAll('[aria-label="Recent tags"] button')].map((button) =>
+        button.textContent?.trim()
+      )
+
+    expect(suggested()).toEqual(['Bali 2027', 'camping', 'Work trip'])
+
+    const field = await loader.getHarness(TextFieldHarness.with({ label: 'Add a tag' }))
+    await field.setValue('BA')
+    await fixture.whenStable()
+    expect(suggested()).toEqual(['Bali 2027'])
+
+    ;(element.querySelector('[aria-label="Add tag Bali 2027"]') as HTMLElement).click()
+    await fixture.whenStable()
+    expect(host.draft().tags).toEqual(['Bali 2027'])
+    expect(await field.getValue()).toBe('')
+    expect(suggested()).toEqual(['camping', 'Work trip'])
+  })
+
+  it('test_a_new_tag_can_still_be_typed', async () => {
+    const { host, fixture, loader, element } = await setup()
+    const field = await loader.getHarness(TextFieldHarness.with({ label: 'Add a tag' }))
+
+    await field.setValue('  Lombok ')
+    await fixture.whenStable()
+    ;(element.querySelector('button[aria-label="Add a tag"]') as HTMLElement).click()
+    await fixture.whenStable()
+
+    expect(host.draft().tags).toEqual(['Lombok'])
+    ;(element.querySelector('[aria-label="Remove tag Lombok"]') as HTMLElement).click()
+    await fixture.whenStable()
+    expect(host.draft().tags).toEqual([])
   })
 
   it('test_category_picker_lists_categories_of_the_same_kind', async () => {

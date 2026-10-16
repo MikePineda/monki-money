@@ -17,7 +17,6 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { HouseholdApi } from '../../../core/household/household.api'
 import { InstallService } from '../../../core/pwa/install.service'
 import { UpdateService } from '../../../core/pwa/update.service'
-import settingsEn from '../i18n/en.json'
 import SettingsPage from './settings.page'
 
 @Component({ template: '<p>elsewhere</p>' })
@@ -53,7 +52,7 @@ describe('SettingsPage', () => {
       logout: vi.fn(async () => undefined),
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'settings/en': settingsEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([

@@ -333,6 +333,10 @@ export default class ImportConfirmer {
       { client: trx }
     )
 
+    // Another member's private row is never turned into a leg (it would be rewritten).
+    const found = await this.existingLeg(row, other.id, trx)
+    const existing = found && !isHiddenFrom(found, viewer) ? found : null
+
     const leg = await Transaction.create(
       {
         ...this.bankFields(row),
@@ -341,13 +345,12 @@ export default class ImportConfirmer {
         amountCents: row.amountCents,
         currencyCode: account.currencyCode,
         paidByUserId: effective.paidByUserId,
+        // A reused movement keeps its tags; both legs of a transfer carry the same ones.
+        tags: existing ? [...existing.tags] : [],
       },
       { client: trx }
     )
 
-    // Another member's private row is never turned into a leg (it would be rewritten).
-    const found = await this.existingLeg(row, other.id, trx)
-    const existing = found && !isHiddenFrom(found, viewer) ? found : null
     if (existing) {
       await TransactionSplit.query({ client: trx }).where('transaction_id', existing.id).delete()
       existing.useTransaction(trx)

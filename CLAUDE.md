@@ -168,3 +168,12 @@ curl -s localhost:3333/api/health
   CI use Bitnami's frozen build. Local MinIO is on port 9030 (9000-9020 are
   usually taken on macOS). `docker compose up --wait` fails on the one-shot
   `minio-init` even when it exits 0: wait on `db minio` and `run` the init.
+- **Web specs preload every Transloco scope.** While a scope's lazy `import()`
+  loads, Transloco renders empty text (not the key), so a "no raw keys" wait
+  passes at once and the spec races the catalogue under load. `i18nTesting()`
+  preloads both catalogues of every scope in `apps/web/src/testing/i18n-scopes.ts`;
+  a new scope goes there (its spec fails until it does). In specs a lazy scope
+  load or a missing key throws.
+- **`ng test` runs with Vitest's `fsModuleCache` off** (`apps/web/vitest-base.config.ts`).
+  The Angular builder serves each spec bundle under the spec's source path and
+  the cache keys on that file, so edits to what a spec imports ran stale code.

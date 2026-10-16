@@ -122,6 +122,68 @@ describe('TransactionsStore', () => {
     )
   })
 
+  it('test_a_tag_filter_spans_every_month_until_a_month_is_picked', async () => {
+    const store = setup()
+    await settle()
+
+    store.setTag('Bali 2027')
+    await settle()
+    expect(store.filters().month).toBeNull()
+    expect(store.hasNarrowingFilters()).toBe(true)
+    expect(api.list).toHaveBeenLastCalledWith(
+      { tag: 'Bali 2027', page: 1, perPage: 50 },
+      expect.anything()
+    )
+
+    store.setMonth('2026-09' as YearMonth)
+    await settle()
+    expect(api.list).toHaveBeenLastCalledWith(
+      { month: '2026-09', tag: 'Bali 2027', page: 1, perPage: 50 },
+      expect.anything()
+    )
+
+    store.showAllMonths()
+    await settle()
+    expect(store.filters().month).toBeNull()
+
+    store.clearFilters()
+    await settle()
+    expect(store.filters()).toEqual(expect.objectContaining({ month: '2026-09', tag: null }))
+    expect(api.list).toHaveBeenLastCalledWith(
+      { month: '2026-09', page: 1, perPage: 50 },
+      expect.anything()
+    )
+  })
+
+  it('test_a_list_over_every_month_reloads_after_a_change_in_any_month', async () => {
+    const store = setup()
+    store.setTag('Bali 2027')
+    await settle()
+    const calls = api.list.mock.calls.length
+
+    TestBed.inject(MonthStore).invalidate('2026-03' as YearMonth)
+    await settle()
+
+    expect(api.list.mock.calls.length).toBe(calls + 1)
+  })
+
+  it('test_a_transfer_keeps_its_tags_when_edited_and_when_undone', async () => {
+    const [out, incoming] = aTransferPair(9).map((leg) => ({ ...leg, tags: ['Bali 2027'] }))
+    const store = setup([page([out as Transaction, incoming as Transaction])])
+    await settle()
+
+    const details = await store.transferOf(out as Transaction)
+    expect(details.tags).toEqual(['Bali 2027'])
+
+    await store.updateTransfer(details, { tags: ['Bali 2027', 'Lombok'] })
+    expect(transfers.update).toHaveBeenCalledWith(9, { tags: ['Bali 2027', 'Lombok'] })
+
+    await store.duplicate(out as Transaction)
+    expect(transfers.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ['Bali 2027'], amountCents: 50000 })
+    )
+  })
+
   it('test_load_more_fetches_only_the_next_page_and_appends_it', async () => {
     const store = setup([
       page([aTransaction({ id: 1 }), aTransaction({ id: 2 })], 1, 2),

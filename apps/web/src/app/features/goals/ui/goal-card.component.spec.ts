@@ -44,10 +44,6 @@ describe('GoalCardComponent', () => {
     }
     fixture.componentInstance.reorder.set(options.reorder ?? false)
     const root = fixture.nativeElement as HTMLElement
-    // Until the scope catalogue loads, its keys render empty.
-    await vi.waitFor(() =>
-      expect(text(root, '[data-testid="goals.card.progress"]')).toMatch(/\$.+ of \$/)
-    )
     await fixture.whenStable()
     return { fixture, root }
   }

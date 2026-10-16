@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
+import { TagsStore } from '../../../core/ledger/tags.store'
 import { flattenCategories } from '../../../domain/category-tree'
 import { formatMoney, formatTransactionAmount } from '../../../domain/money'
 import type { ReceiptConfidence, ReceiptDraft } from '../../../domain/receipt-draft'
@@ -137,6 +138,7 @@ const CONFIDENCE_CLASS: Record<ReceiptConfidence, string> = {
             [accounts]="accountOptions()"
             [people]="peopleOptions()"
             [categories]="categoryOptions()"
+            [tagSuggestions]="tags.names()"
             [serverErrors]="store.fieldErrors()"
             [splitCount]="store.splitByLines() ? store.lines().length : 0"
             [(draft)]="store.entry"
@@ -257,6 +259,7 @@ const CONFIDENCE_CLASS: Record<ReceiptConfidence, string> = {
 })
 export class ReceiptReviewComponent {
   protected readonly store = inject(ReceiptReviewStore)
+  protected readonly tags = inject(TagsStore)
   private readonly sheets = inject(BottomSheetService)
   private readonly transloco = inject(TranslocoService)
   private readonly locale = inject(APP_LOCALE)
@@ -348,6 +351,7 @@ export class ReceiptReviewComponent {
   )
 
   constructor() {
+    void this.tags.load()
     effect(() => {
       const receipt = this.receipt()
       untracked(() => void this.store.start(receipt))

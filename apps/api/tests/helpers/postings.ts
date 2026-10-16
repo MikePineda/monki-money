@@ -1,6 +1,7 @@
 import type { Posting } from '#domain/ledger/posting'
 
 let nextTransactionId = 1
+let nextTransferId = 1
 
 /**
  * A synthetic posting for unit tests: a cleared 10.00 expense on
@@ -10,7 +11,9 @@ export function posting(overrides: Partial<Posting> = {}): Posting {
   return {
     transactionId: nextTransactionId++,
     splitId: null,
+    transferId: null,
     accountId: 1,
+    accountKind: 'transaction',
     date: '2026-10-10',
     amountCents: -1_000,
     kind: 'expense',
@@ -21,6 +24,7 @@ export function posting(overrides: Partial<Posting> = {}): Posting {
     paidByUserId: 1,
     createdByUserId: 1,
     isPrivate: false,
+    tags: [],
     hidden: false,
     ...overrides,
   }
@@ -30,6 +34,7 @@ export function posting(overrides: Partial<Posting> = {}): Posting {
 export function transferLegs(amountCents: number, overrides: Partial<Posting> = {}): Posting[] {
   const shared = {
     kind: 'transfer' as const,
+    transferId: nextTransferId++,
     categoryId: null,
     groupId: null,
     groupKind: null,

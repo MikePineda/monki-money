@@ -1,36 +1,41 @@
 /**
  * Filters of the transactions list and their `GET /transactions` query.
- * Pure: no Angular. The month always applies; the rest narrow it down.
+ * Pure: no Angular. A month applies unless a tag spans every month (a trip
+ * tagged across several); the rest narrow it down.
  */
 import type { YearMonth } from './month'
 
 export type CategoryFilter = { type: 'category'; id: number } | { type: 'uncategorized' }
 
 export interface TransactionFilters {
-  month: YearMonth
+  /** The month on screen; null = every month (only ever set alongside a tag). */
+  month: YearMonth | null
   accountId: number | null
   /** Who paid; the API cannot filter joint rows on their own. */
   paidByUserId: number | null
   category: CategoryFilter | null
   q: string
+  /** Only rows carrying this exact tag. */
+  tag: string | null
 }
 
 /** The API's default and the size of every "load more" step. */
 export const TRANSACTIONS_PER_PAGE = 50
 
 export interface TransactionListQuery {
-  month: YearMonth
+  month?: YearMonth
   accountId?: number[]
   categoryId?: number[]
   uncategorized?: true
   paidByUserId?: number
   q?: string
+  tag?: string
   page: number
   perPage: number
 }
 
-export function initialFilters(month: YearMonth): TransactionFilters {
-  return { month, accountId: null, paidByUserId: null, category: null, q: '' }
+export function initialFilters(month: YearMonth | null): TransactionFilters {
+  return { month, accountId: null, paidByUserId: null, category: null, q: '', tag: null }
 }
 
 export function toListQuery(
@@ -38,7 +43,8 @@ export function toListQuery(
   page: number,
   perPage = TRANSACTIONS_PER_PAGE
 ): TransactionListQuery {
-  const query: TransactionListQuery = { month: filters.month, page, perPage }
+  const query: TransactionListQuery =
+    filters.month === null ? { page, perPage } : { month: filters.month, page, perPage }
   if (filters.accountId !== null) {
     query.accountId = [filters.accountId]
   }
@@ -54,6 +60,9 @@ export function toListQuery(
   if (q) {
     query.q = q
   }
+  if (filters.tag !== null) {
+    query.tag = filters.tag
+  }
   return query
 }
 
@@ -63,7 +72,8 @@ export function hasNarrowingFilters(filters: TransactionFilters): boolean {
     filters.accountId !== null ||
     filters.paidByUserId !== null ||
     filters.category !== null ||
-    filters.q.trim() !== ''
+    filters.q.trim() !== '' ||
+    filters.tag !== null
   )
 }
 

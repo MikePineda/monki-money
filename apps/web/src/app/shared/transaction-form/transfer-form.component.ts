@@ -8,6 +8,7 @@ import { BottomSheetService } from '../ui/bottom-sheet/bottom-sheet.service'
 import { ChipComponent } from '../ui/chip/chip.component'
 import { openSelectSheet, type SelectOption } from '../ui/select-sheet/select-sheet.component'
 import { TextFieldComponent } from '../ui/text-field/text-field.component'
+import { TagsFieldComponent } from './tags-field.component'
 import { provideTransactionFormI18n } from './transaction-form-i18n'
 
 /** What the transfer form edits: a positive amount between two of the household's accounts. */
@@ -17,6 +18,8 @@ export interface TransferDraft {
   amountCents: number
   date: string
   memo: string
+  /** Written on both legs; a transfer into savings for a trip counts as set aside. */
+  tags: string[]
 }
 
 /**
@@ -45,6 +48,7 @@ export const EMPTY_TRANSFER: TransferDraft = {
   amountCents: 0,
   date: '',
   memo: '',
+  tags: [],
 }
 
 /** Both accounts, different from each other, an amount and a date. */
@@ -60,8 +64,9 @@ export function transferDraftValid(draft: TransferDraft): boolean {
 
 /**
  * The transfer form (from and to accounts, amount from the keypad, date,
- * memo), shared by the edit sheet and quick add. A transfer never counts
- * as income or spending; both legs are written by the API.
+ * memo, and tags when `withTags`), shared by the edit sheet and quick add.
+ * A transfer never counts as income or spending; both legs are written by
+ * the API (tags too: a tagged transfer into savings is money set aside).
  *
  * Quick add hosts it with `keypad="external"`, its most used routes as
  * one-tap `presets`, and `compact` (date and memo fold into one row).
@@ -74,6 +79,7 @@ export function transferDraftValid(draft: TransferDraft): boolean {
     AmountKeypadComponent,
     ChipComponent,
     IconComponent,
+    TagsFieldComponent,
     TextFieldComponent,
     TranslocoPipe,
   ],
@@ -241,6 +247,17 @@ export function transferDraftValid(draft: TransferDraft): boolean {
         [value]="draft().memo"
         (valueChange)="patch({ memo: $event })"
       />
+
+      @if (withTags()) {
+        <app-tags-field
+          class="px-4"
+          testId="transactions.transfer.tag"
+          [known]="tagSuggestions()"
+          [error]="tagError()"
+          [tags]="draft().tags"
+          (tagsChange)="patch({ tags: $event })"
+        />
+      }
     }
   `,
   host: { class: 'flex flex-col gap-5' },
@@ -263,8 +280,17 @@ export class TransferFormComponent {
   readonly detailsOpen = model(false)
   /** Today in the household time zone: offers "Today" / "Yesterday" and caps the date. */
   readonly today = input('')
+  /** Offer the tags field (the edit sheet does; quick add's offline outbox keeps no tags). */
+  readonly withTags = input(false, { transform: booleanAttribute })
+  /** The household's tags, most recently used first. */
+  readonly tagSuggestions = input<readonly string[]>([])
 
   private readonly words = translateSignal(WORD_KEYS)
+
+  /** A 422 on `tags` or one of them (`tags.0`). */
+  protected readonly tagError = computed(
+    () => Object.entries(this.errors()).find(([field]) => field.split('.')[0] === 'tags')?.[1] ?? ''
+  )
 
   readonly valid = computed(() => transferDraftValid(this.draft()))
 

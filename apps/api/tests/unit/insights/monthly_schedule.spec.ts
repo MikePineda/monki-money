@@ -19,7 +19,9 @@ function posting(overrides: Partial<Posting> = {}): Posting {
   return {
     transactionId: 1,
     splitId: null,
+    transferId: null,
     accountId: 1,
+    accountKind: 'transaction',
     date: '2026-09-03',
     amountCents: -8_000,
     kind: 'expense',
@@ -30,6 +32,7 @@ function posting(overrides: Partial<Posting> = {}): Posting {
     paidByUserId: null,
     createdByUserId: null,
     isPrivate: false,
+    tags: [],
     hidden: false,
     ...overrides,
   }

@@ -136,5 +136,7 @@ export function transferFromCreate(body: TransferPayload): TransferDraft {
     amountCents: body.amountCents,
     date: body.date,
     memo: body.memo ?? '',
+    // Quick add (and so the outbox) never tags a transfer; the edit sheet does.
+    tags: [],
   }
 }

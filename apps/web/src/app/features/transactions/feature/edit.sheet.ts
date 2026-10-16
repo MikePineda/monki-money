@@ -4,6 +4,7 @@ import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/trans
 import type { Transaction } from '../../../core/api/api-types'
 import { failureMessage } from '../../../core/api/error-messages'
 import { toApiError } from '../../../core/api/http-errors'
+import { TagsStore } from '../../../core/ledger/tags.store'
 import { ToastStore } from '../../../core/ui/toast.store'
 import { formatWeekdayDate } from '../../../domain/dates'
 import { AmountDisplayComponent } from '../../../shared/ui/amount-display/amount-display.component'
@@ -35,6 +36,7 @@ import { SplitSheetComponent, type SplitSheetData } from './split.sheet'
  * t(transactions.edit.editTransferTitle, transactions.people.you, transactions.people.joint)
  * t(transactions.edit.from, transactions.edit.to, transactions.edit.date)
  * t(transactions.edit.memo, transactions.edit.account, transactions.edit.paidBy)
+ * t(transactions.edit.tags)
  * and full keys for toasts and messages:
  * t(transactions.toast.saved, transactions.toast.splitSaved, transactions.toast.transferSaved)
  * t(transactions.toast.private)
@@ -52,6 +54,7 @@ const WORD_KEYS = [
   'edit.memo',
   'edit.account',
   'edit.paidBy',
+  'edit.tags',
 ]
 const PRIVATE_KEY = 'transactions.toast.private'
 
@@ -65,7 +68,8 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
  * The transaction sheet over the list (`/transactions/:id`):
  * - an expense or income opens the shared form, with split and delete;
  * - a transfer leg opens a read-only view of the transfer, and "Edit
- *   transfer" switches to the transfer form (legs never change one by one);
+ *   transfer" switches to the transfer form (legs never change one by one;
+ *   its tags land on both);
  * - a partner's private transaction is read-only ("Private").
  * Field errors from a 422 stay under their fields; the list updates
  * optimistically behind the sheet.
@@ -102,6 +106,7 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
               [people]="peopleOptions()"
               [categories]="store.categories.options()"
               [payees]="store.payeeHistory()"
+              [tagSuggestions]="tags.names()"
               [serverErrors]="errors()"
               [splitCount]="row()?.isSplit ? (row()?.splits?.length ?? 0) : 0"
               (splitRequested)="openSplit()"
@@ -159,9 +164,11 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
           }
           @case ('transferEdit') {
             <app-transfer-form
+              withTags
               [(draft)]="transferDraft"
               [(keypadOpen)]="keypadOpen"
               [accounts]="accountOptions()"
+              [tagSuggestions]="tags.names()"
               [errors]="errors()"
             />
           }
@@ -220,6 +227,7 @@ export class EditSheetComponent implements OnInit {
   private readonly data = inject<EditSheetData>(DIALOG_DATA)
   private readonly dialogRef = inject(DialogRef)
   protected readonly store = inject(TransactionsStore)
+  protected readonly tags = inject(TagsStore)
   private readonly sheets = inject(BottomSheetService)
   private readonly toasts = inject(ToastStore)
   private readonly transloco = inject(TranslocoService)
@@ -295,6 +303,9 @@ export class EditSheetComponent implements OnInit {
         { label: words[7] ?? '', value: name(transfer.toAccountId) },
         { label: words[8] ?? '', value: day(transfer.date) },
         ...(transfer.memo ? [{ label: words[9] ?? '', value: transfer.memo }] : []),
+        ...(transfer.tags.length > 0
+          ? [{ label: words[12] ?? '', value: transfer.tags.join(' · ') }]
+          : []),
       ]
     }
     const row = this.row()
@@ -323,6 +334,7 @@ export class EditSheetComponent implements OnInit {
   )
 
   async ngOnInit(): Promise<void> {
+    void this.tags.load()
     try {
       const row = await this.store.find(this.data.id)
       this.row.set(row)
@@ -391,6 +403,7 @@ export class EditSheetComponent implements OnInit {
       amountCents: transfer.amountCents,
       date: transfer.date,
       memo: transfer.memo ?? '',
+      tags: [...transfer.tags],
     })
     this.mode.set('transferEdit')
   }
@@ -408,6 +421,7 @@ export class EditSheetComponent implements OnInit {
         amountCents: draft.amountCents,
         date: draft.date,
         memo: draft.memo.trim() || null,
+        tags: draft.tags,
       })
       this.toasts.show({ messageKey: 'transactions.toast.transferSaved', status: 'good' })
     })

@@ -28,6 +28,7 @@ export const controllers = {
   Sessions: () => import('#controllers/sessions_controller'),
   Signup: () => import('#controllers/signup_controller'),
   Spa: () => import('#controllers/spa_controller'),
+  Tags: () => import('#controllers/tags_controller'),
   TestSupport: () => import('#controllers/test_support_controller'),
   TransactionSplits: () => import('#controllers/transaction_splits_controller'),
   Transactions: () => import('#controllers/transactions_controller'),

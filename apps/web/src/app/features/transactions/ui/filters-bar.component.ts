@@ -1,7 +1,7 @@
 import { Component, input, output } from '@angular/core'
 import { ChipComponent } from '../../../shared/ui/chip/chip.component'
 
-export type FilterId = 'month' | 'account' | 'person' | 'category'
+export type FilterId = 'month' | 'account' | 'person' | 'category' | 'tag'
 
 /** One chip: its current wording and whether it narrows the list. */
 export interface FilterChipView {
@@ -13,7 +13,8 @@ export interface FilterChipView {
 /**
  * The filter row above the list: one chip per filter, each opening its
  * select sheet. A chip that narrows the list takes the selected style
- * (accent wash and check); the month always applies, so it always does.
+ * (accent wash and check); the month applies unless a tag spans every
+ * month.
  * "Clear" appears once something besides the month is set.
  */
 @Component({

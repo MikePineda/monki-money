@@ -3,7 +3,6 @@ import { TestBed } from '@angular/core/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aCategoryTree } from '../../../../testing/ledger-fixtures'
 import type { TreeCategory } from '../../../domain/category-tree'
-import categoriesEn from '../i18n/en.json'
 import { provideTranslocoScope } from '@jsverse/transloco'
 import { CategoryRowComponent } from './category-row.component'
 
@@ -34,7 +33,7 @@ class Host {
 describe('CategoryRowComponent', () => {
   async function setup() {
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'categories/en': categoriesEn } })],
+      imports: [i18nTesting()],
       providers: [i18nTestingProviders()],
     })
     const fixture = TestBed.createComponent(Host)

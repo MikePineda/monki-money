@@ -54,6 +54,25 @@ export class TransactionsPage {
     await this.page.getByTestId('transactions.edit.save').click()
   }
 
+  /** Types a tag in the open sheet's form and adds it (Enter). */
+  async addTag(tag: string): Promise<void> {
+    const field = this.page.getByTestId('transactions.form.tag').locator('input')
+    await field.fill(tag)
+    await field.press('Enter')
+    await expect(this.page.getByTestId('transactions.form.tags')).toContainText(tag)
+  }
+
+  filterChip(id: 'month' | 'account' | 'person' | 'category' | 'tag'): Locator {
+    return this.page.getByTestId(`transactions.filter.${id}`)
+  }
+
+  /** The tag chip's sheet lists the household's tags; picks one. */
+  async filterByTag(tag: string): Promise<void> {
+    await this.filterChip('tag').click()
+    await this.page.getByRole('option', { name: new RegExp(`^${tag}`) }).click()
+    await expect(this.filterChip('tag')).toContainText(tag)
+  }
+
   async openSplit(): Promise<void> {
     await this.page.getByTestId('transactions.form.split').click()
     await expect(this.page.getByTestId('transactions.split.lines')).toBeVisible()

@@ -9,7 +9,6 @@ import { AmountKeypadHarness } from '../../../shared/ui/amount-keypad/amount-key
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { SelectSheetHarness } from '../../../shared/ui/select-sheet/select-sheet.harness'
-import transactionsEn from '../i18n/en.json'
 import { TransactionsStore } from '../transactions.store'
 import { provideTransactionsScope } from '../transactions.scope'
 import { SplitSheetComponent, type SplitSheetData } from './split.sheet'
@@ -43,7 +42,7 @@ describe('SplitSheetComponent', () => {
       unsplit: vi.fn(),
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'transactions/en': transactionsEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         {

@@ -8,7 +8,6 @@ import { AuthApi } from '../../../core/auth/auth.api'
 import { TURNSTILE_SCRIPT_URL } from '../../../core/auth/turnstile.service'
 import { ButtonHarness } from '../../../shared/ui/button/button.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import authEn from '../i18n/en.json'
 import ForgotPasswordPage from './forgot-password.page'
 
 describe('ForgotPasswordPage', () => {
@@ -23,7 +22,7 @@ describe('ForgotPasswordPage', () => {
       })),
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'auth/en': authEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([{ path: 'forgot-password', component: ForgotPasswordPage }]),

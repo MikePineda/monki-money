@@ -11,7 +11,6 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { HouseholdApi } from '../../../core/household/household.api'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
-import onboardingEn from '../i18n/en.json'
 import OnboardingPage from './onboarding.page'
 
 @Component({ template: '<p>month</p>' })
@@ -41,7 +40,7 @@ describe('OnboardingPage', () => {
     }
     const household = signal(aHousehold({ name: 'Sam’s home' }))
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ scopes: { 'onboarding/en': onboardingEn } })],
+      imports: [i18nTesting()],
       providers: [
         i18nTestingProviders(),
         provideRouter([

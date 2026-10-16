@@ -121,6 +121,14 @@ export class MonthStore {
     return this.revisions().get(month) ?? 0
   }
 
+  /**
+   * Changes anywhere in the ledger since the app started: what spans every
+   * month (a list filtered by tag, a tag's totals) reloads when it moves.
+   */
+  readonly ledgerRevision = computed(() =>
+    [...this.revisions().values()].reduce((total, revision) => total + revision, 0)
+  )
+
   /** Something dated in this month changed (a create, an edit, a delete, a split). */
   invalidate(month: YearMonth): void {
     for (const cached of [...this.cache.keys()]) {
