@@ -20,6 +20,7 @@ import type MemberTransformer from '#transformers/member_transformer'
 import type MembershipTransformer from '#transformers/membership_transformer'
 import type MerchantRuleTransformer from '#transformers/merchant_rule_transformer'
 import type MonthlyInsightTransformer from '#transformers/monthly_insight_transformer'
+import type PayslipTransformer from '#transformers/payslip_transformer'
 import type TransactionSplitTransformer from '#transformers/transaction_split_transformer'
 import type TransactionTransformer from '#transformers/transaction_transformer'
 import type TransferTransformer from '#transformers/transfer_transformer'
@@ -85,6 +86,10 @@ export namespace Data {
   export type MonthlyInsight = InferData<MonthlyInsightTransformer>
   export namespace MonthlyInsight {
     export type Variants = InferVariants<MonthlyInsightTransformer>
+  }
+  export type Payslip = InferData<PayslipTransformer>
+  export namespace Payslip {
+    export type Variants = InferVariants<PayslipTransformer>
   }
   export type TransactionSplit = InferData<TransactionSplitTransformer>
   export namespace TransactionSplit {

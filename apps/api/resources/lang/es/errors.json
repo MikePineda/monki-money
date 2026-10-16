@@ -26,6 +26,7 @@
   "E_LLM_UNAVAILABLE": "Las sugerencias de IA no están disponibles ahora. Inténtalo más tarde",
   "E_CONFLICT": "Esto ya existe. Recarga e inténtalo de nuevo",
   "E_TRANSFER_LEG": "Este movimiento es parte de una transferencia. Edita o borra la transferencia",
+  "E_PAYSLIP_LINE": "Este movimiento es parte de un recibo de pago. Borra el recibo y captúralo de nuevo",
   "E_TRANSACTION_PRIVATE": "Este movimiento es privado",
   "E_INSIGHTS_UNAVAILABLE": "Los resúmenes del mes no están disponibles por ahora. Intenta más tarde",
   "E_CSV_TOO_LARGE": "El archivo pesa más de 2 MB. Exporta un periodo más corto",
