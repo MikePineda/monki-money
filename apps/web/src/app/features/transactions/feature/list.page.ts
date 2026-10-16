@@ -10,9 +10,12 @@ import {
   untracked,
   viewChild,
 } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
+import { distinctUntilChanged, filter, map } from 'rxjs'
 import type { Transaction } from '../../../core/api/api-types'
+import { TagsStore } from '../../../core/ledger/tags.store'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { formatWeekdayDate } from '../../../domain/dates'
 import {
@@ -62,12 +65,14 @@ type RowAction = 'edit' | 'duplicate' | 'delete'
  * t(transactions.row.transfer, transactions.row.noPayee, transactions.people.you)
  * t(transactions.people.joint, transactions.filters.allAccounts, transactions.filters.everyone)
  * t(transactions.filters.category, transactions.filters.uncategorized)
- * t(transactions.filters.allCategories)
+ * t(transactions.filters.allCategories, transactions.filters.tag, transactions.filters.allTags)
+ * t(transactions.filters.allMonths)
  * Full keys translated on demand:
  * t(transactions.row.transferFrom, transactions.row.transferTo, transactions.day.today)
  * t(transactions.day.yesterday, transactions.filters.monthTitle, transactions.filters.accountTitle)
  * t(transactions.filters.personTitle, transactions.filters.categoryTitle, transactions.actions.title)
  * t(transactions.actions.edit, transactions.actions.duplicate, transactions.actions.delete)
+ * t(transactions.filters.tagTitle, transactions.filters.tagCount, transactions.filters.noTags)
  */
 const WORD_KEYS = [
   'row.private',
@@ -82,6 +87,9 @@ const WORD_KEYS = [
   'filters.category',
   'filters.uncategorized',
   'filters.allCategories',
+  'filters.tag',
+  'filters.allTags',
+  'filters.allMonths',
 ]
 const KEYS = {
   transferFrom: 'transactions.row.transferFrom',
@@ -96,7 +104,13 @@ const KEYS = {
   edit: 'transactions.actions.edit',
   duplicate: 'transactions.actions.duplicate',
   delete: 'transactions.actions.delete',
+  tagTitle: 'transactions.filters.tagTitle',
+  tagCount: 'transactions.filters.tagCount',
+  noTags: 'transactions.filters.noTags',
 }
+
+/** The month sheet's extra option while a tag spans every month. */
+const ALL_MONTHS = 'all'
 
 interface DayView {
   date: string
@@ -112,11 +126,12 @@ function capitalize(text: string): string {
 
 /**
  * Transactions (plan, screen 9; mock `transactions`): filter chips (month ·
- * account · person · category) and search, then a dense list of 56px rows
+ * account · person · category · tag) and search, then a dense list of 56px rows
  * grouped by day with a subtotal, "load more" at the end. Tap opens the
  * sheet (`/transactions/:id`, the child route), long-press offers edit,
  * duplicate and delete (with "Undo"). Honest empty states: nothing this
- * month, or nothing that matches the filters.
+ * month, or nothing that matches the filters. A tag filter (the chip, or
+ * `?tag=` from the tags screen) spans every month until one is picked.
  */
 @Component({
   selector: 'app-transactions-page',
@@ -269,6 +284,7 @@ function capitalize(text: string): string {
 })
 export default class TransactionsPage {
   protected readonly store = inject(TransactionsStore)
+  private readonly tags = inject(TagsStore)
   private readonly router = inject(Router)
   private readonly route = inject(ActivatedRoute)
   private readonly sheets = inject(BottomSheetService)
@@ -332,7 +348,10 @@ export default class TransactionsPage {
     })
   })
 
-  protected readonly monthName = computed(() => this.monthText(this.store.filters().month, false))
+  protected readonly monthName = computed(() => {
+    const month = this.store.filters().month
+    return month === null ? '' : this.monthText(month, false)
+  })
 
   protected readonly chips = computed<FilterChipView[]>(() => {
     const words = this.words()
@@ -344,8 +363,13 @@ export default class TransactionsPage {
         : filters.category?.type === 'uncategorized'
           ? words[10]
           : undefined
+    const everyMonth = filters.month === null
     return [
-      { id: 'month', label: capitalize(this.monthName()), active: true },
+      {
+        id: 'month',
+        label: everyMonth ? (words[14] ?? '') : capitalize(this.monthName()),
+        active: !everyMonth,
+      },
       { id: 'account', label: account?.name ?? words[7] ?? '', active: filters.accountId !== null },
       {
         id: 'person',
@@ -354,10 +378,22 @@ export default class TransactionsPage {
         active: filters.paidByUserId !== null,
       },
       { id: 'category', label: category ?? words[9] ?? '', active: filters.category !== null },
+      { id: 'tag', label: filters.tag ?? words[12] ?? '', active: filters.tag !== null },
     ]
   })
 
   constructor() {
+    void this.tags.load()
+    // `?tag=` (from the tags screen) opens the list filtered by that tag.
+    this.route.queryParamMap
+      .pipe(
+        map((params) => params.get('tag')),
+        filter((tag): tag is string => !!tag),
+        distinctUntilChanged(),
+        takeUntilDestroyed()
+      )
+      .subscribe((tag) => this.store.setTag(tag))
+
     // Debounced search: the list reloads once typing pauses.
     effect((onCleanup) => {
       const text = this.searchText()
@@ -409,6 +445,8 @@ export default class TransactionsPage {
         return this.choosePerson()
       case 'category':
         return this.chooseCategory()
+      case 'tag':
+        return void this.chooseTag()
     }
   }
 
@@ -438,17 +476,55 @@ export default class TransactionsPage {
 
   private chooseMonth(): void {
     const current = this.store.currentMonth()
-    const options = Array.from({ length: MONTHS_BACK }, (_, index) => {
-      const month = addMonths(current, -index)
-      return { value: month, label: capitalize(this.monthText(month, true)) }
-    })
-    openSelectSheet<YearMonth>(this.sheets, {
+    const filters = this.store.filters()
+    const options: SelectOption<YearMonth | typeof ALL_MONTHS>[] = Array.from(
+      { length: MONTHS_BACK },
+      (_, index) => {
+        const month = addMonths(current, -index)
+        return { value: month, label: capitalize(this.monthText(month, true)) }
+      }
+    )
+    if (filters.tag !== null) {
+      options.unshift({ value: ALL_MONTHS, label: this.words()[14] ?? '', icon: 'calendar' })
+    }
+    openSelectSheet<YearMonth | typeof ALL_MONTHS>(this.sheets, {
       title: this.t(KEYS.monthTitle),
       options,
-      selected: this.store.filters().month,
+      selected: filters.month ?? ALL_MONTHS,
     }).subscribe((month) => {
-      if (month) {
+      if (month === ALL_MONTHS) {
+        this.store.showAllMonths()
+      } else if (month) {
         this.store.setMonth(month)
+      }
+    })
+  }
+
+  /** The household's tags, most recently used first (read again if the ledger changed). */
+  private async chooseTag(): Promise<void> {
+    await this.tags.load()
+    const words = this.words()
+    const known = this.tags.tags()
+    const options: SelectOption<string | null>[] = [
+      {
+        value: null,
+        label: words[13] ?? '',
+        icon: 'tag',
+        ...(known.length === 0 ? { meta: this.t(KEYS.noTags) } : {}),
+      },
+      ...known.map((tag) => ({
+        value: tag.tag as string | null,
+        label: tag.tag,
+        meta: this.t(KEYS.tagCount, { count: tag.count }),
+      })),
+    ]
+    openSelectSheet(this.sheets, {
+      title: this.t(KEYS.tagTitle),
+      options,
+      selected: this.store.filters().tag,
+    }).subscribe((tag) => {
+      if (tag !== undefined) {
+        this.store.setTag(tag)
       }
     })
   }

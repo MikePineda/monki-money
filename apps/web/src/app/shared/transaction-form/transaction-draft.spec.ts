@@ -29,6 +29,7 @@ const TRANSFER: TransferDraft = {
   amountCents: 50000,
   date: '2026-10-01',
   memo: 'Rent',
+  tags: [],
 }
 
 describe('draftErrors', () => {

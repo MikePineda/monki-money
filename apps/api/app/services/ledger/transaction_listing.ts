@@ -20,7 +20,8 @@ function containing(term: string) {
  * Privacy: a private transaction of the partner still appears (masked by
  * the transformer, its amount counts) but never matches a filter on what
  * is hidden from the reader (text search, category, "uncategorized",
- * review state), so a search cannot reveal what the payee or category was.
+ * review state, tag), so a search cannot reveal what the payee, category
+ * or tags were.
  */
 export default class TransactionListing {
   async paginate(household: Household, viewer: PrivacyViewer, filters: TransactionFilters) {
@@ -66,6 +67,11 @@ export default class TransactionListing {
           .orWhereILike('description', pattern)
           .orWhereILike('raw_description', pattern)
       })
+    }
+
+    if (filters.tag !== undefined) {
+      this.visibleDetails(query, viewer)
+      query.whereRaw('transactions.tags @> ?::jsonb', [JSON.stringify([filters.tag])])
     }
 
     this.sort(query, filters.sort ?? '-date')

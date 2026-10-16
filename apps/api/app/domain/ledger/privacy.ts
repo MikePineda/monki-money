@@ -39,15 +39,18 @@ export function isHiddenFrom(subject: PrivacySubject, viewer: PrivacyViewer): bo
   return hasPrivateOwner(subject, viewer.memberIds) && privateOwnerId(subject) !== viewer.userId
 }
 
-/** Private postings lose their category and group but keep amount, side and payer. */
+/**
+ * Private postings lose their category, group and tags but keep amount,
+ * side and payer (a tag must not reveal what a surprise was for).
+ */
 function hide(posting: Posting): Posting {
-  return { ...posting, categoryId: null, groupId: null, hidden: true }
+  return { ...posting, categoryId: null, groupId: null, tags: [], hidden: true }
 }
 
 /**
  * Postings as `viewer` may see them: private postings of someone else lose
- * their category and group (they report under the `private` bucket) but
- * keep amount, side (income/expense) and payer.
+ * their category, group and tags (they report under the `private` bucket
+ * and never under a tag) but keep amount, side (income/expense) and payer.
  */
 export function postingsFor(postings: Posting[], viewer: PrivacyViewer): Posting[] {
   return postings.map((posting) => (isHiddenFrom(posting, viewer) ? hide(posting) : posting))

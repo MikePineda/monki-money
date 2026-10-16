@@ -5,6 +5,7 @@ import { AccountsApi } from '../app/core/household/accounts.api'
 import { CategoriesApi } from '../app/core/household/categories.api'
 import { HouseholdApi } from '../app/core/household/household.api'
 import { MonthStore } from '../app/core/month/month.store'
+import { tagsStoreStub } from './tag-fixtures'
 import { ImageOptimizer } from '../app/core/platform/image-optimizer'
 import { OBJECT_URLS } from '../app/core/platform/object-urls'
 import { HOUSEHOLD_TIME_ZONE } from '../app/core/platform/time-zone.token'
@@ -68,6 +69,7 @@ export function scanTestingProviders(options: ScanTestingOptions): Provider[] {
   return [
     { provide: ReceiptsApi, useValue: options.api },
     { provide: MonthStore, useValue: options.months ?? { invalidate: vi.fn() } },
+    tagsStoreStub(),
     {
       provide: AccountsApi,
       useValue: {
