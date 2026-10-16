@@ -4,6 +4,7 @@ import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
 import Transaction from '#models/transaction'
 import MerchantRule from '#models/merchant_rule'
+import db from '@adonisjs/lucid/services/db'
 import drive from '@adonisjs/drive/services/main'
 import { freezeClock } from '#tests/helpers/ledger'
 import { fixtureLines, nabCsv, nabFixture } from '#tests/helpers/importing'
@@ -90,7 +91,10 @@ test.group('Imports: staging', (group) => {
     assert.lengthOf(systemRules, 8)
   })
 
-  test('test_reimporting_same_file_creates_zero_new_rows', async ({ client, assert }) => {
+  test('test_reimporting_same_file_creates_no_transactions_and_stores_its_rows_as_duplicates', async ({
+    client,
+    assert,
+  }) => {
     const home = await nabHousehold()
     const first = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
     const batchId = first.body().data[0].id
@@ -201,6 +205,81 @@ test.group('Imports: staging', (group) => {
     assert.isTrue(after.every((row) => row.transactionId === null))
     const closed = await ImportBatch.findOrFail(batch.id)
     assert.include(closed.serialize(), { status: 'completed', duplicateCount: 25 })
+  })
+
+  test('test_a_bank_row_is_stored_once_besides_its_listed_duplicates', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const stored = await ImportRow.query()
+      .where('import_batch_id', upload.body().data[0].id)
+      .firstOrFail()
+    const copy = (resolution: 'new' | 'duplicate') =>
+      // A savepoint: the expected failure must not poison the test transaction.
+      db.transaction((trx) =>
+        ImportRow.create(
+          {
+            importBatchId: stored.importBatchId,
+            householdId: stored.householdId,
+            accountId: stored.accountId,
+            rowIndex: 99,
+            externalHash: stored.externalHash,
+            raw: {},
+            bankDate: stored.bankDate,
+            date: stored.date,
+            amountCents: stored.amountCents,
+            descriptionRaw: stored.descriptionRaw,
+            descriptionNormalized: stored.descriptionNormalized,
+            resolution,
+            reasons: [],
+          },
+          { client: trx }
+        )
+      )
+
+    await assert.rejects(() => copy('new'), /import_rows_household_account_hash_kept/)
+    await copy('duplicate')
+    await copy('duplicate')
+    assert.equal(await countOf(ImportRow.query().where('external_hash', stored.externalHash)), 3)
+  })
+
+  test('test_a_cancelled_batch_keeps_its_duplicates_and_the_file_stages_again', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const lines = fixtureLines('sample.csv')
+    const older = await uploadCsv(client, home.owner, nabCsv(lines.slice(10)))
+    await client.post(`/api/v1/imports/${older.body().data[0].id}/confirm`).actingAs(home.owner)
+    const ledger = () => countOf(Transaction.query().where('household_id', home.household.id))
+    const ledgerBefore = await ledger()
+    const first = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const firstId = first.body().data[0].id
+    assert.include(first.body().data[0].counts, { new: 7, duplicate: 25 })
+
+    const cancel = await client.post(`/api/v1/imports/${firstId}/cancel`).actingAs(home.owner)
+
+    cancel.assertStatus(200)
+    const kept = await ImportRow.query().where('import_batch_id', firstId)
+    assert.lengthOf(kept, 25)
+    assert.isTrue(kept.every((row) => row.resolution === 'duplicate'))
+    assert.equal(await ledger(), ledgerBefore)
+
+    const again = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    again.assertStatus(201)
+    assert.include(again.body().data[0].counts, { rows: 35, new: 7, duplicate: 25 })
+    const confirmed = await client
+      .post(`/api/v1/imports/${again.body().data[0].id}/confirm`)
+      .actingAs(home.owner)
+    confirmed.assertStatus(200)
+    const ledgerAfter = await ledger()
+
+    const third = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    assert.include(third.body().data[0], { status: 'completed' })
+    assert.include(third.body().data[0].counts, { rows: 35, duplicate: 35, new: 0 })
+    assert.equal(await ledger(), ledgerAfter)
   })
 
   test('test_show_without_rows_answers_only_the_batch', async ({ client, assert }) => {

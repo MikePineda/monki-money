@@ -8,9 +8,12 @@ import { BaseSchema } from '@adonisjs/lucid/schema'
  *   holds a claim younger than 10 minutes; the API exposes it as
  *   `classifying`, so the review screen polls only while a run lasts.
  * - `import_rows.proposed_resolution`: the importer's resolution, kept when
- *   a person's decision moves `resolution`, so a bulk "Undo" can put a row
- *   back as the importer proposed it (`reset`). Rows staged before this
- *   migration and still undecided get their current resolution.
+ *   a person's decision moves `resolution`, so "Undo" and "Restore" can put
+ *   a row back as the importer proposed it (`reset`). Rows staged before
+ *   this migration and still undecided get their current resolution (it is
+ *   the proposal). Rows the old version stages while both run get theirs on
+ *   their first decision (`ImportDecisions`); a row decided before that has
+ *   no known proposal and a reset of it answers 422.
  * - Duplicate rows of a re-upload are now stored (`resolution =
  *   'duplicate'`, settled at staging) so the review can list them. Their
  *   hash is the stored row's hash, so the uniqueness of
@@ -37,7 +40,8 @@ export default class extends BaseSchema {
         .nullable()
     })
     this.schema.raw(
-      `UPDATE import_rows SET proposed_resolution = resolution WHERE decided_at IS NULL`
+      `UPDATE import_rows SET proposed_resolution = resolution
+         WHERE proposed_resolution IS NULL AND decided_at IS NULL`
     )
 
     this.schema.raw(

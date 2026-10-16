@@ -159,11 +159,16 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
   `PATCH` locks the batch like confirm does. The bulk endpoint
   (`PATCH /imports/:id/rows`) applies every change in one transaction (any
   refusal rolls them all back, 422 `changes.<index>.<field>`); a change with
-  `reset: true` first drops the row's decision (`resolution` back to
-  `proposed_resolution`, `decision`/`decided_at`/`decided_by_user_id`
-  null), so the review's "Undo" sends each row's earlier decision after a
-  reset. Rows staged before `proposed_resolution` existed and decided
-  since keep their current resolution on a reset.
+  `reset: true` (also on the one-row `PATCH`) first drops the row's
+  decision (`resolution` back to `proposed_resolution`,
+  `decision`/`decided_at`/`decided_by_user_id` null): "Restore" sends a
+  reset alone (a weak match, a guessed or unknown transfer account wait for
+  a person again) and "Undo" a reset plus each row's earlier decision. The
+  claimed matches of a bulk request are read once and followed in memory
+  (`MatchClaims`). A row without a proposal (staged by the previous version
+  while both ran) gets its current resolution as the proposal on its first
+  decision; one decided before that answers 422 `reset`/`unknownProposal`
+  to a reset that sets no `resolution`.
 - **Privacy**: rows linked to the partner's private transaction are
   masked in `GET /imports/:id` (`isMasked`), like the ledger.
 - **Payer**: personal account -> its owner; joint account -> the card

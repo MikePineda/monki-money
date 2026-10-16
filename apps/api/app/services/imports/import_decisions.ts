@@ -12,6 +12,7 @@ import { signedLines } from '#domain/ledger/amounts'
 import { findInHousehold } from '#repositories/scoped'
 import { ImportBatchClosed } from '#exceptions/errors'
 import type { DecideInput, RowChange } from '#services/imports/dto'
+import MatchClaims from '#services/imports/match_claims'
 import { effectiveRow } from '#services/imports/effective_row'
 import type { ImportRowDecision } from '@monkimoney/shared'
 import LedgerReferences from '#services/ledger/ledger_references'
@@ -86,13 +87,16 @@ export default class ImportDecisions {
         .forUpdate()
         .firstOrFail()
       if (!batch.isStaged) throw new ImportBatchClosed()
+      // Read once: the claimed matches follow the changes as they apply.
+      const claims = await MatchClaims.of(batch, trx)
       for (const [index, change] of changes.entries()) {
         const row = await this.rowOf(batch, change.rowId, trx)
         try {
-          await this.apply(household, actor, batch, row, change, trx)
+          await this.apply(household, actor, batch, row, change, trx, claims)
         } catch (error) {
           throw error instanceof FieldError ? error.within(`changes.${index}`) : error
         }
+        claims.track(row)
       }
       await this.bookkeeping.refreshCounts(batch, trx)
       return [...new Set(changes.map((change) => change.rowId))]
@@ -120,15 +124,17 @@ export default class ImportDecisions {
    * Stores the decision on the row (inside the caller's transaction). With
    * `reset` the person's earlier decision goes first: the row is back to
    * the importer's proposal (`proposed_resolution`), undecided unless the
-   * change sets something else.
+   * change sets something else. `claims` (a bulk request) answers "is this
+   * match taken" without reading the batch again.
    */
   async apply(
     household: Household,
     actor: User,
     batch: ImportBatch,
     row: ImportRow,
-    input: DecideInput & Pick<RowChange, 'reset'>,
-    trx: TransactionClientContract
+    input: DecideInput,
+    trx: TransactionClientContract,
+    claims?: MatchClaims
   ): Promise<ImportRow> {
     if (!batch.isStaged) throw new ImportBatchClosed()
     // Already in the ledger: listed for the record, never decided.
@@ -136,7 +142,15 @@ export default class ImportDecisions {
     if (!row.isOpen) throw new ImportBatchClosed()
 
     row.useTransaction(trx)
+    // Staged by an older version (no proposal kept): untouched, its resolution is the proposal.
+    if (row.proposedResolution === null && row.decidedAt === null) {
+      row.proposedResolution = row.resolution
+    }
     if (input.reset) {
+      // Decided before its proposal was kept: going back to it would be a guess.
+      if (row.proposedResolution === null && input.resolution === undefined) {
+        throw new FieldError('reset', 'unknownProposal')
+      }
       row.merge({
         resolution: row.proposedResolution ?? row.resolution,
         decision: null,
@@ -159,7 +173,7 @@ export default class ImportDecisions {
       decidedAt: DateTime.now(),
       decidedByUserId: actor.id,
     })
-    await this.validate(household, row, trx)
+    await this.validate(household, row, trx, claims)
 
     await row.save()
     return row
@@ -171,7 +185,12 @@ export default class ImportDecisions {
    * since the decision fails the whole confirm. A movement of 0.00 can only
    * be ignored.
    */
-  async validate(household: Household, row: ImportRow, trx: TransactionClientContract) {
+  async validate(
+    household: Household,
+    row: ImportRow,
+    trx: TransactionClientContract,
+    claims?: MatchClaims
+  ) {
     const effective = effectiveRow(row)
     const decision = row.decision ?? {}
 
@@ -213,7 +232,13 @@ export default class ImportDecisions {
       throw new FieldError('matchTransactionId', 'required')
     }
     if (row.resolution === 'auto_matched' && effective.matchTransactionId !== null) {
-      await this.assertUnclaimedInBatch(row, effective.matchTransactionId, trx)
+      if (claims) {
+        if (claims.claimedByAnother(row.id, effective.matchTransactionId)) {
+          throw new FieldError('matchTransactionId', 'claimed')
+        }
+      } else {
+        await this.assertUnclaimedInBatch(row, effective.matchTransactionId, trx)
+      }
     }
   }
 

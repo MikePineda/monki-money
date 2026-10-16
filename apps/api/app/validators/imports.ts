@@ -1,6 +1,11 @@
 import vine from '@vinejs/vine'
 import { id, idParams, signedCents } from '#validators/rules'
-import { IMPORT_BATCH_STATUSES, IMPORT_DECISIONS, IMPORT_RESOLUTIONS } from '@monkimoney/shared'
+import {
+  IMPORT_BATCH_STATUSES,
+  IMPORT_DECISIONS,
+  IMPORT_RESOLUTIONS,
+  MAX_BULK_ROW_CHANGES,
+} from '@monkimoney/shared'
 
 /**
  * Bank import review. The CSV itself is read by the controller (multipart,
@@ -48,22 +53,24 @@ const decisionFields = {
   learnRule: vine.boolean().optional(),
 }
 
+/**
+ * `reset` first drops the row's decision (back to the importer's proposal),
+ * so an "Undo" or a "Restore" puts a row back exactly as proposed.
+ */
+const rowFields = { reset: vine.boolean().optional(), ...decisionFields }
+
 export const decideRowValidator = vine.create({
   params: vine.object({ id: id(), rowId: id() }),
-  ...decisionFields,
+  ...rowFields,
 })
 
-/**
- * `PATCH /imports/:id/rows`: several rows' decisions at once, applied in one
- * database transaction. `reset` first drops the row's decision (back to the
- * importer's proposal), so an "Undo" can restore a row exactly.
- */
+/** `PATCH /imports/:id/rows`: several rows' changes at once, applied in one database transaction. */
 export const decideRowsValidator = vine.create({
   params: idParams(),
   changes: vine
-    .array(vine.object({ rowId: id(), reset: vine.boolean().optional(), ...decisionFields }))
+    .array(vine.object({ rowId: id(), ...rowFields }))
     .minLength(1)
-    .maxLength(20_000),
+    .maxLength(MAX_BULK_ROW_CHANGES),
 })
 
 export const confirmImportValidator = vine.create({
