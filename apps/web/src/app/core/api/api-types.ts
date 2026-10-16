@@ -18,6 +18,8 @@ export type TransactionSplit = Data.TransactionSplit
 export type Transfer = Data.Transfer
 /** A savings goal (`userId` null = the household's). */
 export type Goal = Data.Goal
+/** `GET /goals?include=projection`: a goal and its projection (null when none was computed). */
+export type GoalWithProjection = Data.Goal.Variants['withProjection']
 /** A payout recorded as its gross and deductions, linked to the transfer of the net. */
 export type Payslip = Data.Payslip
 /** The LLM-written summary of a month, in the reader's language. */

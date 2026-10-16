@@ -40,6 +40,16 @@ export function formatWeekdayDate(
   return options.withYear ? `${text} ${part('year')}` : text
 }
 
+/**
+ * A 'YYYY-MM-DD' calendar date as short as it reads unambiguously: "3 Nov"
+ * in the year of `today` ('YYYY-MM-DD'), "3 Nov 2025" in any other year.
+ */
+export function formatShortDay(isoDate: string, locale: string, today: string): string {
+  const dayMonth = formatDayMonth(isoDate, locale)
+  const year = isoDate.slice(0, 4)
+  return year === today.slice(0, 4) ? dayMonth : `${dayMonth} ${year}`
+}
+
 /** A 'YYYY-MM-DD' calendar date as "5 Oct" / "5 oct" (no weekday, no year). */
 export function formatDayMonth(isoDate: string, locale: string): string {
   const [year, month, day] = isoDate.split('-').map(Number) as [number, number, number]

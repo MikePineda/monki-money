@@ -3,7 +3,13 @@ import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
-import { aGoal, aProjection, anOpenEndedProjection } from '../../../../testing/goal-fixtures'
+import {
+  aGoal,
+  aProjection,
+  aReachedProjection,
+  aTrackedHistory,
+  anOpenEndedProjection,
+} from '../../../../testing/goal-fixtures'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aCategoryTree } from '../../../../testing/ledger-fixtures'
 import { aMember, aUser, anAccount, httpError } from '../../../../testing/session-fixtures'
@@ -12,6 +18,8 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { CategoriesApi } from '../../../core/household/categories.api'
 import { HouseholdApi } from '../../../core/household/household.api'
+import { CLOCK } from '../../../core/platform/clock.token'
+import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
 import { GoalsApi, type GoalProjection } from '../data-access/goals.api'
@@ -71,6 +79,8 @@ describe('GoalDetailPage', () => {
           useValue: { user: signal(aUser({ id: 1 })), onClear: () => undefined },
         },
         { provide: APP_LOCALE, useValue: signal('en-AU') },
+        { provide: HOUSEHOLD_TIME_ZONE, useValue: () => 'Australia/Brisbane' },
+        { provide: CLOCK, useValue: () => new Date('2026-11-20T00:00:00.000Z') },
       ],
     })
     const harness = await RouterTestingHarness.create()
@@ -190,6 +200,82 @@ describe('GoalDetailPage', () => {
     expect(text(root, '[data-testid="goal.badge"]')).toBe('Reached')
     expect(root.querySelector('[data-testid="goal.markReached"]')).toBeNull()
     expect(root.querySelector('[data-testid="goal.reopen"]')).not.toBeNull()
+  })
+
+  it('test_the_actual_line_runs_through_the_history_and_the_estimate_starts_today', async () => {
+    const { root } = await open({ projection: aProjection({ history: aTrackedHistory() }) })
+
+    await vi.waitFor(() =>
+      expect(
+        root.querySelectorAll('[data-testid="goal.chart"] g[data-series="actual"] circle')
+      ).toHaveLength(7)
+    )
+    expect(root.querySelector('[data-testid="goal.chart"] path[data-projected]')).not.toBeNull()
+  })
+
+  it('test_a_goal_at_its_target_offers_mark_as_reached_first', async () => {
+    const { harness, root } = await open({ projection: aReachedProjection() })
+
+    const prompt = root.querySelector('[data-testid="goal.atTarget"]')
+    expect(text(root, '[data-testid="goal.atTarget"] h2')).toBe('You reached your target')
+    const mark = prompt?.querySelector<HTMLButtonElement>('[data-testid="goal.markReached"]')
+    expect(mark?.getAttribute('data-variant')).toBe('primary')
+    // Only one "Mark as reached" on screen: the prominent one.
+    expect(root.querySelectorAll('[data-testid="goal.markReached"]')).toHaveLength(1)
+
+    mark?.click()
+    await harness.fixture.whenStable()
+
+    expect(api.update).toHaveBeenCalledWith(1, { status: 'reached' })
+  })
+
+  it('test_a_goal_still_saving_keeps_mark_as_reached_with_the_other_actions', async () => {
+    const { root } = await open()
+
+    expect(root.querySelector('[data-testid="goal.atTarget"]')).toBeNull()
+    expect(
+      root.querySelector('[data-testid="goal.actions"] [data-testid="goal.markReached"]')
+    ).not.toBeNull()
+  })
+
+  it('test_a_reached_goal_says_the_day_it_was_reached_in_the_household_time_zone', async () => {
+    const { root } = await open({
+      goal: aGoal({ status: 'reached', reachedAt: '2026-11-02T21:30:00.000Z' }),
+      projection: aReachedProjection({
+        history: aTrackedHistory().map((point) => ({
+          ...point,
+          balanceCents: point.balanceCents * 5,
+        })),
+      }),
+    })
+
+    expect(text(root, '[data-testid="goal.reachedOn"]')).toBe('Reached on 3 Nov')
+    expect(root.querySelector('[data-testid="goal.atTarget"]')).toBeNull()
+    // With months behind it, the chart shows how it got there.
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="goal.chart"] circle[data-crossing]')).not.toBeNull()
+    )
+  })
+
+  it('test_reopening_a_reached_goal_patches_it_back_to_active', async () => {
+    const { harness, root } = await open({
+      goal: aGoal({ status: 'reached', reachedAt: '2026-11-02T21:30:00.000Z' }),
+    })
+
+    click(root, '[data-testid="goal.reopen"]')
+    await harness.fixture.whenStable()
+
+    expect(api.update).toHaveBeenCalledWith(1, { status: 'active' })
+  })
+
+  it('test_hero_amounts_use_the_true_minus_sign', async () => {
+    const { root } = await open({
+      projection: aProjection({ savedCents: -12_345, remainingCents: 512_345 }),
+    })
+
+    expect(text(root, '[data-testid="goal.saved"]')).toBe('−$123.45')
+    expect(text(root, '[data-testid="goal.target"]')).toBe('of $5,000.00 · $5,123.45 to go')
+    expect(root.querySelector('[data-testid="goal.target"]')?.classList).toContain('tnum')
   })
 
   it('test_edit_saves_the_whole_goal', async () => {
