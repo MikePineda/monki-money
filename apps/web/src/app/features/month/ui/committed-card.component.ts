@@ -77,22 +77,21 @@ interface CommittedRow {
           </div>
           <div class="flex flex-col gap-0.5" data-testid="month.committed.free">
             <dt class="text-caption text-ink-3">{{ 'month.committed.free' | transloco }}</dt>
-            @let free = figures().freeCents;
-            @if (free === null) {
+            @if (free() === null) {
               <dd class="text-body font-semibold text-ink-3" aria-describedby="committed-free-hint">
                 —
               </dd>
             } @else {
               <dd
                 class="text-body font-semibold tnum"
-                [class]="free < 0 ? 'text-status-critical' : 'text-ink-1'"
+                [class]="(free() ?? 0) < 0 ? 'text-status-critical' : 'text-ink-1'"
               >
-                {{ money(free) }}
+                {{ money(free() ?? 0) }}
               </dd>
             }
           </div>
         </dl>
-        @if (figures().freeCents === null) {
+        @if (free() === null) {
           <p
             id="committed-free-hint"
             class="text-caption text-ink-3"
@@ -161,6 +160,9 @@ export class CommittedCardComponent {
       committed: this.committed(),
     })
   )
+
+  /** Income − spent − still due; null until the month has income. */
+  protected readonly free = computed(() => this.figures().freeCents)
 
   protected readonly rows = computed<CommittedRow[]>(() =>
     this.committed().items.map((item, index) => ({
