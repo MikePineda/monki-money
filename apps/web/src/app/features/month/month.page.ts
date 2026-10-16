@@ -9,7 +9,12 @@ import { MonthStore } from '../../core/month/month.store'
 import { ToastStore } from '../../core/ui/toast.store'
 import { formatDayMonth } from '../../domain/dates'
 import type { ChartColor } from '../../domain/charts/colors'
-import { groupHistories, monthInsights, type Insight } from '../../domain/insights'
+import {
+  groupHistories,
+  monthInsights,
+  sameDayHistories,
+  type Insight,
+} from '../../domain/insights'
 import { formatMoney } from '../../domain/money'
 import {
   addMonths,
@@ -56,9 +61,12 @@ import { MonthHeroComponent } from './ui/month-hero.component'
  * prefix itself (relative keys); keys picked at runtime are listed in full.
  * Declared for transloco-keys-manager:
  * t(month.hero.less, month.hero.more, month.hero.same)
+ * t(month.hero.lessToDate, month.hero.moreToDate, month.hero.sameToDate)
  * t(month.insights.groupAboveAverage, month.insights.groupBelowAverage, month.insights.groupShare)
+ * t(month.insights.groupAboveAverageToDate, month.insights.groupBelowAverageToDate)
  * t(month.insights.savedShare, month.insights.overspent)
  * t(month.insights.spendAboveAverage, month.insights.spendBelowAverage)
+ * t(month.insights.spendAboveAverageToDate, month.insights.spendBelowAverageToDate)
  * t(month.spend.uncategorized, month.spend.private, month.spend.unknown, month.trend.series)
  * t(month.whoPaid.you, month.whoPaid.joint)
  * t(month.top.private, month.top.noPayee, month.top.uncategorized, month.top.split)
@@ -106,7 +114,8 @@ function markColor(person: Person): ChartColor {
 /**
  * The Month view `/month/:ym?` (DESIGN.md, screen skeleton "Month"): month
  * strip, money spent as the hero with the change against the previous
- * month, three stat tiles with sparklines, spending by category group,
+ * month (up to the same day while the month runs), three stat tiles with
+ * sparklines, spending by category group,
  * the 6-month trend, who paid, the top five expenses, the AI-written
  * summary (InsightSummaryCardComponent) and two deterministic insights.
  * The current month also shows what the recurring payments commit
@@ -406,24 +415,43 @@ export default class MonthPage {
   protected readonly monthName = computed(() => this.longName(this.shownMonth()))
 
   private readonly totals = computed(() => this.frame()?.trend.totals ?? [])
-  /** Against the previous calendar month, which the month report carries. */
+  /**
+   * What the hero compares with, from the month report: the previous month
+   * up to the same day while this one is still running (`previousToDate`),
+   * else the whole previous month.
+   */
+  private readonly baseline = computed(() => {
+    const report = this.report()
+    if (!report) {
+      return null
+    }
+    return report.previousToDate
+      ? { toDate: true, expenseCents: report.previousToDate.expenseCents }
+      : { toDate: false, expenseCents: report.previous.expenseCents }
+  })
   protected readonly delta = computed(() => {
     const report = this.report()
-    return report ? spendDelta(report.expenseCents, report.previous.expenseCents) : null
+    const baseline = this.baseline()
+    return report && baseline ? spendDelta(report.expenseCents, baseline.expenseCents) : null
   })
   protected readonly deltaKey = computed(() => {
     const delta = this.delta()
     if (!delta || delta.percent === null) {
       return ''
     }
-    return { down: 'month.hero.less', up: 'month.hero.more', flat: 'month.hero.same' }[
-      delta.direction
-    ]
+    const keys = this.baseline()?.toDate
+      ? {
+          down: 'month.hero.lessToDate',
+          up: 'month.hero.moreToDate',
+          flat: 'month.hero.sameToDate',
+        }
+      : { down: 'month.hero.less', up: 'month.hero.more', flat: 'month.hero.same' }
+    return keys[delta.direction]
   })
   protected readonly deltaParams = computed(() => ({
     percent: this.delta()?.percent ?? 0,
     month: this.longName(addMonths(this.shownMonth(), -1)),
-    amount: formatMoney(this.report()?.previous.expenseCents ?? 0, this.locale()),
+    amount: formatMoney(this.baseline()?.expenseCents ?? 0, this.locale()),
   }))
 
   protected readonly sparklines = computed(() => ({
@@ -503,12 +531,21 @@ export default class MonthPage {
       return []
     }
     const { report, trend } = frame
+    const { previousToDate, previousMonthsToDate } = report
+    // A running month compares with the same days of the months before; a closed one with whole months.
+    const histories =
+      previousToDate && previousMonthsToDate
+        ? sameDayHistories(previousMonthsToDate, report)
+        : {
+            groups: groupHistories(trend.series),
+            spendHistory: trend.totals.map((month) => month.expenseCents),
+          }
     return monthInsights({
       incomeCents: report.incomeCents,
       expenseCents: report.expenseCents,
       netCents: report.netCents,
-      groups: groupHistories(trend.series),
-      spendHistory: trend.totals.map((month) => month.expenseCents),
+      ...histories,
+      ...(previousToDate ? { toDate: { throughDay: previousToDate.throughDay } } : {}),
     }).map((insight) => this.insightText(insight))
   })
 

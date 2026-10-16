@@ -215,6 +215,68 @@ describe('MonthPage', () => {
     expect(text(root, '[data-testid="month.delta"]')).toMatch(/^8% less than \w+ \(\$3,571\.20\)$/)
   })
 
+  /** The running month on the 16th: September up to the 16th, and the same days of July to September. */
+  function runningMonth(month: YearMonth, throughDay = 16): MonthReport {
+    const food = (amountCents: number) => [
+      { bucket: 'group', groupId: 2, kind: 'expense' as const, amountCents, count: 3 },
+    ]
+    return {
+      ...busyMonth(month),
+      previousToDate: {
+        throughDay,
+        incomeCents: 600_000,
+        expenseCents: 300_000,
+        netCents: 300_000,
+      },
+      previousMonthsToDate: [-3, -2, -1].map((delta) => ({
+        month: addMonths(month, delta),
+        throughDay,
+        expenseCents: 300_000,
+        byGroup: food(75_000),
+      })),
+    } as MonthReport
+  }
+
+  it('test_the_running_month_compares_with_the_same_point_of_last_month', async () => {
+    const { root } = await open('/month', { report: (month) => runningMonth(month) })
+
+    // 3,284.50 so far against 3,000.00 by the 16th of last month (not its 3,571.20 in full).
+    expect(text(root, '[data-testid="month.delta"]')).toMatch(
+      /^9% more than at the same point in \w+ \(\$3,000\.00\)$/
+    )
+    expect(root.querySelector('[data-testid="month.delta"] app-icon')?.className).toContain(
+      'text-status-serious'
+    )
+  })
+
+  it('test_running_month_insights_use_the_same_days_of_the_previous_three_months', async () => {
+    const { root } = await open('/month', { report: (month) => runningMonth(month) })
+    const cards = [...root.querySelectorAll('[data-testid="month.insight"]')].map((card) =>
+      card.textContent?.replace(/\s+/g, ' ').trim()
+    )
+
+    // Food: 1,504.50 so far against 750.00 on average by the same day (the trend's full months say 50%).
+    expect(cards[0]).toContain('Food is 101% above your 3-month average for the same days.')
+  })
+
+  it('test_running_month_averages_wait_for_the_first_week', async () => {
+    const { root } = await open('/month', { report: (month) => runningMonth(month, 5) })
+    const cards = [...root.querySelectorAll('[data-testid="month.insight"]')].map((card) =>
+      card.textContent?.replace(/\s+/g, ' ').trim()
+    )
+
+    expect(cards.some((card) => card?.includes('average'))).toBe(false)
+    expect(cards[0]).toContain('You saved 49% of your income this month.')
+  })
+
+  it('test_the_running_month_comparison_switches_to_spanish', async () => {
+    const { root } = await open('/month', { lang: 'es', report: (month) => runningMonth(month) })
+
+    expect(text(root, '[data-testid="month.delta"]')).toMatch(
+      /^9% más que a estas alturas de [a-z]+ \(\$3,000\.00\)$/
+    )
+  })
+
   it('test_the_month_view_needs_only_the_report_and_the_trend', async () => {
     const { harness } = await open()
     await harness.fixture.whenStable()

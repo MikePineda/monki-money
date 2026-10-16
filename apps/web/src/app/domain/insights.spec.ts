@@ -1,8 +1,10 @@
 import {
   MIN_AVERAGE_CENTS,
+  MIN_DAYS_FOR_AVERAGE,
   groupHistories,
   monthInsights,
   previousAverage,
+  sameDayHistories,
   type InsightInput,
 } from './insights'
 
@@ -195,5 +197,115 @@ describe('monthInsights', () => {
 
     expect(monthInsights(value)).toEqual(monthInsights(value))
     expect(monthInsights(value)[0]).toMatchObject({ groupId: 1 })
+  })
+})
+
+describe('sameDayHistories', () => {
+  const line = (groupId: number, amountCents: number, kind = 'expense') => ({
+    bucket: 'group',
+    groupId,
+    kind,
+    amountCents,
+  })
+
+  it('test_lines_up_the_previous_months_over_the_same_days_then_the_month_so_far', () => {
+    const histories = sameDayHistories(
+      [
+        { expenseCents: 30_000, byGroup: [line(2, 30_000)] },
+        { expenseCents: 50_000, byGroup: [line(1, 20_000), line(2, 30_000)] },
+        { expenseCents: 0, byGroup: [] },
+      ],
+      {
+        expenseCents: 45_000,
+        byGroup: [
+          line(2, 45_000),
+          line(9, 300_000, 'income'),
+          { bucket: 'private', groupId: null, kind: 'expense', amountCents: 5_000 },
+        ],
+      }
+    )
+
+    expect(histories).toEqual({
+      groups: [
+        { groupId: 1, points: [0, 20_000, 0, 0] },
+        { groupId: 2, points: [30_000, 30_000, 0, 45_000] },
+      ],
+      spendHistory: [30_000, 50_000, 0, 45_000],
+    })
+  })
+})
+
+describe('monthInsights for the month still running', () => {
+  it('test_averages_compare_the_same_days_and_say_so', () => {
+    const insights = monthInsights(
+      input({
+        expenseCents: 60_000,
+        groups: [{ groupId: 5, points: [40_000, 40_000, 40_000, 60_000] }],
+        spendHistory: [40_000, 40_000, 40_000, 60_000],
+        toDate: { throughDay: 16 },
+      })
+    )
+
+    expect(insights).toEqual([
+      { kind: 'groupAboveAverageToDate', groupId: 5, percent: 50 },
+      { kind: 'spendAboveAverageToDate', percent: 50 },
+    ])
+  })
+
+  it('test_a_group_with_nothing_spent_so_far_is_not_news', () => {
+    const insights = monthInsights(
+      input({
+        expenseCents: 9_000,
+        groups: [
+          // Usually paid later in the month: $0 so far says nothing yet.
+          { groupId: 1, points: [80_000, 80_000, 80_000, 0] },
+          { groupId: 2, points: [10_000, 10_000, 10_000, 9_000] },
+        ],
+        toDate: { throughDay: 16 },
+      })
+    )
+
+    expect(insights[0]).toEqual({ kind: 'groupBelowAverageToDate', groupId: 2, percent: 10 })
+  })
+
+  it('test_nothing_spent_so_far_is_not_a_spending_drop', () => {
+    const insights = monthInsights(
+      input({
+        incomeCents: 300_000,
+        netCents: 300_000,
+        spendHistory: [40_000, 40_000, 40_000, 0],
+        toDate: { throughDay: 10 },
+      })
+    )
+
+    expect(insights).toEqual([{ kind: 'savedShare', percent: 100 }])
+  })
+
+  it('test_averages_wait_for_the_first_week', () => {
+    const early = input({
+      expenseCents: 60_000,
+      groups: [{ groupId: 5, points: [40_000, 40_000, 40_000, 60_000] }],
+      spendHistory: [40_000, 40_000, 40_000, 60_000],
+      toDate: { throughDay: MIN_DAYS_FOR_AVERAGE - 1 },
+    })
+
+    expect(monthInsights(early)).toEqual([{ kind: 'groupShare', groupId: 5, percent: 100 }])
+    expect(
+      monthInsights({ ...early, toDate: { throughDay: MIN_DAYS_FOR_AVERAGE } })[0]
+    ).toMatchObject({ kind: 'groupAboveAverageToDate' })
+  })
+
+  it('test_a_closed_month_keeps_full_month_averages_and_its_zero_groups', () => {
+    const insights = monthInsights(
+      input({
+        expenseCents: 9_000,
+        groups: [
+          { groupId: 1, points: [80_000, 80_000, 80_000, 0] },
+          { groupId: 2, points: [10_000, 10_000, 10_000, 9_000] },
+        ],
+      })
+    )
+
+    expect(insights[0]).toEqual({ kind: 'groupBelowAverage', groupId: 1, percent: 100 })
   })
 })

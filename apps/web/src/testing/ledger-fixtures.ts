@@ -154,6 +154,9 @@ export function aMonthReport(month: YearMonth, overrides: Partial<MonthReport> =
     pendingCents: 0,
     transactionCount: 0,
     previous: { incomeCents: 0, expenseCents: 0, netCents: 0 },
+    // A closed month: no same-day comparison (the API sends one only for the running month).
+    previousToDate: null,
+    previousMonthsToDate: null,
     topMovers: [],
     topExpenses: [],
     insight: { available: false, generatedAt: null, locale: 'en' },
