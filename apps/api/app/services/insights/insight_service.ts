@@ -56,16 +56,21 @@ export default class InsightService {
     return this.stored(household, month, locale).firstOrFail()
   }
 
+  /** A model can write summaries: a live one, or the fake inside the test suite. */
+  get available() {
+    return this.llm.isLive || this.fakeLlmAllowed()
+  }
+
   /**
    * Returns the stored summary (`fresh: false`) unless `force`; otherwise
    * asks the model and replaces it. Rejects (before any call) a month that
    * has not started (422 `month`/`future`), a month without income or
    * spending (422 `month`/`noActivity`), a missing model (503) and a used-up
-   * monthly quota (402).
+   * monthly quota (402). `user` is null for the scheduled run.
    */
   async generate(
     household: Household,
-    user: User,
+    user: User | null,
     month: Month,
     locale: Locale,
     options: GenerateInsightOptions = {}
@@ -86,7 +91,7 @@ export default class InsightService {
     const summary = summarizeMonth(postings, month)
     if (summary.transactionCount === 0) throw new FieldError('month', 'noActivity')
 
-    if (!this.llm.isLive && !this.fakeLlmAllowed()) throw new InsightsUnavailable()
+    if (!this.available) throw new InsightsUnavailable()
     await this.entitlements.assertLlmQuota(household, now)
 
     const input = await this.input(
@@ -97,7 +102,7 @@ export default class InsightService {
     )
     const result = await this.llm.monthlyInsight(input, {
       householdId: household.id,
-      userId: user.id,
+      userId: user?.id ?? null,
       locale,
     })
 
@@ -204,7 +209,7 @@ export default class InsightService {
   /** Insert or replace the summary of (household, month, locale) in one statement. */
   protected async store(
     household: Household,
-    user: User,
+    user: User | null,
     input: InsightInput,
     locale: Locale,
     generated: { answer: Answer; model: string; now: DateTime }
@@ -222,7 +227,7 @@ export default class InsightService {
         highlights: JSON.stringify(generated.answer.highlights),
         input_json: JSON.stringify(input),
         model: generated.model.slice(0, 120),
-        generated_by_user_id: user.id,
+        generated_by_user_id: user?.id ?? null,
         generated_at: stamp,
         created_at: stamp,
         updated_at: stamp,
