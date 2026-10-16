@@ -6,12 +6,16 @@ import { HouseholdDirectory } from '../../core/household/household-directory.sto
 import { MonthStore } from '../../core/month/month.store'
 import { ToastStore } from '../../core/ui/toast.store'
 import { RulesApi } from './data-access/rules.api'
+import { ruleInput, rulePatch, type RuleDraft } from './rule-draft'
 
 /**
  * State of the rules screen `/settings/rules`: the household's merchant
- * rules (highest priority first), deleting one (optimistic, restored if the
- * API refuses) and applying one to the transactions still in review, which
- * reports how many it categorized. Provided by the page.
+ * rules (highest priority first), creating one (it goes first) or editing
+ * one (its row changes in place), deleting one (optimistic, restored if
+ * the API refuses) and applying one to the transactions still in review,
+ * which reports how many it categorized. A saved rule with a category
+ * offers that apply as the toast's action. Saving changes no movement, so
+ * only applying invalidates the month on screen. Provided by the page.
  */
 @Injectable()
 export class RulesStore {
@@ -39,6 +43,23 @@ export class RulesStore {
 
   retry(): void {
     this.list.reload()
+  }
+
+  /**
+   * Creates a rule (`rule` null) or saves the changes of one; rejects with
+   * what the API refused (a 422 carries the field errors for the form).
+   */
+  async save(rule: MerchantRule | null, draft: RuleDraft): Promise<MerchantRule> {
+    const saved = rule
+      ? await this.api.update(rule.id, rulePatch(rule, draft))
+      : withCounters(await this.api.create(ruleInput(draft)))
+    this.list.value.update((rules) =>
+      rule
+        ? (rules ?? []).map((item) => (item.id === saved.id ? saved : item))
+        : [saved, ...(rules ?? [])]
+    )
+    this.offerApply(saved)
+    return saved
   }
 
   async remove(rule: MerchantRule): Promise<boolean> {
@@ -85,6 +106,21 @@ export class RulesStore {
     }
   }
 
+  /** Applying only categorizes, so a transfer rule just says it was saved. */
+  private offerApply(rule: MerchantRule): void {
+    if (rule.categoryId === null) {
+      /** t(rules.toast.saved) */
+      this.toasts.show({ messageKey: 'rules.toast.saved', status: 'good' })
+      return
+    }
+    /** t(rules.toast.savedApply, rules.toast.apply) */
+    this.toasts.show({
+      messageKey: 'rules.toast.savedApply',
+      status: 'good',
+      action: { labelKey: 'rules.toast.apply', run: () => void this.apply(rule) },
+    })
+  }
+
   private fail(error: unknown): void {
     const apiError = toApiError(error)
     if (apiError.kind === 'unauthorized') {
@@ -93,4 +129,12 @@ export class RulesStore {
     const message = failureMessage(apiError)
     this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
   }
+}
+
+/**
+ * `POST /rules` answers before the database defaults are read back, so a
+ * new rule may arrive without its counters: it has never matched yet.
+ */
+function withCounters(rule: MerchantRule): MerchantRule {
+  return { ...rule, hitCount: rule.hitCount ?? 0, lastHitAt: rule.lastHitAt ?? null }
 }

@@ -15,6 +15,10 @@ import {
 } from '../../../shared/ui/segmented-control/segmented-control.component'
 import { openSelectSheet } from '../../../shared/ui/select-sheet/select-sheet.component'
 import { TextFieldComponent } from '../../../shared/ui/text-field/text-field.component'
+import {
+  OpeningBalanceFieldComponent,
+  signedOpeningBalance,
+} from './opening-balance-field.component'
 
 /** Scoped key used from TypeScript: t(settings.accounts.sheet.kind) */
 const KIND_TITLE_KEY = 'accounts.sheet.kind'
@@ -22,7 +26,14 @@ const KIND_TITLE_KEY = 'accounts.sheet.kind'
 export interface AccountSheetData {
   title: string
   /** Values of the account being edited; empty for a new one. */
-  initial?: { name: string; institution: string | null; kind: AccountKind; owner: OwnerChoice }
+  initial?: {
+    name: string
+    institution: string | null
+    kind: AccountKind
+    owner: OwnerChoice
+    openingBalanceCents: number
+    openingBalanceDate: string | null
+  }
   isActive?: boolean
   kinds: readonly { value: AccountKind; label: string }[]
   owners: readonly SegmentOption<OwnerChoice>[]
@@ -34,7 +45,8 @@ export type AccountSheetResult =
   | { action: 'restore' }
 
 /**
- * Create or edit an account: name, institution, kind and owner. Editing also
+ * Create or edit an account: name, institution, kind, owner and the opening
+ * balance with its date (negative for a card or loan in debt). Editing also
  * offers archive (or restore): accounts are archived, never deleted, once
  * they may hold history.
  */
@@ -45,6 +57,7 @@ export type AccountSheetResult =
     ButtonComponent,
     ChipComponent,
     FormField,
+    OpeningBalanceFieldComponent,
     SegmentedControlComponent,
     TextFieldComponent,
     TranslocoPipe,
@@ -88,6 +101,12 @@ export type AccountSheetResult =
             [(value)]="owner"
           />
         </div>
+        <app-opening-balance-field
+          [(magnitude)]="openingMagnitude"
+          [(owes)]="owes"
+          [(date)]="openingDate"
+          [(open)]="keypadOpen"
+        />
       </form>
       <div sheetFooter class="flex flex-col gap-2">
         <button
@@ -138,6 +157,12 @@ export class AccountSheetComponent {
   })
   protected readonly kind = signal<AccountKind>(this.data.initial?.kind ?? 'transaction')
   protected readonly owner = signal<OwnerChoice>(this.data.initial?.owner ?? 'joint')
+  protected readonly openingMagnitude = signal(
+    Math.abs(this.data.initial?.openingBalanceCents ?? 0)
+  )
+  protected readonly owes = signal((this.data.initial?.openingBalanceCents ?? 0) < 0)
+  protected readonly openingDate = signal(this.data.initial?.openingBalanceDate ?? '')
+  protected readonly keypadOpen = signal(false)
   protected readonly kindLabel = computed(
     () => this.data.kinds.find((kind) => kind.value === this.kind())?.label ?? ''
   )
@@ -162,7 +187,13 @@ export class AccountSheetComponent {
     const { name, institution } = this.model()
     this.close({
       action: 'save',
-      input: { name: name.trim(), institution: institution.trim() || null, kind: this.kind() },
+      input: {
+        name: name.trim(),
+        institution: institution.trim() || null,
+        kind: this.kind(),
+        openingBalanceCents: signedOpeningBalance(this.openingMagnitude(), this.owes()),
+        openingBalanceDate: this.openingDate() || null,
+      },
       owner: this.owner(),
     })
   }

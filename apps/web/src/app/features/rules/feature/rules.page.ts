@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core'
+import { Component, Injector, computed, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
 import type { MerchantRule } from '../../../core/api/api-types'
@@ -14,8 +14,9 @@ import { openSelectSheet } from '../../../shared/ui/select-sheet/select-sheet.co
 import { SkeletonComponent } from '../../../shared/ui/skeleton/skeleton.component'
 import { RulesStore } from '../rules.store'
 import { provideRulesScope } from '../rules.scope'
+import { RuleSheetComponent, type RuleSheetData } from './rule.sheet'
 
-type RuleAction = 'apply' | 'delete'
+type RuleAction = 'edit' | 'apply' | 'delete'
 
 interface RuleView {
   rule: MerchantRule
@@ -31,7 +32,7 @@ interface RuleView {
  * t(rules.matchType.merchant, rules.matchType.contains, rules.matchType.regex)
  * t(rules.origin.user, rules.origin.learned, rules.origin.system)
  * t(rules.hits, rules.transferTo, rules.noTarget, rules.actions.title)
- * t(rules.actions.apply, rules.actions.delete, rules.deleteSheet.title)
+ * t(rules.actions.edit, rules.actions.apply, rules.actions.delete, rules.deleteSheet.title)
  * t(rules.deleteSheet.body, rules.deleteSheet.confirm, rules.deleteSheet.keep)
  */
 const KEYS = {
@@ -39,6 +40,7 @@ const KEYS = {
   transferTo: 'rules.transferTo',
   noTarget: 'rules.noTarget',
   actionsTitle: 'rules.actions.title',
+  edit: 'rules.actions.edit',
   apply: 'rules.actions.apply',
   delete: 'rules.actions.delete',
 }
@@ -50,9 +52,9 @@ const CATALOGUE_PROBE = 'title'
  * Merchant rules `/settings/rules`: what sorts imported movements. Each row
  * shows the pattern, how it matches, its category (or transfer account),
  * how often it matched and who made it (you, learned from an import, or the
- * bank defaults). Tap a rule to apply it to the transactions still in
- * review, or to delete it (asked first). Rules are created in the import
- * and transaction flows, not here.
+ * bank defaults). "New rule" writes one by hand; tap a rule to edit it, to
+ * apply it to the transactions still in review, or to delete it (asked
+ * first). Rules are also learned in the import and transaction flows.
  */
 @Component({
   selector: 'app-rules-page',
@@ -78,6 +80,21 @@ const CATALOGUE_PROBE = 'title'
     </header>
 
     <p class="px-4 pb-4 text-body text-ink-2">{{ 'rules.intro' | transloco }}</p>
+
+    @if (!store.firstLoad() && !store.failed()) {
+      <div class="px-4 pb-4">
+        <button
+          appButton
+          type="button"
+          icon="plus"
+          size="block"
+          data-testid="rules.new"
+          (click)="write(null)"
+        >
+          {{ 'rules.new' | transloco }}
+        </button>
+      </div>
+    }
 
     @if (store.firstLoad()) {
       <div class="flex flex-col gap-2 px-4" role="status">
@@ -159,6 +176,7 @@ export default class RulesPage {
   protected readonly store = inject(RulesStore)
   private readonly sheets = inject(BottomSheetService)
   private readonly transloco = inject(TranslocoService)
+  private readonly injector = inject(Injector)
   private readonly catalogue = translateSignal(CATALOGUE_PROBE)
 
   protected readonly views = computed<RuleView[]>(() => {
@@ -190,15 +208,27 @@ export default class RulesPage {
     openSelectSheet<RuleAction>(this.sheets, {
       title: this.t(KEYS.actionsTitle, { pattern: rule.pattern }),
       options: [
+        { value: 'edit', label: this.t(KEYS.edit), icon: 'pencil' },
         { value: 'apply', label: this.t(KEYS.apply), icon: 'refresh-cw' },
         { value: 'delete', label: this.t(KEYS.delete), icon: 'trash-2' },
       ],
     }).subscribe((action) => {
-      if (action === 'apply') {
+      if (action === 'edit') {
+        this.write(rule)
+      } else if (action === 'apply') {
         void this.store.apply(rule)
       } else if (action === 'delete') {
         this.confirmDelete(rule)
       }
+    })
+  }
+
+  /** Opens the rule form: a new rule (null) or the given one, filled in. */
+  protected write(rule: MerchantRule | null): void {
+    // The page's injector carries the store and the `rules` scope.
+    this.sheets.open<MerchantRule, RuleSheetData>(RuleSheetComponent, {
+      data: { rule },
+      injector: this.injector,
     })
   }
 
