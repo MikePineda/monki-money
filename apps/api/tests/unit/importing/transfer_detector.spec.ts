@@ -19,12 +19,14 @@ const EVERYDAY = 1
 const SAVINGS = 2
 const HNRY = 3
 const SECOND_SAVINGS = 4
+const ME = 10
+const PARTNER = 11
 
-/** The household of the fixtures: NAB everyday + NAB savings + a Hnry wallet. */
+/** The household of the fixtures: joint NAB everyday + joint NAB savings + a Hnry wallet. */
 const ACCOUNTS = [
   householdAccount({ id: EVERYDAY, institution: 'NAB', kind: 'transaction' }),
   householdAccount({ id: SAVINGS, institution: 'NAB', kind: 'savings' }),
-  householdAccount({ id: HNRY, institution: 'Hnry', kind: 'wallet' }),
+  householdAccount({ id: HNRY, institution: 'Hnry', kind: 'wallet', ownerUserId: ME }),
 ]
 
 /** The same household with a second NAB savings account: the counterpart is ambiguous. */
@@ -98,6 +100,16 @@ function noLegs(rules: readonly MerchantRule[], accounts = ACCOUNTS): TransferCo
   return { rules, legs: [], accounts }
 }
 
+/** What the detector says about a free-memo transfer it cannot place. */
+const UNKNOWN = {
+  signal: 'bank_category' as const,
+  direction: 'out' as const,
+  counterpartAccountId: null,
+  oppositeLeg: null,
+  ruleId: null,
+  guessed: false,
+}
+
 function seededRules(): MerchantRule[] {
   const slugs = TAXONOMY.flatMap((group) => group.categories.map((category) => category.slug))
   const seeds = resolveSystemRules(NAB_SYSTEM_RULES, {
@@ -147,6 +159,7 @@ test.group('Importing / transfer detector', () => {
       counterpartAccountId: SAVINGS,
       oppositeLeg: leg,
       ruleId: null,
+      guessed: false,
     })
   })
 
@@ -162,13 +175,7 @@ test.group('Importing / transfer detector', () => {
 
   test('test_transfer_detector_recognizes_linked_acc_trns', ({ assert }) => {
     const detection = detectTransfer({ ...linkedTransfer, nabCategory: null }, noLegs([], []))
-    assert.deepEqual(detection, {
-      signal: 'linked_account_memo',
-      direction: 'out',
-      counterpartAccountId: null,
-      oppositeLeg: null,
-      ruleId: null,
-    })
+    assert.deepEqual(detection, { ...UNKNOWN, signal: 'linked_account_memo' })
   })
 
   test('test_transfer_rule_names_the_destination_when_no_leg_is_found', ({ assert }) => {
@@ -191,6 +198,7 @@ test.group('Importing / transfer detector', () => {
       counterpartAccountId: SAVINGS,
       oppositeLeg: null,
       ruleId: 7,
+      guessed: false,
     })
 
     const leg = transferLeg({ accountId: SAVINGS, date: '2026-07-31' })
@@ -250,25 +258,56 @@ test.group('Importing / transfer detector', () => {
       ...ACCOUNTS,
       householdAccount({ id: 5, institution: 'NAB', kind: 'savings', isActive: false }),
       householdAccount({ id: 6, institution: 'Other Bank', kind: 'savings' }),
-      householdAccount({ id: 7, institution: 'NAB', kind: 'cash' }),
     ]
     for (const memo of ['Honeymoon', 'xd']) {
       assert.deepEqual(
         detectTransfer(freeMemo(memo), noLegs(seededRules(), accounts)),
-        {
-          signal: 'bank_category',
-          direction: 'out',
-          counterpartAccountId: SAVINGS,
-          oppositeLeg: null,
-          ruleId: null,
-        },
+        { ...UNKNOWN, counterpartAccountId: SAVINGS, guessed: true },
         memo
       )
     }
 
     // The savings side of the same movement: its only counterpart is the everyday account.
     const incoming = { ...freeMemo('Honeymoon'), accountId: SAVINGS, amountCents: 25000 }
-    assert.equal(detectTransfer(incoming, noLegs([], accounts))?.counterpartAccountId, EVERYDAY)
+    const back = detectTransfer(incoming, noLegs([], accounts))
+    assert.equal(back?.counterpartAccountId, EVERYDAY)
+    assert.isTrue(back?.guessed)
+  })
+
+  test('test_no_account_is_guessed_next_to_another_kind_of_account_at_the_bank', ({ assert }) => {
+    const card = householdAccount({ id: 7, institution: 'NAB', kind: 'other' })
+
+    // Everyday, savings and a card at NAB: a card repayment must not land in savings.
+    const repayment = freeMemo('Card repayment')
+    assert.deepEqual(detectTransfer(repayment, noLegs([], [...ACCOUNTS, card])), UNKNOWN)
+
+    // The card is the only other NAB account: still not a savings or transaction account.
+    const cardOnly = [ACCOUNTS[0], card, ACCOUNTS[2]]
+    assert.deepEqual(detectTransfer(repayment, noLegs([], cardOnly)), UNKNOWN)
+  })
+
+  test('test_a_partner_personal_account_is_never_guessed', ({ assert }) => {
+    const partnerEveryday = householdAccount({
+      id: 8,
+      institution: 'NAB',
+      kind: 'transaction',
+      ownerUserId: PARTNER,
+    })
+    // Joint everyday whose only other NAB account is the partner's: never a guess.
+    const joint = [ACCOUNTS[0], partnerEveryday]
+    assert.deepEqual(detectTransfer(freeMemo('Rent'), noLegs([], joint)), UNKNOWN)
+
+    // A personal everyday account guesses its owner's own or a joint account only.
+    const mine = householdAccount({ id: EVERYDAY, institution: 'NAB', kind: 'transaction' })
+    const personal = { ...mine, ownerUserId: ME }
+    const mySavings = householdAccount({ id: 9, institution: 'NAB', ownerUserId: ME })
+    const jointSavings = householdAccount({ id: 9, institution: 'NAB' })
+    const partnerSavings = householdAccount({ id: 9, institution: 'NAB', ownerUserId: PARTNER })
+    const guess = (other: typeof mySavings) =>
+      detectTransfer(freeMemo('Rent'), noLegs([], [personal, other]))?.counterpartAccountId
+    assert.equal(guess(mySavings), 9)
+    assert.equal(guess(jointSavings), 9)
+    assert.isNull(guess(partnerSavings))
   })
 
   test('test_internal_transfer_with_free_memo_uses_the_learned_holder_rule', ({ assert }) => {
@@ -287,6 +326,7 @@ test.group('Importing / transfer detector', () => {
           counterpartAccountId: SECOND_SAVINGS,
           oppositeLeg: null,
           ruleId: 42,
+          guessed: false,
         },
         memo
       )
@@ -322,30 +362,38 @@ test.group('Importing / transfer detector', () => {
       counterpartAccountId: SAVINGS,
       oppositeLeg: leg,
       ruleId: null,
+      guessed: false,
     })
   })
 
+  test('test_a_holder_rule_naming_a_category_sends_nothing', ({ assert }) => {
+    const spending = merchantRule({
+      id: 50,
+      pattern: 'linked acc trns smith kid',
+      categoryId: 77,
+      transferAccountId: SECOND_SAVINGS,
+    })
+    const pocketMoney = freeMemo('Pocket money', 'SMITH KID')
+
+    assert.deepEqual(detectTransfer(pocketMoney, noLegs([spending], TWO_SAVINGS)), UNKNOWN)
+    const onlySavings = detectTransfer(pocketMoney, noLegs([spending], ACCOUNTS))
+    assert.include(onlySavings, { counterpartAccountId: SAVINGS, ruleId: null, guessed: true })
+  })
+
   test('test_ambiguous_counterpart_still_needs_confirmation', ({ assert }) => {
-    const unknown = {
-      signal: 'bank_category' as const,
-      direction: 'out' as const,
-      counterpartAccountId: null,
-      oppositeLeg: null,
-      ruleId: null,
-    }
     const otherHolder = holderRule(41, 'linked acc trns nguyen', SAVINGS)
     assert.deepEqual(
       detectTransfer(freeMemo('Honeymoon'), noLegs([otherHolder], TWO_SAVINGS)),
-      unknown
+      UNKNOWN
     )
 
     // A holder rule pointing at the imported account itself names nothing.
     const itself = holderRule(42, 'linked acc trns smith jo', EVERYDAY)
-    assert.deepEqual(detectTransfer(freeMemo('Honeymoon'), noLegs([itself], TWO_SAVINGS)), unknown)
+    assert.deepEqual(detectTransfer(freeMemo('Honeymoon'), noLegs([itself], TWO_SAVINGS)), UNKNOWN)
 
     // No other account at the importing bank: nothing to guess.
     const alone = [householdAccount({ id: EVERYDAY, institution: 'NAB', kind: 'transaction' })]
-    assert.deepEqual(detectTransfer(freeMemo('Honeymoon'), noLegs([], alone)), unknown)
+    assert.deepEqual(detectTransfer(freeMemo('Honeymoon'), noLegs([], alone)), UNKNOWN)
   })
 
   test('test_a_payment_to_a_person_with_the_same_surname_is_not_a_transfer', ({ assert }) => {
@@ -363,15 +411,31 @@ test.group('Importing / transfer detector', () => {
   })
 
   test('test_linked_holder_key_is_the_merchant_key_of_the_bank_memo', ({ assert }) => {
-    const linked = bankRow('ONLINE A1000000001 Linked Acc Trns SMITH JO', 'Internal transfers')
+    for (const holder of [
+      'SMITH JO',
+      'SMITH JO & DOE AL',
+      'J. SMITH',
+      'MÜLLER JO',
+      "O'NEIL-WARD PK",
+      'DE LA CRUZ MA',
+    ]) {
+      const linked = bankRow(`ONLINE A1000000001 Linked Acc Trns ${holder}`, 'Internal transfers')
+      assert.equal(linkedHolderKey(linked), linked.merchantFullKey, holder)
+      assert.equal(linkedHolderKey(freeMemo('Honeymoon', holder)), linked.merchantFullKey, holder)
+    }
 
+    const linked = bankRow('ONLINE A1000000001 Linked Acc Trns SMITH JO', 'Internal transfers')
     assert.equal(linkedHolderKey(linked), 'linked acc trns smith jo')
-    assert.equal(linkedHolderKey(linked), linked.merchantFullKey)
-    assert.equal(linkedHolderKey(freeMemo('Honeymoon')), 'linked acc trns smith jo')
     assert.equal(linkedHolderKey({ ...linked, nabCategory: null }), 'linked acc trns smith jo')
     assert.isNull(linkedHolderKey(bankRow('SMITH JO C1000000003', 'Transfers out')))
     assert.isNull(
       linkedHolderKey(bankRow('ONLINE C1000000010 Monthly saving', 'Internal transfers'))
     )
+  })
+
+  test('test_an_over_long_holder_has_no_key', ({ assert }) => {
+    const longest = freeMemo('xd', 'ABCDEFGHI '.repeat(25).trim())
+    assert.isNull(linkedHolderKey(longest))
+    assert.isNull(detectTransfer(longest, noLegs([], TWO_SAVINGS))?.ruleId)
   })
 })

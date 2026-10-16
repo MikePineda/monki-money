@@ -2,8 +2,8 @@ import { daysBetween } from '#domain/importing/iso_days'
 import { findMatchingRule } from '#domain/importing/rule_matching'
 import {
   bankTransferSignal,
-  internalTransferCounterparts,
   linkedHolderKey,
+  onlyInternalTransferCounterpart,
 } from '#domain/importing/linked_accounts'
 import type {
   HouseholdAccount,
@@ -60,17 +60,19 @@ function transferTarget(rule: MerchantRule | null | undefined, row: TransferSubj
   return accountId !== null && accountId !== row.accountId ? accountId : null
 }
 
-/** The learned rule of the linked holder the row names (bank signal required). */
+/**
+ * The learned rule of the linked holder the row names (bank signal
+ * required). A rule on that key that names a category says the holder's
+ * movements are spending or income: it sends nothing anywhere.
+ */
 function holderRule(row: TransferSubject, rules: readonly MerchantRule[]): MerchantRule | null {
   const key = linkedHolderKey(row)
   if (key === null) return null
   const rule = rules.find(
-    (candidate) =>
-      candidate.matchType === 'merchant' &&
-      candidate.pattern === key &&
-      transferTarget(candidate, row) !== null
+    (candidate) => candidate.matchType === 'merchant' && candidate.pattern === key
   )
-  return rule ?? null
+  if (!rule || rule.categoryId !== null || transferTarget(rule, row) === null) return null
+  return rule
 }
 
 /**
@@ -84,9 +86,10 @@ function holderRule(row: TransferSubject, rules: readonly MerchantRule[]): Merch
  *    `Linked Acc Trns` memo. The other account is, in order: the one
  *    holding the opposite amount within two days; the account the learned
  *    rule of the linked holder names (`linkedHolderKey`: the memo the
- *    person typed varies, the holder does not); the only other active
- *    savings/transaction account at the same institution. When none
- *    decides, the review screen asks for it.
+ *    person typed varies, the holder does not); as a `guessed` proposal,
+ *    the only other account at the same institution when it is a savings
+ *    or transaction account of the same owner (`onlyInternalTransferCounterpart`).
+ *    When none decides, the review screen asks for it.
  *
  * Transfers to or from other people (PayID "hot pot", NAB's `Transfers
  * in/out`) carry neither signal: they are spending/income with the person
@@ -104,6 +107,7 @@ export function detectTransfer(
     counterpartAccountId: accountId,
     oppositeLeg: findOppositeLeg(row, context.legs, accountId),
     ruleId: rule.id,
+    guessed: false,
   })
 
   const rule = findMatchingRule(context.rules, row)?.rule ?? null
@@ -121,18 +125,20 @@ export function detectTransfer(
       counterpartAccountId: oppositeLeg.accountId,
       oppositeLeg,
       ruleId: null,
+      guessed: false,
     }
   }
 
   const holder = holderRule(row, context.rules)
   if (holder) return byRule(holder, holder.transferAccountId!)
 
-  const counterparts = internalTransferCounterparts(row.accountId, context.accounts)
+  const only = onlyInternalTransferCounterpart(row.accountId, context.accounts)
   return {
     signal,
     direction,
-    counterpartAccountId: counterparts.length === 1 ? counterparts[0].id : null,
+    counterpartAccountId: only?.id ?? null,
     oppositeLeg: null,
     ruleId: null,
+    guessed: only !== null,
   }
 }

@@ -135,7 +135,7 @@ test.group('Importing / resolver', () => {
     assert.isNull(resolved.suggestion)
   })
 
-  test('test_free_memo_transfer_with_one_possible_counterpart_is_a_transfer_leg', async ({
+  test('test_a_guessed_transfer_destination_is_a_transfer_leg_flagged_for_review', async ({
     assert,
   }) => {
     const freeMemo = {
@@ -155,8 +155,15 @@ test.group('Importing / resolver', () => {
     const [resolved] = await resolve([freeMemo], context({ rules: systemRules(), accounts }))
     assert.equal(resolved.resolution, 'transfer_leg')
     assert.equal(resolved.transfer?.counterpartAccountId, SAVINGS)
-    assert.deepEqual(resolved.reasons, [])
+    assert.isTrue(resolved.needsReview, 'the only possible account is a guess')
+    assert.deepEqual(resolved.reasons, ['transfer_destination_guessed'])
     assert.isNull(resolved.suggestion)
+
+    // A known leg or rule is no guess.
+    const [linked] = await resolve([linkedTransfer], context({ rules: systemRules(), accounts }))
+    assert.equal(linked.resolution, 'transfer_leg')
+    assert.isFalse(linked.needsReview)
+    assert.deepEqual(linked.reasons, [])
 
     const twoSavings = [...accounts, householdAccount({ id: 4, institution: 'NAB' })]
     const [ambiguous] = await resolve([freeMemo], context({ accounts: twoSavings }))

@@ -20,7 +20,12 @@ import { linkedHolderKey } from '#domain/importing/linked_accounts'
 import ImportDecisions from '#services/imports/import_decisions'
 import ImportBookkeeping from '#services/imports/import_bookkeeping'
 import { ImportBatchClosed, ImportRowsUndecided } from '#exceptions/errors'
-import { type EffectiveRow, effectiveRow, reviewRowOf } from '#services/imports/effective_row'
+import {
+  type EffectiveRow,
+  effectiveRow,
+  isGuessedTransfer,
+  reviewRowOf,
+} from '#services/imports/effective_row'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { ConfirmInput, ConfirmMode, ConfirmResult } from '#services/imports/dto'
 import {
@@ -430,15 +435,16 @@ export default class ImportConfirmer {
 
   /**
    * Rules from what was confirmed. A guess nobody looked at (a suggestion
-   * under review the person did not change) teaches nothing; a person's
-   * explicit decisions come last so they win over the guesses for the
-   * same merchant.
+   * under review, or a guessed transfer account, the person did not
+   * change) teaches nothing; a person's explicit decisions come last so
+   * they win over the guesses for the same merchant.
    *
    * An internal transfer that names its linked holder teaches the holder's
    * rule (`linkedHolderKey`) instead of its merchant key: the memo NAB
    * shows changes from one transfer to the next, the holder does not. It
    * teaches even when a rule proposed the account, since the bank's
-   * generic `Linked Acc Trns` rule says nothing about the holder.
+   * generic `Linked Acc Trns` rule says nothing about the holder, but it
+   * never replaces a rule on that key that names a category.
    */
   protected async learn(
     household: Household,
@@ -454,6 +460,7 @@ export default class ImportConfirmer {
       if (ruleId !== null) hits.push(ruleId)
       if (action !== 'create' && action !== 'transfer') continue
       if (!effective.decided && row.suggestionNeedsReview && action === 'create') continue
+      if (action === 'transfer' && isGuessedTransfer(row, effective)) continue
 
       const holderKey =
         action === 'transfer'
@@ -481,6 +488,7 @@ export default class ImportConfirmer {
           paidByUserId: effective.paidByUserId,
         },
         learnRule: effective.learnRule,
+        linkedHolder: holderKey !== null,
         explicit: effective.decided,
       })
     }

@@ -223,4 +223,30 @@ test.group('Importing / linked account holder', () => {
     assert.isNull(linkedAccountHolder('INTERNET BPAY DEFT REAL ESTATE 0012345678'))
     assert.isNull(linkedAccountHolder(''))
   })
+
+  test('test_joint_initialled_and_accented_holders_are_read_whole', ({ assert }) => {
+    assert.equal(
+      linkedAccountHolder('ONLINE A1000000011 Linked Acc Trns SMITH JO & DOE AL'),
+      'SMITH JO & DOE AL'
+    )
+    assert.equal(linkedAccountHolder('ONLINE A1000000012 Rent J. SMITH'), 'J. SMITH')
+    assert.equal(linkedAccountHolder('ONLINE A1000000013 xd MÜLLER JO'), 'MÜLLER JO')
+    assert.equal(linkedAccountHolder('ONLINE A1000000014 Rent & SMITH JO'), 'SMITH JO')
+  })
+
+  test('test_a_one_letter_holder_is_not_a_holder', ({ assert }) => {
+    assert.isNull(linkedAccountHolder('ONLINE A1000000015 rent X'))
+    assert.isNull(linkedAccountHolder('ONLINE A1000000016 rent X Y'))
+    assert.isNull(linkedAccountHolder('ONLINE A1000000017 rent J.'))
+  })
+
+  test('test_an_over_long_run_of_capitals_is_not_a_holder', ({ assert }) => {
+    assert.isNull(linkedAccountHolder(`ONLINE A2000000001 xd ${'ABCDEFGHI '.repeat(25)}`))
+    assert.isNull(linkedAccountHolder('ONLINE A2000000002 xd ONE TWO THREE FOUR FIVE SIX SEVEN'))
+    assert.isNull(linkedAccountHolder(`ONLINE A2000000003 xd ${'A'.repeat(61)}`))
+    assert.equal(
+      linkedAccountHolder('ONLINE A2000000004 xd ONE TWO THREE FOUR FIVE SIX'),
+      'ONE TWO THREE FOUR FIVE SIX'
+    )
+  })
 })

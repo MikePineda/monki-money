@@ -125,6 +125,7 @@ export function householdAccount(overrides: Partial<HouseholdAccount> = {}): Hou
     institution: 'NAB',
     kind: 'savings',
     isActive: true,
+    ownerUserId: null,
     ...overrides,
   }
 }

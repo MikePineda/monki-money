@@ -57,8 +57,13 @@ hashes, so re-importing is all `duplicate` (ignored rows included: an
    only the bank's signal and no leg: the learned rule of the linked holder
    (`linkedHolderKey`: a `merchant` rule whose pattern is the key NAB's own
    memo gives the holder, `linked acc trns smith jo`, so a typed memo such as
-   `ONLINE <ref> Honeymoon SMITH JO` reaches it too), else the only other
-   active savings/transaction account at the same institution. Known
+   `ONLINE <ref> Honeymoon SMITH JO` reaches it too; a rule on that key that
+   names a category sends nothing), else a guess: the only other active
+   account at the same institution, when it is a savings/transaction account
+   that is joint or has the importing account's owner (a card or loan at the
+   bank, or a partner's personal account, means no guess). A guess is a
+   `transfer_leg` with `needsReview` and the reason
+   `transfer_destination_guessed`, never auto-confirmed. Known
    account -> `transfer_leg` (no leg in the ledger: confirm creates it), unknown
    -> `needs_confirmation`. PayID to friends (`Transfers in/out`) are spending/income,
    even when the person shares a linked holder's name.
@@ -102,9 +107,10 @@ when a rule proposed the account (the bank's generic `Linked Acc Trns` rule
 says nothing about the holder).
 
 The service adds two filters before `learnRules`: a guess nobody looked at
-(a suggestion still under review that the person did not change) teaches
-nothing, and rows a person decided go last, so their decision wins over
-the guesses for the same merchant. `PATCH /transactions/:id` with
+(a suggestion still under review, or a guessed transfer account, that the
+person did not change) teaches nothing, and rows a person decided go last,
+so their decision wins over the guesses for the same merchant. A linked
+holder's key never replaces a rule on it that names a category. `PATCH /transactions/:id` with
 `applyToFuture: true` and a category learns the same kind of rule from the
 bank row the transaction came from (`RuleLearner.learnFromEdit`).
 

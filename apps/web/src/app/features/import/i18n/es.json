@@ -176,6 +176,7 @@
   "reason": {
     "possible_match": "Puede ser un movimiento que ya agregaste.",
     "transfer_destination_unknown": "Parece una transferencia, pero no se conoce la otra cuenta.",
+    "transfer_destination_guessed": "La otra cuenta es una suposición: es la única posible. Revísala.",
     "category_needs_review": "La categoría es una suposición.",
     "future_date": "Tiene fecha futura.",
     "zero_amount": "Su monto es $0.00.",

@@ -14,6 +14,7 @@ function reviewRow(overrides: Partial<ReviewRow> = {}): ReviewRow {
     transferAccountId: null,
     categoryId: 10,
     hasSplits: false,
+    guessedTransfer: false,
     ...overrides,
   }
 }
@@ -56,6 +57,16 @@ test.group('Importing / review', () => {
     )
     assert.isTrue(isAutoConfirmable(reviewRow({ resolution: 'ignored' })))
     assert.isFalse(isAutoConfirmable(reviewRow({ resolution: 'needs_confirmation' })))
+  })
+
+  test('test_a_guessed_transfer_destination_is_never_auto_confirmed', ({ assert }) => {
+    const guessed = reviewRow({
+      resolution: 'transfer_leg',
+      transferAccountId: 3,
+      guessedTransfer: true,
+    })
+    assert.equal(confirmActionFor(guessed), 'transfer', 'a person may still confirm it')
+    assert.isFalse(isAutoConfirmable(guessed))
   })
 
   test('test_reconcile_compares_bank_and_ledger_balances', ({ assert }) => {

@@ -37,13 +37,14 @@ export default class ImportContextLoader {
   async accounts(household: HouseholdRef): Promise<HouseholdAccount[]> {
     const accounts = await Account.query()
       .withScopes((scopes) => scopes.forHousehold(household))
-      .select('id', 'institution', 'kind', 'is_active')
+      .select('id', 'institution', 'kind', 'is_active', 'owner_user_id')
       .orderBy('id')
     return accounts.map((account) => ({
       id: account.id,
       institution: account.institution,
       kind: account.kind,
       isActive: account.isActive,
+      ownerUserId: account.ownerUserId,
     }))
   }
 

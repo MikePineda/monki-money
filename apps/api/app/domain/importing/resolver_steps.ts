@@ -78,7 +78,8 @@ export class ZeroAmountStep implements ResolverStep {
 /**
  * Internal transfers become `transfer_leg` when the other account is known
  * (opposite leg, rule, or the only possible account), else
- * `needs_confirmation` so the user picks it.
+ * `needs_confirmation` so the user picks it. A guessed account (the only
+ * possible one) is flagged for review and never auto-confirmed.
  * Each opposite leg is claimed by one row only.
  */
 export class TransferStep implements ResolverStep {
@@ -96,11 +97,17 @@ export class TransferStep implements ResolverStep {
       if (transfer.oppositeLeg) claimed.add(transfer.oppositeLeg)
 
       const known = transfer.counterpartAccountId !== null
+      const reason = !known
+        ? 'transfer_destination_unknown'
+        : transfer.guessed
+          ? 'transfer_destination_guessed'
+          : null
       return {
         ...resolved,
         transfer,
         resolution: known ? 'transfer_leg' : 'needs_confirmation',
-        reasons: known ? resolved.reasons : [...resolved.reasons, 'transfer_destination_unknown'],
+        needsReview: resolved.needsReview || (known && transfer.guessed),
+        reasons: reason ? [...resolved.reasons, reason] : resolved.reasons,
       }
     })
   }
