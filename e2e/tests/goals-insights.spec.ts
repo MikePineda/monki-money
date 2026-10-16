@@ -1,5 +1,6 @@
 import { GoalDetailPage, GoalFormPage, GoalsPage } from '../pages/goals.page.ts'
 import { MonthPage } from '../pages/month.page.ts'
+import { SettingsPage } from '../pages/settings.page.ts'
 import { expect, signUpOwner, test, xsrfToken } from '../support/fixtures.ts'
 
 /** The fake LLM's English fixture (apps/api tests/fixtures/llm/insight.json). */
@@ -13,8 +14,9 @@ test.describe('journey: savings goals and the monthly summary', () => {
     await signUpOwner(context)
 
     // More → Savings goals: nothing yet, one action.
-    await page.goto('/settings')
-    await page.getByTestId('settings.goals').click()
+    const settings = new SettingsPage(page)
+    await settings.goto()
+    await settings.goals.click()
     const goals = new GoalsPage(page)
     await goals.waitReady()
     await expect(goals.empty).toContainText('No savings goals yet')

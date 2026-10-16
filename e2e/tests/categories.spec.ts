@@ -1,4 +1,5 @@
 import { CategoriesPage } from '../pages/categories.page.ts'
+import { SettingsPage } from '../pages/settings.page.ts'
 import { expect, signUpOwner, test } from '../support/fixtures.ts'
 
 test.describe('journey 6: reorder categories', () => {
@@ -29,8 +30,9 @@ test.describe('journey 6: reorder categories', () => {
 
   test('categories are reachable from settings', async ({ page, context }) => {
     await signUpOwner(context)
-    await page.goto('/settings')
-    await page.getByTestId('settings.categories').click()
+    const settings = new SettingsPage(page)
+    await settings.goto()
+    await settings.categories.click()
 
     await expect(page).toHaveURL(/\/categories$/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Categories')

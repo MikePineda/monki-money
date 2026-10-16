@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import User from '#models/user'
+import Account from '#models/account'
 import { promisify } from 'node:util'
 import Household from '#models/household'
 import SavingsGoal from '#models/savings_goal'
@@ -7,7 +8,7 @@ import app from '@adonisjs/core/services/app'
 import { execFile } from 'node:child_process'
 import router from '@adonisjs/core/services/router'
 import { createHousehold } from '#tests/helpers/household'
-import { E2E_OWNER_EMAIL, E2E_PASSWORD } from '#services/e2e/e2e_seed'
+import { E2E_MEMBER_EMAIL, E2E_OWNER_EMAIL, E2E_PASSWORD } from '#services/e2e/e2e_seed'
 
 const run = promisify(execFile)
 
@@ -38,21 +39,35 @@ test.group('Test-support routes', () => {
   }).timeout(30_000)
 
   test('test_reset_wipes_the_database_and_seeds_the_e2e_household', async ({ client, assert }) => {
-    const leftover = await createHousehold({ name: 'Leftover' })
+    // The reset restarts every sequence, so the fresh rows may take the ids
+    // the leftovers had: the leftovers are looked up by what identifies them.
+    const leftover = await createHousehold({
+      name: 'Leftover',
+      accounts: [{ name: 'Leftover account' }],
+    })
 
     const response = await client.post('/api/test/reset')
 
     response.assertStatus(200)
-    assert.isNull(await Household.find(leftover.household.id))
-    const [household] = await Household.all()
-    assert.equal(household.name, 'E2E')
-    assert.deepInclude(response.body().data.users, {
-      email: E2E_OWNER_EMAIL,
-      password: E2E_PASSWORD,
-      role: 'owner',
-    })
-    const owner = await User.findByOrFail('email', E2E_OWNER_EMAIL)
-    assert.equal(owner.currentHouseholdId, household.id)
+    assert.isNull(await User.findBy('email', leftover.owner.email))
+    assert.isNull(await Account.findBy('name', 'Leftover account'))
+    const households = await Household.all()
+    assert.deepEqual(
+      households.map((household) => household.name),
+      ['E2E']
+    )
+    const [household] = households
+    assert.equal(response.body().data.householdId, household.id)
+    assert.sameDeepMembers(response.body().data.users, [
+      { email: E2E_OWNER_EMAIL, password: E2E_PASSWORD, role: 'owner' },
+      { email: E2E_MEMBER_EMAIL, password: E2E_PASSWORD, role: 'member' },
+    ])
+    for (const email of [E2E_OWNER_EMAIL, E2E_MEMBER_EMAIL]) {
+      const user = await User.findByOrFail('email', email)
+      assert.equal(user.currentHouseholdId, household.id)
+    }
+    const accounts = await Account.query().where('household_id', household.id)
+    assert.lengthOf(accounts, 4)
   })
 
   test('test_reset_seeds_a_sample_savings_goal', async ({ client, assert }) => {

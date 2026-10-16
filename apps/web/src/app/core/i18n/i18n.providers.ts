@@ -1,6 +1,4 @@
 import { registerLocaleData } from '@angular/common'
-import localeEnAu from '@angular/common/locales/en-AU'
-import localeEsMx from '@angular/common/locales/es-MX'
 import {
   inject,
   isDevMode,
@@ -22,15 +20,26 @@ export function provideAppLocale(): Provider {
 }
 
 /**
+ * Angular's locale data for both languages, from their own chunks: start-up
+ * waits for the first catalogue anyway, so loading them beside it keeps them
+ * out of the initial bundle without delaying the first screen.
+ */
+async function registerAppLocales(): Promise<void> {
+  const [enAu, esMx] = await Promise.all([
+    import('@angular/common/locales/en-AU'),
+    import('@angular/common/locales/es-MX'),
+  ])
+  registerLocaleData(enAu.default, localeFor('en'))
+  registerLocaleData(esMx.default, localeFor('es'))
+}
+
+/**
  * Transloco with ICU messages (plurals, select) through Intl, es/en
  * switchable at runtime, English by default and as the fallback. Locale data
- * is registered for Angular pipes that take a locale; app code formats
- * through domain/ with Intl.
+ * is registered before the first screen for Angular pipes that take a
+ * locale; app code formats through domain/ with Intl.
  */
 export function provideI18n(): EnvironmentProviders {
-  registerLocaleData(localeEnAu, localeFor('en'))
-  registerLocaleData(localeEsMx, localeFor('es'))
-
   return makeEnvironmentProviders([
     provideTransloco({
       config: {
@@ -45,6 +54,8 @@ export function provideI18n(): EnvironmentProviders {
     }),
     provideTranslocoTranspiler(IcuTranspiler),
     provideAppLocale(),
-    provideAppInitializer(() => inject(LangStore).init()),
+    provideAppInitializer(async () => {
+      await Promise.all([inject(LangStore).init(), registerAppLocales()])
+    }),
   ])
 }

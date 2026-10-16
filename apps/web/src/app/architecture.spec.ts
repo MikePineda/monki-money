@@ -52,6 +52,39 @@ function target(file: SourceFile, specifier: string): string {
     .join('/')
 }
 
+/** Value imports (not `import type`, not dynamic `import()`): what lands in the same chunk. */
+const STATIC_IMPORT = /^\s*(?:import|export)\s+(?!type\s)[^'"`;]*?from\s+['"]([^'"]+)['"]/gm
+
+/**
+ * Every app source reachable from the given entry points through static
+ * imports (the app code that ships in the initial bundle), with the static
+ * specifiers of each one.
+ */
+function staticClosure(entries: string[]): Map<string, string[]> {
+  const byRel = new Map(sources.map((file) => [file.rel, file]))
+  const seen = new Map<string, string[]>()
+  const queue = [...entries]
+  while (queue.length > 0) {
+    const rel = queue.pop() as string
+    const file = byRel.get(rel)
+    if (!file || seen.has(rel)) {
+      continue
+    }
+    const specifiers = [...readFileSync(file.path, 'utf8').matchAll(STATIC_IMPORT)].map(
+      (match) => match[1]
+    )
+    seen.set(rel, specifiers)
+    for (const specifier of specifiers.filter((s) => s.startsWith('.'))) {
+      const base = target(file, specifier)
+      queue.push(byRel.has(`${base}.ts`) ? `${base}.ts` : `${base}/index.ts`)
+    }
+  }
+  return seen
+}
+
+/** Entry points of the initial bundle inside src/app (src/main.ts imports only these). */
+const EAGER_ENTRIES = ['app.config.ts', 'app.ts']
+
 function violations(predicate: (file: SourceFile, specifier: string) => boolean): string[] {
   return sources.flatMap((file) =>
     file.imports
@@ -105,6 +138,26 @@ describe('architecture', () => {
       }
       return /^(shared\/charts|domain\/charts)\//.test(target(file, specifier))
     })
+    expect(bad).toEqual([])
+  })
+
+  it('test_the_initial_bundle_loads_the_offline_outbox_on_demand', () => {
+    // The outbox store drags the month store, the ledger API and the outbox
+    // domain with it: app start imports it dynamically, so only lazy chunks
+    // (the shell, quick add) carry it statically.
+    const eager = [...staticClosure(EAGER_ENTRIES).keys()]
+    expect(eager.length).toBeGreaterThan(5)
+    expect(eager.filter((rel) => /^(core\/outbox|core\/month)\//.test(rel))).toEqual([])
+  })
+
+  it('test_the_initial_bundle_loads_angular_locale_data_on_demand', () => {
+    // Locale data is registered while the first catalogue loads, from its
+    // own chunks; no static import may pull it back into the initial bundle.
+    const bad = [...staticClosure(EAGER_ENTRIES)].flatMap(([rel, specifiers]) =>
+      specifiers
+        .filter((specifier) => specifier.startsWith('@angular/common/locales/'))
+        .map((specifier) => `${rel} -> ${specifier}`)
+    )
     expect(bad).toEqual([])
   })
 
