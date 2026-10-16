@@ -107,6 +107,7 @@
     },
     "blocking": "{count, plural, one {# movimiento necesita una decisión antes de confirmar.} other {# movimientos necesitan una decisión antes de confirmar.}}",
     "showBlocking": "Ver",
+    "showAll": "Ver todas",
     "acceptAll": "Aceptar sugeridas ({count})",
     "confirm": "Confirmar importación",
     "cancelSheet": {

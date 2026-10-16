@@ -304,9 +304,9 @@ export class ImportReviewStore {
     } catch (error) {
       const code = errorPayload(error)['code']
       if (code === 'E_IMPORT_ROWS_UNDECIDED') {
-        // Someone else changed the batch meanwhile: show what still waits.
+        // Someone else changed the batch meanwhile: show only the rows confirm waits for.
         await this.load(id)
-        this.filter.set('doubtful')
+        this.filter.set('blocking')
         /** t(import.toast.undecided) */
         this.toasts.show({ messageKey: 'import.toast.undecided', status: 'warning' })
       } else {

@@ -112,6 +112,26 @@ describe('import row tones', () => {
     expect(rowState(row)).toMatchObject({ decided: true, categoryId: 21, categorySource: 'person' })
   })
 
+  it('test_confirmed_rows_are_shown_as_done_not_as_doubtful', () => {
+    const confirmedAt = '2026-10-15T00:00:00.000Z'
+
+    expect(toneOf(aRow({ suggestion: tentative(20), confirmedAt }))).toBe('auto')
+    expect(toneOf(aRow({ confirmedAt }))).toBe('auto')
+    expect(toneOf(aRow({ resolution: 'needs_confirmation', match: aMatch(), confirmedAt }))).toBe(
+      'auto'
+    )
+    expect(toneOf(aRow({ resolution: 'auto_matched', match: aMatch(), confirmedAt }))).toBe('auto')
+  })
+
+  it('test_a_confirmed_row_keeps_the_tone_of_what_happened_to_it', () => {
+    const confirmedAt = '2026-10-15T00:00:00.000Z'
+
+    expect(toneOf(aRow({ resolution: 'transfer_leg', confirmedAt }))).toBe('transfer')
+    expect(toneOf(aRow({ resolution: 'ignored', confirmedAt }))).toBe('ignored')
+    expect(toneOf(aRow({ resolution: 'superseded', confirmedAt }))).toBe('ignored')
+    expect(toneOf(aRow({ resolution: 'duplicate', confirmedAt }))).toBe('duplicate')
+  })
+
   it('test_split_lines_settle_a_row_without_a_category', () => {
     const row = aRow({
       decision: {
@@ -382,6 +402,41 @@ describe('summary and filters', () => {
     expect(filterRows(rows, 'doubtful').map((row) => row.id)).toEqual([3, 7])
     expect(filterRows(rows, 'new').map((row) => row.id)).toEqual([4])
     expect(filterRows(rows, 'ignored').map((row) => row.id)).toEqual([6])
+  })
+
+  it('test_blocking_filter_lists_only_rows_that_block_the_confirm', () => {
+    const mixed = [
+      ...rows,
+      aRow({ id: 8, resolution: 'transfer_leg' }),
+      aRow({ id: 9, resolution: 'needs_confirmation', confirmedAt: '2026-10-15T00:00:00.000Z' }),
+    ]
+
+    expect(filterRows(mixed, 'blocking').map((row) => row.id)).toEqual([7, 8])
+    expect(filterRows(mixed, 'blocking').map((row) => row.id)).toEqual(blockingRowIds(mixed))
+  })
+
+  it('test_a_batch_partly_confirmed_elsewhere_only_counts_its_open_rows_as_work', () => {
+    const confirmedAt = '2026-10-15T00:00:00.000Z'
+    const partly = [
+      aRow({ id: 1, suggestion: trusted(20), confirmedAt }),
+      aRow({ id: 2, suggestion: tentative(21), confirmedAt }),
+      aRow({ id: 3, suggestion: tentative(22), confirmedAt }),
+      aRow({ id: 4, resolution: 'transfer_leg', confirmedAt }),
+      aRow({ id: 5, resolution: 'ignored', confirmedAt }),
+      aRow({ id: 6, resolution: 'needs_confirmation', match: aMatch(901) }),
+      aRow({ id: 7, resolution: 'needs_confirmation' }),
+    ]
+
+    expect(summary(partly)).toMatchObject({
+      auto: 3,
+      doubtful: 2,
+      new: 0,
+      transfer: 1,
+      ignored: 1,
+      blocking: 2,
+      acceptable: 1,
+    })
+    expect(filterRows(partly, 'doubtful').map((row) => row.id)).toEqual([6, 7])
   })
 })
 

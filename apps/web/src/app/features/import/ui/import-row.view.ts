@@ -1,6 +1,12 @@
 import type { ImportRow } from '../../../core/api/api-types'
 import { formatWeekdayDate } from '../../../domain/dates'
-import { acceptChange, rowState, rowTitle, type ReviewTone } from '../../../domain/import-row'
+import {
+  acceptChange,
+  allowedActions,
+  rowState,
+  rowTitle,
+  type ReviewTone,
+} from '../../../domain/import-row'
 import { formatTransactionAmount, type TransactionKind } from '../../../domain/money'
 import type { IconName } from '../../../shared/icons/icon-names'
 import type { Person } from '../../../shared/ui/person-dot/person-dot.component'
@@ -24,7 +30,7 @@ export interface ImportRowView {
   status: { icon: IconName; label: string; iconClass: string }
   /** A doubtful row's suggestion, offered inline with "Accept" ("Groceries ?"). */
   suggestion: string | null
-  /** The row can be ticked for a bulk action. */
+  /** The row can be ticked for a bulk action (never once confirmed, masked or a duplicate). */
   selectable: boolean
   checkLabel: string
 }
@@ -178,7 +184,8 @@ export function importRowView(row: ImportRow, context: ImportRowContext): Import
       iconClass: STATUS_CLASS[tone],
     },
     suggestion,
-    selectable: !row.isMasked && tone !== 'ignored' && tone !== 'duplicate',
+    // Only rows a bulk action can still change: a confirmed row offers no checkbox.
+    selectable: tone !== 'ignored' && allowedActions(row).size > 0,
     checkLabel: context.labels.select(title, amountText),
   }
 }
