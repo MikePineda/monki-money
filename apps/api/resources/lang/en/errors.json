@@ -26,6 +26,7 @@
   "E_LLM_UNAVAILABLE": "AI suggestions are unavailable right now. Try again later",
   "E_CONFLICT": "This already exists. Reload and try again",
   "E_TRANSFER_LEG": "This movement is part of a transfer. Edit or delete the transfer instead",
+  "E_PAYSLIP_LINE": "This movement is part of a payslip. Delete the payslip and record it again",
   "E_TRANSACTION_PRIVATE": "This transaction is private",
   "E_INSIGHTS_UNAVAILABLE": "Monthly summaries are not available right now. Try again later",
   "E_CSV_TOO_LARGE": "The file is larger than 2 MB. Export a shorter period",

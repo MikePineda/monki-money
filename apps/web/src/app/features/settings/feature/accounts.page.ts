@@ -69,7 +69,8 @@ interface AccountRow {
  * edit (opening balance and its date included), archive (and restore),
  * owner (you, the partner or joint) and, on joint accounts, the cards each
  * person carries (so imports know who paid). A save shows the balance the
- * API answers with, so a new opening balance moves it at once.
+ * API answers with, so a new opening balance moves it at once. A wallet
+ * account (an umbrella service's) links to its payslips.
  */
 @Component({
   selector: 'app-accounts-page',
@@ -132,6 +133,15 @@ interface AccountRow {
               </span>
               <app-icon name="pencil" class="shrink-0 text-ink-2" />
             </button>
+            @if (row.account.kind === 'wallet') {
+              <a
+                appSettingsRow
+                data-testid="accounts.payslips"
+                [routerLink]="['/settings/accounts', row.account.id, 'payslips']"
+              >
+                {{ 'settings.accounts.payslips' | transloco }}
+              </a>
+            }
             @if (row.account.isJoint) {
               @for (item of row.cards; track item.card.id) {
                 <div class="flex h-12 items-center gap-2 border-t border-line pr-1 pl-4">

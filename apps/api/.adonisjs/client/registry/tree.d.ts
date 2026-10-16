@@ -93,6 +93,12 @@ export interface ApiDefinition {
     update: typeof routes['transfers.update']
     destroy: typeof routes['transfers.destroy']
   }
+  payslips: {
+    index: typeof routes['payslips.index']
+    store: typeof routes['payslips.store']
+    candidates: typeof routes['payslips.candidates']
+    destroy: typeof routes['payslips.destroy']
+  }
   reports: {
     month: typeof routes['reports.month']
     trend: typeof routes['reports.trend']

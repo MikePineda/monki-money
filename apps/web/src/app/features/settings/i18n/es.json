@@ -111,7 +111,8 @@
       "holder": "Quién la usa",
       "add": "Agregar tarjeta",
       "remove": "Quitar tarjeta"
-    }
+    },
+    "payslips": "Recibos de pago"
   },
   "upgrade": {
     "row": "Planes",

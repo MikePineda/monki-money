@@ -70,8 +70,9 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/feature/password.page'),
       },
       {
+        // The accounts list and each account's payslips.
         path: 'settings/accounts',
-        loadComponent: () => import('./features/settings/feature/accounts.page'),
+        loadChildren: () => import('./routes/accounts.routes'),
       },
       {
         path: 'settings/rules',

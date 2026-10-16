@@ -1,0 +1,76 @@
+{
+  "title": "Recibos de pago",
+  "back": "Atrás",
+  "add": "Nuevo recibo",
+  "loading": "Cargando recibos",
+  "editHint": "Para cambiar un recibo, bórralo y captúralo de nuevo.",
+  "error": {
+    "title": "No se cargaron los recibos",
+    "body": "Revisa tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar"
+  },
+  "empty": {
+    "title": "Aún no hay recibos",
+    "body": "Captura cada pago con su bruto, el impuesto retenido y la comisión del servicio, ligado a la transferencia a tu banco.",
+    "action": "Capturar un recibo"
+  },
+  "card": {
+    "gross": "Bruto",
+    "deductions": "Deducciones",
+    "net": "Neto",
+    "to": "A {account}",
+    "unlinked": "Sin transferencia ligada",
+    "joint": "Compartido",
+    "you": "Tú",
+    "noCategory": "Sin categoría",
+    "private": "Privado",
+    "delete": "Borrar el recibo del {date}"
+  },
+  "delete": {
+    "title": "¿Borrar este recibo?",
+    "body": "Su bruto y sus deducciones salen de tus movimientos. La transferencia a tu banco se queda, lista para ligarla otra vez.",
+    "confirm": "Borrar recibo",
+    "cancel": "Conservarlo"
+  },
+  "deleted": "Recibo borrado",
+  "saved": "Recibo guardado",
+  "form": {
+    "newTitle": "Nuevo recibo",
+    "payout": "Transferencia a tu banco",
+    "payoutHint": "El movimiento que sacó el neto de esta cuenta.",
+    "candidate": "{date} · {amount} · a {account}",
+    "noCandidates": "Ninguna transferencia de esta cuenta espera un recibo.",
+    "later": "Aún sin transferencia",
+    "laterHint": "También se registra una transferencia del neto a la cuenta que elijas.",
+    "toAccount": "Cuenta de destino",
+    "chooseAccount": "Elige una cuenta",
+    "net": "Neto recibido",
+    "gross": "Monto bruto",
+    "tax": "Impuesto retenido",
+    "fee": "Comisión del servicio",
+    "feeHint": "Lo que queda: bruto menos impuesto menos neto.",
+    "extra": "Otra deducción",
+    "addLine": "Agregar otra deducción",
+    "removeLine": "Quitar esta deducción",
+    "chooseCategory": "Elige una categoría",
+    "lineMemo": "Nota de esta deducción",
+    "person": "Quién lo ganó",
+    "you": "Tú",
+    "joint": "Compartido",
+    "date": "Fecha",
+    "memo": "Nota",
+    "optional": "Opcional",
+    "amountHint": "Toca para escribir el monto",
+    "save": "Guardar recibo",
+    "problems": {
+      "transferId": "Elige la transferencia, o Aún sin transferencia",
+      "toAccountId": "Elige a dónde fue el neto",
+      "netCents": "Escribe lo que llegó al banco",
+      "grossCents": "Escribe el monto bruto",
+      "deductions": "Las deducciones son más que el bruto menos el neto",
+      "taxCategory": "Elige una categoría para el impuesto",
+      "feeCategory": "Elige una categoría para la comisión",
+      "extra": "Escribe un monto y una categoría, o quita la línea"
+    }
+  }
+}

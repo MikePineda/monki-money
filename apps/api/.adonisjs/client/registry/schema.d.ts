@@ -691,6 +691,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfers_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'payslips.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/payslips'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/payslips').listPayslipsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'payslips.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/payslips'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/payslips').createPayslipValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/payslips').createPayslipValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'payslips.candidates': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/payslips/candidates'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/payslips').payslipCandidatesValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['candidates']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['candidates']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'payslips.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/payslips/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/payslips').payslipParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/payslips').payslipParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/payslips_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'reports.month': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/reports/month'

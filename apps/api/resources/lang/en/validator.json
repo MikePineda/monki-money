@@ -76,7 +76,10 @@
       "contentType": "file type",
       "byteSize": "file size",
       "key": "photo",
-      "source": "origin"
+      "source": "origin",
+      "grossCents": "gross amount",
+      "deductions": "deductions",
+      "transferId": "transfer"
     },
     "messages": {
       "required": "Enter the {field}",
@@ -118,6 +121,13 @@
       "categoryId.split": "A split transaction takes its categories from its lines",
       "amountCents.splitSum": "Change the split lines together with the amount",
       "toAccountId.sameAccount": "Choose two different accounts",
+      "deductions.exceedsGross": "The deductions must be less than the gross amount",
+      "deductions.netMismatch": "The gross minus the deductions must equal the amount that reached the bank",
+      "transferId.required": "Choose the transfer that took the money to the bank, or a destination account",
+      "transferId.linked": "This transfer already belongs to another payslip",
+      "transferId.wrongAccount": "Choose a transfer that leaves this account",
+      "toAccountId.exclusive": "Choose an existing transfer or a destination account, not both",
+      "expenseCategory": "Choose an expense category for this deduction",
       "month.future": "This month has not started yet",
       "month.noActivity": "There is no income or spending in this month yet",
       "file.required": "Choose the CSV file exported from your bank",

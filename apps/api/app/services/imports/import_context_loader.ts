@@ -152,7 +152,8 @@ export default class ImportContextLoader {
    * Movements in the household's other accounts that may be the other side
    * of a transfer: standalone expenses/income (a row already linked to a
    * transfer has its other leg). Another member's private row is never
-   * offered: turning it into a leg would expose and rewrite it.
+   * offered: turning it into a leg would expose and rewrite it. Neither is a
+   * payslip's row: its amount belongs to the payslip.
    */
   protected async ledgerLegs(
     household: HouseholdRef,
@@ -164,6 +165,7 @@ export default class ImportContextLoader {
       .where('household_id', householdIdOf(household))
       .whereNot('account_id', accountId)
       .whereNot('kind', 'transfer')
+      .whereNull('payslip_id')
       .where((visible) =>
         visible
           .where('is_private', false)

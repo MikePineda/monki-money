@@ -348,6 +348,30 @@ const routes = {
     tokens: [{"old":"/api/v1/transfers/:id","type":0,"val":"api","end":""},{"old":"/api/v1/transfers/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/transfers/:id","type":0,"val":"transfers","end":""},{"old":"/api/v1/transfers/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['transfers.destroy']['types'],
   },
+  'payslips.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/payslips',
+    tokens: [{"old":"/api/v1/payslips","type":0,"val":"api","end":""},{"old":"/api/v1/payslips","type":0,"val":"v1","end":""},{"old":"/api/v1/payslips","type":0,"val":"payslips","end":""}],
+    types: placeholder as Registry['payslips.index']['types'],
+  },
+  'payslips.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/payslips',
+    tokens: [{"old":"/api/v1/payslips","type":0,"val":"api","end":""},{"old":"/api/v1/payslips","type":0,"val":"v1","end":""},{"old":"/api/v1/payslips","type":0,"val":"payslips","end":""}],
+    types: placeholder as Registry['payslips.store']['types'],
+  },
+  'payslips.candidates': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/payslips/candidates',
+    tokens: [{"old":"/api/v1/payslips/candidates","type":0,"val":"api","end":""},{"old":"/api/v1/payslips/candidates","type":0,"val":"v1","end":""},{"old":"/api/v1/payslips/candidates","type":0,"val":"payslips","end":""},{"old":"/api/v1/payslips/candidates","type":0,"val":"candidates","end":""}],
+    types: placeholder as Registry['payslips.candidates']['types'],
+  },
+  'payslips.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/payslips/:id',
+    tokens: [{"old":"/api/v1/payslips/:id","type":0,"val":"api","end":""},{"old":"/api/v1/payslips/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/payslips/:id","type":0,"val":"payslips","end":""},{"old":"/api/v1/payslips/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['payslips.destroy']['types'],
+  },
   'reports.month': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/reports/month',
