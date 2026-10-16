@@ -3,7 +3,6 @@ import { TestBed } from '@angular/core/testing'
 import type { Mock } from 'vitest'
 import { aRule } from '../../../testing/import-fixtures'
 import { httpError } from '../../../testing/session-fixtures'
-import type { MerchantRule } from '../../core/api/api-types'
 import { HouseholdDirectory } from '../../core/household/household-directory.store'
 import { MonthStore } from '../../core/month/month.store'
 import { ToastStore } from '../../core/ui/toast.store'
@@ -127,22 +126,20 @@ describe('RulesStore', () => {
     ])
   })
 
-  it('test_a_new_rule_the_api_answers_without_counters_reads_as_never_matched', async () => {
+  it('test_a_new_rule_is_listed_exactly_as_the_api_answered_it', async () => {
     const store = await setup()
-    // POST /rules answers before the database defaults are read back.
-    api.create.mockImplementationOnce(async (body: Record<string, unknown>) => {
-      const rule: Partial<MerchantRule> = aRule({ id: 7, ...body })
-      delete rule.hitCount
-      delete rule.lastHitAt
-      return rule
+    // POST /rules answers with the full rule, counters included (never matched yet).
+    const answered = aRule({ id: 7, pattern: 'freshco', hitCount: 0, lastHitAt: null })
+    api.create.mockResolvedValueOnce(answered)
+
+    const saved = await store.save(null, {
+      ...EMPTY_RULE_DRAFT,
+      pattern: 'freshco',
+      categoryId: 20,
     })
 
-    await store.save(null, { ...EMPTY_RULE_DRAFT, pattern: 'freshco', categoryId: 20 })
-
-    const [created] = store.rules()
-    expect(created?.id).toBe(7)
-    expect(created?.hitCount).toBe(0)
-    expect(created?.lastHitAt).toBeNull()
+    expect(saved).toBe(answered)
+    expect(store.rules()[0]).toBe(answered)
   })
 
   it('test_a_saved_rule_offers_to_apply_it_to_the_movements_in_review', async () => {
