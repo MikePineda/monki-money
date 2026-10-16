@@ -232,6 +232,25 @@ test.group('Merchant rules', (group) => {
     assert.isNull(await MerchantRule.find(created.body().data.id))
   })
 
+  test('test_a_created_rule_is_returned_with_its_counters', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const gym = await categoryBySlug(home.household.id, 'gym')
+
+    const created = await client
+      .post('/api/v1/rules')
+      .json({ matchType: 'contains', pattern: 'FITBOX', categoryId: gym.id })
+      .actingAs(home.owner)
+
+    created.assertStatus(201)
+    const rule = created.body().data
+    assert.strictEqual(rule.hitCount, 0)
+    assert.isNull(rule.lastHitAt)
+    // Serialized exactly like its row in GET /rules (same keys, same values).
+    const index = await client.get('/api/v1/rules').actingAs(home.owner)
+    const listed = index.body().data.find((item: { id: number }) => item.id === rule.id)
+    assert.deepEqual(rule, listed)
+  })
+
   test('test_rule_apply_recategorizes_history', async ({ client, assert }) => {
     const home = await importedSample(client)
     const personalCare = await categoryBySlug(home.household.id, 'personal-care')

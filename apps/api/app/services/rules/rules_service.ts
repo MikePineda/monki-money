@@ -53,8 +53,9 @@ export default class RulesService {
     input: RuleInput & { matchType: RuleMatchType; pattern: string }
   ) {
     const values = await this.validated(household, null, input)
+    let rule: MerchantRule
     try {
-      return await MerchantRule.create({
+      rule = await MerchantRule.create({
         ...values,
         householdId: household.id,
         origin: 'user',
@@ -64,6 +65,10 @@ export default class RulesService {
       if (isUniqueViolationOn(error, PATTERN_CONSTRAINT)) throw new FieldError('pattern', 'taken')
       throw error
     }
+    // The insert returns only the id: read back the columns the database
+    // defaults (`hit_count`, `last_hit_at`) so the rule serializes like a listed one.
+    await rule.refresh()
+    return rule
   }
 
   async update(household: Household, ruleId: number, input: RuleInput) {
