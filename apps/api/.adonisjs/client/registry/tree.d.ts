@@ -31,6 +31,10 @@ export interface ApiDefinition {
   }
   me: {
     update: typeof routes['me.update']
+    notifications: {
+      show: typeof routes['me.notifications.show']
+      update: typeof routes['me.notifications.update']
+    }
   }
   households: {
     store: typeof routes['households.store']
@@ -145,5 +149,11 @@ export interface ApiDefinition {
   }
   receipts: {
     scan: typeof routes['receipts.scan']
+  }
+  push: {
+    subscriptions: {
+      store: typeof routes['push.subscriptions.store']
+      destroy: typeof routes['push.subscriptions.destroy']
+    }
   }
 }

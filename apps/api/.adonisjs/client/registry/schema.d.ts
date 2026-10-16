@@ -199,6 +199,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'me.notifications.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/me/notifications'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/notification_settings_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/notification_settings_controller').default['show']>>>
+    }
+  }
+  'me.notifications.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/me/notifications'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/push').updateNotificationSettingsValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/push').updateNotificationSettingsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/notification_settings_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/notification_settings_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'households.store': {
     methods: ["POST"]
     pattern: '/api/v1/households'
@@ -1085,6 +1109,30 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/receipts').scanReceiptValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'push.subscriptions.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/push/subscriptions'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/push').storePushSubscriptionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/push').storePushSubscriptionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'push.subscriptions.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/push/subscriptions'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/push').destroyPushSubscriptionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/push').destroyPushSubscriptionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
 }

@@ -44,5 +44,19 @@
   },
   "insights": {
     "uncategorized": "Sin categoría"
+  },
+  "push": {
+    "summaryReady": {
+      "title": "Tu resumen de {month} está listo",
+      "body": "Mira en un minuto cómo te fue en {month}."
+    },
+    "dailyReminder": {
+      "title": "¿Registraste algo hoy?",
+      "body": "Un registro rápido ahora mantiene el mes al día."
+    },
+    "test": {
+      "title": "Las notificaciones funcionan",
+      "body": "Esta es una prueba de monkimoney."
+    }
   }
 }

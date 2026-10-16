@@ -133,5 +133,15 @@ export default {
         origin: shared('RuleOrigin'),
       },
     },
+    push_subscriptions: {
+      columns: {
+        // The naming strategy would look for `p_256_dh`.
+        p256dh: {
+          tsType: 'string',
+          imports: [],
+          decorators: [{ name: '@column', args: { columnName: 'p256dh' } }],
+        },
+      },
+    },
   },
 } satisfies SchemaRules

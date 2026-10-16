@@ -87,6 +87,12 @@ router
               .as('auth')
 
             router.patch('me', [controllers.Profile, 'update']).as('me.update')
+            router
+              .get('me/notifications', [controllers.NotificationSettings, 'show'])
+              .as('me.notifications.show')
+            router
+              .patch('me/notifications', [controllers.NotificationSettings, 'update'])
+              .as('me.notifications.update')
           })
           .use(authenticated())
 
@@ -364,6 +370,23 @@ router
               .post('receipts/scan', [controllers.Receipts, 'scan'])
               .as('receipts.scan')
               .use(receiptScansThrottle)
+
+            /*
+             * Web Push: this device's subscription, by endpoint in the body
+             * (a capability URL: never in the path). Someone else's endpoint
+             * answers 404, like an `:id`.
+             */
+            router
+              .group(() => {
+                router
+                  .post('subscriptions', [controllers.PushSubscriptions, 'store'])
+                  .as('subscriptions.store')
+                router
+                  .delete('subscriptions', [controllers.PushSubscriptions, 'destroy'])
+                  .as('subscriptions.destroy')
+              })
+              .prefix('push')
+              .as('push')
           })
           .use(inHousehold())
       })
