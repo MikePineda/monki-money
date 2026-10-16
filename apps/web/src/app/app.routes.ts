@@ -147,6 +147,8 @@ export const routes: Routes = [
       {
         path: 'household/new',
         canActivate: [authGuard, verifiedGuard, noHouseholdGuard],
+        // Its form asks for the language: no second switch in the header.
+        data: { languageSwitch: false },
         loadComponent: () => import('./features/onboarding/feature/create-household.page'),
       },
       // The old "no household" screen: links and installed apps may still open it.
