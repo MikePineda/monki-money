@@ -104,7 +104,9 @@ The full, commented list is `apps/api/.env.example`. Production specifics:
 `LIMITER_STORE=database`, `REGISTRATION_OPEN=false`, `DRIVE_DISK`, `S3_*`,
 `LLM_*`, `MAIL_DRIVER`, `RESEND_API_KEY`, `MAIL_FROM`, `SENTRY_DSN`,
 `SENTRY_DSN_WEB`, `APP_DEFAULT_LOCALE` (optional, `en`), `SCHEDULER` (optional,
-empty = on, `off` stops the monthly insights schedule), `MIGRATE_ON_START=true`,
+empty = on, `off` stops the monthly insights schedule and the push
+notifications), `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` + `VAPID_SUBJECT`
+(optional, see "Push notifications"), `MIGRATE_ON_START=true`,
 `SEED_USERS` (first deploy only), `SEED_HOUSEHOLD_NAME`, `SEED_LOCALE`,
 `SEED_USER1_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
 `SEED_USER2_EMAIL`/`_NAME`/`_PASSWORD`/`_CARD_SUFFIX`,
@@ -166,9 +168,11 @@ S3 prefix, audit line).
 
 ## Secret rotation
 
-`APP_KEY` (invalidates every session), `DB_PASSWORD` (`postgres-changePassword`),
-R2 token, `LLM_API_KEY`, `RESEND_API_KEY`, Dokploy API key, `SMOKE_PASSWORD`,
-the Cloudflare origin certificate (before it expires).
+`APP_KEY` (invalidates every session, and the stored VAPID private key: rotate
+the push keys right after, see "Push notifications"), `DB_PASSWORD`
+(`postgres-changePassword`), R2 token, `LLM_API_KEY`, `RESEND_API_KEY`, Dokploy
+API key, `SMOKE_PASSWORD`, the Cloudflare origin certificate (before it
+expires).
 
 ## Certificate and Cloudflare
 
@@ -334,6 +338,81 @@ ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | 
 ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney -c "
   SELECT job, period_key, household_id, attempts, outcome, error, started_at, finished_at
   FROM scheduler_runs ORDER BY started_at DESC LIMIT 20;"'
+```
+
+## Push notifications
+
+**What is sent.** Two Web Push notifications, both from the in-process
+scheduler (production only, `SCHEDULER=off` stops them with the insights):
+
+- **Summary ready** (`summary-ready-push`): in the tick that writes last
+  month's summary (one written by `node ace insights:generate` at the next
+  tick), every member with the switch on (the default) and a device gets
+  "Your September summary is ready" in their own language, opening that
+  month. Once per person and
+  month (`scheduler_runs`, job + month + household + person), so a
+  regenerated summary is never announced twice; a summary someone tapped is
+  never announced. `monthly_insights.notified_at` marks the summary as told
+  once nobody's push is left to retry; summaries older than a day are never
+  announced.
+- **Daily reminder** (`daily-reminder`, opt-in): once the household's local
+  time passes the person's reminder time (20:00 by default) the local day
+  is claimed (period key `YYYY-MM-DD`, per person) and "Did you log anything
+  today?" goes out only when the person created nothing that day (quick
+  add, receipt, import, transfer); otherwise the day is recorded as
+  `skipped:logged-today`. No amounts, merchants or names in any payload.
+
+A push no device accepted is retried an hour later, 3 attempts at most (the
+scheduler's rule); a 404/410 from the push service deletes that subscription,
+any other failure adds one to `push_subscriptions.failures`. iPhone and iPad
+only receive pushes in the installed app (iOS 16.4+); each person turns
+notifications on per device in Settings → Notifications.
+
+**Keys.** Nothing to configure. On the first `GET /api/v1/config` the app
+generates a VAPID key pair with `web-push` and stores it in `app_settings`
+(`vapid_public_key` in clear, `vapid_private_key` encrypted with `APP_KEY`
+through the app's encryption service); every container then reads the same
+pair (two racing on the first boot converge on one). The subject is
+`VAPID_SUBJECT` or `APP_URL` (https). To pin a pair of your own, set
+`VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (both or neither, URL-safe base64:
+`npx web-push generate-vapid-keys`) in the Dokploy environment; env keys win
+over the stored ones.
+
+**Rotating the stored keys** (after an `APP_KEY` rotation, which makes the
+stored private key unreadable: `GET /config` then answers
+`vapidPublicKey: null` and the log says `push: no VAPID key pair, push is
+unavailable`; or to replace a pair). Subscriptions are bound to the key they
+were made with, so drop them too; each device subscribes again by itself the
+next time its person opens Settings (the web notices the new key):
+
+```bash
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney' <<'SQL'
+DELETE FROM app_settings WHERE key IN ('vapid_public_key', 'vapid_private_key');
+DELETE FROM push_subscriptions;
+SQL
+# Then reload the service (application-reload): each process caches the pair.
+```
+
+**Test a push by hand.** Sends "Notifications work" (opening Settings) to
+every device the user registered in their current household, through the
+real push services; one line per device (`sent`, `gone (410), subscription
+deleted`, `failed (...)`), exit code 1 when no device got it. It ignores the
+person's switches and the scheduler. User ids are in `users`.
+
+```bash
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace push:test --user 12'
+```
+
+**Last runs and devices:**
+
+```bash
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney' <<'SQL'
+SELECT job, period_key, household_id, user_id, attempts, outcome, error, finished_at
+  FROM scheduler_runs WHERE job IN ('summary-ready-push', 'daily-reminder')
+  ORDER BY started_at DESC LIMIT 20;
+SELECT id, household_id, user_id, user_agent, failures, last_used_at
+  FROM push_subscriptions ORDER BY id;
+SQL
 ```
 
 ## Receipts storage
