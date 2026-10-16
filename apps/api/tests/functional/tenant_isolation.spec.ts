@@ -44,6 +44,8 @@ interface Victim {
   batch: ImportBatch
   row: ImportRow
   rule: MerchantRule
+  /** One of the bank defaults seeded with the taxonomy (`origin = 'system'`). */
+  systemRule: MerchantRule
   /** An uploaded receipt photo, still in (fake) storage. */
   receiptKey: string
 }
@@ -223,6 +225,13 @@ const cases: IsolationCase[] = [
     url: (v) => `/api/v1/rules/${v.rule.id}`,
     body: { pattern: 'HIJACKED' },
   },
+  {
+    // A bank default: the 404 comes before its pattern lock (a 422 would leak the id).
+    route: 'rules.update',
+    method: 'patch',
+    url: (v) => `/api/v1/rules/${v.systemRule.id}`,
+    body: { pattern: 'HIJACKED' },
+  },
   { route: 'rules.destroy', method: 'delete', url: (v) => `/api/v1/rules/${v.rule.id}` },
   { route: 'rules.apply', method: 'post', url: (v) => `/api/v1/rules/${v.rule.id}/apply` },
   {
@@ -361,6 +370,11 @@ async function victimHousehold(): Promise<Victim> {
     categoryId: category.id,
     origin: 'user',
   })
+  const systemRule = await MerchantRule.query()
+    .where('household_id', household.household.id)
+    .where('origin', 'system')
+    .orderBy('id')
+    .firstOrFail()
   return {
     household,
     account,
@@ -376,6 +390,7 @@ async function victimHousehold(): Promise<Victim> {
     batch,
     row,
     rule,
+    systemRule,
     receiptKey: receiptKey(household.household.id, randomUUID(), 'image/jpeg'),
   }
 }
@@ -446,6 +461,9 @@ test.group('Tenant isolation', () => {
       assert.isNull(victim.row.decision)
       await victim.rule.refresh()
       assert.equal(victim.rule.pattern, 'VICTIM')
+      const { pattern, origin } = victim.systemRule
+      await victim.systemRule.refresh()
+      assert.include(victim.systemRule.serialize(), { pattern, origin })
       assert.isTrue(storage.has(victim.receiptKey), 'the photo was neither read nor deleted')
       assert.deepEqual(storage.deleted, [])
     })

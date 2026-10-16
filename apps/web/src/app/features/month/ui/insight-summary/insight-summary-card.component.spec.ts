@@ -12,6 +12,8 @@ import { APP_LOCALE } from '../../../../shared/ui/app-locale.token'
 import { SelectSheetHarness } from '../../../../shared/ui/select-sheet/select-sheet.harness'
 import { InsightsApi } from '../../data-access/insights.api'
 import { InsightSummaryCardComponent } from './insight-summary-card.component'
+import insightsEn from './i18n/en.json'
+import insightsEs from './i18n/es.json'
 
 const OCT = '2026-10' as YearMonth
 const HOUR = 3_600_000
@@ -19,6 +21,12 @@ const HOUR = 3_600_000
 const SETTLED_STATES = ['missing', 'headline', 'quiet', 'error']
   .map((state) => `[data-testid="month.summary.${state}"]`)
   .join(', ')
+/**
+ * The card's own scope catalogues, served by the testing loader. Preloaded
+ * before the first render, so the component's lazy `import()` of its
+ * catalogue never runs: copy is there from the first frame in every language.
+ */
+const INSIGHTS_SCOPES = { 'insights/en': insightsEn, 'insights/es': insightsEs }
 
 describe('InsightSummaryCardComponent', () => {
   let api: { show: ReturnType<typeof vi.fn>; generate: ReturnType<typeof vi.fn> }
@@ -36,7 +44,7 @@ describe('InsightSummaryCardComponent', () => {
       ),
     }
     TestBed.configureTestingModule({
-      imports: [i18nTesting({ lang })],
+      imports: [i18nTesting({ lang, scopes: INSIGHTS_SCOPES })],
       providers: [
         i18nTestingProviders(),
         { provide: InsightsApi, useValue: api },
@@ -59,12 +67,17 @@ describe('InsightSummaryCardComponent', () => {
     return { fixture, root }
   }
 
-  /** Waits for the scope catalogue and the store's first answer. */
+  /**
+   * Waits for the store's first answer. The copy is translated from the
+   * first frame (INSIGHTS_SCOPES): the eyebrow must read as text, never as
+   * an empty string (a catalogue still loading) or a raw key (a missing one).
+   */
   async function settle(
     fixture: { whenStable(): Promise<unknown> },
     root: HTMLElement
   ): Promise<void> {
     await vi.waitFor(() => {
+      expect(text(root, '[data-testid="month.summary"] p')).not.toBe('')
       expect(root.textContent).not.toMatch(/insights\./)
       expect(root.querySelector(SETTLED_STATES)).not.toBeNull()
     })

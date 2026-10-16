@@ -232,6 +232,120 @@ test.group('Merchant rules', (group) => {
     assert.isNull(await MerchantRule.find(created.body().data.id))
   })
 
+  test('test_a_created_rule_is_returned_with_its_counters', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const gym = await categoryBySlug(home.household.id, 'gym')
+
+    const created = await client
+      .post('/api/v1/rules')
+      .json({ matchType: 'contains', pattern: 'FITBOX', categoryId: gym.id })
+      .actingAs(home.owner)
+
+    created.assertStatus(201)
+    const rule = created.body().data
+    assert.strictEqual(rule.hitCount, 0)
+    assert.isNull(rule.lastHitAt)
+    // Serialized exactly like its row in GET /rules (same keys, same values).
+    const index = await client.get('/api/v1/rules').actingAs(home.owner)
+    const listed = index.body().data.find((item: { id: number }) => item.id === rule.id)
+    assert.deepEqual(rule, listed)
+  })
+
+  test('test_editing_a_system_rule_keeps_its_origin', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const gym = await categoryBySlug(home.household.id, 'gym')
+    const kmart = await MerchantRule.query()
+      .where('household_id', home.household.id)
+      .where('pattern', 'KMART')
+      .firstOrFail()
+    assert.equal(kmart.origin, 'system')
+
+    const edited = await client
+      .patch(`/api/v1/rules/${kmart.id}`)
+      .json({
+        // Sending the unchanged match type and pattern back is not a change.
+        matchType: 'contains',
+        pattern: ' KMART ',
+        categoryId: gym.id,
+        paidByUserId: home.member.id,
+        payeeOverride: 'Kmart',
+        priority: 7,
+      })
+      .actingAs(home.owner)
+
+    edited.assertStatus(200)
+    edited.assertBodyContains({
+      data: {
+        matchType: 'contains',
+        pattern: 'KMART',
+        categoryId: gym.id,
+        paidByUserId: home.member.id,
+        payeeOverride: 'Kmart',
+        priority: 7,
+        origin: 'system',
+      },
+    })
+    await kmart.refresh()
+    assert.equal(kmart.origin, 'system')
+
+    // A rule the importer learned becomes the person's once they edit it.
+    const learned = await MerchantRule.create({
+      householdId: home.household.id,
+      matchType: 'merchant',
+      pattern: 'fitbox gym',
+      categoryId: gym.id,
+      origin: 'learned',
+    })
+    const owned = await client
+      .patch(`/api/v1/rules/${learned.id}`)
+      .json({ priority: 3 })
+      .actingAs(home.owner)
+    owned.assertStatus(200)
+    owned.assertBodyContains({ data: { origin: 'user' } })
+  })
+
+  test('test_a_system_rule_pattern_cannot_be_changed', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const kmart = await MerchantRule.query()
+      .where('household_id', home.household.id)
+      .where('pattern', 'KMART')
+      .firstOrFail()
+
+    const pattern = await client
+      .patch(`/api/v1/rules/${kmart.id}`)
+      .json({ pattern: 'KMART AUSTRALIA' })
+      .actingAs(home.owner)
+    pattern.assertStatus(422)
+    pattern.assertBodyContains({ errors: [{ field: 'pattern', rule: 'locked' }] })
+    assert.equal(
+      pattern.body().errors[0].message,
+      'Bank default rules keep their pattern. Add a new rule for other wording'
+    )
+
+    await home.member.merge({ locale: 'es' }).save()
+    const matchType = await client
+      .patch(`/api/v1/rules/${kmart.id}`)
+      .json({ matchType: 'regex' })
+      .actingAs(home.member)
+    matchType.assertStatus(422)
+    matchType.assertBodyContains({ errors: [{ field: 'matchType', rule: 'locked' }] })
+    assert.equal(
+      matchType.body().errors[0].message,
+      'Las reglas del banco conservan su tipo. Crea una regla nueva si necesitas otro'
+    )
+
+    // The lock wins over the checks of the new value (here: an invalid regex).
+    const invalid = await client
+      .patch(`/api/v1/rules/${kmart.id}`)
+      .json({ pattern: '(unclosed' })
+      .actingAs(home.owner)
+    invalid.assertStatus(422)
+    invalid.assertBodyContains({ errors: [{ field: 'pattern', rule: 'locked' }] })
+
+    await kmart.refresh()
+    assert.include(kmart.serialize(), { matchType: 'contains', pattern: 'KMART', origin: 'system' })
+  })
+
   test('test_rule_apply_recategorizes_history', async ({ client, assert }) => {
     const home = await importedSample(client)
     const personalCare = await categoryBySlug(home.household.id, 'personal-care')

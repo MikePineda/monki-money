@@ -29,7 +29,10 @@ export default class RulesController {
     return ctx.serialize(MerchantRuleTransformer.transform(rule))
   }
 
-  /** PATCH /rules/:id: any field; the rule becomes the person's (`origin = 'user'`). */
+  /**
+   * PATCH /rules/:id: any field; the rule becomes the person's (`origin = 'user'`).
+   * A bank default (`system`) stays `system` and keeps its match type and pattern.
+   */
   async update(ctx: HttpContext) {
     const { params, ...payload } = await ctx.request.validateUsing(updateRuleValidator)
 
