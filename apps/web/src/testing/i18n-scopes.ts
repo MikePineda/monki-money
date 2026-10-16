@@ -28,6 +28,8 @@ import scanEn from '../app/features/scan/i18n/en.json'
 import scanEs from '../app/features/scan/i18n/es.json'
 import settingsEn from '../app/features/settings/i18n/en.json'
 import settingsEs from '../app/features/settings/i18n/es.json'
+import tagsEn from '../app/features/tags/i18n/en.json'
+import tagsEs from '../app/features/tags/i18n/es.json'
 import transactionsEn from '../app/features/transactions/i18n/en.json'
 import transactionsEs from '../app/features/transactions/i18n/es.json'
 import kitEn from '../app/kit/i18n/en.json'
@@ -60,6 +62,7 @@ export const SCOPE_CATALOGUES = {
   rules: { en: rulesEn, es: rulesEs },
   scan: { en: scanEn, es: scanEs },
   settings: { en: settingsEn, es: settingsEs },
+  tags: { en: tagsEn, es: tagsEs },
   transactionForm: { en: transactionFormEn, es: transactionFormEs },
   transactions: { en: transactionsEn, es: transactionsEs },
 } satisfies Record<string, Record<AppLang, Translation>>
