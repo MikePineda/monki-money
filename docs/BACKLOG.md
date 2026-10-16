@@ -3,13 +3,9 @@
 Ideas captured mid-session: one dated line each, newest at the bottom.
 Strategy and phases live in the plan; this is the inbox.
 
-- 2026-10-15 Private transactions between partners (`transactions.is_private`): the other member sees the amount in household totals but not merchant/note/category. Phase 2.
-- 2026-10-15 Backfill eight months of NAB history on day one (`node ace import:nab`, WP 3.5): raise its priority right after import lands.
 - 2026-10-15 Web Push on iOS works for installed PWAs since 16.4: "did you log anything today?" and "your monthly summary is ready" reminders (P2).
-- 2026-10-15 Recurring payments and "already committed this month" (rent, phone, gym) detected from merchant rules + periodicity (P2; also affects envelopes in P3).
 - 2026-10-15 Bank feeds for the SaaS (Australian CDR via aggregators such as Basiq or Frollo): design constraint only, the `BankCsvParser` strategy already allows a `source='feed'`.
 - 2026-10-15 Balances between the two partners (Splitwise style) from `paid_by_user_id`; decide later whether to show it.
-- 2026-10-15 Free-form tags on transactions (jsonb), e.g. a trip tag to see a holiday's total cost (P2).
 - 2026-10-15 Receipts by email (Resend inbound or Cloudflare Email Routing -> webhook) feeding the receipt scanner review list (P3).
 - 2026-10-15 Siri / Apple Shortcuts quick add through a personal-token endpoint (P3).
 - 2026-10-15 SaaS in Australia: own domain, Privacy Act (APPs) policy and retention, data residency (APAC), full `audit_log`, private analytics only if needed.
@@ -17,21 +13,15 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-15 Show/hide toggle on password fields (the login mock has the eye icon); a ui-kit text-field option.
 - 2026-10-15 Charts: opt-in texture fill (45/135 degrees) for forced-colors, print and full CVD (dataviz backup channel); today legends, direct labels and table views carry identity.
 - 2026-10-15 `applyToFuture` on `PATCH /transactions/:id` and `applyRuleToFuture` on bulk categorize (learn a merchant rule) land with `merchant_rules` in WP 3.3; the ledger endpoints do not accept them yet.
-- 2026-10-15 Tag filter for `GET /transactions` (`tag=`) and per-tag totals in reports (the column exists since WP 2.1).
-- 2026-10-15 Move `TransactionForm`/`TransferForm` to `shared/` (or host quick add under `features/transactions`) so the add page can reuse them without a cross-feature import.
 - 2026-10-16 Insights: run the monthly cron (`0 8 1 * *` Brisbane) once a worker exists, and let dev opt into the fake LLM for insights (today only the test suite may; dev answers 503 without a key).
 - 2026-10-16 `test_reset_wipes_the_database_and_seeds_the_e2e_household` fails when its file runs alone: `RESTART IDENTITY` gives the new E2E household the leftover's id 1 (passes in the full suite).
 - 2026-10-16 Letting a member leave while the household is pending deletion (today 403 like every household route; ownership transfer is blocked the same way).
-- 2026-10-16 The web initial bundle is ~364 kB after the outbox and product-gap merges, past its 350 kB warning budget (it was already over before WP 5.2; the goals routes add ~0.2 kB): trim the eager app or raise the budget.
-- 2026-10-16 Vitest's module cache (`node_modules/.vitest-cache`) served a stale component when a spec file's text matched an earlier run (a fixed template still failed until the spec changed); delete the folder when a spec result makes no sense, or disable the cache.
 - 2026-10-16 Turnstile: if Shield's CSP is ever switched on, allow `https://challenges.cloudflare.com` in `script-src` and `frame-src` (the web widget loads its script and iframe from there).
 - 2026-10-16 Onboarding progress is device-local: a household created from `/household/new` resumes the wizard on the accounts step on this device only (another device starts at step 1, harmless but repetitive). An `onboardedAt` on the household would make it server-side.
 - 2026-10-16 E2E runs Turnstile against a stand-in script (`e2e/support/turnstile.ts`): Cloudflare answers 403 to the per-test `CF-Connecting-IP` header and WebKit re-adds context headers on the script's redirect. A smoke against the real widget (staging, or a header scoped to the app origin) would cover Cloudflare itself.
 - 2026-10-16 `S3_PUBLIC_ENDPOINT` for presigned URLs if `S3_ENDPOINT` ever becomes an address browsers cannot reach (an internal Docker hostname); R2 and local MinIO are reachable today.
 - 2026-10-16 Offline cold start: opening the installed app with no network ends on login (`GET /auth/me` fails, the session is in memory only) and quick add needs the accounts loaded this session; keeping a last-known session and directory on the device would let the outbox work from a cold start.
-- 2026-10-16 Rules screen: edit a rule (pattern, category, priority; `PATCH /rules/:id` exists) and create one by hand; today rules are only learned from imports and `applyToFuture`.
 - 2026-10-16 `MonthStore` has no "everything may have changed" hook: applying a rule to history invalidates only the month on screen.
-- 2026-10-16 Web initial bundle is 364 kB, over its 350 kB warning budget (error at 450 kB) since the outbox and product-gap merges; the import and rules routes add about 0.5 kB. Trim the eager code or raise the warning line.
 - 2026-10-16 API: the transaction resource does not expose `source`, so a scanned receipt cannot be told apart (or filtered) from a manual entry in the lists.
 - 2026-10-16 Receipt scanner: saving needs the network. The outbox payload has no `splits` or `source`, so an offline save keeps the draft on screen with a message instead of queueing it; extend the outbox (or queue receipts without their splits) if this matters on the go.
 - 2026-10-16 Receipt scanner in production needs the bucket's CORS rule for PUT from the app origin (`node ace storage:configure`, or the R2 dashboard when the token has no admin rights); without it the browser's upload fails and the screen says the photo could not be uploaded.
@@ -71,3 +61,4 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 The web initial bundle is 350.9 kB on main before the push work (budget warning at 350 kB; push adds 0.1 kB for the click listener's dynamic import). Cheapest cut: `AccountsApi` pulled into main by `core/auth/onboarding-status.ts` (about 1 kB).
 - 2026-10-16 Push: the daily reminder has no quiet hours or weekday choice, and the summary push goes out with the scheduled summary only (a summary a partner taps on the 1st before 08:00 is not announced to the other partner).
 - 2026-10-16 Bruno collection (`apps/api/bruno`) covers only 9 requests (health, config, login, me, household, accounts, categories, logout) and is not part of CI: extend it to the main resources (transactions, transfers, imports, rules, payslips, tags, recurring, goals, insights, push, notifications) as living API docs, generate the skeleton from the Tuyau registry where possible, and add a CI job that runs `bru run --env local` against the E2E stack so the collection cannot drift; keep `smoke:prod` as the post-deploy check.
+- 2026-10-16 The AI summary of the month still running (Generate before it ends) compares it with the whole previous month (`insight_service` passes `previous` full-month totals and category lines): give the model the same-day base the Month view now uses (`previousToDate`, app/domain/reports/month_to_date.ts) or tell it the month is in progress.
