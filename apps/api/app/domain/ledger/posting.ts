@@ -16,6 +16,8 @@ export type Posting = {
   transactionId: number
   /** The split line, or null for a transaction that is not split. */
   splitId: number | null
+  /** The transfer a leg belongs to (both legs share it); null for anything else. */
+  transferId: number | null
   accountId: number
   /** Kind of the posting's account: a transfer leg landing in `savings` is money set aside. */
   accountKind: AccountKind

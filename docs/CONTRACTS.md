@@ -213,12 +213,15 @@ isMasked, tags[], createdByUserId, updatedByUserId, createdAt, updatedAt }`.
 ### Tags
 
 Free labels on transactions (`tags[]`, e.g. a trip), up to 20 per row,
-each trimmed and 1–40 characters; matching is exact (case included). Split
-lines carry their parent's tags; a transfer's tags sit on both legs
-(`transfers.store` / `transfers.update`). Totals follow the month report's
+each trimmed and 1–40 characters, without NUL and not a lone `.` or `..`
+(422 `regex`); matching is exact (case included). Split lines carry their
+parent's tags; a transfer's tags sit on both legs (`transfers.store` /
+`transfers.update`; an import that turns a tagged movement into a transfer
+leg copies its tags to the other leg). Totals follow the month report's
 rules (transfers never count as spending or income, refunds reduce their
-category), and a tagged transfer leg landing in a `savings` account counts
-as `setAsideCents`. The partner's private rows never reveal their tags: they
+category), and `setAsideCents` is what tagged transfers did to `savings`
+accounts: money moved in counts, money moved out subtracts, savings to
+savings nets to zero. The partner's private rows never reveal their tags: they
 are left out of every tag (and a tag only they carry does not exist for the
 reader).
 

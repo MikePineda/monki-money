@@ -13,8 +13,9 @@ import {
  * database. Split lines carry their parent's tags.
  *
  * Same sign convention as the month summary: amounts are positive on their
- * own side. Transfers never count as spending or income; a tagged transfer
- * leg that lands in a `savings` account is money set aside for the tag.
+ * own side. Transfers never count as spending or income; what tagged
+ * transfers do to the savings accounts is money set aside for the tag
+ * (moved in counts, moved out takes it back, savings to savings is neither).
  */
 
 /** Calendar dates, inclusive; either end may be open. */
@@ -29,7 +30,7 @@ export type TagTotals = {
   incomeCents: number
   /** income - expense. */
   netCents: number
-  /** Tagged transfers into a savings account. */
+  /** What tagged transfers moved into savings accounts, net of what they took out. */
   setAsideCents: number
   /** First and last date the tag was used (null when nothing falls in the range). */
   firstDate: string | null
@@ -57,23 +58,27 @@ function inRange(posting: Posting, range: TagRange): boolean {
   return true
 }
 
-/** An incoming transfer leg on a savings account: money put aside. */
-function isSetAside(posting: Posting): boolean {
-  return posting.kind === 'transfer' && posting.accountKind === 'savings' && posting.amountCents > 0
+/**
+ * What a transfer leg does to the money set aside: its signed amount when
+ * it sits on a savings account (an incoming leg adds, an outgoing one takes
+ * back, so savings to savings nets to zero), nothing otherwise.
+ */
+function setAsideOf(posting: Posting): number {
+  return posting.kind === 'transfer' && posting.accountKind === 'savings' ? posting.amountCents : 0
 }
 
 /**
  * A key per movement: the transaction (all its split lines), or the
- * transfer, which shows up as its incoming leg only (each transfer has
- * exactly one).
+ * transfer (both legs, whichever of them carries the tag).
  */
-function movementKey(posting: Posting): number | null {
-  if (posting.kind !== 'transfer') return posting.transactionId
-  return posting.amountCents > 0 ? posting.transactionId : null
+function movementKey(posting: Posting): string {
+  return posting.transferId === null
+    ? `transaction:${posting.transactionId}`
+    : `transfer:${posting.transferId}`
 }
 
 function totalsOf(tag: string, postings: Posting[]): TagTotals {
-  const movements = new Set<number>()
+  const movements = new Set<string>()
   let expenseCents = 0
   let incomeCents = 0
   let setAsideCents = 0
@@ -81,12 +86,11 @@ function totalsOf(tag: string, postings: Posting[]): TagTotals {
   let lastDate: string | null = null
 
   for (const posting of postings) {
-    const key = movementKey(posting)
-    if (key !== null) movements.add(key)
+    movements.add(movementKey(posting))
     if (firstDate === null || posting.date < firstDate) firstDate = posting.date
     if (lastDate === null || posting.date > lastDate) lastDate = posting.date
 
-    if (isSetAside(posting)) setAsideCents += posting.amountCents
+    setAsideCents += setAsideOf(posting)
     const flow = flowOf(posting)
     if (flow === 'expense') expenseCents += flowAmount(posting, flow)
     else if (flow === 'income') incomeCents += flowAmount(posting, flow)
@@ -144,7 +148,7 @@ function monthsOf(postings: Posting[], first: string, last: string): TagMonth[] 
 
   for (const posting of postings) {
     const line = months[monthsBetween(start, monthOf(posting.date))]
-    if (isSetAside(posting)) line.setAsideCents += posting.amountCents
+    line.setAsideCents += setAsideOf(posting)
     const flow = flowOf(posting)
     if (flow === 'expense') line.expenseCents += flowAmount(posting, flow)
     else if (flow === 'income') line.incomeCents += flowAmount(posting, flow)

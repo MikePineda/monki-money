@@ -11,6 +11,7 @@ import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scope
 type PostingRow = {
   transaction_id: number
   split_id: number | null
+  transfer_id: number | null
   account_id: number
   account_kind: AccountKind
   date: string
@@ -52,16 +53,32 @@ export default class PostingsRepository {
   }
 
   /**
-   * Postings of every tagged transaction of the household, whatever its
-   * date, or only of those carrying `tag` (jsonb containment, GIN index).
-   * The reader's privacy mask and any date range are applied by the
-   * caller (reports are pure over the full set).
+   * Postings of every tagged transaction of the household, or only of those
+   * carrying `tag` (jsonb containment, GIN index), dated `from`..`to` when
+   * given (inclusive, either end open). The reader's privacy mask is applied
+   * by the caller.
    */
-  async tagged(household: HouseholdRef, options: { tag?: string } = {}): Promise<Posting[]> {
-    if (options.tag !== undefined) {
-      return this.select(household, ['t.tags @> ?::jsonb'], [JSON.stringify([options.tag])])
+  async tagged(
+    household: HouseholdRef,
+    options: { tag?: string; from?: string; to?: string } = {}
+  ): Promise<Posting[]> {
+    const conditions: string[] = []
+    const bindings: unknown[] = []
+    if (options.tag === undefined) {
+      conditions.push("t.tags <> '[]'::jsonb")
+    } else {
+      conditions.push('t.tags @> ?::jsonb')
+      bindings.push(JSON.stringify([options.tag]))
     }
-    return this.select(household, ["t.tags <> '[]'::jsonb"], [])
+    if (options.from !== undefined) {
+      conditions.push('t.date >= ?')
+      bindings.push(options.from)
+    }
+    if (options.to !== undefined) {
+      conditions.push('t.date <= ?')
+      bindings.push(options.to)
+    }
+    return this.select(household, conditions, bindings)
   }
 
   protected async select(
@@ -72,6 +89,7 @@ export default class PostingsRepository {
     const result = await db.rawQuery<{ rows: PostingRow[] }>(
       `SELECT t.id AS transaction_id,
               s.id AS split_id,
+              t.transfer_id,
               t.account_id,
               a.kind AS account_kind,
               t.date,
@@ -103,6 +121,7 @@ export default class PostingsRepository {
     return result.rows.map((row) => ({
       transactionId: row.transaction_id,
       splitId: row.split_id,
+      transferId: row.transfer_id,
       accountId: row.account_id,
       accountKind: row.account_kind,
       date: row.date,

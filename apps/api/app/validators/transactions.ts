@@ -27,10 +27,18 @@ const splitLine = () =>
 const payee = () => vine.string().trim().maxLength(120).nullable()
 const description = () => vine.string().trim().maxLength(500).nullable()
 /**
- * One free label (a trip, an event): trimmed, 1 to 40 characters. The same
- * rule reads a tag back from a filter or a URL (`?tag=`, `/tags/:tag`).
+ * NUL cannot be stored in Postgres text or jsonb (a 22P05 otherwise), and
+ * `.` / `..` alone are path segments a browser resolves away in `/tags/:tag`.
  */
-export const tag = () => vine.string().trim().minLength(1).maxLength(40)
+// eslint-disable-next-line no-control-regex -- NUL is exactly the character this rejects.
+const STORABLE_TAG = /^(?!\.{1,2}$)[^\u0000]*$/
+
+/**
+ * One free label (a trip, an event): trimmed, 1 to 40 characters, no NUL,
+ * not a lone `.` or `..`. The same rule reads a tag back from a filter or a
+ * URL (`?tag=`, `/tags/:tag`).
+ */
+export const tag = () => vine.string().trim().minLength(1).maxLength(40).regex(STORABLE_TAG)
 
 /** Up to 20 distinct labels on a transaction (or on both legs of a transfer). */
 export const tags = () => vine.array(tag()).maxLength(20).distinct()

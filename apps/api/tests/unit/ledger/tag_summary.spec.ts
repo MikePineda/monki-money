@@ -47,6 +47,47 @@ test.group('Reports: tag summary', () => {
     })
   })
 
+  test('test_money_moved_between_savings_nets_to_zero_and_a_withdrawal_reduces_the_set_aside', ({
+    assert,
+  }) => {
+    const savingsToSavings = transferLegs(50_000, { tags: BALI, date: '2026-08-01' }).map(
+      (leg) => ({ ...leg, accountKind: 'savings' as const })
+    )
+    const [fromSavings, intoEveryday] = transferLegs(20_000, { tags: BALI, date: '2026-09-01' })
+    const postings = [
+      // Everyday -> savings A: set aside.
+      ...intoSavings(50_000, { tags: BALI, date: '2026-07-01' }),
+      // Savings A -> savings B: still set aside, nothing more.
+      ...savingsToSavings,
+      // Savings B -> everyday: taken back out for the trip.
+      { ...fromSavings, accountKind: 'savings' as const },
+      intoEveryday,
+    ]
+
+    const [bali] = tagTotals(postings)
+    const detail = tagDetail(postings, 'bali')
+
+    assert.equal(bali.setAsideCents, 30_000)
+    assert.equal(bali.count, 3)
+    assert.deepEqual(
+      detail?.byMonth.map((line) => [line.month, line.setAsideCents]),
+      [
+        ['2026-07', 50_000],
+        ['2026-08', 0],
+        ['2026-09', -20_000],
+      ]
+    )
+  })
+
+  test('test_a_transfer_counts_once_whichever_of_its_legs_carries_the_tag', ({ assert }) => {
+    const [outgoing, incoming] = intoSavings(80_000)
+    const onlyOutgoing = [{ ...outgoing, tags: BALI }, incoming]
+    const both = intoSavings(80_000, { tags: BALI })
+
+    assert.include(tagTotals(onlyOutgoing)[0], { count: 1, firstDate: '2026-10-10' })
+    assert.include(tagTotals(both)[0], { count: 1, setAsideCents: 80_000 })
+  })
+
   test('test_split_lines_inherit_the_parent_tags', ({ assert }) => {
     // One 100.00 receipt split 70/30, tagged once on the parent.
     const lines = [

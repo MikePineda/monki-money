@@ -19,13 +19,17 @@ export default class TagReportService {
   /** Every tag the reader can see, with its totals in `range`, most recently used first. */
   async index(household: Household, viewer: User, range: TagRange = {}) {
     const postings = postingsFor(
-      await this.postings.tagged(household),
+      await this.postings.tagged(household, { from: range.from, to: range.to }),
       await privacyViewer(household, viewer)
     )
     return tagTotals(postings, range)
   }
 
-  /** One tag in `range`; 404 when the reader can see no transaction carrying it. */
+  /**
+   * One tag in `range`; 404 when the reader can see no transaction carrying
+   * it at any date (so every date is read: a tag with nothing in the range
+   * still exists, with zeros).
+   */
   async show(household: Household, viewer: User, tag: string, range: TagRange = {}) {
     const postings = postingsFor(
       await this.postings.tagged(household, { tag }),

@@ -1,7 +1,10 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
+import ImportRow from '#models/import_row'
 import Transaction from '#models/transaction'
+import { nabFixture } from '#tests/helpers/importing'
 import { createHousehold } from '#tests/helpers/household'
+import { nabHousehold, uploadCsv } from '#tests/helpers/imports'
 import { categoryBySlug } from '#tests/helpers/ledger'
 import PostingsRepository from '#repositories/postings_repository'
 import { TransactionFactory } from '#database/factories/transaction_factory'
@@ -377,5 +380,163 @@ test.group('Tags', () => {
       result.rows.some((row: { indexdef: string }) => row.indexdef.includes('(tags')),
       'a GIN index on transactions.tags serves the `@>` containment filter'
     )
+  })
+
+  test('test_set_aside_nets_moves_between_savings_and_withdrawals_from_them', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, accounts } = await createHousehold({
+      accounts: [
+        { name: 'Everyday' },
+        { name: 'Savings A', kind: 'savings' },
+        { name: 'Savings B', kind: 'savings' },
+      ],
+    })
+    const [everyday, savingsA, savingsB] = accounts
+    for (const [from, to, date, amountCents] of [
+      [everyday, savingsA, '2026-07-01', 50_000],
+      [savingsA, savingsB, '2026-08-01', 50_000],
+      [savingsB, everyday, '2026-09-01', 20_000],
+    ] as const) {
+      const response = await client
+        .post('/api/v1/transfers')
+        .json({ fromAccountId: from.id, toAccountId: to.id, date, amountCents, tags: [TRIP] })
+        .actingAs(owner)
+      response.assertStatus(201)
+    }
+
+    const index = await client.get('/api/v1/tags').actingAs(owner)
+    const detail = await client.get(`/api/v1/tags/${encodeURIComponent(TRIP)}`).actingAs(owner)
+
+    // 500 in, 500 moved between savings (neither), 200 taken back out.
+    assert.include(index.body().data[0], { tag: TRIP, count: 3, setAsideCents: 30_000 })
+    assert.deepEqual(
+      detail.body().data.byMonth.map((line: any) => [line.month, line.setAsideCents]),
+      [
+        ['2026-07', 50_000],
+        ['2026-08', 0],
+        ['2026-09', -20_000],
+      ]
+    )
+  })
+
+  test('test_a_movement_an_import_turns_into_a_transfer_leg_gives_its_tags_to_the_other_leg', async ({
+    client,
+    assert,
+  }) => {
+    // The owner typed the 7.00 that reached savings and tagged it; the bank
+    // export then shows the everyday side as a linked transfer.
+    const home = await nabHousehold()
+    const typed = await TransactionFactory.merge({
+      householdId: home.household.id,
+      accountId: home.savings.id,
+      kind: 'income',
+      date: '2026-09-26',
+      amountCents: 700,
+      createdByUserId: home.owner.id,
+      tags: [TRIP],
+    }).create()
+    const upload = await uploadCsv(client, home.owner, nabFixture('sample.csv'))
+    const batch = upload.body().data[0]
+    const row = await ImportRow.query()
+      .where('import_batch_id', batch.id)
+      .where('amount_cents', -700)
+      .firstOrFail()
+    row.transferLegTransactionId = typed.id
+    await row.save()
+
+    const confirm = await client
+      .post(`/api/v1/imports/${batch.id}/confirm`)
+      .json({
+        decisions: [
+          { rowId: row.id, resolution: 'transfer_leg', transferAccountId: home.savings.id },
+        ],
+      })
+      .actingAs(home.owner)
+
+    confirm.assertStatus(200)
+    await typed.refresh()
+    assert.equal(typed.kind, 'transfer')
+    const legs = await Transaction.query().where('transfer_id', typed.transferId!)
+    assert.lengthOf(legs, 2)
+    assert.isTrue(legs.every((leg) => leg.tags.includes(TRIP)))
+    const tags = await client.get('/api/v1/tags').actingAs(home.owner)
+    assert.include(tags.body().data[0], { tag: TRIP, count: 1, setAsideCents: 700 })
+  })
+
+  test('test_a_tag_with_a_nul_or_made_of_dots_is_refused_everywhere', async ({ client }) => {
+    const { owner, accounts } = await createHousehold({ accounts: [{ name: 'Everyday' }] })
+    const entry = {
+      accountId: accounts[0].id,
+      kind: 'expense',
+      date: '2026-10-01',
+      amountCents: 100,
+    }
+    const created = await TransactionFactory.merge({
+      householdId: accounts[0].householdId,
+      accountId: accounts[0].id,
+    }).create()
+
+    for (const tags of [['a\u0000b'], ['.'], ['..'], ['  ..  ']]) {
+      const store = await client
+        .post('/api/v1/transactions')
+        .json({ ...entry, tags })
+        .actingAs(owner)
+      store.assertStatus(422)
+      store.assertBodyContains({ errors: [{ field: 'tags.0', rule: 'regex' }] })
+      const update = await client
+        .patch(`/api/v1/transactions/${created.id}`)
+        .json({ tags })
+        .actingAs(owner)
+      update.assertStatus(422)
+    }
+    const filter = await client.get('/api/v1/transactions').qs({ tag: 'a\u0000b' }).actingAs(owner)
+    filter.assertStatus(422)
+    for (const path of ['a%00b', '%2E', '%2E%2E']) {
+      const show = await client.get(`/api/v1/tags/${path}`).actingAs(owner)
+      show.assertStatus(422)
+    }
+    // Dots inside a tag are fine.
+    const dotted = await client
+      .post('/api/v1/transactions')
+      .json({ ...entry, tags: ['v1.2', '...'] })
+      .actingAs(owner)
+    dotted.assertStatus(201)
+  })
+
+  test('test_a_tag_only_on_the_partners_private_rows_does_not_exist_for_the_reader', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, member } = await seededTrip(client)
+
+    const list = await client.get('/api/v1/transactions').qs({ tag: 'anniversary' }).actingAs(owner)
+    const show = await client.get('/api/v1/tags/anniversary').actingAs(owner)
+    const index = await client.get('/api/v1/tags').actingAs(owner)
+    const payers = await client.get('/api/v1/tags/anniversary').actingAs(member)
+
+    list.assertStatus(200)
+    assert.deepEqual(list.body().data, [])
+    show.assertStatus(404)
+    assert.notInclude(
+      index.body().data.map((line: any) => line.tag),
+      'anniversary'
+    )
+    // The payer still has it.
+    payers.assertStatus(200)
+  })
+
+  test('test_tagged_postings_are_read_for_a_date_range_in_sql', async ({ client, assert }) => {
+    const { household } = await seededTrip(client)
+    const repository = new PostingsRepository()
+
+    const december = await repository.tagged(household, { from: '2026-12-01', to: '2026-12-31' })
+    const fromJanuary = await repository.tagged(household, { tag: TRIP, from: '2027-01-01' })
+
+    assert.isNotEmpty(december)
+    assert.isTrue(december.every((posting) => posting.date.startsWith('2026-12')))
+    assert.isTrue(fromJanuary.every((posting) => posting.date >= '2027-01-01'))
+    assert.lengthOf(fromJanuary, 2)
   })
 })
