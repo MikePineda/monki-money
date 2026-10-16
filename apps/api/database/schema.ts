@@ -171,10 +171,12 @@ export class HouseholdSchema extends BaseModel {
 }
 
 export class ImportBatchSchema extends BaseModel {
-  static $columns = ['accountId', 'classifyStartedAt', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
+  static $columns = ['accountId', 'classifyFinishedAt', 'classifyStartedAt', 'completedAt', 'computedBalanceCents', 'confirmationCount', 'createdAt', 'dateFrom', 'dateTo', 'duplicateCount', 'expectedBalanceCents', 'fileHash', 'fileName', 'filePath', 'householdId', 'id', 'ignoredCount', 'matchedCount', 'newCount', 'openingBalanceCents', 'rowCount', 'source', 'status', 'supersededCount', 'transferCount', 'updatedAt', 'uploadedByUserId'] as const
   $columns = ImportBatchSchema.$columns
   @column()
   declare accountId: number
+  @column.dateTime()
+  declare classifyFinishedAt: DateTime | null
   @column.dateTime()
   declare classifyStartedAt: DateTime | null
   @column.dateTime()
@@ -228,7 +230,7 @@ export class ImportBatchSchema extends BaseModel {
 }
 
 export class ImportRowSchema extends BaseModel {
-  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
+  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'proposedResolution', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
   $columns = ImportRowSchema.$columns
   @column()
   declare accountId: number
@@ -286,6 +288,8 @@ export class ImportRowSchema extends BaseModel {
   declare occurrence: number
   @column()
   declare processedOn: string | null
+  @column()
+  declare proposedResolution: ImportResolution | null
   @jsonColumn()
   declare raw: Record<string, string>
   @jsonColumn()

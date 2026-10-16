@@ -72,17 +72,27 @@ export default class ImportContextLoader {
     }
   }
 
-  /** `external_hash` values of `rows` already stored for the account (any resolution). */
-  async existingHashes(household: HouseholdRef, accountId: number, rows: readonly StagedRow[]) {
+  /**
+   * `external_hash` values of `rows` already imported for the account (any
+   * resolution but `duplicate`: a listed duplicate is a copy, never the
+   * bank row itself), each with the ledger row it became (null while
+   * ignored or never confirmed). A re-upload's duplicates point at it.
+   */
+  async existingHashes(
+    household: HouseholdRef,
+    accountId: number,
+    rows: readonly StagedRow[]
+  ): Promise<Map<string, number | null>> {
     const hashes = [...new Set(rows.map((row) => row.externalHash))]
-    const stored = new Set<string>()
+    const stored = new Map<string, number | null>()
     for (let offset = 0; offset < hashes.length; offset += 1000) {
       const found = await ImportRow.query()
         .withScopes((scopes) => scopes.forHousehold(household))
         .where('account_id', accountId)
         .whereIn('external_hash', hashes.slice(offset, offset + 1000))
-        .select('external_hash')
-      for (const row of found) stored.add(row.externalHash)
+        .whereNot('resolution', 'duplicate')
+        .select('external_hash', 'transaction_id')
+      for (const row of found) stored.set(row.externalHash, row.transactionId)
     }
     return stored
   }

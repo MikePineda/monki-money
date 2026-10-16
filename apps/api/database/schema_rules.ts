@@ -113,6 +113,7 @@ export default {
       columns: {
         resolution: shared('ImportResolution'),
         // Nullable columns get `| null` from the generator.
+        proposed_resolution: shared('ImportResolution'),
         suggestion_source: shared('SuggestionSource'),
         // jsonb: stringified on write (see database/json_column.ts).
         raw: json('Record<string, string>'),

@@ -2,7 +2,7 @@ import type { Mock } from 'vitest'
 import { TestBed } from '@angular/core/testing'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
-import { anImportBatch, anImportDetail } from '../../../../testing/import-fixtures'
+import { anImportBatch } from '../../../../testing/import-fixtures'
 import {
   importTestingProviders,
   importsApiMock,
@@ -75,8 +75,8 @@ describe('ImportResultPage', () => {
 
   it('test_after_a_reload_the_counts_come_from_the_batch_and_missing_movements_are_named', async () => {
     const { root } = await open(() => {
-      api.show.mockResolvedValue(
-        anImportDetail([], {
+      api.batch.mockResolvedValue(
+        anImportBatch({
           status: 'completed',
           counts: { ...anImportBatch().counts, new: 4, autoMatched: 1 },
           reconciliation: {
@@ -92,6 +92,8 @@ describe('ImportResultPage', () => {
       )
     })
     await vi.waitFor(() => expect(text(root, '[data-testid="import.result.headline"]')).toBe('4'))
+    expect(api.batch).toHaveBeenCalledWith(7)
+    expect(api.show).not.toHaveBeenCalled()
 
     expect(text(root, '[data-testid="import.result.reconciliation"]')).toBe(
       '$642.75 away from the bank’s balance. Movements before 1 Sept 2026 are missing: ' +
@@ -100,14 +102,14 @@ describe('ImportResultPage', () => {
   })
 
   it('test_a_batch_still_staged_goes_back_to_its_review', async () => {
-    await open(() => api.show.mockResolvedValue(anImportDetail([])))
+    await open(() => api.batch.mockResolvedValue(anImportBatch()))
 
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/import/7'))
   })
 
   it('test_view_month_reloads_and_opens_the_month_the_file_ends_in', async () => {
     const { root } = await open(() =>
-      api.show.mockResolvedValue(anImportDetail([], { status: 'completed' }))
+      api.batch.mockResolvedValue(anImportBatch({ status: 'completed' }))
     )
     await vi.waitFor(() =>
       expect(root.querySelector('[data-testid="import.result.month"]')).not.toBeNull()

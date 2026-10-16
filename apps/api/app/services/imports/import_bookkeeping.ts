@@ -89,6 +89,7 @@ export default class ImportBookkeeping {
       .from('import_rows')
       .leftJoin('transactions', 'transactions.id', 'import_rows.transaction_id')
       .where('import_rows.import_batch_id', batch.id)
+      .whereNot('import_rows.resolution', 'duplicate')
       .select(
         client.raw(
           `LEAST(MIN(LEAST(import_rows.date, import_rows.bank_date)), MIN(transactions.date)) AS earliest`

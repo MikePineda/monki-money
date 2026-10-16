@@ -23,9 +23,6 @@ export const CHUNK_ROWS = 40
 /** Rows one classify run handles; the next run picks up the rest. */
 export const MAX_ROWS_PER_RUN = 500
 
-/** A classify claim older than this belongs to a run that died. */
-export const CLASSIFY_CLAIM_MINUTES = 10
-
 /**
  * The classify step of an import (`ClassifyImportRowsJob`): rows that will
  * become spending or income and still have no trusted category go through
@@ -42,8 +39,10 @@ export default class ImportClassifier {
   ) {}
 
   /**
-   * Number of rows whose suggestion changed. Releases the batch's classify
-   * claim (`ImportService.classify`) when it ends, whatever happened.
+   * Number of rows whose suggestion changed. Ends the run when it ends,
+   * whatever happened: releases the batch's classify claim
+   * (`ImportService.classify`) and stamps `classify_finished_at`, so the
+   * batch stops saying `classifying`.
    */
   async classify(payload: ClassifyBatchPayload): Promise<number> {
     try {
@@ -52,7 +51,7 @@ export default class ImportClassifier {
       await ImportBatch.query()
         .where('household_id', payload.householdId)
         .where('id', payload.batchId)
-        .update({ classify_started_at: null })
+        .update({ classify_started_at: null, classify_finished_at: new Date() })
     }
   }
 

@@ -8,6 +8,8 @@ import { isoTimestamp } from '#domain/time/iso_timestamp'
  * resolution (`rows` = every row of the file for the account, duplicates
  * included); `reconciliation` compares the bank's balance on the newest row
  * with the ledger's (projected while staged, measured once confirmed).
+ * `classifying` is true while a classify run holds the batch;
+ * `classifiedAt` says when the last one ended.
  */
 export default class ImportBatchTransformer extends BaseTransformer<ImportBatch> {
   toObject() {
@@ -38,6 +40,8 @@ export default class ImportBatchTransformer extends BaseTransformer<ImportBatch>
         computedBalanceCents: batch.computedBalanceCents,
         openingBalanceCents: batch.openingBalanceCents,
       }),
+      classifying: batch.isClassifying,
+      classifiedAt: isoTimestamp(batch.classifyFinishedAt),
       uploadedByUserId: batch.uploadedByUserId,
       createdAt: isoTimestamp(batch.createdAt)!,
       completedAt: isoTimestamp(batch.completedAt),

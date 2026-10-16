@@ -991,6 +991,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['cancel']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'imports.rows.bulk': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/imports/:id/rows'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/imports').decideRowsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/imports').decideRowsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/import_rows_controller').default['updateMany']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/import_rows_controller').default['updateMany']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'imports.rows.update': {
     methods: ["PATCH"]
     pattern: '/api/v1/imports/:id/rows/:rowId'

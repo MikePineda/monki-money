@@ -39,7 +39,7 @@ const CATALOGUE_PROBE = 'result.title'
  * agrees with the bank's balance (or which movements are missing before a
  * date). "View month" opens the month the file ends in, freshly loaded;
  * "Import another" goes back to the upload. After a reload the counts come
- * from the completed batch.
+ * from the completed batch, read without its rows.
  */
 @Component({
   selector: 'app-import-result-page',
@@ -244,12 +244,12 @@ export default class ImportResultPage {
     }
     this.failure.set(null)
     try {
-      const detail = await this.api.show(id)
-      if (detail.status === 'staged') {
+      const batch = await this.api.batch(id)
+      if (batch.status === 'staged') {
         await this.router.navigate(['/import', id])
         return
       }
-      this.outcome.set({ result: resultFromBatch(detail), batch: detail })
+      this.outcome.set({ result: resultFromBatch(batch), batch })
     } catch (error) {
       this.failure.set(failureMessage(toApiError(error)))
     }

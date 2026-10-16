@@ -12,11 +12,12 @@ import {
   isGuessedTransfer,
   reconciliationMessage,
   restoreChange,
+  restoreChanges,
   rowState,
   rowTitle,
-  suggestionFingerprint,
   summary,
   toneOf,
+  undoChanges,
   type ReviewableRow,
 } from './import-row'
 
@@ -32,6 +33,8 @@ function aRow(overrides: Partial<ReviewableRow> = {}): ReviewableRow {
     isMasked: false,
     isPending: false,
     resolution: 'new',
+    // Untouched rows: the resolution is the importer's proposal.
+    proposedResolution: overrides.resolution ?? 'new',
     reasons: [],
     match: null,
     suggestion: null,
@@ -415,6 +418,7 @@ describe('summary and filters', () => {
       total: 7,
       blocking: 1,
       acceptable: 2,
+      listedDuplicates: 0,
     })
   })
 
@@ -556,16 +560,176 @@ describe('classification', () => {
 
     expect(classifiableRows(rows).map((row) => row.id)).toEqual([1, 2])
   })
+})
 
-  it('test_the_fingerprint_changes_when_a_suggestion_changes', () => {
-    const before = suggestionFingerprint([aRow({ id: 1 }), aRow({ id: 2 })])
-    const after = suggestionFingerprint([
-      aRow({ id: 1, suggestion: tentative(20) }),
-      aRow({ id: 2 }),
+describe('duplicates', () => {
+  /** A row the bank sent again: settled at staging, pointing at the ledger row it repeats. */
+  const aDuplicate = (overrides: Partial<ReviewableRow> = {}) =>
+    aRow({
+      resolution: 'duplicate',
+      reasons: ['duplicate_hash'],
+      confirmedAt: '2026-10-16T00:00:00.000Z',
+      match: { ...aMatch(900), score: null },
+      ...overrides,
+    })
+
+  it('test_duplicates_are_listed_only_behind_their_own_filter', () => {
+    const rows = [aRow({ id: 1 }), aDuplicate({ id: 2 }), aRow({ id: 3, resolution: 'ignored' })]
+
+    expect(filterRows(rows, 'all').map((row) => row.id)).toEqual([1, 3])
+    expect(filterRows(rows, 'duplicate').map((row) => row.id)).toEqual([2])
+    expect(toneOf(aDuplicate())).toBe('duplicate')
+  })
+
+  it('test_the_summary_counts_listed_duplicates_apart_from_the_rows_to_review', () => {
+    const rows = [aRow({ id: 1 }), aDuplicate({ id: 2 }), aDuplicate({ id: 3 })]
+
+    expect(summary(rows, 2)).toMatchObject({ new: 1, duplicate: 2, total: 1, listedDuplicates: 2 })
+    // A batch staged before duplicates were listed only counts them.
+    expect(summary([aRow({ id: 1 })], 3)).toMatchObject({
+      duplicate: 3,
+      total: 1,
+      listedDuplicates: 0,
+    })
+  })
+
+  it('test_a_duplicate_takes_no_decision_and_never_waits_for_one', () => {
+    const unsettled = aDuplicate({ confirmedAt: null, suggestion: tentative(20) })
+
+    expect(allowedActions(unsettled).size).toBe(0)
+    expect(acceptChange(unsettled)).toBeNull()
+    expect(blockingRowIds([unsettled])).toEqual([])
+    expect(bulkAcceptSuggested([unsettled])).toEqual([])
+    expect(classifiableRows([unsettled])).toEqual([])
+    expect(decisionsFor([{ ...unsettled, decidedAt: 'x', decision: {} }])).toEqual([])
+  })
+})
+
+describe('bulk restore and undo', () => {
+  it('test_restore_changes_bring_back_the_ignored_rows_that_can_be_restored', () => {
+    const rows = [
+      aRow({ id: 1, resolution: 'ignored' }),
+      aRow({ id: 2, resolution: 'ignored', amountCents: 0 }),
+      aRow({ id: 3, resolution: 'ignored', match: aMatch(900) }),
+      aRow({ id: 4 }),
+      aRow({ id: 5, resolution: 'ignored', confirmedAt: '2026-10-15T00:00:00.000Z' }),
+    ]
+
+    expect(restoreChanges(rows)).toEqual([
+      { rowId: 1, change: { resolution: 'new' } },
+      { rowId: 3, change: { resolution: 'auto_matched', matchTransactionId: 900 } },
     ])
+  })
 
-    expect(after).not.toBe(before)
-    expect(suggestionFingerprint([aRow({ id: 1 }), aRow({ id: 2 })])).toBe(before)
+  it('test_restoring_a_weak_match_brings_it_back_to_confirm_undecided', () => {
+    const ignored = aRow({
+      resolution: 'ignored',
+      proposedResolution: 'needs_confirmation',
+      reasons: ['possible_match'],
+      match: aMatch(901),
+      decision: {},
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(restoreChange(ignored)).toEqual({ reset: true })
+    const restored = applyDecision(ignored, restoreChange(ignored))
+    expect(restored).toMatchObject({
+      resolution: 'needs_confirmation',
+      decision: null,
+      decidedAt: null,
+    })
+    expect(toneOf(restored)).toBe('doubtful')
+    expect(blockingRowIds([restored])).toEqual([1])
+  })
+
+  it('test_restoring_a_guessed_transfer_keeps_it_a_guess_to_review', () => {
+    const ignored = aGuessedTransfer({
+      resolution: 'ignored',
+      proposedResolution: 'transfer_leg',
+      decision: {},
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(restoreChanges([ignored])).toEqual([{ rowId: 1, change: { reset: true } }])
+    const restored = applyDecision(ignored, restoreChange(ignored))
+    expect(restored.resolution).toBe('transfer_leg')
+    expect(restored.decidedAt).toBeNull()
+    expect(isGuessedTransfer(restored)).toBe(true)
+    expect(toneOf(restored)).toBe('doubtful')
+  })
+
+  it('test_restoring_a_transfer_to_an_unknown_account_waits_for_a_person_again', () => {
+    const ignored = aRow({
+      resolution: 'ignored',
+      proposedResolution: 'needs_confirmation',
+      reasons: ['transfer_destination_unknown'],
+      transfer: { signal: 'bank_category', accountId: null, legTransactionId: null, ruleId: null },
+      decision: {},
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    const restored = applyDecision(ignored, restoreChange(ignored))
+    expect(restored.resolution).toBe('needs_confirmation')
+    expect(blockingRowIds([restored])).toEqual([1])
+  })
+
+  it('test_rows_staged_before_the_proposal_was_kept_restore_as_before', () => {
+    const legacy = aRow({ resolution: 'ignored', proposedResolution: null, match: aMatch(900) })
+
+    expect(restoreChange(legacy)).toEqual({ resolution: 'auto_matched', matchTransactionId: 900 })
+  })
+
+  it('test_a_reset_alone_leaves_the_row_undecided_and_with_keys_decides_it', () => {
+    const decided = aRow({
+      resolution: 'ignored',
+      proposedResolution: 'new',
+      decision: { categoryId: 20 },
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(applyDecision(decided, { reset: true })).toMatchObject({
+      resolution: 'new',
+      decision: null,
+      decidedAt: null,
+    })
+    expect(applyDecision(decided, { reset: true, payee: 'Deli' }, 'now')).toMatchObject({
+      resolution: 'new',
+      decision: { payee: 'Deli' },
+      decidedAt: 'now',
+    })
+  })
+
+  it('test_undo_resets_an_untouched_row_to_the_importer_proposal', () => {
+    expect(undoChanges([aRow({ id: 1, suggestion: tentative(20) })])).toEqual([
+      { rowId: 1, reset: true },
+    ])
+  })
+
+  it('test_undo_puts_back_the_decision_a_row_had_before', () => {
+    const decided = aRow({
+      id: 2,
+      decision: { categoryId: 20, payee: 'Deli' },
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+    const transfer = aRow({
+      id: 3,
+      resolution: 'transfer_leg',
+      decision: { transferAccountId: 3 },
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+    const stillToConfirm = aRow({
+      id: 4,
+      resolution: 'needs_confirmation',
+      match: aMatch(901),
+      decision: { payee: 'Harbour Cafe' },
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(undoChanges([decided, transfer, stillToConfirm])).toEqual([
+      { rowId: 2, reset: true, resolution: 'new', categoryId: 20, payee: 'Deli' },
+      { rowId: 3, reset: true, resolution: 'transfer_leg', transferAccountId: 3 },
+      { rowId: 4, reset: true, payee: 'Harbour Cafe' },
+    ])
   })
 })
 

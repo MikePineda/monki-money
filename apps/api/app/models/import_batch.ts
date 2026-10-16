@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon'
 import User from '#models/user'
 import Account from '#models/account'
 import Household from '#models/household'
@@ -7,6 +8,7 @@ import { ImportBatchSchema } from '#database/schema'
 import { belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import { HouseholdScoped } from '#models/mixins/household_scoped'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+import { isClassifyRunning } from '#domain/importing/classify_run'
 
 /**
  * One uploaded bank export for one account. Its rows wait for review while
@@ -28,5 +30,10 @@ export default class ImportBatch extends compose(ImportBatchSchema, HouseholdSco
 
   get isStaged() {
     return this.status === 'staged'
+  }
+
+  /** A live classify run holds the batch (`classify_started_at`, see classify_run.ts). */
+  get isClassifying() {
+    return isClassifyRunning(this.classifyStartedAt, DateTime.now())
   }
 }
