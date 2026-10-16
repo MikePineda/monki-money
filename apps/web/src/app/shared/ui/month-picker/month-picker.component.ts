@@ -6,7 +6,6 @@ import {
   inject,
   input,
   model,
-  output,
   viewChild,
 } from '@angular/core'
 import {
@@ -18,13 +17,19 @@ import {
   type YearMonth,
 } from '../../../domain/month'
 import { APP_LOCALE } from '../app-locale.token'
+import { BottomSheetService } from '../bottom-sheet/bottom-sheet.service'
+import { YearGridSheetComponent, type YearGridData } from './year-grid.sheet'
+
+/** Years the grid offers: the current one and the two before it. */
+const YEAR_GRID_YEARS = 3
 
 /**
  * Horizontal month strip (DESIGN.md, Month picker), swipeable with native
  * scrolling. The selected month wears the accent wash and is kept centred
  * (or at the right edge when it is the latest); the year shows when it is
  * not the current year. Future months are visible but not selectable.
- * Tapping the selected month again asks for the year grid (`yearGrid`).
+ * Tapping the selected month again opens the year grid sheet, which can
+ * reach further back; the strip then starts at the month picked there.
  */
 @Component({
   selector: 'app-month-picker',
@@ -54,6 +59,7 @@ import { APP_LOCALE } from '../app-locale.token'
 })
 export class MonthPickerComponent {
   private readonly locale = inject(APP_LOCALE)
+  private readonly sheets = inject(BottomSheetService)
 
   readonly selected = model.required<YearMonth>()
   /** The current month in the household time zone; later months are future. */
@@ -63,13 +69,17 @@ export class MonthPickerComponent {
   readonly past = input(12)
   /** Future months shown (disabled) after the current one. */
   readonly future = input(2)
-  readonly yearGrid = output<void>()
 
   private readonly strip = viewChild.required<ElementRef<HTMLElement>>('strip')
 
-  protected readonly months = computed(() =>
-    monthRange(addMonths(this.current(), -this.past()), addMonths(this.current(), this.future()))
-  )
+  protected readonly months = computed(() => {
+    const earliest = addMonths(this.current(), -this.past())
+    const selected = this.selected()
+    return monthRange(
+      compareYearMonth(selected, earliest) < 0 ? selected : earliest,
+      addMonths(this.current(), this.future())
+    )
+  })
 
   constructor() {
     // Keep the selected month in view whenever it (or the strip) changes.
@@ -101,9 +111,21 @@ export class MonthPickerComponent {
 
   protected pick(month: YearMonth): void {
     if (month === this.selected()) {
-      this.yearGrid.emit()
+      this.openYearGrid()
       return
     }
     this.selected.set(month)
+  }
+
+  private openYearGrid(): void {
+    this.sheets
+      .open<YearMonth, YearGridData, YearGridSheetComponent>(YearGridSheetComponent, {
+        data: { selected: this.selected(), current: this.current(), years: YEAR_GRID_YEARS },
+      })
+      .closed.subscribe((month) => {
+        if (month && month !== this.selected()) {
+          this.selected.set(month)
+        }
+      })
   }
 }

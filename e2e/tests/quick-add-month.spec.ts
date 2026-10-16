@@ -2,6 +2,12 @@ import { MonthPage } from '../pages/month.page.ts'
 import { QuickAddPage } from '../pages/quick-add.page.ts'
 import { expect, signUpOwner, test, xsrfToken } from '../support/fixtures.ts'
 
+/** The calendar month before 'YYYY-MM'. */
+function previousMonth(month: string): string {
+  const [year, number] = month.split('-').map(Number) as [number, number]
+  return number === 1 ? `${year - 1}-12` : `${year}-${String(number - 1).padStart(2, '0')}`
+}
+
 interface LedgerRow {
   kind: 'expense' | 'income' | 'transfer'
   amountCents: number
@@ -78,6 +84,74 @@ test.describe('journey 3: quick add feeds the month', () => {
     expect(summary).toEqual(['expense:-4250', 'income:100000', 'transfer:-2500', 'transfer:2500'])
     expect(data.find((row) => row.kind === 'expense')?.categoryId).not.toBeNull()
     expect(data.find((row) => row.kind === 'income')?.categoryId).toBeNull()
+  })
+
+  test('the month compares with last month, lists its five largest expenses and jumps through the year grid', async ({
+    page,
+    context,
+  }) => {
+    await signUpOwner(context)
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane' }).format(
+      new Date()
+    )
+    const thisMonth = today.slice(0, 7)
+    const lastMonth = previousMonth(thisMonth)
+    const headers = { 'X-XSRF-TOKEN': await xsrfToken(context) }
+    const expenses: [string, number, string][] = [
+      [`${lastMonth}-15`, 8_500, 'Old Grocer'],
+      [today, 3_000, 'Hardware Barn'],
+      [today, 2_000, 'Book Nook'],
+      [today, 1_000, 'Cafe Uno'],
+      [today, 700, 'Bakery Two'],
+      [today, 500, 'Kiosk Three'],
+      [today, 100, 'Gum Stand'],
+    ]
+    for (const [date, amountCents, payee] of expenses) {
+      const created = await context.request.post('/api/v1/transactions/quick', {
+        headers,
+        data: { date, amountCents, payee },
+      })
+      expect(created.status(), await created.text()).toBe(201)
+    }
+    const calls: string[] = []
+    page.on('request', (request) => {
+      const { pathname } = new URL(request.url())
+      if (pathname.startsWith('/api/v1/')) {
+        calls.push(pathname)
+      }
+    })
+
+    const month = new MonthPage(page)
+    await month.goto()
+
+    // 30 + 20 + 10 + 7 + 5 + 1 = 73.00 this month against 85.00 last month.
+    await expect(month.hero).toHaveText('$73.00')
+    await expect(month.delta).toHaveText(/^14% less than [A-Z][a-z]+ \(\$85\.00\)$/)
+    await expect(month.topRows).toHaveCount(5)
+    await expect(month.topRows.first()).toContainText('Hardware Barn')
+    await expect(month.top).not.toContainText('Gum Stand')
+    // The month report carries the delta, the top five and the summary flag:
+    // no ledger page and no summary lookup that could only answer 404.
+    expect(calls.filter((path) => path.startsWith('/api/v1/transactions'))).toEqual([])
+    expect(calls.filter((path) => path.startsWith('/api/v1/insights'))).toEqual([])
+    expect(calls.filter((path) => path.startsWith('/api/v1/reports/'))).toEqual([
+      '/api/v1/reports/month',
+      '/api/v1/reports/trend',
+    ])
+
+    // Tapping the selected month opens the year grid; a month there opens it.
+    await month.stripMonth(thisMonth).click()
+    await expect(month.yearGrid).toContainText('Choose a month')
+    await month.yearGrid.locator(`button[data-month="${lastMonth}"]`).click()
+    await expect(page).toHaveURL(new RegExp(`/month/${lastMonth}$`))
+    await month.waitReady()
+    await expect(month.hero).toHaveText('$85.00')
+
+    // Screens reached from More keep More marked in the tab bar.
+    await page.goto('/categories')
+    await expect(
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'More' })
+    ).toHaveAttribute('aria-current', 'page')
   })
 
   test('undo removes what was just saved', async ({ page, context }) => {

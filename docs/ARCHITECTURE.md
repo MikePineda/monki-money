@@ -64,14 +64,27 @@ is loaded or sent. E2E serves a stand-in for it (`e2e/support/turnstile.ts`).
 Shared (`packages/shared`): wire types and pure helpers used by both sides,
 compiled to `dist/` because Node does not load `.ts` from `node_modules`.
 
+**Month view (web).** Two calls draw a month: `GET /reports/month` (totals
+and lines, the previous month's totals for the hero's delta, the five
+largest expenses, whether the AI summary is stored in the reader's language,
+what is committed) and `GET /reports/trend` (the 6-month chart, sparklines
+and the deterministic insights). `MonthStore` (`core/month`) keeps the last
+six months in memory. Who paid is named from the session: `GET /auth/me`
+carries the members' names and colours (`SessionStore.members`/`partner`,
+read by `MembersStore`), so only Settings reads `GET /household/members`
+(emails, invitations). Tapping the selected month in the strip opens the
+year grid sheet (`shared/ui/month-picker`, this year and the two before).
+
 Monthly summary card (web): the Month view's insights slot leads with
 `InsightSummaryCardComponent`, backed by a root `InsightsStore`
 (`features/month/data-access`) that caches one summary per month and
-language. Switching months reads the cache, a ledger change in the month
+language and asks `GET /insights/:month` only when the month report's
+`insight` flag does not say there is none in this language. Switching
+months reads the cache, a ledger change in the month
 (`MonthStore.revisionOf`) drops its entry, and a change of the user's saved
 locale (the language the API answers in) reads the other language. States:
-_loading_ (skeleton); _missing_ (404: "Get your summary for {month}" with one
-Generate button; nothing is generated without a tap); _generating_ (skeleton
+_loading_ (skeleton); _missing_ (none stored: "Get your summary for {month}"
+with one Generate button; nothing is generated without a tap); _generating_ (skeleton
 and "Writing your summary"); _ready_ (headline, the body through
 `domain/markdown-lite` rendered by templates only, never `innerHTML`,
 highlights as a status icon plus a tone word, "Written by AI · Updated {time}",
@@ -180,7 +193,11 @@ bar is the only place that shows what is not on the server yet (lists and
 the Month view never merge queued entries): it opens a sheet to retry, edit
 (quick add with `?outbox=<id>`, which holds the entry and replaces it
 keeping its client id) or discard. Quick add's own rankings (category
-tiles, payees, routes) do count queued entries (`queuedAsRecent`). The
+tiles, payees, routes, the default account) come from the server
+(`GET /transactions/suggestions`, over the person's and the household's
+latest rows, cached for the session so offline opens with the last answer)
+and do count queued entries (`queuedAsRecent`), added in the same units
+(`recencyWeight` in `@monkimoney/shared`). The
 service worker never caches `/api`; the outbox, not the SW, is what makes
 writes survive offline.
 

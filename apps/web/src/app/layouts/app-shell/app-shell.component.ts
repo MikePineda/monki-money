@@ -8,6 +8,9 @@ import { TabBarComponent, type TabItem } from '../../shared/ui/tab-bar/tab-bar.c
 import { OutboxPillComponent } from '../outbox/outbox-pill.component'
 import { ToastOutletComponent } from '../toast-outlet/toast-outlet.component'
 
+/** Screens reached from More that live outside `/settings`. */
+const MORE_SCREENS = ['/categories', '/tags', '/recurring', '/goals', '/upgrade']
+
 /** Bottom padding of the page and the toast's dock, without and with the sync pill (36px + 16px). */
 const MAIN = {
   plain: 'pb-[calc(var(--tabbar-height)+var(--safe-bottom))]',
@@ -85,7 +88,8 @@ export class AppShellComponent {
     return [
       { path: '/month', icon: 'calendar', label: month },
       { path: '/transactions', icon: 'list', label: transactions },
-      { path: '/settings', icon: 'ellipsis', label: more },
+      // More stays marked on the screens it lists (the rules live under /settings).
+      { path: '/settings', icon: 'ellipsis', label: more, matches: MORE_SCREENS },
     ]
   })
 }

@@ -16,6 +16,21 @@ export class MonthPage {
   get top() {
     return this.page.getByTestId('month.top')
   }
+  /** The rows of the month's largest expenses. */
+  get topRows() {
+    return this.top.locator('app-list-row')
+  }
+  /** "8% less than September ($3,571.20)" under the hero. */
+  get delta() {
+    return this.page.getByTestId('month.delta')
+  }
+  /** One month of the strip ('YYYY-MM'); tapping the selected one opens the year grid. */
+  stripMonth(month: string) {
+    return this.page.getByTestId('month.picker').locator(`button[data-month="${month}"]`)
+  }
+  get yearGrid() {
+    return this.page.getByTestId('monthPicker.yearGrid')
+  }
   get addButton() {
     return this.page.getByRole('link', { name: 'Add transaction' }).first()
   }

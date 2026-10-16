@@ -35,6 +35,9 @@
       "delete": "Borrar",
       "clearHint": "Mantén presionado para borrar todo"
     },
+    "yearGrid": {
+      "title": "Elige un mes"
+    },
     "sheet": {
       "close": "Cerrar"
     },

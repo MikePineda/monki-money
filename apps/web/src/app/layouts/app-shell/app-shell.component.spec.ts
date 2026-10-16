@@ -51,6 +51,8 @@ describe('AppShellComponent', () => {
               { path: 'month', component: Page },
               { path: 'transactions', component: Page },
               { path: 'settings', component: Page },
+              { path: 'categories', component: Page },
+              { path: 'goals/:id', component: Page },
             ],
           },
         ]),
@@ -75,6 +77,16 @@ describe('AppShellComponent', () => {
     expect(await bar.getTabLabels()).toEqual(['Month', 'Transactions', 'More'])
     expect(await bar.getAddLabel()).toBe('Add transaction')
     expect(await bar.getActiveTab()).toBe('Month')
+  })
+
+  it('test_more_stays_marked_on_the_screens_reached_from_it', async () => {
+    const { loader, harness } = await setup()
+    const bar = await loader.getHarness(TabBarHarness)
+
+    for (const url of ['/categories', '/goals/3', '/settings']) {
+      await harness.navigateByUrl(url)
+      expect(await bar.getActiveTab(), url).toBe('More')
+    }
   })
 
   it('test_tab_labels_follow_the_language', async () => {

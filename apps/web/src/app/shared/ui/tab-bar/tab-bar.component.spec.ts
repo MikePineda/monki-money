@@ -16,7 +16,7 @@ class Host {
   readonly tabs: TabItem[] = [
     { path: '/month', icon: 'calendar', label: 'Month' },
     { path: '/transactions', icon: 'list', label: 'Transactions' },
-    { path: '/more', icon: 'ellipsis', label: 'More' },
+    { path: '/more', icon: 'ellipsis', label: 'More', matches: ['/categories', '/goals'] },
   ]
 }
 
@@ -28,6 +28,10 @@ describe('TabBarComponent', () => {
           { path: 'month', component: Blank },
           { path: 'transactions', component: Blank },
           { path: 'more', component: Blank },
+          { path: 'more/password', component: Blank },
+          { path: 'categories', component: Blank },
+          { path: 'goals/:id', component: Blank },
+          { path: 'goalsetter', component: Blank },
           { path: 'add', component: Blank },
         ]),
       ],
@@ -67,6 +71,26 @@ describe('TabBarComponent', () => {
     await bar.clickAdd()
     await fixture.whenStable()
     expect(TestBed.inject(Router).url).toBe('/add')
+  })
+
+  it('test_a_tab_is_also_active_on_the_screens_reached_from_it', async () => {
+    const { bar, fixture } = await setup()
+    const router = TestBed.inject(Router)
+
+    for (const url of ['/categories', '/goals/4', '/more/password', '/categories?tag=x']) {
+      await router.navigateByUrl(url)
+      await fixture.whenStable()
+      expect(await bar.getActiveTab(), url).toBe('More')
+    }
+
+    // A prefix matches whole segments only.
+    await router.navigateByUrl('/goalsetter')
+    await fixture.whenStable()
+    expect(await bar.getActiveTab()).toBeNull()
+
+    await router.navigateByUrl('/transactions')
+    await fixture.whenStable()
+    expect(await bar.getActiveTab()).toBe('Transactions')
   })
 
   it('test_add_button_is_ink_not_accent', async () => {
