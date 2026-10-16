@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/MikePineda/monki-money/compare/v0.4.0...v0.4.1) (2026-10-16)
+
+
+### Fixed
+
+* honest month-to-date comparison, device language, import transfer labels, accounts error state ([#26](https://github.com/MikePineda/monki-money/issues/26)) ([7da30d6](https://github.com/MikePineda/monki-money/commit/7da30d620cda9ee1a07af082951c3cc85d64758b))
+
 ## [0.4.0](https://github.com/MikePineda/monki-money/compare/v0.3.0...v0.4.0) (2026-10-16)
 
 
