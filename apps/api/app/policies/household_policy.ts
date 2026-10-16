@@ -28,4 +28,8 @@ export default class HouseholdPolicy extends BasePolicy {
   export(_user: User, membership: HouseholdMember): AuthorizerResponse {
     return membership.isOwner
   }
+
+  transferOwnership(_user: User, membership: HouseholdMember): AuthorizerResponse {
+    return membership.isOwner
+  }
 }

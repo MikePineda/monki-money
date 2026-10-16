@@ -130,6 +130,9 @@ router
                 router.get('export', [controllers.Household, 'export']).as('export')
                 router.post('delete', [controllers.Household, 'destroy']).as('delete')
                 router.post('leave', [controllers.Household, 'leave']).as('leave')
+                router
+                  .post('transfer-ownership', [controllers.Household, 'transferOwnership'])
+                  .as('transferOwnership')
 
                 router
                   .get('invitations', [controllers.HouseholdInvitations, 'index'])

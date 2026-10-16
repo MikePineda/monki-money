@@ -22,6 +22,9 @@ export class SettingsPage {
   get leave() {
     return this.page.getByTestId('settings.leave')
   }
+  get makeOwner() {
+    return this.page.getByTestId('settings.makeOwner')
+  }
   get logout() {
     return this.page.getByTestId('settings.logout')
   }
@@ -57,6 +60,23 @@ export class SettingsPage {
     await this.invite.click()
     await this.page.getByTestId('settings.inviteSheet.input').locator('input').fill(email)
     await this.page.getByTestId('settings.inviteSheet.submit').click()
+  }
+
+  /**
+   * The owner hands the household over to the partner, confirming with a
+   * password. A value typed while the sheet is still binding its form can be
+   * reset to the empty model, so the fill is repeated until the confirm
+   * button takes it.
+   */
+  async makePartnerOwner(password: string): Promise<void> {
+    await this.makeOwner.click()
+    const input = this.page.getByTestId('ownership.password').locator('input')
+    const confirm = this.page.getByTestId('ownership.confirm')
+    await expect(async () => {
+      await input.fill(password)
+      await expect(confirm).toBeEnabled({ timeout: 1_000 })
+    }).toPass()
+    await confirm.click()
   }
 
   /** A member leaves from the danger zone, confirming in the sheet. */

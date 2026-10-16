@@ -1,26 +1,37 @@
 import { Readable } from 'node:stream'
 import { inject } from '@adonisjs/core'
+import type User from '#models/user'
 import type { HttpContext } from '@adonisjs/core/http'
 import HouseholdPolicy from '#policies/household_policy'
 import { authAttempts, throttleKey } from '#services/auth/throttles'
 import MemberTransformer from '#transformers/member_transformer'
-import HouseholdService from '#services/households/household_service'
+import HouseholdService, { type PasswordAttempt } from '#services/households/household_service'
 import HouseholdTransformer from '#transformers/household_transformer'
 import HouseholdExporter from '#services/households/household_exporter'
-import LedgerCsvExporter from '#services/households/ledger_csv_exporter'
 import { privacyViewer } from '#services/ledger/privacy_viewer'
 import {
   deleteHouseholdValidator,
   exportHouseholdValidator,
+  transferOwnershipValidator,
   updateHouseholdValidator,
 } from '#validators/household'
+
+/**
+ * Password re-checks of `user` through the per-user limiter shared with
+ * PATCH /me: 5 wrong passwords a minute, then 20 minutes blocked (429).
+ */
+function passwordAttempt(user: User): PasswordAttempt {
+  return async (check) => {
+    const [throttled] = await authAttempts().penalize(throttleKey('password', user.id), check)
+    if (throttled) throw throttled
+  }
+}
 
 @inject()
 export default class HouseholdController {
   constructor(
     protected households: HouseholdService,
-    protected exporter: HouseholdExporter,
-    protected csvExporter: LedgerCsvExporter
+    protected exporter: HouseholdExporter
   ) {}
 
   /** GET /household */
@@ -45,8 +56,9 @@ export default class HouseholdController {
   }
 
   /**
-   * GET /household/export?format=json|csv (owner): streamed download. JSON
-   * has everything; CSV has the ledger, one row per posting.
+   * GET /household/export?format=json|csv (owner): streamed download of
+   * every table of the household. JSON: one object, one array per table;
+   * CSV: a zip with one CSV per table plus the readable ledger.
    */
   async export(ctx: HttpContext) {
     const { format } = await ctx.request.validateUsing(exportHouseholdValidator)
@@ -57,12 +69,12 @@ export default class HouseholdController {
     ctx.response.header('Cache-Control', 'no-store')
 
     if (format === 'csv') {
-      ctx.response.header('Content-Type', 'text/csv; charset=utf-8')
+      ctx.response.header('Content-Type', 'application/zip')
       ctx.response.header(
         'Content-Disposition',
-        `attachment; filename="monkimoney-transactions-${date}.csv"`
+        `attachment; filename="monkimoney-export-${date}.zip"`
       )
-      ctx.response.stream(Readable.from(this.csvExporter.csv(ctx.household, viewer, ctx.i18n)))
+      ctx.response.stream(Readable.from(this.exporter.zip(ctx.household, viewer, ctx.i18n)))
       return
     }
 
@@ -85,6 +97,28 @@ export default class HouseholdController {
   }
 
   /**
+   * POST /household/transfer-ownership (owner, password): another member
+   * becomes the owner and the caller a member. Wrong passwords (only those:
+   * not a wrong target) count toward the same per-user limit as PATCH /me
+   * and the household delete.
+   */
+  async transferOwnership(ctx: HttpContext) {
+    const { userId, password } = await ctx.request.validateUsing(transferOwnershipValidator)
+    await ctx.bouncer.with(HouseholdPolicy).authorize('transferOwnership', ctx.membership)
+
+    const owner = ctx.auth.getUserOrFail()
+    const members = await this.households.transferOwnership(
+      ctx.household,
+      owner,
+      userId,
+      password,
+      passwordAttempt(owner)
+    )
+
+    return ctx.serialize(MemberTransformer.transform(members))
+  }
+
+  /**
    * POST /household/delete (owner, password): schedules the deletion. Wrong
    * passwords count toward the same per-user limit as PATCH /me.
    */
@@ -93,11 +127,12 @@ export default class HouseholdController {
     await ctx.bouncer.with(HouseholdPolicy).authorize('delete', ctx.membership)
 
     const owner = ctx.auth.getUserOrFail()
-    const [throttled, household] = await authAttempts().penalize(
-      throttleKey('password', owner.id),
-      () => this.households.scheduleDeletion(ctx.household, owner, password)
+    const household = await this.households.scheduleDeletion(
+      ctx.household,
+      owner,
+      password,
+      passwordAttempt(owner)
     )
-    if (throttled) throw throttled
 
     return ctx.serialize(HouseholdTransformer.transform(household))
   }

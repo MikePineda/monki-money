@@ -118,6 +118,7 @@
       "timezone": "The {field} is not a valid time zone",
       "currentPassword.matches": "The current password is incorrect",
       "password.matches": "The password is incorrect",
+      "userId.self": "Choose another member of the household",
       "email.taken": "This email is already registered",
       "email.alreadyMember": "This person is already a member of the household",
       "externalAccountNumber.taken": "Another account already uses this account number",

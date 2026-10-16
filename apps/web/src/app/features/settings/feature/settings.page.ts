@@ -45,6 +45,10 @@ import {
 } from '../ui/leave-household-sheet.component'
 import { SettingsRowComponent } from '../ui/settings-row.component'
 import { TextInputSheetComponent, type TextInputSheetData } from '../ui/text-input-sheet.component'
+import {
+  TransferOwnershipSheetComponent,
+  type TransferOwnershipSheetData,
+} from '../ui/transfer-ownership-sheet.component'
 
 /**
  * Scoped keys used from TypeScript. translateSignal() adds the "settings."
@@ -60,6 +64,7 @@ import { TextInputSheetComponent, type TextInputSheetData } from '../ui/text-inp
  * t(settings.app.upToDate, settings.app.updateFailed, settings.app.updateUnsupported)
  * t(settings.danger.sheet.wrongPassword, settings.errors.invalid)
  * t(settings.danger.leaveSheet.ownerCannot)
+ * t(settings.household.ownerSheet.wrongPassword, settings.household.ownerSheet.done)
  */
 const THEME_KEYS = ['appearance.light', 'appearance.dark', 'appearance.system']
 const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
@@ -68,8 +73,10 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
  * Settings (DESIGN mock `settings`), one scrolling page of cards: profile
  * (name, language, password), appearance, the household (name, time zone,
  * members, invitations), accounts, the app (install, version, updates),
- * notifications (their own section), legal, and the danger zone (the owner
- * exports or deletes, a member leaves). Every change saves at once; owner-only controls are hidden from
+ * notifications (their own section), legal, and the danger zone (the
+ * owner exports or deletes, a member leaves). The owner can make the
+ * partner the owner from the members list (then leave as a member).
+ * Every change saves at once; owner-only controls are hidden from
  * members (the API enforces the same rule).
  */
 @Component({
@@ -183,6 +190,19 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
                   }
                 </span>
                 <span class="text-body text-ink-2">{{ row.roleKey | transloco }}</span>
+                @if (row.canMakeOwner) {
+                  <button
+                    appButton
+                    type="button"
+                    variant="link"
+                    class="-mr-3"
+                    data-testid="settings.makeOwner"
+                    (click)="makeOwner(row.member)"
+                  >
+                    {{ 'settings.household.makeOwner' | transloco
+                    }}<span class="sr-only">: {{ row.member.fullName }}</span>
+                  </button>
+                }
               </li>
             }
           </ul>
@@ -422,6 +442,8 @@ export default class SettingsPage implements OnInit {
         member.role === 'owner'
           ? 'settings.household.roles.owner'
           : 'settings.household.roles.member',
+      // The owner can hand the household over to anyone else in it.
+      canMakeOwner: this.isOwner() && member.userId !== youId && member.role !== 'owner',
     }))
   })
 
@@ -602,6 +624,14 @@ export default class SettingsPage implements OnInit {
     this.sheets.open<boolean>(DeleteHouseholdSheetComponent, { data, injector: this.injector })
   }
 
+  protected makeOwner(member: Member): void {
+    const data: TransferOwnershipSheetData = {
+      memberName: member.fullName,
+      confirm: (password) => this.transferOwnership(member, password),
+    }
+    this.sheets.open<boolean>(TransferOwnershipSheetComponent, { data, injector: this.injector })
+  }
+
   protected leaveHousehold(): void {
     const household = this.household()
     if (!household) {
@@ -637,6 +667,40 @@ export default class SettingsPage implements OnInit {
       const message = failureMessage(failure)
       return { field: 'general', message: this.t(message.key, message.params) }
     }
+  }
+
+  /**
+   * Hands the household over, then reloads the session: the caller is a
+   * member now, so the owner-only controls go and "Leave household" shows.
+   */
+  private async transferOwnership(member: Member, password: string): Promise<DeleteOutcome> {
+    try {
+      this.members.set(await this.households.transferOwnership(member.userId, password))
+    } catch (error) {
+      const failure = toApiError(error)
+      if (failure.kind === 'validation') {
+        // Only the password can be wrong from this sheet; anything else is general.
+        const other = Object.entries(failure.fields).find(([field]) => field !== 'password')
+        return other && failure.fields['password'] === undefined
+          ? { field: 'general', message: other[1] }
+          : {
+              field: 'password',
+              message:
+                failure.fields['password'] ?? this.t('settings.household.ownerSheet.wrongPassword'),
+            }
+      }
+      const message = failureMessage(failure)
+      return { field: 'general', message: this.t(message.key, message.params) }
+    }
+    this.sheets.closeAll()
+    this.invitations.set([])
+    this.toasts.show({
+      messageKey: 'settings.household.ownerSheet.done',
+      params: { name: member.fullName },
+      status: 'good',
+    })
+    await this.session.load()
+    return null
   }
 
   /** Leaves, then goes where the session now belongs: creating a household. */

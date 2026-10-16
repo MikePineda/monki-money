@@ -24,6 +24,20 @@ export function csvCell(value: CsvValue): string {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 
+/**
+ * A JSON-shaped value as one CSV cell: lists of strings (tags) join with
+ * "; ", other lists and objects become their JSON text; scalars stay as
+ * they are. The result still goes through `csvCell` (escaping included).
+ */
+export function flatCell(value: unknown): CsvValue {
+  if (value === null || value === undefined) return null
+  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+    return value.join('; ')
+  }
+  if (typeof value === 'object') return JSON.stringify(value)
+  return value as CsvValue
+}
+
 /** One CSV record, terminated by CRLF. */
 export function csvRow(values: CsvValue[]): string {
   return `${values.map(csvCell).join(',')}\r\n`

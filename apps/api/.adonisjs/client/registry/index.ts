@@ -162,6 +162,12 @@ const routes = {
     tokens: [{"old":"/api/v1/household/leave","type":0,"val":"api","end":""},{"old":"/api/v1/household/leave","type":0,"val":"v1","end":""},{"old":"/api/v1/household/leave","type":0,"val":"household","end":""},{"old":"/api/v1/household/leave","type":0,"val":"leave","end":""}],
     types: placeholder as Registry['household.leave']['types'],
   },
+  'household.transferOwnership': {
+    methods: ["POST"],
+    pattern: '/api/v1/household/transfer-ownership',
+    tokens: [{"old":"/api/v1/household/transfer-ownership","type":0,"val":"api","end":""},{"old":"/api/v1/household/transfer-ownership","type":0,"val":"v1","end":""},{"old":"/api/v1/household/transfer-ownership","type":0,"val":"household","end":""},{"old":"/api/v1/household/transfer-ownership","type":0,"val":"transfer-ownership","end":""}],
+    types: placeholder as Registry['household.transferOwnership']['types'],
+  },
   'household.invitations.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/household/invitations',

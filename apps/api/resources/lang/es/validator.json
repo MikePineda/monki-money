@@ -118,6 +118,7 @@
       "timezone": "El campo {field} no es una zona horaria válida",
       "currentPassword.matches": "La contraseña actual es incorrecta",
       "password.matches": "La contraseña es incorrecta",
+      "userId.self": "Elige a otra persona del hogar",
       "email.taken": "Este correo ya está registrado",
       "email.alreadyMember": "Esta persona ya es miembro del hogar",
       "externalAccountNumber.taken": "Otra cuenta ya usa este número de cuenta",
