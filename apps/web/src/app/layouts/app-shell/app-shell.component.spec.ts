@@ -26,6 +26,7 @@ class FakeOutbox {
   readonly failedCount = signal(0)
   readonly isSyncing = signal(false)
   readonly isOnline = signal(true)
+  readonly isPersisted = signal(true)
 }
 
 describe('AppShellComponent', () => {

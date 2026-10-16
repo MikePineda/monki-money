@@ -48,6 +48,7 @@ class FakeOutbox {
   readonly entries = signal<OutboxEntry[]>([])
   readonly isSyncing = signal(false)
   readonly isOnline = signal(true)
+  readonly isPersisted = signal(true)
   readonly pendingCount = computed(
     () => this.entries().filter((entry) => entry.status !== 'failed').length
   )
@@ -150,6 +151,28 @@ describe('OutboxPillComponent', () => {
     await show(queued(1, 1))
 
     expect(label(pill())).toBe('1 pending · 1 failed')
+  })
+
+  it('test_the_pill_says_not_persisted_when_this_device_refused_to_store_the_entries', async () => {
+    const { pill, show, outbox, fixture } = await setup()
+    outbox.isPersisted.set(false)
+
+    await show(queued(1))
+    await fixture.whenStable()
+
+    expect(label(pill())).toBe('1 pending · not persisted')
+    expect(pill()?.className).toContain('border-status-warning')
+    expect(pill()?.querySelector('[data-icon="triangle-alert"]')).not.toBeNull()
+  })
+
+  it('test_not_persisted_follows_the_language', async () => {
+    const { pill, show, outbox, fixture } = await setup('es')
+    outbox.isPersisted.set(false)
+
+    await show(queued(1))
+    await fixture.whenStable()
+
+    expect(label(pill())).toBe('1 pendiente · sin guardar en el dispositivo')
   })
 
   it('test_the_pill_follows_the_language', async () => {

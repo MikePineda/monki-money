@@ -19,6 +19,9 @@
     "problem": {
       "notImage": "Este archivo no es una foto. Elige una foto del ticket.",
       "unreadablePhoto": "No se pudo abrir esta foto. Prueba con otra.",
+      "unsupportedFormat": "Este navegador no puede abrir fotos {format}. Elige una JPEG o PNG, o toma la foto con el botón de la cámara.",
+      "tooLarge": "Esta foto es demasiado grande para subirla (máximo 10 MB), incluso reducida. Prueba con otra.",
+      "wrongType": "Esta foto no se puede subir en su formato. Elige una foto JPEG, PNG o WebP.",
       "offline": "Sin conexión. Escanear necesita internet, así que inténtalo de nuevo cuando vuelvas a estar en línea.",
       "quota": "Llegaste al límite de IA de este mes. Aún puedes agregar el gasto a mano.",
       "unavailable": "El escaneo no está disponible en este momento.",
@@ -41,6 +44,16 @@
       "high": "Se leyó bien. Revisa los datos antes de guardar.",
       "medium": "Algunas partes costaron trabajo. Revisa el monto y la fecha.",
       "low": "Se leyó con dificultad. Revisa cada campo antes de guardar."
+    },
+    "currency": {
+      "message": "Este ticket está en {currency}. Se guardará en {home} con los montos tal como los escribas, sin convertir.",
+      "continue": "Continuar",
+      "cancel": "Cancelar"
+    },
+    "photo": {
+      "show": "Ver foto",
+      "hide": "Ocultar foto",
+      "alt": "El ticket escaneado"
     },
     "split": "Dividir por líneas",
     "splitHint": "Dale a cada línea del ticket su propia categoría.",

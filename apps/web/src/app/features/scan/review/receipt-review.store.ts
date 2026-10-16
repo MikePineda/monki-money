@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core'
 import { failureMessage } from '../../../core/api/error-messages'
 import { toApiError } from '../../../core/api/http-errors'
+import { SessionStore } from '../../../core/auth/session.store'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { MonthStore } from '../../../core/month/month.store'
 import { newClientId } from '../../../core/platform/client-id'
@@ -8,12 +9,14 @@ import { readLastAccount, rememberLastAccount } from '../../../core/platform/las
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { WINDOW } from '../../../core/platform/window.token'
 import { ToastStore } from '../../../core/ui/toast.store'
+import { DEFAULT_CURRENCY } from '../../../domain/money'
 import { monthOf, todayIn } from '../../../domain/month'
 import { defaultAccountFor } from '../../../domain/quick-add-defaults'
 import {
   categorizeLines,
   confidenceLevel,
   dropLines,
+  foreignCurrency,
   linesFromReceipt,
   linesIssues,
   mergeLines,
@@ -57,6 +60,9 @@ export type ReviewLoadState = 'loading' | 'ready' | 'error'
  *   with the receipt's category, or the one picked on the form; lines can
  *   be merged, dropped or given a category; the last line takes whatever
  *   is left of the total.
+ * - A receipt in another currency than the household's (`currencyCode`)
+ *   waits for the person: continuing saves the amounts as typed, in the
+ *   household's currency (nothing is converted); cancelling drops the draft.
  * - Saving posts `POST /transactions` with `source: 'receipt'` and a client
  *   id kept for the whole review, so a retry after a lost answer never
  *   creates it twice. It needs the network: offline it says so and keeps
@@ -69,6 +75,7 @@ export class ReceiptReviewStore {
   private readonly toasts = inject(ToastStore)
   private readonly window = inject(WINDOW)
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
+  private readonly session = inject(SessionStore)
   readonly directory = inject(HouseholdDirectory)
 
   readonly receipt = signal<ReceiptDraft | null>(null)
@@ -90,6 +97,21 @@ export class ReceiptReviewStore {
   })
   readonly canSplit = computed(() => (this.receipt()?.items.length ?? 0) >= 2)
 
+  /** The household's currency, the one every amount is saved in. */
+  readonly householdCurrency = computed(
+    () => this.session.household()?.currencyCode ?? DEFAULT_CURRENCY
+  )
+  /** The receipt's currency when it is another one ("USD"), else null. */
+  readonly foreignCurrency = computed(() => {
+    const receipt = this.receipt()
+    return receipt ? foreignCurrency(receipt, this.householdCurrency()) : null
+  })
+  private readonly currencyAccepted = signal(false)
+  /** A receipt in another currency the person has not agreed to save as typed yet. */
+  readonly currencyPending = computed(
+    () => this.foreignCurrency() !== null && !this.currencyAccepted()
+  )
+
   /** The lines as they will be saved (the last one takes what is left of the total). */
   readonly settled = computed(() => settledLines(this.entry().amountCents, this.lines()))
   /** What the last line absorbs: the total minus the printed lines (0 when they agree). */
@@ -105,6 +127,7 @@ export class ReceiptReviewStore {
     return (
       this.loadState() === 'ready' &&
       !this.saving() &&
+      !this.currencyPending() &&
       entry.amountCents > 0 &&
       entry.accountId !== null &&
       entry.date !== '' &&
@@ -124,6 +147,7 @@ export class ReceiptReviewStore {
   async start(receipt: ReceiptDraft): Promise<void> {
     this.receipt.set(receipt)
     this.clientId = newClientId()
+    this.currencyAccepted.set(false)
     this.splitByLines.set(false)
     this.selection.set(new Set())
     this.fieldErrors.set({})
@@ -153,6 +177,11 @@ export class ReceiptReviewStore {
   retry(): Promise<void> {
     const receipt = this.receipt()
     return receipt ? this.start(receipt) : Promise.resolve()
+  }
+
+  /** "Continue" on the currency warning: the amounts are saved as typed, in the household's currency. */
+  continueInHouseholdCurrency(): void {
+    this.currencyAccepted.set(true)
   }
 
   /** "Split by lines": lines without a category take the form's category. */

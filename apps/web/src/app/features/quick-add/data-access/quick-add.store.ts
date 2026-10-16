@@ -17,11 +17,12 @@ import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { WINDOW } from '../../../core/platform/window.token'
 import { ToastStore } from '../../../core/ui/toast.store'
 import { monthOf, todayIn, type IsoDate } from '../../../domain/month'
-import type {
-  OutboxEntry,
-  OutboxItem,
-  TransactionPayload,
-  TransferPayload,
+import {
+  queuedAsRecent,
+  type OutboxEntry,
+  type OutboxItem,
+  type TransactionPayload,
+  type TransferPayload,
 } from '../../../domain/outbox'
 import {
   QUICK_CATEGORY_COUNT,
@@ -60,14 +61,17 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
 /**
  * Toasts are translated where they render. Declared for
  * transloco-keys-manager (scope keys): t(quickAdd.toast.saved, quickAdd.toast.undo, quickAdd.toast.undone)
- * t(quickAdd.toast.queued, quickAdd.toast.updated)
+ * t(quickAdd.toast.queued, quickAdd.toast.queuedMemory, quickAdd.toast.updated)
+ * t(quickAdd.toast.undoSynced)
  */
 const TOAST_KEYS = {
   saved: 'quickAdd.toast.saved',
   undo: 'quickAdd.toast.undo',
   undone: 'quickAdd.toast.undone',
   queued: 'quickAdd.toast.queued',
+  queuedMemory: 'quickAdd.toast.queuedMemory',
   updated: 'quickAdd.toast.updated',
+  undoSynced: 'quickAdd.toast.undoSynced',
 } as const
 
 /** What a tap on "Save" came to (the page leaves after an edit). */
@@ -124,11 +128,16 @@ function toRecentEntry(row: LedgerRow): RecentEntry {
  *   when the request fails for lack of network, a server error or a
  *   throttle, the entry goes to the offline outbox with that same client id
  *   (so a request that did land is never created twice) and syncs later:
- *   "Saved offline · will sync". A 422 maps to field errors and queues
- *   nothing; any other refusal keeps the draft and says so in a toast.
+ *   "Saved offline · will sync · Undo" (undo drops it from the outbox, or
+ *   deletes the row once it synced), or "keep the app open" when the device
+ *   could not store it. A 422 maps to field errors and queues nothing; any
+ *   other refusal keeps the draft and says so in a toast.
  * - After a save: a haptic tick, "Saved · Undo" (undo deletes it), the
  *   draft clears, the outbox gets a chance to sync, and the screen stays on
  *   /add for the next one.
+ * - The rankings (category tiles, payees, routes, the latest account) read
+ *   the recent ledger rows plus what waits in the outbox, so an entry saved
+ *   offline counts before it syncs.
  * - Offline it still opens with the accounts and categories already loaded
  *   this session (the recent rows that rank the defaults are skipped).
  * - `/add?outbox=<id>` edits a queued entry: the drafts open with its
@@ -169,6 +178,13 @@ export class QuickAddStore {
 
   readonly today = computed(() => todayIn(this.timeZone()))
   readonly youId = computed(() => this.session.user()?.id ?? null)
+
+  /** What the rankings read: queued entries (newest first), then the recent ledger rows. */
+  private readonly ranking = computed(() => [
+    ...queuedAsRecent(this.outbox.entries(), this.youId()),
+    ...this.recent(),
+  ])
+
   readonly hasAccounts = computed(() => this.directory.activeAccounts().length > 0)
 
   /** The amount on the keypad, shared by both drafts so switching type keeps it. */
@@ -188,7 +204,7 @@ export class QuickAddStore {
     }
     const candidates = this.directory.categoriesOf(kind)
     const ids = rankCategories(
-      this.recent(),
+      this.ranking(),
       kind,
       this.today(),
       candidates.map((entry) => entry.category)
@@ -205,7 +221,7 @@ export class QuickAddStore {
 
   /** The most used transfer routes ("→ Savings"). */
   readonly presets = computed<TransferPair[]>(() =>
-    transferPresets(this.recent(), this.directory.accounts(), this.today())
+    transferPresets(this.ranking(), this.directory.accounts(), this.today())
   )
 
   /** Recent payees of this kind, most used first (the form filters them as one types). */
@@ -213,7 +229,7 @@ export class QuickAddStore {
     const kind = this.kind()
     return kind === 'transfer'
       ? []
-      : payeeSuggestions(this.recent(), kind, '', this.today(), PAYEE_SUGGESTIONS)
+      : payeeSuggestions(this.ranking(), kind, '', this.today(), PAYEE_SUGGESTIONS)
   })
 
   readonly canSave = computed(() => {
@@ -283,7 +299,7 @@ export class QuickAddStore {
         ? (this.directory.activeAccounts()[0]?.id ?? null)
         : defaultAccountFor(
             youId,
-            this.recent(),
+            this.ranking(),
             this.directory.accounts(),
             this.storedAccount(youId)
           )
@@ -438,15 +454,35 @@ export class QuickAddStore {
     }
   }
 
-  /** Into the outbox: on disk before the toast, then the same "next entry" reset as a save. */
+  /**
+   * Into the outbox: on disk before the toast (or only in memory, which the
+   * toast says), with "Undo", then the same "next entry" reset as a save.
+   */
   private queue(item: OutboxItem): void {
     this.outbox.enqueue(item)
     if (item.kind === 'transaction') {
       this.rememberAccount(item.payload.accountId)
     }
     this.vibrate()
-    this.savedToast = this.toasts.show({ messageKey: TOAST_KEYS.queued })
+    const id = item.payload.clientId
+    this.savedToast = this.toasts.show({
+      messageKey: this.outbox.isPersisted() ? TOAST_KEYS.queued : TOAST_KEYS.queuedMemory,
+      action: { labelKey: TOAST_KEYS.undo, run: () => void this.undoQueued(id) },
+    })
     this.clearDraft()
+  }
+
+  /** "Undo" on "Saved offline": drops the queued entry, or deletes the row it became. */
+  async undoQueued(id: string): Promise<void> {
+    try {
+      const outcome = await this.outbox.undo(id)
+      this.toasts.show({
+        messageKey: outcome === 'removed' ? TOAST_KEYS.undone : TOAST_KEYS.undoSynced,
+      })
+    } catch (error) {
+      const message = failureMessage(toApiError(error))
+      this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
+    }
   }
 
   /** Saving an edited queued entry replaces it in the outbox (same client id). */

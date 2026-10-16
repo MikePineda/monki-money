@@ -1,17 +1,25 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
+import { receiptUploadProblem, type ReceiptUploadProblem } from '@monkimoney/shared'
 import { hasStatus, toApiError } from '../../core/api/http-errors'
 import { UploadAbortedError, UploadNetworkError } from '../../core/api/upload.service'
 import { ImageOptimizer, ImageUnreadableError } from '../../core/platform/image-optimizer'
 import { OBJECT_URLS } from '../../core/platform/object-urls'
 import { WINDOW } from '../../core/platform/window.token'
-import { checkImageFile, type OptimizedImage } from '../../domain/image-optimizer'
+import {
+  checkImageFile,
+  undecodableFormat,
+  type OptimizedImage,
+} from '../../domain/image-optimizer'
 import type { ReceiptDraft } from '../../domain/receipt-draft'
 import { ReceiptsApi } from './data-access/receipts.api'
 
 /**
  * Why a scan stopped:
  * - `notImage`: the picked file is not a photo (or is empty);
- * - `unreadablePhoto`: the device could not open the photo;
+ * - `unreadablePhoto`: the device could not open the photo (with its
+ *   `format` when that is the reason, such as HEIC on a browser without it);
+ * - `tooLarge` / `wrongType`: the reduced photo is over the upload limit
+ *   (10 MB) or of a type the bucket does not take (said before any upload);
  * - `offline`: no connection (scanning needs the network; nothing is queued);
  * - `quota`: the household's AI limit for the month (402);
  * - `unavailable`: the model or the bucket is down (503);
@@ -24,6 +32,8 @@ import { ReceiptsApi } from './data-access/receipts.api'
 export type ScanProblem =
   | 'notImage'
   | 'unreadablePhoto'
+  | 'tooLarge'
+  | 'wrongType'
   | 'offline'
   | 'quota'
   | 'unavailable'
@@ -40,12 +50,14 @@ export type ScanStep =
   | { step: 'uploading'; progress: number | null }
   | { step: 'scanning' }
   | { step: 'review'; receipt: ReceiptDraft }
-  | { step: 'error'; problem: ScanProblem; retryable: boolean }
+  | { step: 'error'; problem: ScanProblem; retryable: boolean; format?: string }
 
 /** Problems a second try with the same photo cannot fix. */
 const FINAL: ReadonlySet<ScanProblem> = new Set([
   'notImage',
   'unreadablePhoto',
+  'tooLarge',
+  'wrongType',
   'quota',
   'unreadable',
 ])
@@ -57,6 +69,11 @@ const WORKING: ReadonlySet<ScanStep['step']> = new Set([
   'scanning',
 ])
 
+const UPLOAD_PROBLEMS: Record<ReceiptUploadProblem, ScanProblem> = {
+  size: 'tooLarge',
+  type: 'wrongType',
+}
+
 /** The bucket answered the PUT with something other than 2xx. */
 class BucketRefusedError extends Error {
   constructor(readonly status: number) {
@@ -65,23 +82,35 @@ class BucketRefusedError extends Error {
   }
 }
 
+/** The reduced photo breaks the shared upload limits: nothing is asked of the API. */
+class OutsideUploadLimitsError extends Error {
+  constructor(readonly problem: ReceiptUploadProblem) {
+    super(`The photo cannot be uploaded (${problem})`)
+    this.name = 'OutsideUploadLimitsError'
+  }
+}
+
 /** The scan was cancelled or replaced; whatever it was doing no longer matters. */
 class SupersededError extends Error {}
 
 /**
  * The capture half of the receipt scanner `/scan`: picks a photo, reduces
- * it on the device (never the original goes up), asks the API for a
- * presigned URL sized to the reduced photo, PUTs it straight to the bucket
- * with real progress, and asks the API to read it.
+ * it on the device (never the original goes up), checks it against the
+ * shared upload limits, asks the API for a presigned URL sized to the
+ * reduced photo, PUTs it straight to the bucket with real progress, and
+ * asks the API to read it.
  *
  * `idle → optimizing → presigning → uploading(progress) → scanning →
  * review | error`. A 403 from the bucket (the five-minute URL expired) gets
  * one fresh URL. Scanning needs the network: offline is said, never queued,
  * and "Try again" uploads the same reduced photo under a new key (each key
- * scans once). Cancel aborts whatever is in flight. The local preview is a
- * `blob:` URL revoked as soon as the draft is back, on cancel and when the
- * screen goes away: nothing of the photo stays on the device. Provided by
- * the page.
+ * scans once). Cancel aborts whatever is in flight.
+ *
+ * The photo lives in memory only, as `blob:` URLs, and is never persisted:
+ * the original's preview while it is read (revoked once the draft is
+ * back), then the reduced copy (`reviewPhoto`) while the review is open, to
+ * compare with the fields. Both go on cancel, on discard, with a new photo
+ * and when the screen goes away. Provided by the page.
  */
 @Injectable()
 export class ScanStore {
@@ -91,11 +120,13 @@ export class ScanStore {
   private readonly window = inject(WINDOW)
 
   readonly step = signal<ScanStep>({ step: 'idle' })
-  /** The picked photo, shown while it is being read. */
+  /** The picked photo, shown while it is read. */
   readonly preview = signal<string | null>(null)
+  /** The reduced photo (what was read), kept while the review is open. */
+  readonly reviewPhoto = signal<string | null>(null)
   readonly busy = computed(() => WORKING.has(this.step().step))
 
-  private photo: Blob | null = null
+  private photo: File | null = null
   private optimized: OptimizedImage | null = null
   private controller: AbortController | null = null
 
@@ -127,11 +158,12 @@ export class ScanStore {
     this.reset()
   }
 
-  /** Back to the capture with nothing kept: aborts, forgets the photo, revokes the preview. */
+  /** Back to the capture with nothing kept: aborts, forgets the photo, revokes its URLs. */
   reset(): void {
     this.controller?.abort()
     this.controller = null
     this.forgetPhoto()
+    this.releaseReviewPhoto()
     this.step.set({ step: 'idle' })
   }
 
@@ -157,8 +189,9 @@ export class ScanStore {
       const receipt = await this.api.scan(key, controller.signal)
       live()
       this.controller = null
-      // The draft is back: nothing of the photo is kept any longer.
+      // The draft is back: the original goes, the reduced copy stays for the review.
       this.forgetPhoto()
+      this.reviewPhoto.set(this.urls.create(image.blob))
       this.step.set({ step: 'review', receipt })
     } catch (error) {
       if (this.controller !== controller) {
@@ -180,12 +213,19 @@ export class ScanStore {
     return image
   }
 
-  /** Presigns and PUTs the photo; a 403 (expired URL) gets one fresh URL. Resolves with the key. */
+  /**
+   * Checks the shared upload limits, presigns and PUTs the photo; a 403
+   * (expired URL) gets one fresh URL. Resolves with the key.
+   */
   private async upload(
     image: OptimizedImage,
     signal: AbortSignal,
     live: () => void
   ): Promise<string> {
+    const outside = receiptUploadProblem({ type: image.contentType, size: image.blob.size })
+    if (outside !== null) {
+      throw new OutsideUploadLimitsError(outside)
+    }
     for (let attempt = 1; ; attempt += 1) {
       this.step.set({ step: 'presigning' })
       const upload = await this.api.presign(image.contentType, image.blob.size)
@@ -211,9 +251,15 @@ export class ScanStore {
     )
   }
 
-  private problemOf(error: unknown): { problem: ScanProblem } {
+  private problemOf(error: unknown): { problem: ScanProblem; format?: string } {
     if (error instanceof ImageUnreadableError) {
-      return { problem: 'unreadablePhoto' }
+      const format = this.photo ? undecodableFormat(this.photo) : null
+      return format === null
+        ? { problem: 'unreadablePhoto' }
+        : { problem: 'unreadablePhoto', format }
+    }
+    if (error instanceof OutsideUploadLimitsError) {
+      return { problem: UPLOAD_PROBLEMS[error.problem] }
     }
     if (error instanceof UploadNetworkError) {
       // A bucket that refuses the browser (no CORS rule) fails like a dropped
@@ -242,10 +288,16 @@ export class ScanStore {
     }
   }
 
-  private fail({ problem }: { problem: ScanProblem }): void {
-    this.step.set({ step: 'error', problem, retryable: !FINAL.has(problem) })
+  private fail({ problem, format }: { problem: ScanProblem; format?: string }): void {
+    const retryable = !FINAL.has(problem)
+    this.step.set(
+      format === undefined
+        ? { step: 'error', problem, retryable }
+        : { step: 'error', problem, retryable, format }
+    )
   }
 
+  /** Drops the original photo and its preview (the reduced copy is the review's to release). */
   private forgetPhoto(): void {
     const preview = this.preview()
     if (preview !== null) {
@@ -254,5 +306,13 @@ export class ScanStore {
     }
     this.photo = null
     this.optimized = null
+  }
+
+  private releaseReviewPhoto(): void {
+    const photo = this.reviewPhoto()
+    if (photo !== null) {
+      this.urls.revoke(photo)
+      this.reviewPhoto.set(null)
+    }
   }
 }

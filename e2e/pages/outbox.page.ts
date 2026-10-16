@@ -16,6 +16,16 @@ export class OutboxPage {
   get entries() {
     return this.page.getByTestId('outbox.entry')
   }
+  /** The warning an explicit logout shows while entries are still queued. */
+  get logoutWarning() {
+    return this.page.getByTestId('outbox.logout')
+  }
+  get logoutAnyway() {
+    return this.page.getByTestId('outbox.logout.confirm')
+  }
+  get logoutCancel() {
+    return this.page.getByTestId('outbox.logout.cancel')
+  }
 
   status(entry: Locator) {
     return entry.getByTestId('outbox.entry.status')

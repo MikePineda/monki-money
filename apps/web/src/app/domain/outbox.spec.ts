@@ -9,6 +9,8 @@ import {
   markSynced,
   markSyncing,
   nextToSync,
+  queuedAsRecent,
+  reconcile,
   replace,
   retry,
   serialize,
@@ -350,6 +352,109 @@ describe('outbox', () => {
       const raw = JSON.stringify({ version: OUTBOX_VERSION, entries: [entry, copy] })
 
       expect(deserialize(raw)).toEqual([entry])
+    })
+  })
+
+  describe('reconcile with the device copy', () => {
+    it('test_the_device_copy_wins_so_another_tabs_new_entry_shows_up', () => {
+      const local = enqueue([], anEntryItem(), NOW)
+      const stored = enqueue(local, anEntryItem(), LATER)
+
+      expect(reconcile(stored, local, false)).toEqual(stored)
+    })
+
+    it('test_an_entry_another_tab_synced_or_discarded_leaves_this_tab_too', () => {
+      const local = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+      const stored = markSynced(local, local[0]?.id ?? '')
+
+      expect(reconcile(stored, local, false).map((entry) => entry.id)).toEqual([local[1]?.id])
+    })
+
+    it('test_an_entry_this_tab_is_sending_stays_syncing', () => {
+      const stored = enqueue(enqueue([], anEntryItem(), NOW), anEntryItem(), NOW)
+      const local = markSyncing(stored, stored[0]?.id ?? '')
+
+      expect(reconcile(stored, local, false).map((entry) => entry.status)).toEqual([
+        'syncing',
+        'pending',
+      ])
+    })
+
+    it('test_entries_this_device_could_not_store_are_kept_after_the_stored_ones', () => {
+      const shared = enqueue([], anEntryItem(), NOW)
+      const stored = enqueue(shared, anEntryItem(), LATER)
+      const local = enqueue(shared, anEntryItem(), LATER)
+
+      expect(reconcile(stored, local, true).map((entry) => entry.id)).toEqual([
+        shared[0]?.id,
+        stored[1]?.id,
+        local[1]?.id,
+      ])
+      expect(reconcile(stored, local, false).map((entry) => entry.id)).toEqual(
+        stored.map((entry) => entry.id)
+      )
+    })
+
+    it('test_reconcile_never_mutates_its_inputs', () => {
+      const stored = enqueue([], anEntryItem(), NOW)
+      const local = markSyncing(stored, stored[0]?.id ?? '')
+      const before = JSON.stringify({ stored, local })
+
+      reconcile(stored, local, true)
+
+      expect(JSON.stringify({ stored, local })).toBe(before)
+    })
+  })
+
+  describe('queued entries as recent rows', () => {
+    it('test_a_queued_expense_ranks_like_a_ledger_row_with_its_category_and_payee', () => {
+      const item = anEntryItem({ categoryId: 12, payee: 'Bakery', amountCents: 700 })
+      const entries = enqueue([], item, NOW)
+
+      expect(queuedAsRecent(entries, 1)).toEqual([
+        {
+          id: expect.any(Number),
+          kind: 'expense',
+          date: '2026-10-16',
+          accountId: 1,
+          amountCents: -700,
+          categoryId: 12,
+          payee: 'Bakery',
+          transferId: null,
+          createdByUserId: 1,
+        },
+      ])
+    })
+
+    it('test_a_queued_income_is_positive', () => {
+      const entries = enqueue([], anEntryItem({ kind: 'income', amountCents: 320000 }), NOW)
+
+      expect(queuedAsRecent(entries, 1)[0]?.amountCents).toBe(320000)
+    })
+
+    it('test_a_queued_transfer_counts_as_its_two_legs', () => {
+      const entries = enqueue([], aTransferItem({ amountCents: 50000 }), NOW)
+
+      const legs = queuedAsRecent(entries, 1)
+
+      expect(legs.map((leg) => [leg.kind, leg.accountId, leg.amountCents])).toEqual([
+        ['transfer', 1, -50000],
+        ['transfer', 2, 50000],
+      ])
+      expect(legs[0]?.transferId).not.toBeNull()
+      expect(legs[1]?.transferId).toBe(legs[0]?.transferId)
+    })
+
+    it('test_queued_rows_come_newest_first_with_ids_above_any_ledger_row', () => {
+      const first = anEntryItem({ payee: 'First' })
+      const second = anEntryItem({ payee: 'Second' })
+      const entries = enqueue(enqueue([], first, NOW), second, LATER)
+
+      const rows = queuedAsRecent(entries, 1)
+
+      expect(rows.map((row) => row.payee)).toEqual(['Second', 'First'])
+      expect(rows[0]?.id).toBeGreaterThan(rows[1]?.id ?? Infinity)
+      expect(rows[1]?.id).toBeGreaterThan(2 ** 31)
     })
   })
 })

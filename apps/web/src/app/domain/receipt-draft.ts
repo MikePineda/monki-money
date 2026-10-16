@@ -82,6 +82,17 @@ export function receiptAmount(receipt: ReceiptDraft): Cents {
   )
 }
 
+/**
+ * The receipt's currency (ISO code, upper case) when it differs from the
+ * household's, else null (the same currency, or none was read). Nothing is
+ * converted: a receipt in another currency is saved with the amounts as
+ * typed, in the household's currency, once the person agrees to that.
+ */
+export function foreignCurrency(receipt: ReceiptDraft, householdCurrency: string): string | null {
+  const code = receipt.currencyCode?.trim().toUpperCase() ?? ''
+  return code !== '' && code !== householdCurrency.trim().toUpperCase() ? code : null
+}
+
 /** The date to open with: the printed one, unless it is missing, unreadable or after today. */
 export function receiptDate(receipt: ReceiptDraft, today: IsoDate): IsoDate {
   const printed = receipt.date

@@ -29,7 +29,9 @@
     "undo": "Undo",
     "undone": "Removed",
     "queued": "Saved offline · will sync",
-    "updated": "Entry updated · will sync"
+    "queuedMemory": "Saved offline · keep the app open until it syncs",
+    "updated": "Entry updated · will sync",
+    "undoSynced": "It already synced. Delete it from Transactions instead."
   },
   "noAccounts": {
     "title": "Add an account first.",

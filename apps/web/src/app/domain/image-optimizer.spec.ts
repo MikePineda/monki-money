@@ -6,6 +6,7 @@ import {
   encodedAs,
   encodingsToTry,
   targetSize,
+  undecodableFormat,
 } from './image-optimizer'
 
 describe('target size', () => {
@@ -75,5 +76,31 @@ describe('image file check', () => {
 
   it('test_a_file_without_a_type_is_given_a_chance_since_some_cameras_omit_it', () => {
     expect(checkImageFile({ size: 100, type: '' })).toBeNull()
+  })
+})
+
+describe('format of a photo the browser cannot open', () => {
+  it('test_a_heic_photo_is_named_by_its_type', () => {
+    expect(undecodableFormat({ type: 'image/heic', name: 'IMG_0001.HEIC' })).toBe('HEIC')
+    expect(undecodableFormat({ type: 'image/heif' })).toBe('HEIF')
+    expect(undecodableFormat({ type: 'image/avif' })).toBe('AVIF')
+    expect(undecodableFormat({ type: 'image/tiff' })).toBe('TIFF')
+  })
+
+  it('test_a_photo_without_a_type_is_named_by_its_extension', () => {
+    expect(undecodableFormat({ type: '', name: 'IMG_0001.heic' })).toBe('HEIC')
+    expect(undecodableFormat({ type: 'application/octet-stream', name: 'scan.HEIF' })).toBe('HEIF')
+  })
+
+  it('test_formats_every_browser_opens_are_not_named_since_the_file_is_damaged', () => {
+    expect(undecodableFormat({ type: 'image/jpeg', name: 'IMG_0001.jpg' })).toBeNull()
+    expect(undecodableFormat({ type: 'image/png' })).toBeNull()
+    expect(undecodableFormat({ type: 'image/webp' })).toBeNull()
+    expect(undecodableFormat({ type: '', name: 'receipt.jpeg' })).toBeNull()
+  })
+
+  it('test_a_photo_with_nothing_to_go_by_is_not_named', () => {
+    expect(undecodableFormat({ type: '', name: 'receipt' })).toBeNull()
+    expect(undecodableFormat({ type: '' })).toBeNull()
   })
 })
