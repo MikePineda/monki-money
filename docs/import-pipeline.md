@@ -156,9 +156,9 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
   and account and not be the copy of a posted bank row nor picked by
   another row of the batch (or of the same confirm); a 0.00 row can only be
   `ignored`; a `duplicate` row takes none (422 `resolution`/`duplicate`).
-  `PATCH` locks the batch like confirm does. The bulk `PATCH
-/imports/:id/rows` applies every change in one transaction (any refusal
-  rolls them all back, 422 `changes.<index>.<field>`); a change with
+  `PATCH` locks the batch like confirm does. The bulk endpoint
+  (`PATCH /imports/:id/rows`) applies every change in one transaction (any
+  refusal rolls them all back, 422 `changes.<index>.<field>`); a change with
   `reset: true` first drops the row's decision (`resolution` back to
   `proposed_resolution`, `decision`/`decided_at`/`decided_by_user_id`
   null), so the review's "Undo" sends each row's earlier decision after a
@@ -201,8 +201,8 @@ Endpoints and shapes: [CONTRACTS.md](CONTRACTS.md#bank-imports-and-merchant-rule
   while a live claim exists (`classify_run.ts`) and `classifiedAt`: the
   review polls `GET /imports/:id?rows=0` only while `classifying` is true,
   then reloads the rows once. With `QUEUE_DRIVER=sync` the run ends inside
-  `POST /imports/:id/classify`, whose answer already says `classifying:
-false`.
+  `POST /imports/:id/classify`, whose answer already says
+  `classifying: false`.
 - **Reconciliation**: bank balance on the newest row vs opening + ledger
   rows with `COALESCE(bank_date, date) <= dateTo` (pending included).
 - **System rules** (`SystemRulesSeeder`, insert-only): category rules when
