@@ -25,8 +25,8 @@ export interface CreatedHousehold {
 
 /**
  * Data access for the current household (onboarding and settings share it):
- * the household itself, its members, invitations, export, deletion and
- * leaving it, plus creating one for someone who has none.
+ * the household itself, its members, invitations, export, deletion,
+ * handing it over and leaving it, plus creating one for someone who has none.
  */
 @Injectable({ providedIn: 'root' })
 export class HouseholdApi {
@@ -89,6 +89,17 @@ export class HouseholdApi {
     return unwrapData<CreatedHousehold>(
       await (await this.api()).request('households.store', { body })
     )
+  }
+
+  /**
+   * Owner only: `userId` (another member) becomes the owner and the caller a
+   * member. Needs the caller's password; answers the members with their new roles.
+   */
+  async transferOwnership(userId: number, password: string) {
+    const { data } = await (
+      await this.api()
+    ).request('household.transferOwnership', { body: { userId, password } })
+    return data
   }
 
   /** Members only: drops the membership; the session stays, without a household. */

@@ -22,6 +22,9 @@ export class SettingsPage {
   get leave() {
     return this.page.getByTestId('settings.leave')
   }
+  get makeOwner() {
+    return this.page.getByTestId('settings.makeOwner')
+  }
   get logout() {
     return this.page.getByTestId('settings.logout')
   }
@@ -57,6 +60,13 @@ export class SettingsPage {
     await this.invite.click()
     await this.page.getByTestId('settings.inviteSheet.input').locator('input').fill(email)
     await this.page.getByTestId('settings.inviteSheet.submit').click()
+  }
+
+  /** The owner hands the household over to the partner, confirming with a password. */
+  async makePartnerOwner(password: string): Promise<void> {
+    await this.makeOwner.click()
+    await this.page.getByTestId('ownership.password').locator('input').fill(password)
+    await this.page.getByTestId('ownership.confirm').click()
   }
 
   /** A member leaves from the danger zone, confirming in the sheet. */
