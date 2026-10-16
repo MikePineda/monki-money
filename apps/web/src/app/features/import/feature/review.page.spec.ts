@@ -215,7 +215,15 @@ describe('ImportReviewPage', () => {
   it('test_selected_ignored_rows_offer_restore_in_the_bulk_bar', async () => {
     const { root, settle } = await open([
       ...rows(),
-      anImportRow({ id: 5, nabMerchant: 'Kmart', amountCents: -900, resolution: 'ignored' }),
+      anImportRow({
+        id: 5,
+        nabMerchant: 'Kmart',
+        amountCents: -900,
+        resolution: 'ignored',
+        proposedResolution: 'new',
+        decision: {},
+        decidedAt: '2026-10-15T00:00:00.000Z',
+      }),
     ])
 
     expect(root.querySelector('input[aria-label^="Select Translink"]')).toBeNull()
@@ -228,7 +236,7 @@ describe('ImportReviewPage', () => {
     await settle()
 
     await vi.waitFor(() =>
-      expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 5, resolution: 'new' }])
+      expect(api.decideMany).toHaveBeenCalledWith(7, [{ rowId: 5, reset: true }])
     )
     await vi.waitFor(() => expect(row(root, 5).dataset['tone']).toBe('new'))
   })

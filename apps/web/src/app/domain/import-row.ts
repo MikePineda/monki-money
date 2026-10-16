@@ -97,9 +97,14 @@ export interface RowDecision {
   learnRule?: boolean
 }
 
-/** A `PATCH /imports/:id/rows/:rowId` body: the decision plus, maybe, a new resolution. */
+/**
+ * A `PATCH /imports/:id/rows/:rowId` body: the decision plus, maybe, a new
+ * resolution. `reset` first puts the row back as the importer proposed it
+ * (`proposedResolution`), undecided unless the change sets something else.
+ */
 export interface RowChange extends RowDecision {
   resolution?: DecidedResolution
+  reset?: boolean
 }
 
 /** One row's change, for the bulk actions. */
@@ -113,14 +118,9 @@ export interface ConfirmDecision extends RowChange {
   rowId: number
 }
 
-/**
- * One entry of `PATCH /imports/:id/rows` (`changes[]`, applied all or
- * nothing). `reset` first puts the row back as the importer proposed it,
- * undecided unless the entry sets something else.
- */
+/** One entry of `PATCH /imports/:id/rows` (`changes[]`, applied all or nothing). */
 export interface BulkRowChange extends RowChange {
   rowId: number
-  reset?: boolean
 }
 
 /**
@@ -137,6 +137,11 @@ export interface ReviewableRow {
   isMasked: boolean
   isPending: boolean
   resolution: ImportResolution
+  /**
+   * What the importer proposed, kept when a decision moves `resolution`;
+   * null for rows staged before the API kept it (and decided since).
+   */
+  proposedResolution: ImportResolution | null
   /** Why the row ended where it did (`IMPORT_ROW_REASONS`). */
   reasons: readonly string[]
   match: {
@@ -369,8 +374,17 @@ export function acceptChange(row: ReviewableRow): RowChange | null {
   return null
 }
 
-/** The change "Restore" makes: back to the match or transfer found, else a new row. */
+/**
+ * The change "Restore" makes: back to what the importer proposed, undecided
+ * (a possible match, a guessed or unknown transfer account still wait for a
+ * person). Rows staged before the API kept the proposal, or that the
+ * importer itself ignored, come back to the match or transfer found, else
+ * as a new row.
+ */
 export function restoreChange(row: ReviewableRow): RowChange {
+  if (row.proposedResolution !== null && row.proposedResolution !== 'ignored') {
+    return { reset: true }
+  }
   const matchTransactionId = effectiveMatch(row)
   if (matchTransactionId !== null) {
     return { resolution: 'auto_matched', matchTransactionId }
@@ -419,21 +433,30 @@ export function allowedActions(row: ReviewableRow): ReadonlySet<RowAction> {
 /**
  * The optimistic preview of a `PATCH`: the resolution moves, decision keys
  * merge (an explicit null is kept, a key left out keeps what was there),
- * and the row counts as decided. Returns a new row.
+ * and the row counts as decided. A reset first puts the row back as the
+ * importer proposed it; with nothing else it stays undecided. Returns a
+ * new row.
  */
 export function applyDecision<Row extends ReviewableRow>(
   row: Row,
   change: RowChange,
   decidedAt: string = row.decidedAt ?? 'local'
 ): Row {
-  const { resolution, ...keys } = change
-  const decision: RowDecision = { ...(row.decision ?? {}) }
-  for (const [key, value] of Object.entries(keys)) {
-    if (value !== undefined) {
-      Object.assign(decision, { [key]: value })
-    }
+  const { resolution, reset, ...keys } = change
+  const base: Row = reset
+    ? {
+        ...row,
+        resolution: row.proposedResolution ?? row.resolution,
+        decision: null,
+        decidedAt: null,
+      }
+    : row
+  const set = Object.entries(keys).filter(([, value]) => value !== undefined)
+  if (reset && resolution === undefined && set.length === 0) {
+    return base
   }
-  return { ...row, resolution: resolution ?? row.resolution, decision, decidedAt }
+  const decision: RowDecision = { ...(base.decision ?? {}), ...Object.fromEntries(set) }
+  return { ...base, resolution: resolution ?? base.resolution, decision, decidedAt }
 }
 
 /** "Accept suggested": the doubtful (or new) rows that carry something to accept. */

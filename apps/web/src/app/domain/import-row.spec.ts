@@ -33,6 +33,8 @@ function aRow(overrides: Partial<ReviewableRow> = {}): ReviewableRow {
     isMasked: false,
     isPending: false,
     resolution: 'new',
+    // Untouched rows: the resolution is the importer's proposal.
+    proposedResolution: overrides.resolution ?? 'new',
     reasons: [],
     match: null,
     suggestion: null,
@@ -617,6 +619,84 @@ describe('bulk restore and undo', () => {
       { rowId: 1, change: { resolution: 'new' } },
       { rowId: 3, change: { resolution: 'auto_matched', matchTransactionId: 900 } },
     ])
+  })
+
+  it('test_restoring_a_weak_match_brings_it_back_to_confirm_undecided', () => {
+    const ignored = aRow({
+      resolution: 'ignored',
+      proposedResolution: 'needs_confirmation',
+      reasons: ['possible_match'],
+      match: aMatch(901),
+      decision: {},
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(restoreChange(ignored)).toEqual({ reset: true })
+    const restored = applyDecision(ignored, restoreChange(ignored))
+    expect(restored).toMatchObject({
+      resolution: 'needs_confirmation',
+      decision: null,
+      decidedAt: null,
+    })
+    expect(toneOf(restored)).toBe('doubtful')
+    expect(blockingRowIds([restored])).toEqual([1])
+  })
+
+  it('test_restoring_a_guessed_transfer_keeps_it_a_guess_to_review', () => {
+    const ignored = aGuessedTransfer({
+      resolution: 'ignored',
+      proposedResolution: 'transfer_leg',
+      decision: {},
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(restoreChanges([ignored])).toEqual([{ rowId: 1, change: { reset: true } }])
+    const restored = applyDecision(ignored, restoreChange(ignored))
+    expect(restored.resolution).toBe('transfer_leg')
+    expect(restored.decidedAt).toBeNull()
+    expect(isGuessedTransfer(restored)).toBe(true)
+    expect(toneOf(restored)).toBe('doubtful')
+  })
+
+  it('test_restoring_a_transfer_to_an_unknown_account_waits_for_a_person_again', () => {
+    const ignored = aRow({
+      resolution: 'ignored',
+      proposedResolution: 'needs_confirmation',
+      reasons: ['transfer_destination_unknown'],
+      transfer: { signal: 'bank_category', accountId: null, legTransactionId: null, ruleId: null },
+      decision: {},
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    const restored = applyDecision(ignored, restoreChange(ignored))
+    expect(restored.resolution).toBe('needs_confirmation')
+    expect(blockingRowIds([restored])).toEqual([1])
+  })
+
+  it('test_rows_staged_before_the_proposal_was_kept_restore_as_before', () => {
+    const legacy = aRow({ resolution: 'ignored', proposedResolution: null, match: aMatch(900) })
+
+    expect(restoreChange(legacy)).toEqual({ resolution: 'auto_matched', matchTransactionId: 900 })
+  })
+
+  it('test_a_reset_alone_leaves_the_row_undecided_and_with_keys_decides_it', () => {
+    const decided = aRow({
+      resolution: 'ignored',
+      proposedResolution: 'new',
+      decision: { categoryId: 20 },
+      decidedAt: '2026-10-16T00:00:00.000Z',
+    })
+
+    expect(applyDecision(decided, { reset: true })).toMatchObject({
+      resolution: 'new',
+      decision: null,
+      decidedAt: null,
+    })
+    expect(applyDecision(decided, { reset: true, payee: 'Deli' }, 'now')).toMatchObject({
+      resolution: 'new',
+      decision: { payee: 'Deli' },
+      decidedAt: 'now',
+    })
   })
 
   it('test_undo_resets_an_untouched_row_to_the_importer_proposal', () => {

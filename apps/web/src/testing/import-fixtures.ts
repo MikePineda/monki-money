@@ -46,6 +46,8 @@ export function anImportBatch(overrides: Partial<ImportBatch> = {}): ImportBatch
 
 export function anImportRow(overrides: Partial<ImportRow> = {}): ImportRow {
   return {
+    // Untouched rows: the resolution is the importer's proposal.
+    proposedResolution: overrides.resolution ?? 'new',
     id: 1,
     rowIndex: 1,
     bankDate: '2026-09-27',

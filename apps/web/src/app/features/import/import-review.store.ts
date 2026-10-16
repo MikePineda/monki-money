@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
+import { MAX_BULK_ROW_CHANGES } from '@monkimoney/shared'
 import type { ImportBatch, ImportBatchDetail, ImportRow } from '../../core/api/api-types'
 import { failureMessage, type Message } from '../../core/api/error-messages'
 import { errorPayload, hasStatus, toApiError } from '../../core/api/http-errors'
@@ -32,6 +33,17 @@ export const CLASSIFY_POLL_MS = 2_000
  * (10 minutes: the API stops counting a claim that old as a live run).
  */
 export const CLASSIFY_MAX_POLLS = 300
+
+/** A row as a save left it: a later decision on it changes one of these. */
+function sameState(a: ImportRow | undefined, b: ImportRow | undefined): boolean {
+  return (
+    !!a &&
+    !!b &&
+    a.resolution === b.resolution &&
+    a.decidedAt === b.decidedAt &&
+    JSON.stringify(a.decision) === JSON.stringify(b.decision)
+  )
+}
 
 export type ReviewStatus = 'loading' | 'ready' | 'error'
 
@@ -192,9 +204,10 @@ export class ImportReviewStore {
 
   /**
    * A bulk action: every row shows its outcome at once, then one request
-   * saves them all or none. Resolves with how many rows changed (0 when
-   * refused: the rows go back and the refusal is said). The selection
-   * clears once saved and the toast offers "Undo".
+   * saves them all or none (one per {@link MAX_BULK_ROW_CHANGES} rows).
+   * Resolves with how many rows changed (0 when refused: the rows go back
+   * and the refusal is said). The selection clears once saved and the toast
+   * offers "Undo".
    */
   async applyMany(requests: readonly RowChangeRequest[]): Promise<number> {
     const id = this.batchId
@@ -204,22 +217,28 @@ export class ImportReviewStore {
     const changes = new Map(requests.map((request) => [request.rowId, request.change]))
     const before = this.rows().filter((row) => changes.has(row.id))
     const decidedAt = new Date().toISOString()
-    const saved = await this.saveMany(
+    const { saved, refused } = await this.saveMany(
       id,
       before.map((row) => applyDecision(row, changes.get(row.id) ?? {}, decidedAt)),
       before,
       requests.map(({ rowId, change }) => ({ rowId, ...change }))
     )
-    if (!saved) {
+    if (saved.length === 0) {
       return 0
     }
     this.selection.set(new Set())
+    if (refused) {
+      // Part went through: the refusal stays on screen, the saved rows show what they became.
+      return saved.length
+    }
+    const savedIds = new Set(saved.map((row) => row.id))
+    const undoable = before.filter((row) => savedIds.has(row.id))
     /** t(import.toast.bulkDone, import.toast.undo) */
     this.toasts.show({
       messageKey: 'import.toast.bulkDone',
       params: { count: saved.length },
       status: 'good',
-      action: { labelKey: 'import.toast.undo', run: () => void this.undo(before) },
+      action: { labelKey: 'import.toast.undo', run: () => void this.undo(undoable, saved) },
     })
     return saved.length
   }
@@ -227,18 +246,24 @@ export class ImportReviewStore {
   /**
    * "Undo" of a bulk action: `before` (the rows as they were) shows at
    * once and one request puts them back on the API (a reset to the
-   * importer's proposal plus the decision each row had). A refusal keeps
-   * what the bulk action did and says why.
+   * importer's proposal plus the decision each row had). Only rows still
+   * as the action saved them (`saved`) go back: a decision taken since on
+   * one of them stays. A refusal keeps what the bulk action did and says
+   * why.
    */
-  async undo(before: readonly ImportRow[]): Promise<boolean> {
+  async undo(before: readonly ImportRow[], saved: readonly ImportRow[]): Promise<boolean> {
     const id = this.batchId
-    if (id === null || before.length === 0 || this.bulkBusy()) {
+    const savedById = new Map(saved.map((row) => [row.id, row]))
+    const currentById = new Map(this.rows().map((row) => [row.id, row]))
+    const untouched = before.filter((row) =>
+      sameState(currentById.get(row.id), savedById.get(row.id))
+    )
+    if (id === null || untouched.length === 0 || this.bulkBusy()) {
       return false
     }
-    const ids = new Set(before.map((row) => row.id))
-    const current = this.rows().filter((row) => ids.has(row.id))
-    const saved = await this.saveMany(id, before, current, undoChanges(before))
-    if (!saved) {
+    const current = untouched.map((row) => currentById.get(row.id) as ImportRow)
+    const { refused } = await this.saveMany(id, untouched, current, undoChanges(untouched))
+    if (refused) {
       return false
     }
     /** t(import.toast.undone) */
@@ -304,7 +329,8 @@ export class ImportReviewStore {
    * While the run lasts, polls the batch alone (`?rows=0`) every
    * {@link CLASSIFY_POLL_MS}, at most {@link CLASSIFY_MAX_POLLS} times;
    * then reloads the rows once (rows with a decision on its way keep their
-   * local state) and says the suggestions are in.
+   * local state) and, when the run said it ended, that the suggestions are
+   * in.
    */
   private async awaitClassification(id: number, running: boolean): Promise<void> {
     for (let attempt = 0; running && attempt < CLASSIFY_MAX_POLLS; attempt++) {
@@ -328,6 +354,10 @@ export class ImportReviewStore {
       this.take(await this.api.show(id), true)
     } catch (error) {
       this.fail(error)
+      return
+    }
+    if (running) {
+      // Gave up following: the run may still be going, nothing to announce.
       return
     }
     /** t(import.toast.classified) */
@@ -408,28 +438,38 @@ export class ImportReviewStore {
   }
 
   /**
-   * Shows `preview` at once, sends `changes` in one request and takes the
-   * rows it answers; a refusal puts `fallback` back and says why. Resolves
-   * with the saved rows, or null.
+   * Shows `preview` at once, sends `changes` (one request per
+   * {@link MAX_BULK_ROW_CHANGES}, each all or nothing) and takes the rows
+   * they answer; a refusal puts `fallback` back for the rows not saved yet
+   * and says why. Resolves with the saved rows and whether a request was
+   * refused.
    */
   private async saveMany(
     id: number,
     preview: readonly ImportRow[],
     fallback: readonly ImportRow[],
     changes: Parameters<ImportsApi['decideMany']>[1]
-  ): Promise<ImportRow[] | null> {
+  ): Promise<{ saved: ImportRow[]; refused: boolean }> {
     const ids = preview.map((row) => row.id)
+    const saved: ImportRow[] = []
     this.bulkBusy.set(true)
     this.replaceRows(preview)
     this.markPending(ids, true)
     try {
-      const saved = await this.api.decideMany(id, changes)
-      this.replaceRows(saved)
-      return saved
+      for (let offset = 0; offset < changes.length; offset += MAX_BULK_ROW_CHANGES) {
+        const answered = await this.api.decideMany(
+          id,
+          changes.slice(offset, offset + MAX_BULK_ROW_CHANGES)
+        )
+        this.replaceRows(answered)
+        saved.push(...answered)
+      }
+      return { saved, refused: false }
     } catch (error) {
-      this.replaceRows(fallback)
+      const done = new Set(saved.map((row) => row.id))
+      this.replaceRows(fallback.filter((row) => !done.has(row.id)))
       this.fail(error)
-      return null
+      return { saved, refused: true }
     } finally {
       this.markPending(ids, false)
       this.bulkBusy.set(false)

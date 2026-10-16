@@ -37,7 +37,9 @@ export function echoChange(
   for (const key of ['resolution', 'reset', 'rowId']) {
     delete keys[key]
   }
-  const base = reset ? { ...row, resolution: proposal.resolution, decision: null } : row
+  const base = reset
+    ? { ...row, resolution: row.proposedResolution ?? proposal.resolution, decision: null }
+    : row
   if (reset && resolution === undefined && Object.keys(keys).length === 0) {
     return { ...base, decidedAt: null } as ImportRow
   }

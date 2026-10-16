@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing'
+import { MAX_BULK_ROW_CHANGES } from '@monkimoney/shared'
 import { TuyauHTTPError } from '@tuyau/core/client'
 import {
   aDuplicateRow,
@@ -287,6 +288,42 @@ describe('ImportReviewStore', () => {
     expect(store.pending().size).toBe(0)
   })
 
+  it('test_undo_leaves_alone_a_row_decided_again_since_the_bulk_action', async () => {
+    const store = await setup([
+      anImportRow({ id: 1 }),
+      anImportRow({ id: 2 }),
+      anImportRow({ id: 3 }),
+    ])
+    store.selection.set(new Set([1, 2, 3]))
+    await store.ignoreSelected()
+    await store.decide(2, { resolution: 'new', categoryId: 30 })
+
+    TestBed.inject(ToastStore).runAction()
+    await vi.waitFor(() => expect(api.decideMany).toHaveBeenCalledTimes(2))
+
+    expect(api.decideMany).toHaveBeenLastCalledWith(7, [
+      { rowId: 1, reset: true },
+      { rowId: 3, reset: true },
+    ])
+    expect(store.rows()[1]?.decision).toEqual({ resolution: 'new', categoryId: 30 })
+  })
+
+  it('test_a_bulk_action_past_one_request_goes_out_in_several', async () => {
+    const many = Array.from({ length: MAX_BULK_ROW_CHANGES + 1 }, (_, index) =>
+      anImportRow({ id: index + 1 })
+    )
+    const store = await setup(many)
+    store.selection.set(new Set(many.map((row) => row.id)))
+
+    await expect(store.ignoreSelected()).resolves.toBe(MAX_BULK_ROW_CHANGES + 1)
+
+    expect(api.decideMany).toHaveBeenCalledTimes(2)
+    expect(api.decideMany.mock.calls[0]?.[1]).toHaveLength(MAX_BULK_ROW_CHANGES)
+    expect(api.decideMany.mock.calls[1]?.[1]).toEqual([
+      { rowId: MAX_BULK_ROW_CHANGES + 1, resolution: 'ignored' },
+    ])
+  })
+
   it('test_a_refused_undo_keeps_what_the_bulk_action_did_and_says_why', async () => {
     const store = await setup()
     store.selection.set(new Set([1]))
@@ -301,10 +338,24 @@ describe('ImportReviewStore', () => {
     expect(store.rows()[0]?.resolution).toBe('ignored')
   })
 
-  it('test_restore_brings_back_the_selected_ignored_rows', async () => {
+  it('test_restore_brings_back_the_selected_ignored_rows_as_the_importer_proposed', async () => {
     const store = await setup([
-      anImportRow({ id: 1, resolution: 'ignored' }),
-      anImportRow({ id: 2, resolution: 'ignored', match: aMatchCandidate(900) }),
+      // Proposed as a possible match, ignored by a person: back to confirm, undecided.
+      anImportRow({
+        id: 1,
+        resolution: 'ignored',
+        proposedResolution: 'needs_confirmation',
+        match: aMatchCandidate(900),
+        decision: {},
+        decidedAt: '2026-10-15T00:00:00.000Z',
+      }),
+      // Staged before the API kept the proposal: back to the match it found.
+      anImportRow({
+        id: 2,
+        resolution: 'ignored',
+        proposedResolution: null,
+        match: aMatchCandidate(901),
+      }),
       anImportRow({ id: 3, resolution: 'ignored', amountCents: 0 }),
     ])
     store.selection.set(new Set([1, 2, 3]))
@@ -312,10 +363,16 @@ describe('ImportReviewStore', () => {
     await expect(store.restoreSelected()).resolves.toBe(2)
 
     expect(api.decideMany).toHaveBeenCalledWith(7, [
-      { rowId: 1, resolution: 'new' },
-      { rowId: 2, resolution: 'auto_matched', matchTransactionId: 900 },
+      { rowId: 1, reset: true },
+      { rowId: 2, resolution: 'auto_matched', matchTransactionId: 901 },
     ])
-    expect(store.rows().map((row) => row.resolution)).toEqual(['new', 'auto_matched', 'ignored'])
+    expect(store.rows().map((row) => row.resolution)).toEqual([
+      'needs_confirmation',
+      'auto_matched',
+      'ignored',
+    ])
+    expect(store.rows()[0]?.decidedAt).toBeNull()
+    expect(store.blocking()).toEqual([1])
   })
 
   it('test_duplicates_are_counted_listed_apart_and_never_part_of_the_work', async () => {
@@ -486,6 +543,8 @@ describe('ImportReviewStore', () => {
     expect(api.batch).toHaveBeenCalledTimes(CLASSIFY_MAX_POLLS)
     expect(api.show).toHaveBeenCalledTimes(2)
     expect(store.classifying()).toBe(false)
+    // The run may still be going: nothing is announced.
+    expect(TestBed.inject(ToastStore).current()?.messageKey).not.toBe('import.toast.classified')
   })
 
   it('test_a_classification_already_running_is_followed_instead', async () => {
