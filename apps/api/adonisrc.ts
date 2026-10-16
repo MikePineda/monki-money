@@ -67,6 +67,11 @@ export default defineConfig({
     () => import('#providers/storage_provider'),
     () => import('@adonisjs/drive/drive_provider'),
     () => import('@adonisjs/queue/queue_provider'),
+    {
+      // The HTTP server only (production, unless SCHEDULER=off): never ace or tests.
+      file: () => import('#providers/scheduler_provider'),
+      environment: ['web'],
+    },
   ],
 
   /*
