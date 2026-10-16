@@ -39,7 +39,10 @@ export class RulesApi {
     return data
   }
 
-  /** Changes some fields; the rule becomes the person's (`origin: 'user'`). */
+  /**
+   * Changes some fields; the rule becomes the person's (`origin: 'user'`),
+   * except a bank default, which stays `system` (its pattern is locked).
+   */
   async update(id: number, body: Partial<RuleInput>): Promise<MerchantRule> {
     const { data } = await (await this.api()).request('rules.update', { params: { id }, body })
     return data

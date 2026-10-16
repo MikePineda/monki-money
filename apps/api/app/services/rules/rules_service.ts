@@ -32,9 +32,12 @@ export interface RuleInput {
 
 /**
  * The household's merchant rules (`/rules`). Rules typed or edited by a
- * person are `origin = 'user'`. A `merchant` pattern is stored as a merchant
- * key (lowercase words, no numbers) so it compares with the importer's keys;
- * `contains` / `regex` keep the text as typed.
+ * person are `origin = 'user'`, except the bank defaults (`system`): they
+ * stay `system` when edited and keep their match type and pattern, because
+ * SystemRulesSeeder recognises them by (match type, pattern) and would
+ * insert the original again next to a changed one. A `merchant` pattern is
+ * stored as a merchant key (lowercase words, no numbers) so it compares with
+ * the importer's keys; `contains` / `regex` keep the text as typed.
  */
 @inject()
 export default class RulesService {
@@ -73,8 +76,9 @@ export default class RulesService {
 
   async update(household: Household, ruleId: number, input: RuleInput) {
     const rule = await findInHousehold(MerchantRule, household, ruleId)
+    if (rule.origin === 'system') assertSystemPatternKept(rule, input)
     const values = await this.validated(household, rule, input)
-    rule.merge({ ...values, origin: 'user' })
+    rule.merge({ ...values, origin: rule.origin === 'system' ? 'system' : 'user' })
     try {
       await rule.save()
     } catch (error) {
@@ -156,11 +160,7 @@ export default class RulesService {
   /** Normalized, checked values of a new or edited rule (422 per field). */
   protected async validated(household: Household, rule: MerchantRule | null, input: RuleInput) {
     const matchType = input.matchType ?? rule!.matchType
-    const rawPattern = input.pattern ?? rule!.pattern
-    const pattern =
-      matchType === 'merchant'
-        ? merchantFullKey({ nabMerchant: null, description: rawPattern })
-        : rawPattern.trim()
+    const pattern = normalizedPattern(matchType, input.pattern ?? rule!.pattern)
     if (pattern === '') throw new FieldError('pattern', 'required')
     if (matchType === 'regex') {
       try {
@@ -203,6 +203,29 @@ export default class RulesService {
       payeeOverride: pick('payeeOverride', rule?.payeeOverride ?? null) ?? null,
       priority: pick('priority', rule?.priority ?? 0) ?? 0,
     }
+  }
+}
+
+/** A pattern as stored: a merchant key for `merchant`, the trimmed text otherwise. */
+function normalizedPattern(matchType: RuleMatchType, rawPattern: string): string {
+  return matchType === 'merchant'
+    ? merchantFullKey({ nabMerchant: null, description: rawPattern })
+    : rawPattern.trim()
+}
+
+/**
+ * A bank default keeps its match type and pattern (422 `matchType`/`locked`,
+ * `pattern`/`locked`); sending the current values back is not a change.
+ */
+function assertSystemPatternKept(rule: MerchantRule, input: RuleInput): void {
+  if (input.matchType !== undefined && input.matchType !== rule.matchType) {
+    throw new FieldError('matchType', 'locked')
+  }
+  if (
+    input.pattern !== undefined &&
+    normalizedPattern(rule.matchType, input.pattern) !== rule.pattern
+  ) {
+    throw new FieldError('pattern', 'locked')
   }
 }
 
