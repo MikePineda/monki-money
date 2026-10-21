@@ -59,11 +59,12 @@ test.group('Household concurrency', () => {
     const asLoaded = memberships[1]
 
     const other = await handoverInFlight(cleanup, household.id, owner.id, member.id)
-    const leaving = service.leave(asLoaded, member)
+    // Caught at once: the rejection can land before the test reaches its assertion.
+    const leaving = service.leave(asLoaded, member).catch((error) => error)
     await untilSomeoneWaitsOnALock()
     await other.commit()
 
-    await assert.rejects(() => leaving, OwnerCannotLeave)
+    assert.instanceOf(await leaving, OwnerCannotLeave)
     const rows = await HouseholdMember.query().where('household_id', household.id)
     assert.sameDeepMembers(
       rows.map((row) => ({ userId: row.userId, role: row.role })),
@@ -85,11 +86,13 @@ test.group('Household concurrency', () => {
     const service = await app.container.make(HouseholdService)
 
     const other = await handoverInFlight(cleanup, household.id, owner.id, member.id)
-    const deleting = service.scheduleDeletion(household, owner, FACTORY_PASSWORD)
+    const deleting = service
+      .scheduleDeletion(household, owner, FACTORY_PASSWORD)
+      .catch((error) => error)
     await untilSomeoneWaitsOnALock()
     await other.commit()
 
-    await assert.rejects(() => deleting, errors.E_AUTHORIZATION_FAILURE)
+    assert.instanceOf(await deleting, errors.E_AUTHORIZATION_FAILURE)
     const fresh = await Household.findOrFail(household.id)
     assert.equal(fresh.status, 'active')
     assert.isNull(fresh.deletionScheduledAt)
@@ -107,7 +110,9 @@ test.group('Household concurrency', () => {
       .where('household_id', household.id)
       .where('user_id', member.id)
       .forUpdate()
-    const handover = service.transferOwnership(household, owner, member.id, FACTORY_PASSWORD)
+    const handover = service
+      .transferOwnership(household, owner, member.id, FACTORY_PASSWORD)
+      .catch((error) => error)
     await untilSomeoneWaitsOnALock()
     await other
       .from('household_members')
@@ -116,7 +121,7 @@ test.group('Household concurrency', () => {
       .delete()
     await other.commit()
 
-    await assert.rejects(() => handover, MemberNotFound)
+    assert.instanceOf(await handover, MemberNotFound)
     const rows = await HouseholdMember.query().where('household_id', household.id)
     assert.deepEqual(
       rows.map((row) => ({ userId: row.userId, role: row.role })),
