@@ -23,7 +23,7 @@
   "devDependencies": {
     "@adonisjs/eslint-config": "3.1.0",
     "@types/node": "~26.6.2",
-    "eslint": "^10.11.0",
+    "eslint": "^10.13.0",
     "typescript": "~6.0.3"
   },
   "prettier": "@adonisjs/prettier-config"
