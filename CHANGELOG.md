@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/MikePineda/monki-money/compare/v0.4.1...v0.4.2) (2026-10-21)
+
+
+### Dependencies
+
+* **deps-dev:** Bump the angular group across 1 directory with 2 updates ([#28](https://github.com/MikePineda/monki-money/issues/28)) ([2618a10](https://github.com/MikePineda/monki-money/commit/2618a10504ebb8ffb0c4b6033cff8b9812b6723a))
+* **deps:** Bump the tooling group across 1 directory with 9 updates ([#32](https://github.com/MikePineda/monki-money/issues/32)) ([59af930](https://github.com/MikePineda/monki-money/commit/59af93009c145cc646bd23cfc323bdc348ae1a86))
+
 ## [0.4.1](https://github.com/MikePineda/monki-money/compare/v0.4.0...v0.4.1) (2026-10-16)
 
 
