@@ -142,6 +142,11 @@ test.group('Daily reminder push', () => {
       date: '2026-10-16',
       amountCents: 10_000,
     }).create()
+    // The legs were typed in at noon on the test's day, not at the real clock.
+    await db
+      .from('transactions')
+      .where('household_id', fixture.household.id)
+      .update({ created_at: EVENING.set({ hour: 12 }).toJSDate() })
 
     await tickAt(await app.container.make(DailyReminderJob), EVENING)
 
