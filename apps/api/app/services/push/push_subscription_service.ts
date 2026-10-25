@@ -27,6 +27,24 @@ export const MAX_DEVICES_PER_PERSON = 10
  */
 export default class PushSubscriptionService {
   /**
+   * Devices follow their person, not the household they subscribed in: on
+   * joining (invitation) or creating a household every device of `userId`
+   * moves there, and on leaving (`householdId` null) they are detached, so
+   * nothing is sent to them until the person belongs to a household again.
+   * Runs in the caller's transaction; `updated_at` is left alone (it orders
+   * the device cap).
+   */
+  static async followPerson(
+    userId: number,
+    householdId: number | null,
+    client: TransactionClientContract
+  ): Promise<void> {
+    await PushSubscription.query({ client })
+      .where('user_id', userId)
+      .update({ household_id: householdId })
+  }
+
+  /**
    * Upsert by endpoint for `user`: new keys, user agent and current
    * household on an endpoint they registered before (also from a household
    * they left), or a new row. 404 when the endpoint is someone else's.
