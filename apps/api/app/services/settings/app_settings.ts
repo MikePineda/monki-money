@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 
 export const APP_SETTINGS_TABLE = 'app_settings'
 
@@ -45,5 +46,28 @@ export default class AppSettings {
       if (error instanceof AlreadyPresent) return false
       throw error
     }
+  }
+
+  /**
+   * Writes every entry, replacing the keys already there, in `client`'s
+   * transaction when given (a rotation).
+   */
+  async putAll(
+    entries: Record<string, string>,
+    now: Date,
+    client: QueryClientContract = db.connection()
+  ): Promise<void> {
+    const rows = Object.entries(entries).map(([key, value]) => ({
+      key,
+      value,
+      created_at: now,
+      updated_at: now,
+    }))
+    await client
+      .knexQuery()
+      .table(APP_SETTINGS_TABLE)
+      .insert(rows)
+      .onConflict('key')
+      .merge(['value', 'updated_at'])
   }
 }

@@ -2,6 +2,8 @@ import { test } from '@japa/runner'
 import { createHousehold } from '#tests/helpers/household'
 import UserNotificationSetting from '#models/user_notification_setting'
 
+const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7]
+
 test.group('Notification preferences', () => {
   test('test_a_person_who_never_chose_gets_the_summary_and_no_reminder_at_20', async ({
     client,
@@ -13,7 +15,12 @@ test.group('Notification preferences', () => {
 
     response.assertStatus(200)
     response.assertBody({
-      data: { summaryReady: true, dailyReminder: false, reminderTime: '20:00' },
+      data: {
+        summaryReady: true,
+        dailyReminder: false,
+        reminderTime: '20:00',
+        reminderWeekdays: EVERY_DAY,
+      },
     })
     assert.isNull(
       await UserNotificationSetting.findBy('user_id', owner.id),
@@ -29,13 +36,27 @@ test.group('Notification preferences', () => {
       .json({ dailyReminder: true, reminderTime: '21:30' })
       .actingAs(owner)
     first.assertStatus(200)
-    first.assertBody({ data: { summaryReady: true, dailyReminder: true, reminderTime: '21:30' } })
+    first.assertBody({
+      data: {
+        summaryReady: true,
+        dailyReminder: true,
+        reminderTime: '21:30',
+        reminderWeekdays: EVERY_DAY,
+      },
+    })
 
     const second = await client
       .patch('/api/v1/me/notifications')
       .json({ summaryReady: false })
       .actingAs(owner)
-    second.assertBody({ data: { summaryReady: false, dailyReminder: true, reminderTime: '21:30' } })
+    second.assertBody({
+      data: {
+        summaryReady: false,
+        dailyReminder: true,
+        reminderTime: '21:30',
+        reminderWeekdays: EVERY_DAY,
+      },
+    })
 
     const shown = await client.get('/api/v1/me/notifications').actingAs(owner)
     shown.assertBody(second.body())
@@ -49,7 +70,12 @@ test.group('Notification preferences', () => {
 
     response.assertStatus(200)
     response.assertBody({
-      data: { summaryReady: true, dailyReminder: false, reminderTime: '20:00' },
+      data: {
+        summaryReady: true,
+        dailyReminder: false,
+        reminderTime: '20:00',
+        reminderWeekdays: EVERY_DAY,
+      },
     })
   })
 
@@ -75,6 +101,49 @@ test.group('Notification preferences', () => {
 
       response.assertStatus(422)
       assert.equal(response.body().errors[0].field, field, `${field}: ${value}`)
+    }
+    assert.isNull(await UserNotificationSetting.findBy('user_id', owner.id))
+  })
+
+  test('test_patch_saves_the_reminder_weekdays_monday_first', async ({ client, assert }) => {
+    const { owner } = await createHousehold()
+
+    const response = await client
+      .patch('/api/v1/me/notifications')
+      .json({ reminderWeekdays: [7, 1, 3] })
+      .actingAs(owner)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ data: { reminderWeekdays: [1, 3, 7], reminderTime: '20:00' } })
+    const shown = await client.get('/api/v1/me/notifications').actingAs(owner)
+    shown.assertBodyContains({ data: { reminderWeekdays: [1, 3, 7] } })
+    const row = await UserNotificationSetting.findByOrFail('user_id', owner.id)
+    assert.deepEqual(row.reminderWeekdays, [1, 3, 7])
+  })
+
+  test('test_patch_refuses_no_weekday_a_repeated_one_or_one_out_of_range', async ({
+    client,
+    assert,
+  }) => {
+    const { owner } = await createHousehold()
+
+    for (const value of [
+      [],
+      [0],
+      [8],
+      [1, 1],
+      ['1'],
+      [1.5],
+      'weekdays',
+      [1, 2, 3, 4, 5, 6, 7, 1],
+    ]) {
+      const response = await client
+        .patch('/api/v1/me/notifications')
+        .json({ reminderWeekdays: value })
+        .actingAs(owner)
+
+      response.assertStatus(422)
+      assert.match(response.body().errors[0].field, /^reminderWeekdays/, JSON.stringify(value))
     }
     assert.isNull(await UserNotificationSetting.findBy('user_id', owner.id))
   })
@@ -115,7 +184,12 @@ test.group('Notification preferences', () => {
 
     const partners = await client.get('/api/v1/me/notifications').actingAs(member)
     partners.assertBody({
-      data: { summaryReady: true, dailyReminder: false, reminderTime: '20:00' },
+      data: {
+        summaryReady: true,
+        dailyReminder: false,
+        reminderTime: '20:00',
+        reminderWeekdays: EVERY_DAY,
+      },
     })
   })
 

@@ -618,6 +618,12 @@ const routes = {
     tokens: [{"old":"/api/v1/receipts/scan","type":0,"val":"api","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"v1","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"receipts","end":""},{"old":"/api/v1/receipts/scan","type":0,"val":"scan","end":""}],
     types: placeholder as Registry['receipts.scan']['types'],
   },
+  'push.subscriptions.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/push/subscriptions',
+    tokens: [{"old":"/api/v1/push/subscriptions","type":0,"val":"api","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"v1","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"push","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"subscriptions","end":""}],
+    types: placeholder as Registry['push.subscriptions.index']['types'],
+  },
   'push.subscriptions.store': {
     methods: ["POST"],
     pattern: '/api/v1/push/subscriptions',
@@ -629,6 +635,12 @@ const routes = {
     pattern: '/api/v1/push/subscriptions',
     tokens: [{"old":"/api/v1/push/subscriptions","type":0,"val":"api","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"v1","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"push","end":""},{"old":"/api/v1/push/subscriptions","type":0,"val":"subscriptions","end":""}],
     types: placeholder as Registry['push.subscriptions.destroy']['types'],
+  },
+  'push.subscriptions.remove': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/push/subscriptions/:id',
+    tokens: [{"old":"/api/v1/push/subscriptions/:id","type":0,"val":"api","end":""},{"old":"/api/v1/push/subscriptions/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/push/subscriptions/:id","type":0,"val":"push","end":""},{"old":"/api/v1/push/subscriptions/:id","type":0,"val":"subscriptions","end":""},{"old":"/api/v1/push/subscriptions/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['push.subscriptions.remove']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 

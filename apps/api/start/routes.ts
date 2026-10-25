@@ -404,16 +404,23 @@ router
             /*
              * Web Push: this device's subscription, by endpoint in the body
              * (a capability URL: never in the path). Someone else's endpoint
-             * answers 404, like an `:id`.
+             * answers 404, like an `:id`. The person's devices are listed and
+             * removed by id (Settings), never by endpoint.
              */
             router
               .group(() => {
+                router
+                  .get('subscriptions', [controllers.PushSubscriptions, 'index'])
+                  .as('subscriptions.index')
                 router
                   .post('subscriptions', [controllers.PushSubscriptions, 'store'])
                   .as('subscriptions.store')
                 router
                   .delete('subscriptions', [controllers.PushSubscriptions, 'destroy'])
                   .as('subscriptions.destroy')
+                router
+                  .delete('subscriptions/:id', [controllers.PushSubscriptions, 'remove'])
+                  .as('subscriptions.remove')
               })
               .prefix('push')
               .as('push')

@@ -1,5 +1,6 @@
 import vine from '@vinejs/vine'
-import { isReminderTime } from '@monkimoney/shared'
+import { idParams } from '#validators/rules'
+import { isReminderTime, isReminderWeekdays } from '@monkimoney/shared'
 import type { FieldContext } from '@vinejs/vine/types'
 import { isAuthSecret, isP256dhKey, isPushServiceEndpoint } from '#domain/push/push_subscription'
 
@@ -28,6 +29,21 @@ const reminderTimeRule = vine.createRule((value: unknown, _: undefined, field: F
   }
 })
 
+const reminderWeekdaysRule = vine.createRule(
+  (value: unknown, _: undefined, field: FieldContext) => {
+    if (!isReminderWeekdays(value)) {
+      field.report(
+        'The {{ field }} must be one to seven distinct weekdays from 1 (Monday) to 7 (Sunday)',
+        'reminderWeekdays',
+        field
+      )
+    }
+  }
+)
+
+/** ISO weekdays, Monday 1 to Sunday 7, each at most once (checked whole: one error for the field). */
+const weekdays = () => vine.any().use(reminderWeekdaysRule())
+
 /** A push service endpoint (a capability URL, never logged). */
 const endpoint = () => vine.string().trim().maxLength(2048).use(pushEndpointRule())
 
@@ -46,9 +62,15 @@ export const destroyPushSubscriptionValidator = vine.create({
   endpoint: endpoint(),
 })
 
+/** `DELETE /push/subscriptions/:id`: one of the person's devices, from the Settings list. */
+export const pushDeviceParamsValidator = vine.create({
+  params: idParams(),
+})
+
 /** `PATCH /me/notifications`: any subset. */
 export const updateNotificationSettingsValidator = vine.create({
   summaryReady: vine.boolean({ strict: true }).optional(),
   dailyReminder: vine.boolean({ strict: true }).optional(),
   reminderTime: vine.string().use(reminderTimeRule()).optional(),
+  reminderWeekdays: weekdays().optional(),
 })

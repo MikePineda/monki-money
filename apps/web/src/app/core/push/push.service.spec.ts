@@ -245,4 +245,25 @@ describe('PushService', () => {
     expect(await push.disable()).toBe('off')
     expect(sw.subscription.value).toBeNull()
   })
+
+  it('test_the_api_id_of_this_device_is_known_once_it_is_registered', async () => {
+    const push = setup({ permission: 'granted', subscribed: aSubscription(KEY) })
+    api.subscribe.mockResolvedValueOnce({ id: 42 })
+    expect(push.deviceId()).toBeNull()
+
+    expect(await push.state()).toBe('on')
+    expect(push.deviceId()).toBe(42)
+
+    await push.disable()
+    expect(push.deviceId()).toBeNull()
+  })
+
+  it('test_a_fresh_subscription_records_its_api_id_too', async () => {
+    const push = setup()
+    api.subscribe.mockResolvedValueOnce({ id: 7 })
+
+    expect(await push.enable()).toBe('on')
+
+    expect(push.deviceId()).toBe(7)
+  })
 })

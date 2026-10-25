@@ -16,5 +16,15 @@
   "reminderHint": "Only on days you have not logged anything.",
   "reminderTime": "Remind me at",
   "timeZone": "Time zone: {zone}",
-  "disable": "Turn off on this device"
+  "reminderDays": "On these days",
+  "disable": "Turn off on this device",
+  "devices": {
+    "title": "Your devices",
+    "label": "{browser} on {platform}",
+    "unknown": "Unknown device",
+    "thisDevice": "This device",
+    "lastUsed": "Last notification {when}",
+    "neverUsed": "No notification yet",
+    "remove": "Remove {device}"
+  }
 }

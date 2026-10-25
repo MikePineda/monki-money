@@ -11,6 +11,7 @@ import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
 import { AuthorizationResponse, errors as bouncerErrors } from '@adonisjs/bouncer'
 import { FieldError } from '#exceptions/field_error'
 import HouseholdCreator from '#services/households/household_creator'
+import PushSubscriptionService from '#services/push/push_subscription_service'
 import { canRestore, deletionDate } from '#domain/households/deletion_window'
 import type { NewHouseholdInput, UpdateHouseholdInput } from '#services/households/dto'
 import {
@@ -63,6 +64,7 @@ export default class HouseholdService {
         },
         trx
       )
+      await PushSubscriptionService.followPerson(owner.id, created.household.id, trx)
       // Reload the column defaults (e.g. the member colour) so the response
       // has the same shape as GET /auth/me.
       await created.household.refresh()
@@ -112,6 +114,7 @@ export default class HouseholdService {
       user.useTransaction(trx)
       user.currentHouseholdId = null
       await user.save()
+      await PushSubscriptionService.followPerson(user.id, null, trx)
     })
   }
 

@@ -296,6 +296,11 @@ const cases: IsolationCase[] = [
     body: (v) => ({ endpoint: v.pushDevice.endpoint }),
   },
   {
+    route: 'push.subscriptions.remove',
+    method: 'delete',
+    url: (v) => `/api/v1/push/subscriptions/${v.pushDevice.id}`,
+  },
+  {
     // Another household's owner as the new owner: not a member here.
     route: 'household.transferOwnership',
     method: 'post',
@@ -706,6 +711,9 @@ test.group('Tenant isolation', () => {
     assert.deepEqual(goals.body().data, [])
     const projected = await client.get('/api/v1/goals?include=projection').actingAs(attacker.owner)
     assert.deepEqual(projected.body().data, [])
+
+    const devices = await client.get('/api/v1/push/subscriptions').actingAs(attacker.owner)
+    assert.deepEqual(devices.body().data, [])
 
     const recurring = await client.get('/api/v1/recurring').actingAs(attacker.owner)
     assert.deepEqual(recurring.body().data, [])

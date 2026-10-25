@@ -164,8 +164,10 @@ export interface ApiDefinition {
   }
   push: {
     subscriptions: {
+      index: typeof routes['push.subscriptions.index']
       store: typeof routes['push.subscriptions.store']
       destroy: typeof routes['push.subscriptions.destroy']
+      remove: typeof routes['push.subscriptions.remove']
     }
   }
 }
