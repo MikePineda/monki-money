@@ -69,7 +69,7 @@ export function transferDraftValid(draft: TransferDraft): boolean {
  * the API (tags too: a tagged transfer into savings is money set aside).
  *
  * Quick add hosts it with `keypad="external"`, its most used routes as
- * one-tap `presets`, and `compact` (date and memo fold into one row).
+ * one-tap `presets`, and `compact` (date, memo and tags fold into one row).
  */
 @Component({
   selector: 'app-transfer-form',
@@ -280,7 +280,7 @@ export class TransferFormComponent {
   readonly detailsOpen = model(false)
   /** Today in the household time zone: offers "Today" / "Yesterday" and caps the date. */
   readonly today = input('')
-  /** Offer the tags field (the edit sheet does; quick add's offline outbox keeps no tags). */
+  /** Offer the tags field (the edit sheet and quick add do). */
   readonly withTags = input(false, { transform: booleanAttribute })
   /** The household's tags, most recently used first. */
   readonly tagSuggestions = input<readonly string[]>([])
