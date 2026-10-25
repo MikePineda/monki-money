@@ -961,6 +961,82 @@ test.group('Recurring payments: several per merchant, yearly, typed names', (gro
     )
   })
 
+  test('test_a_typed_item_is_linked_to_the_bank_merchant_a_person_picks', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    // The bank calls the rent "Rent Harbour Lettings": it only shares a word with the typed "Rent".
+    await paidOn(home, 'Rent Harbour Lettings', 50_000, ['2026-10-07'])
+    const typed = await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Rent',
+        cadence: 'monthly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-10-07',
+      })
+      .actingAs(home.owner)
+    const paid = async () => {
+      const month = await client.get('/api/v1/reports/month?month=2026-10').actingAs(home.owner)
+      return month.body().data.committed.paidCents
+    }
+    assert.equal(await paid(), 0)
+
+    // The person picks the bank's merchant from the ones paid lately.
+    const linked = await client
+      .patch(`/api/v1/recurring/${typed.body().data.id}`)
+      .json({ merchantKey: 'rent harbour lettings' })
+      .actingAs(home.owner)
+
+    linked.assertStatus(200)
+    assert.include(linked.body().data, { merchantKey: 'rent harbour lettings', payee: 'Rent' })
+    assert.equal(await paid(), 50_000)
+  })
+
+  test('test_only_a_typed_item_is_relinked_and_never_onto_the_same_bill', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await payments(home, { payee: 'Harbour Lettings', last: '2026-10-13', everyDays: 7, count: 4 })
+    await detect(client, home.owner)
+    const detected = await RecurringItem.query()
+      .where('household_id', home.household.id)
+      .firstOrFail()
+    const typed = await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Rent',
+        cadence: 'weekly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-10-20',
+      })
+      .actingAs(home.owner)
+
+    const fixed = await client
+      .patch(`/api/v1/recurring/${detected.id}`)
+      .json({ merchantKey: 'rent' })
+      .actingAs(home.owner)
+    fixed.assertStatus(422)
+    fixed.assertBodyContains({ errors: [{ field: 'merchantKey', rule: 'fixed' }] })
+
+    // The detected rent already is that bill: linking the typed one would count it twice.
+    const taken = await client
+      .patch(`/api/v1/recurring/${typed.body().data.id}`)
+      .json({ merchantKey: 'harbour lettings' })
+      .actingAs(home.owner)
+    taken.assertStatus(422)
+    taken.assertBodyContains({ errors: [{ field: 'merchantKey', rule: 'taken' }] })
+
+    const invalid = await client
+      .patch(`/api/v1/recurring/${typed.body().data.id}`)
+      .json({ merchantKey: 'Harbour 123' })
+      .actingAs(home.owner)
+    invalid.assertStatus(422)
+    invalid.assertBodyContains({ errors: [{ field: 'merchantKey', rule: 'regex' }] })
+  })
+
   test('test_a_past_month_shows_what_the_recurring_payments_took', async ({ client, assert }) => {
     const home = await createHousehold({ accounts: [{}] })
     await payments(home, { payee: 'Harbour Lettings', last: '2026-10-13', everyDays: 7, count: 8 })

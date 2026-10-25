@@ -148,6 +148,8 @@
       "pattern.taken": "Otra regla ya usa este patrón",
       "payee.merchantKey": "Usa el nombre del comercio (con letras, no solo números)",
       "payee.taken": "Este comercio ya tiene un pago recurrente de un monto parecido",
+      "merchantKey.fixed": "Un pago recurrente detectado conserva su comercio",
+      "merchantKey.taken": "Este comercio ya tiene un pago recurrente de un monto parecido",
       "pattern.regex": "Esta no es una expresión regular válida",
       "pattern.unsafeRegex": "Esta expresión podría tardar demasiado. Evita repeticiones anidadas como (a+)+",
       "matchType.locked": "Las reglas del banco conservan su tipo. Crea una regla nueva si necesitas otro",

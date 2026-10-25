@@ -126,7 +126,12 @@ export default class RecurringService {
     })
   }
 
-  /** Changes what was sent and remembers it as a person's edit (detection keeps it). */
+  /**
+   * Changes what was sent and remembers it as a person's edit (detection
+   * keeps it). A new `merchantKey` re-keys an item typed by hand (422
+   * `merchantKey`/`fixed` on a detected one, `merchantKey`/`taken` when
+   * that merchant already has an item of about its amount).
+   */
   async update(household: Household, itemId: number, input: UpdateRecurringInput) {
     await findInHousehold(RecurringItem, household, itemId)
     await this.assertReferences(household, input)
@@ -137,6 +142,17 @@ export default class RecurringService {
         .where('household_id', household.id)
         .where('id', itemId)
         .firstOrFail()
+
+      if (input.merchantKey !== undefined && input.merchantKey !== item.merchantKey) {
+        if (item.source !== 'manual') throw new FieldError('merchantKey', 'fixed')
+        await this.assertUntracked(
+          household,
+          input.merchantKey,
+          input.amountCents ?? item.amountCents,
+          trx,
+          { field: 'merchantKey', except: item.id }
+        )
+      }
 
       const { status, ...fields } = input
       const changed = Object.fromEntries(
@@ -171,17 +187,19 @@ export default class RecurringService {
     household: Household,
     merchantKey: string,
     amountCents: number,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    { field = 'payee', except }: { field?: string; except?: number } = {}
   ) {
     const existing = await RecurringItem.query({ client: trx })
       .where('household_id', household.id)
       .where('merchant_key', merchantKey)
+      .if(except !== undefined, (query) => query.whereNot('id', except!))
     if (
       existing.some((item) =>
         withinTolerance(amountCents, item.amountCents, item.amountTolerancePct)
       )
     ) {
-      throw new FieldError('payee', 'taken')
+      throw new FieldError(field, 'taken')
     }
   }
 
