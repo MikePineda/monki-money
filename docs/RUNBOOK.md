@@ -303,11 +303,16 @@ Check the live endpoint with `node ace llm:smoke` inside the app container
 
 **How it runs.** The web process starts an in-process scheduler in
 production (`providers/scheduler_provider.ts`): first tick a minute after
-boot, then every 15 minutes. On the 1st of each month, from 08:00 to
-midnight in each household's time zone, it writes last month's AI summary
+boot, then every 15 minutes. From 08:00 on the 1st of each month through
+the end of the 4th, in each household's time zone, it writes last month's AI
+summary
 for every active household that had income or spending that month (transfers
 do not count), in the household's language, through the same path as the
-Generate button (quota check, one `llm_usage` row per call). A summary
+Generate button (quota check, one `llm_usage` row per call). The window
+after the 1st is a catch-up: a 1st with the app down all day is written on
+the first tick of the 2nd, and the claim below keeps it to one run per
+household and month. A household created inside the window gets no summary
+of a month it has no data for (skipped as no activity). A summary
 someone tapped before the month ended (say on the 20th) covers part of the
 month only, so it is replaced; one written after the month ended is kept.
 Each household and month is claimed once in `scheduler_runs`, so overlapping
@@ -331,7 +336,7 @@ monthly insights: household 31 2026-09 en: skipped (no activity)
 Empty (the default) means on; it never runs in development, ace commands or
 tests.
 
-**By hand** (a 1st missed entirely, a household the scheduler gave up on, a
+**By hand** (a window missed entirely, from the 1st to the 4th, a household the scheduler gave up on, a
 regenerate). It does not wait for 08:00, and the default month is the
 previous month in each household's time zone. Without `--force` it claims the
 scheduler's own row, so a household a tick already handled (or is handling)
