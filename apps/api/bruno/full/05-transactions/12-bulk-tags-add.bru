@@ -1,0 +1,30 @@
+meta {
+  name: Bulk tag (add)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions/bulk-tags
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "ids": [{{quickId}}],
+    "add": ["bruno-bulk-{{runId}}"]
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.updated: eq 1
+  res.body.data.skipped: eq 0
+}
+
+docs {
+  `transactions.bulkTags`: `{ ids[], add?[], remove?[] }` → `{ updated,
+  skipped }`. A transfer leg changes both legs; the partner's private rows
+  and rows that would pass 20 tags are skipped; a foreign id answers 422.
+}
