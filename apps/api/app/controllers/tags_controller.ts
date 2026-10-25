@@ -1,7 +1,8 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
+import TagEditor from '#services/ledger/tag_editor'
 import TagReportService from '#services/reports/tag_report_service'
-import { tagShowValidator, tagsIndexValidator } from '#validators/tags'
+import { renameTagValidator, tagShowValidator, tagsIndexValidator } from '#validators/tags'
 
 /**
  * Free tags on transactions (a trip, an event) and what they add up to.
@@ -11,7 +12,10 @@ import { tagShowValidator, tagsIndexValidator } from '#validators/tags'
  */
 @inject()
 export default class TagsController {
-  constructor(protected tags: TagReportService) {}
+  constructor(
+    protected tags: TagReportService,
+    protected editor: TagEditor
+  ) {}
 
   /** GET /tags?from=&to=: every tag in use with its totals, most recently used first. */
   async index(ctx: HttpContext) {
@@ -29,5 +33,22 @@ export default class TagsController {
     const detail = await this.tags.show(ctx.household, ctx.auth.getUserOrFail(), params.tag, range)
 
     return { data: detail }
+  }
+
+  /**
+   * PATCH /tags/:tag { name }: renames the tag on every transaction the
+   * reader can see (an existing name merges the two): `{ tag, updated }`.
+   */
+  async update(ctx: HttpContext) {
+    const { params, name } = await ctx.request.validateUsing(renameTagValidator)
+
+    const result = await this.editor.rename(
+      ctx.household,
+      ctx.auth.getUserOrFail(),
+      params.tag,
+      name
+    )
+
+    return { data: result }
   }
 }

@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import TransferService from '#services/ledger/transfer_service'
-import { privacyViewer } from '#services/ledger/privacy_viewer'
+import { ledgerViewer } from '#services/ledger/privacy_viewer'
 import TransferTransformer from '#transformers/transfer_transformer'
 import {
   createTransferValidator,
@@ -23,17 +23,20 @@ export default class TransfersController {
 
     ctx.response.status(created ? 201 : 200)
     return ctx.serialize(
-      TransferTransformer.transform(transfer, await privacyViewer(ctx.household, user))
+      TransferTransformer.transform(
+        transfer,
+        await ledgerViewer(ctx.household, user, [transfer.id])
+      )
     )
   }
 
   /** GET /transfers/:id: both legs (masked for the reader) and the memo in one call. */
   async show(ctx: HttpContext) {
     const { params } = await ctx.request.validateUsing(transferParamsValidator)
-    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
 
     const transfer = await this.transfers.find(ctx.household, params.id)
 
+    const viewer = await ledgerViewer(ctx.household, ctx.auth.getUserOrFail(), [transfer.id])
     return ctx.serialize(TransferTransformer.transform(transfer, viewer))
   }
 
@@ -45,7 +48,10 @@ export default class TransfersController {
     const transfer = await this.transfers.update(ctx.household, user, params.id, payload)
 
     return ctx.serialize(
-      TransferTransformer.transform(transfer, await privacyViewer(ctx.household, user))
+      TransferTransformer.transform(
+        transfer,
+        await ledgerViewer(ctx.household, user, [transfer.id])
+      )
     )
   }
 

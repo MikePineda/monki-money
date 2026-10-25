@@ -218,6 +218,7 @@ router
                 router
                   .post('bulk-categorize', [controllers.Transactions, 'bulkCategorize'])
                   .as('bulkCategorize')
+                router.post('bulk-tags', [controllers.Transactions, 'bulkTags']).as('bulkTags')
                 router.get(':id', [controllers.Transactions, 'show']).where('id', id).as('show')
                 router
                   .patch(':id', [controllers.Transactions, 'update'])
@@ -281,11 +282,13 @@ router
             /*
              * Tags: `:tag` is the URL-encoded label, validated like the
              * transaction form's tags (unknown in the household: 404).
+             * PATCH renames it everywhere (merging into an existing name).
              */
             router
               .group(() => {
                 router.get('/', [controllers.Tags, 'index']).as('index')
                 router.get(':tag', [controllers.Tags, 'show']).as('show')
+                router.patch(':tag', [controllers.Tags, 'update']).as('update')
               })
               .prefix('tags')
               .as('tags')

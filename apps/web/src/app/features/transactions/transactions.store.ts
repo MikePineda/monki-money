@@ -29,6 +29,7 @@ import {
 import { groupByDay, recentPayees } from '../../domain/transaction-list'
 import {
   TransactionsApi,
+  type BulkResult,
   type TransactionCreateInput,
   type TransactionPatch,
 } from './data-access/transactions.api'
@@ -343,6 +344,35 @@ export class TransactionsStore {
     this.invalidate(details.date, input.date)
   }
 
+  /**
+   * Adds and removes tags on the selected rows (a transfer changes both
+   * legs) and says how many changed; null when the API refused it (the
+   * toast says why). The months of the rows reload.
+   */
+  async bulkTags(
+    rows: readonly Transaction[],
+    changes: { add: readonly string[]; remove: readonly string[] }
+  ): Promise<BulkResult | null> {
+    return this.bulk(rows, () => this.api.bulkTags(ids(rows), changes), {
+      /** t(transactions.toast.bulkTagged) */
+      messageKey: 'transactions.toast.bulkTagged',
+    })
+  }
+
+  /**
+   * One category (null = none) on the selected rows; transfers, split rows
+   * and the partner's private ones are left as they were.
+   */
+  async bulkCategorize(
+    rows: readonly Transaction[],
+    categoryId: number | null
+  ): Promise<BulkResult | null> {
+    return this.bulk(rows, () => this.api.bulkCategorize(ids(rows), categoryId), {
+      /** t(transactions.toast.bulkCategorized) */
+      messageKey: 'transactions.toast.bulkCategorized',
+    })
+  }
+
   /* ------------------------------------------------------------ internals */
 
   private blankNarrow(): NarrowFilters {
@@ -428,6 +458,26 @@ export class TransactionsStore {
     }
   }
 
+  private async bulk(
+    rows: readonly Transaction[],
+    change: () => Promise<BulkResult>,
+    toast: { messageKey: string }
+  ): Promise<BulkResult | null> {
+    try {
+      const result = await change()
+      this.invalidate(...rows.map((row) => row.date))
+      this.toasts.show({
+        messageKey: toast.messageKey,
+        params: { updated: result.updated, skipped: result.skipped },
+        status: result.updated > 0 ? 'good' : 'warning',
+      })
+      return result
+    } catch (error) {
+      this.fail(error)
+      return null
+    }
+  }
+
   private recreateInput(row: Transaction, date: string): TransactionCreateInput {
     const kind = row.kind === 'income' ? 'income' : 'expense'
     const direction = row.amountCents < 0 ? -1 : 1
@@ -480,9 +530,18 @@ export class TransactionsStore {
       this.toasts.show({ messageKey: 'transactions.toast.private', status: 'critical' })
       return
     }
+    if (failure.kind === 'http' && failure.code === 'E_PAYSLIP_LINE') {
+      /** t(transactions.toast.payslipLine) */
+      this.toasts.show({ messageKey: 'transactions.toast.payslipLine', status: 'critical' })
+      return
+    }
     const message = failureMessage(failure)
     this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
   }
+}
+
+function ids(rows: readonly Transaction[]): number[] {
+  return [...new Set(rows.map((row) => row.id))]
 }
 
 /** The row as it will look once the PATCH lands (amounts typed positive, signed by kind). */

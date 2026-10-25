@@ -18,6 +18,26 @@ export class TagsPage {
     return this.page.getByTestId('tag.meta')
   }
 
+  /** The period chip ("All time") above the list or the tag. */
+  get period() {
+    return this.page.getByTestId('tags.period')
+  }
+
+  async choosePeriod(name: string): Promise<void> {
+    await this.period.click()
+    await this.page.getByRole('option', { name }).click()
+    await expect(this.period).toHaveText(name)
+  }
+
+  /** The pencil in the tag's header: a new name for it everywhere. */
+  async rename(name: string): Promise<void> {
+    await this.page.getByTestId('tag.rename').click()
+    const field = this.page.getByTestId('tags.rename.name').locator('input')
+    await field.fill(name)
+    await this.page.getByTestId('tags.rename.save').click()
+    await this.waitForTag(name)
+  }
+
   row(tag: string): Locator {
     return this.page.getByTestId('tags.row').filter({ hasText: tag })
   }

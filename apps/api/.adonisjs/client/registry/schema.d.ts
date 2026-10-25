@@ -655,6 +655,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkCategorize']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'transactions.bulkTags': {
+    methods: ["POST"]
+    pattern: '/api/v1/transactions/bulk-tags'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').bulkTagsValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').bulkTagsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkTags']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkTags']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'transactions.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/transactions/:id'
@@ -869,6 +881,18 @@ export interface Registry {
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/tags').tagShowValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'tags.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/tags/:tag'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/tags').renameTagValidator)>>
+      paramsTuple: [ParamValue]
+      params: { tag: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/tags').renameTagValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'goals.index': {

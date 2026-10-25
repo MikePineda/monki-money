@@ -22,6 +22,29 @@ export type PrivacyViewer = {
   memberIds: ReadonlySet<number>
 }
 
+/**
+ * A reader of ledger rows: {@link PrivacyViewer} plus, by transfer id, the
+ * memos of private payslips (the gross line hidden from the reader) that
+ * were copied onto those transfers and their legs. Without the map no
+ * memo is withheld.
+ */
+export type LedgerViewer = PrivacyViewer & {
+  hiddenPayslipMemos?: ReadonlyMap<number, string>
+}
+
+/**
+ * `text` (a transfer's memo, or the description of one of its legs),
+ * unless it is the memo of a private payslip copied onto that transfer.
+ */
+export function unlessHiddenPayslipMemo(
+  text: string | null,
+  transferId: number | null,
+  viewer: LedgerViewer
+): string | null {
+  if (text === null || transferId === null) return text
+  return viewer.hiddenPayslipMemos?.get(transferId) === text ? null : text
+}
+
 /** The only person who sees the details of a private transaction. */
 export function privateOwnerId(subject: PrivacySubject): number | null {
   return subject.paidByUserId ?? subject.createdByUserId

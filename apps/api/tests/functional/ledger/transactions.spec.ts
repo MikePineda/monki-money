@@ -452,6 +452,35 @@ test.group('Transactions: list', () => {
     both.assertBodyContains({ errors: [{ field: 'paidBy', rule: 'exclusive' }] })
   })
 
+  test('test_list_filters_by_where_a_row_came_from', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{}] })
+    const base = { householdId: household.id, accountId: accounts[0].id, date: '2026-10-03' }
+    const typed = await TransactionFactory.merge({ ...base, source: 'manual' }).create()
+    const scanned = await TransactionFactory.merge({ ...base, source: 'receipt' }).create()
+    const imported = await TransactionFactory.merge({ ...base, source: 'import' }).create()
+
+    const receipts = await client.get('/api/v1/transactions?source=receipt').actingAs(owner)
+    const bank = await client.get('/api/v1/transactions?source=import').actingAs(owner)
+    const all = await client.get('/api/v1/transactions').actingAs(owner)
+    const invalid = await client.get('/api/v1/transactions?source=feed').actingAs(owner)
+
+    receipts.assertStatus(200)
+    assert.deepEqual(
+      receipts.body().data.map((row: any) => [row.id, row.source]),
+      [[scanned.id, 'receipt']]
+    )
+    assert.deepEqual(
+      bank.body().data.map((row: any) => row.id),
+      [imported.id]
+    )
+    assert.sameMembers(
+      all.body().data.map((row: any) => row.id),
+      [typed.id, scanned.id, imported.id]
+    )
+    invalid.assertStatus(422)
+    invalid.assertBodyContains({ errors: [{ field: 'source' }] })
+  })
+
   test('test_list_sorts_by_amount_and_filters_triage', async ({ client, assert }) => {
     const { owner, household, accounts } = await createHousehold({
       taxonomy: true,

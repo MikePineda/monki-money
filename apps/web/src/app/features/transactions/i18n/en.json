@@ -63,7 +63,8 @@
     "title": "Transaction",
     "edit": "Edit",
     "duplicate": "Duplicate for today",
-    "delete": "Delete"
+    "delete": "Delete",
+    "select": "Select"
   },
   "toast": {
     "saved": "Changes saved.",
@@ -73,7 +74,10 @@
     "transferDeleted": "Transfer deleted.",
     "undo": "Undo",
     "duplicated": "Copy added for today.",
-    "private": "Only the person who paid can change a private transaction."
+    "private": "Only the person who paid can change a private transaction.",
+    "bulkTagged": "{updated, plural, one {Tags changed on # transaction} other {Tags changed on # transactions}}{skipped, plural, =0 {.} one {; # left as it was.} other {; # left as they were.}}",
+    "bulkCategorized": "{updated, plural, one {# transaction categorised} other {# transactions categorised}}{skipped, plural, =0 {.} one {; # left as it was.} other {; # left as they were.}}",
+    "payslipLine": "This belongs to a payslip: delete the payslip to remove it."
   },
   "edit": {
     "title": "Edit transaction",
@@ -93,7 +97,12 @@
     "memo": "Memo",
     "account": "Account",
     "paidBy": "Paid by",
-    "tags": "Tags"
+    "tags": "Tags",
+    "payslip": {
+      "body": "Part of a payslip. Its amount, date and account belong to the payslip; the category, payee, note, tags and privacy are yours to change.",
+      "link": "See payslips",
+      "locked": "The payslip owns this amount, date and account. Delete the payslip and record it again to change them."
+    }
   },
   "split": {
     "title": "Split {amount}",
@@ -109,5 +118,22 @@
     "balanced": "The lines add up to {amount}.",
     "save": "Save split",
     "unsplit": "Unsplit"
+  },
+  "select": {
+    "start": "Select transactions",
+    "label": "Selected transactions",
+    "count": "{count, plural, one {# selected} other {# selected}}",
+    "clear": "Clear selection",
+    "category": "Category",
+    "tag": "Tag",
+    "categoryTitle": "{count, plural, one {Category for # transaction} other {Category for # transactions}}"
+  },
+  "bulkTags": {
+    "title": "{count, plural, one {Tag # transaction} other {Tag # transactions}}",
+    "addHint": "Added to every selected transaction.",
+    "remove": "Take off",
+    "removeHint": "Tap a tag to take it off every selected transaction.",
+    "removeTag": "Take {tag} off",
+    "apply": "Apply"
   }
 }

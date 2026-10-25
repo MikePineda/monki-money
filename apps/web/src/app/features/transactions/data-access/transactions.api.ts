@@ -47,6 +47,12 @@ export type TransactionPatch = Partial<
   >
 > & { needsReview?: boolean }
 
+/** What a bulk change did: rows changed, rows left as they were. */
+export interface BulkResult {
+  updated: number
+  skipped: number
+}
+
 interface PageMeta {
   total: number
   currentPage: number
@@ -91,6 +97,34 @@ export class TransactionsApi {
 
   async remove(id: number): Promise<void> {
     await (await this.api()).request('transactions.destroy', { params: { id } })
+  }
+
+  /**
+   * `POST /transactions/bulk-categorize`: one category (null = none) on many
+   * rows; transfers, split rows and the partner's private rows are skipped.
+   */
+  async bulkCategorize(ids: readonly number[], categoryId: number | null): Promise<BulkResult> {
+    const { data } = await (
+      await this.api()
+    ).request('transactions.bulkCategorize', { body: { ids: [...ids], categoryId } })
+    return data
+  }
+
+  /**
+   * `POST /transactions/bulk-tags`: tags added to and removed from many rows
+   * (a transfer leg changes both legs); the partner's private rows and rows
+   * that would pass 20 tags are skipped.
+   */
+  async bulkTags(
+    ids: readonly number[],
+    changes: { add: readonly string[]; remove: readonly string[] }
+  ): Promise<BulkResult> {
+    const { data } = await (
+      await this.api()
+    ).request('transactions.bulkTags', {
+      body: { ids: [...ids], add: [...changes.add], remove: [...changes.remove] },
+    })
+    return data
   }
 
   /** Replaces the split lines (they must add up); no lines = a single category again. */

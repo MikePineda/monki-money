@@ -21,6 +21,7 @@ import { TransactionFormComponent } from './transaction-form.component'
     [payees]="payees"
     [tagSuggestions]="knownTags"
     [serverErrors]="errors()"
+    [payslip]="payslip()"
   />`,
 })
 class Host {
@@ -37,6 +38,7 @@ class Host {
     tags: [],
   })
   readonly errors = signal<Record<string, string>>({})
+  readonly payslip = signal(false)
   readonly accounts = [
     { value: 1, label: 'NAB Everyday' },
     { value: 2, label: 'NAB Savings' },
@@ -180,5 +182,24 @@ describe('TransactionFormComponent', () => {
     await sheet.choose('Rent')
     await fixture.whenStable()
     expect(host.draft().categoryId).toBe(10)
+  })
+
+  it('test_a_payslip_row_keeps_its_amount_kind_account_and_date', async () => {
+    const { host, fixture, element } = await setup()
+
+    host.payslip.set(true)
+    await fixture.whenStable()
+
+    expect(element.querySelector('[data-testid="transactions.form.kind"]')).toBeNull()
+    const amount = element.querySelector('[data-testid="transactions.form.amount"]')
+    expect((amount as HTMLButtonElement).disabled).toBe(true)
+    expect(element.textContent).toContain('The payslip owns this amount.')
+    const account = element.querySelector('[data-testid="transactions.form.account"]')
+    expect((account as HTMLButtonElement).disabled).toBe(true)
+    const date = element.querySelector('[data-testid="transactions.form.date"]')
+    expect((date as HTMLInputElement).disabled).toBe(true)
+    // Its labels stay editable.
+    const note = element.querySelector('[data-testid="transactions.form.note"] input')
+    expect((note as HTMLInputElement).disabled).toBe(false)
   })
 })

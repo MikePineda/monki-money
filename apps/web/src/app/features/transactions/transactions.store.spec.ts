@@ -25,7 +25,14 @@ async function settle(): Promise<void> {
 
 describe('TransactionsStore', () => {
   let api: Record<
-    'list' | 'show' | 'create' | 'update' | 'remove' | 'updateSplits',
+    | 'list'
+    | 'show'
+    | 'create'
+    | 'update'
+    | 'remove'
+    | 'updateSplits'
+    | 'bulkTags'
+    | 'bulkCategorize',
     ReturnType<typeof vi.fn>
   >
   let transfers: Record<'show' | 'create' | 'update' | 'remove', ReturnType<typeof vi.fn>>
@@ -38,6 +45,8 @@ describe('TransactionsStore', () => {
       update: vi.fn(),
       remove: vi.fn(async () => undefined),
       updateSplits: vi.fn(),
+      bulkTags: vi.fn(async () => ({ updated: 2, skipped: 0 })),
+      bulkCategorize: vi.fn(async () => ({ updated: 1, skipped: 1 })),
     }
     transfers = {
       show: vi.fn(async (id: number) => {
@@ -362,5 +371,60 @@ describe('TransactionsStore', () => {
     expect(transfers.remove).toHaveBeenCalledWith(9)
     expect(api.remove).not.toHaveBeenCalled()
     expect(store.rows()).toEqual([])
+  })
+
+  it('test_bulk_tags_sends_the_picked_rows_and_reloads_their_months', async () => {
+    const rows = [
+      aTransaction({ id: 1, date: '2026-10-03' }),
+      aTransaction({ id: 2, date: '2026-09-28' }),
+    ]
+    const store = setup([page(rows)])
+    await settle()
+    const months = TestBed.inject(MonthStore)
+    const september = months.revision('2026-09' as YearMonth)
+
+    const result = await store.bulkTags(rows, { add: ['Bali 2027'], remove: ['camping'] })
+
+    expect(api.bulkTags).toHaveBeenCalledWith([1, 2], { add: ['Bali 2027'], remove: ['camping'] })
+    expect(result).toEqual({ updated: 2, skipped: 0 })
+    expect(september()).toBe(1)
+    const toast = TestBed.inject(ToastStore).current()
+    expect(toast?.messageKey).toBe('transactions.toast.bulkTagged')
+    expect(toast?.params).toEqual({ updated: 2, skipped: 0 })
+  })
+
+  it('test_bulk_categorize_says_how_many_rows_were_left_as_they_were', async () => {
+    const rows = [aTransaction({ id: 1 }), aTransaction({ id: 2, isSplit: true })]
+    const store = setup([page(rows)])
+    await settle()
+
+    await store.bulkCategorize(rows, 20)
+
+    expect(api.bulkCategorize).toHaveBeenCalledWith([1, 2], 20)
+    expect(TestBed.inject(ToastStore).current()?.params).toEqual({ updated: 1, skipped: 1 })
+  })
+
+  it('test_a_refused_bulk_change_answers_null_with_a_critical_toast', async () => {
+    const rows = [aTransaction({ id: 1 })]
+    const store = setup([page(rows)])
+    await settle()
+    api.bulkTags.mockRejectedValue(httpError(500))
+
+    const result = await store.bulkTags(rows, { add: ['Bali 2027'], remove: [] })
+
+    expect(result).toBeNull()
+    expect(TestBed.inject(ToastStore).current()?.status).toBe('critical')
+  })
+
+  it('test_deleting_a_payslip_row_says_the_payslip_owns_it', async () => {
+    const row = aTransaction({ id: 1, payslipId: 4 })
+    const store = setup([page([row])])
+    await settle()
+    api.remove.mockRejectedValue(httpError(409, { code: 'E_PAYSLIP_LINE' }))
+
+    await store.remove(row)
+
+    expect(store.rows().map((item) => item.id)).toEqual([1])
+    expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('transactions.toast.payslipLine')
   })
 })

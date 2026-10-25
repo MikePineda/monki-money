@@ -28,7 +28,8 @@
     "moreCategories": "Más",
     "details": "Agregar comercio, nota, fecha",
     "today": "Hoy",
-    "yesterday": "Ayer"
+    "yesterday": "Ayer",
+    "payslipLocked": "El recibo de pago define este monto."
   },
   "transfer": {
     "from": "Desde",

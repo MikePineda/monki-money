@@ -21,7 +21,8 @@ function containing(term: string) {
  * the transformer, its amount counts) but never matches a filter on what
  * is hidden from the reader (text search, category, "uncategorized",
  * review state, tag), so a search cannot reveal what the payee, category
- * or tags were.
+ * or tags were. Nor does the memo of a payslip whose gross line is private
+ * to the partner, copied onto its transfer's legs.
  */
 export default class TransactionListing {
   async paginate(household: Household, viewer: PrivacyViewer, filters: TransactionFilters) {
@@ -36,6 +37,7 @@ export default class TransactionListing {
     if (filters.paidBy === 'joint') query.whereNull('paid_by_user_id')
     if (filters.kind) query.where('kind', filters.kind)
     if (filters.status) query.where('status', filters.status)
+    if (filters.source) query.where('source', filters.source)
     if (filters.needsReview !== undefined) {
       this.visibleDetails(query, viewer)
       query.where('needs_review', filters.needsReview)
@@ -65,7 +67,10 @@ export default class TransactionListing {
       query.where((builder) => {
         builder
           .whereILike('payee', pattern)
-          .orWhereILike('description', pattern)
+          .orWhere((notes) => {
+            notes.whereILike('description', pattern)
+            this.notAHiddenPayslipMemo(notes, viewer)
+          })
           .orWhereILike('raw_description', pattern)
       })
     }
@@ -98,6 +103,30 @@ export default class TransactionListing {
             AND ${owner} IS NOT NULL
             AND ${owner} <> ?
             AND ${owner} = ANY(?::int[]))`,
+      [viewer.userId, [...viewer.memberIds]]
+    )
+  }
+
+  /**
+   * The row's note is not the memo of a payslip whose gross line is hidden
+   * from the reader, copied onto the row's transfer: the SQL twin of
+   * `hiddenPayslipMemosOn` (app/services/ledger/privacy_viewer.ts), so a
+   * search never finds the transfer of a private payslip by its memo.
+   */
+  protected notAHiddenPayslipMemo(query: TransactionQuery, viewer: PrivacyViewer) {
+    const owner = 'COALESCE(gross.paid_by_user_id, gross.created_by_user_id)'
+    query.whereRaw(
+      `NOT EXISTS (
+         SELECT 1 FROM payslips
+         JOIN transactions AS gross
+           ON gross.payslip_id = payslips.id AND gross.kind = 'income'
+         WHERE payslips.household_id = transactions.household_id
+           AND payslips.transfer_id = transactions.transfer_id
+           AND payslips.memo = transactions.description
+           AND gross.is_private
+           AND ${owner} IS NOT NULL
+           AND ${owner} <> ?
+           AND ${owner} = ANY(?::int[]))`,
       [viewer.userId, [...viewer.memberIds]]
     )
   }
