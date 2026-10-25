@@ -1,0 +1,29 @@
+meta {
+  name: Update profile (unchanged name)
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "fullName": "{{userFullName}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{userId}}
+  res.body.data.fullName: eq {{userFullName}}
+}
+
+docs {
+  `me.update`: `{ fullName?, locale?, theme?, password? + currentPassword }`
+  → `User`. Writes the current name back, so the run changes nothing. A
+  password change would log out the other devices.
+}

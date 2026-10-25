@@ -1,0 +1,29 @@
+meta {
+  name: Verify email (invalid token)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/email/verify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "bruno-not-a-real-token"
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq E_INVALID_TOKEN
+  res.body.message: isString
+}
+
+docs {
+  `auth.email.verify`: public `{ token }` from the mailed link →
+  `{ emailVerifiedAt }`. Without a mailbox the run shows the error path:
+  400 `E_INVALID_TOKEN` (`{ message, code }`).
+}

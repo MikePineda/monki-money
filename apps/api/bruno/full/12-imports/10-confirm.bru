@@ -1,0 +1,37 @@
+meta {
+  name: Confirm (every row ignored)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/imports/{{confirmImportId}}/confirm
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "decisions": []
+  }
+}
+
+script:pre-request {
+  const rowIds = JSON.parse(bru.getVar('confirmRowIds') || '[]')
+  req.setBody({ decisions: rowIds.map((rowId) => ({ rowId, resolution: 'ignored' })) })
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.batchId: eq {{confirmImportId}}
+  res.body.data.status: eq completed
+  res.body.data.created: eq 0
+  res.body.data.matched: eq 0
+  res.body.data.remaining: eq 0
+}
+
+docs {
+  `imports.confirm`: `{ decisions?[{ rowId, ... }] }` → `{ batchId, status,
+  created, matched, ignored, transfers, remaining, reconciliation }` in one
+  database transaction. Every row ignored, so the ledger gets nothing.
+}

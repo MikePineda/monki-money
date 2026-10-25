@@ -1,0 +1,42 @@
+meta {
+  name: Create the everyday account
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/accounts
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bruno everyday {{runId}}",
+    "kind": "transaction",
+    "institution": "Bruno Bank",
+    "ownerUserId": null,
+    "openingBalanceCents": 100000
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('accountAId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.kind: eq transaction
+  res.body.data.ownerUserId: isNull
+  res.body.data.currencyCode: eq AUD
+  res.body.data.clearedBalanceCents: eq 100000
+}
+
+docs {
+  `accounts.store`: `{ name, kind, institution?, ownerUserId? (null = joint),
+  currencyCode?, externalAccountNumber?, openingBalanceCents?,
+  openingBalanceDate?, isActive? }` → 201. 402 `E_ACCOUNT_LIMIT_REACHED` past
+  the plan limit (6 on free: the E2E household has 4).
+}

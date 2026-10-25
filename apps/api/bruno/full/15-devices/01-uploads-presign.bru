@@ -1,0 +1,44 @@
+meta {
+  name: Presign a receipt upload
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/uploads/presign
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "kind": "receipt",
+    "contentType": "image/jpeg",
+    "byteSize": 20480
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('receiptKey', res.body.data.key)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.url: isString
+  res.body.data.headers: isDefined
+  res.body.data.expiresAt: isString
+}
+
+tests {
+  test('picks a key under the household prefix', () => {
+    expect(res.body.data.key).to.match(new RegExp(`^receipts/${bru.getVar('householdId')}/[0-9a-f-]+\\.jpg$`))
+  })
+}
+
+docs {
+  `uploads.presign`: `{ kind: 'receipt', contentType, byteSize (<= 10 MB) }` →
+  201 `{ key, url, headers, expiresAt }` (5 minutes). The browser PUTs the
+  photo straight to the bucket; the API never receives the bytes.
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Remove it again
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/push/subscriptions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/bruno-{{runId}}"
+  }
+}
+
+assert {
+  res.status: eq 404
+  res.body.code: eq E_ROW_NOT_FOUND
+}
+
+docs {
+  `push.subscriptions.destroy` of an endpoint that is not one of the person's
+  devices: 404 `E_ROW_NOT_FOUND`.
+}

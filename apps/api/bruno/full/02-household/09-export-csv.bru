@@ -1,0 +1,31 @@
+meta {
+  name: Export (CSV zip)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/household/export?format=csv
+  body: none
+  auth: none
+}
+
+params:query {
+  format: csv
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('is a zip with one CSV per table', () => {
+    expect(res.getHeader('content-type')).to.equal('application/zip')
+    expect(res.getHeader('content-disposition')).to.match(/\.zip"$/)
+  })
+}
+
+docs {
+  `household.export?format=csv`: `monkimoney-export-<date>.zip`, one CSV per
+  table plus `ledger.csv`.
+}

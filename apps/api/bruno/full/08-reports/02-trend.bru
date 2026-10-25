@@ -1,0 +1,30 @@
+meta {
+  name: Trend
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/trend?months=3&month={{month}}&groupBy=group
+  body: none
+  auth: none
+}
+
+params:query {
+  months: 3
+  month: {{month}}
+  groupBy: group
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.months.length: eq 3
+  res.body.data.totals.length: eq 3
+  res.body.data.groupBy: eq group
+  res.body.data.series: isArray
+}
+
+docs {
+  `reports.trend`: `?months=6 (1-24)&month=&groupBy=group|category` →
+  `{ months[], groupBy, totals[], series[] }`.
+}

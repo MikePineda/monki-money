@@ -1,0 +1,31 @@
+meta {
+  name: Reorder accounts (same order)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/v1/accounts/reorder
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "ids": []
+  }
+}
+
+script:pre-request {
+  // The order read by the index: the household's accounts stay where they were.
+  req.setBody({ ids: JSON.parse(bru.getVar('accountOrder') || '[]') })
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `accounts.reorder`: `{ ids }` → 204 (`sortOrder` = position). Sends the
+  current order, so nothing moves.
+}

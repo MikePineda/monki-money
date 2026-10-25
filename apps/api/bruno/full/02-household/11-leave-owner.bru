@@ -1,0 +1,21 @@
+meta {
+  name: Leave the household (owner refused)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/leave
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 422
+  res.body.code: eq E_OWNER_CANNOT_LEAVE
+}
+
+docs {
+  `household.leave`: members only (204). The owner gets 422
+  `E_OWNER_CANNOT_LEAVE` and transfers ownership first.
+}

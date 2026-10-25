@@ -1,0 +1,29 @@
+meta {
+  name: Update the transaction
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/transactions/{{expenseId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "payee": "Bruno Market {{runId}} (edited)",
+    "status": "cleared"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.payee: eq Bruno Market {{runId}} (edited)
+  res.body.data.status: eq cleared
+}
+
+docs {
+  `transactions.update`: any field of `store` plus `needsReview` and
+  `applyToFuture`. Transfer legs answer 409 `E_TRANSFER_LEG`.
+}

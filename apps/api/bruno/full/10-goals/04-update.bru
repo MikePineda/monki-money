@@ -1,0 +1,28 @@
+meta {
+  name: Mark the goal reached
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/goals/{{goalId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "reached"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.status: eq reached
+  res.body.data.reachedAt: isString
+}
+
+docs {
+  `goals.update`: any field of `store` plus `status`; `reached` stamps
+  `reachedAt`, `active` clears it.
+}

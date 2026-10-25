@@ -1,0 +1,24 @@
+meta {
+  name: Projection
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/goals/{{goalId}}/projection
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.goalId: eq {{goalId}}
+  res.body.data.monthlyRateCents: eq 50000
+  res.body.data.series: isArray
+  res.body.data.history: isArray
+}
+
+docs {
+  `goals.projection`: `GoalProjection` (saved, rate, months to goal,
+  projected date, series and history by month).
+}

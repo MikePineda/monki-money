@@ -1,0 +1,19 @@
+meta {
+  name: Delete the goal
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/goals/{{goalId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `goals.destroy`: 204 (a goal on an account keeps it from being deleted).
+}

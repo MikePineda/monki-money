@@ -1,0 +1,21 @@
+meta {
+  name: Goal
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/goals/{{goalId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{goalId}}
+  res.body.data.name: eq Bruno goal {{runId}}
+}
+
+docs {
+  `goals.show`: one `Goal`.
+}

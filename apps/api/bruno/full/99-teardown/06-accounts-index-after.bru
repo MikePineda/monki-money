@@ -1,0 +1,26 @@
+meta {
+  name: Accounts after the run
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/accounts
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('leaves no account of the run behind', () => {
+    const names = res.body.data.map((account) => account.name)
+    expect(names.filter((name) => name.includes(bru.getVar('runId')))).to.deep.equal([])
+  })
+}
+
+docs {
+  `accounts.index`: proves the cleanup.
+}

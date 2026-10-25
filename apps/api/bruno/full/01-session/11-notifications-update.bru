@@ -1,0 +1,27 @@
+meta {
+  name: Update notification settings
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me/notifications
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reminderTime": "07:30"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.reminderTime: eq 07:30
+}
+
+docs {
+  `me.notifications.update`: any subset of the settings (booleans strict,
+  `reminderTime` from 00:00 to 23:30 in half hours).
+}

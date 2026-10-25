@@ -1,0 +1,21 @@
+meta {
+  name: Rules
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+docs {
+  `rules.index`: `Rule[]`, highest priority first (the bank defaults are
+  `system`).
+}

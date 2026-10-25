@@ -1,0 +1,30 @@
+meta {
+  name: Tags
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('lists the run tag with its totals', () => {
+    const totals = res.body.data.find((entry) => entry.tag === `bruno-${bru.getVar('runId')}`)
+    expect(totals.count).to.equal(2)
+    expect(totals.expenseCents).to.equal(4250)
+  })
+}
+
+docs {
+  `tags.index`: `?from=&to=` → `TagTotals[]` (`tag`, `count`,
+  `expenseCents`, `incomeCents`, `netCents`, `setAsideCents`, `firstDate`,
+  `lastDate`), most recently used first.
+}

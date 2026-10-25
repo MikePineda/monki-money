@@ -1,0 +1,19 @@
+meta {
+  name: Delete it
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/recurring/{{recurringId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `recurring.destroy`: 204 (a detected item can come back; dismiss it instead).
+}

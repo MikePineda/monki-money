@@ -1,0 +1,32 @@
+meta {
+  name: Split the transaction
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/v1/transactions/{{expenseId}}/splits
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "splits": [
+      { "categoryId": {{groceriesId}}, "amountCents": 3000, "memo": "Food" },
+      { "categoryId": {{homeGoodsId}}, "amountCents": 1250, "memo": "Cleaning" }
+    ]
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.isSplit: eq true
+  res.body.data.categoryId: isNull
+  res.body.data.splits.length: eq 2
+}
+
+docs {
+  `transactions.splits.update`: `{ splits[], categoryId? }` replaces the lines;
+  they must add up to the amount (422 `splits`/`sumMismatch`).
+}

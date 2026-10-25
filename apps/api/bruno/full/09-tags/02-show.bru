@@ -1,0 +1,25 @@
+meta {
+  name: Tag
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tags/bruno-{{runId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.tag: eq bruno-{{runId}}
+  res.body.data.count: eq 2
+  res.body.data.byCategory: isArray
+  res.body.data.byMonth: isArray
+  res.body.data.byPerson: isArray
+}
+
+docs {
+  `tags.show`: `:tag` URL-encoded → `TagTotals` plus `byCategory`,
+  `byMonth` and `byPerson`; 404 when no visible transaction carries it.
+}

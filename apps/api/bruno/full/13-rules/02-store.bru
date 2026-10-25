@@ -1,0 +1,39 @@
+meta {
+  name: Create a rule
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/rules
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "matchType": "contains",
+    "pattern": "bruno {{runWord}}",
+    "categoryId": {{groceriesId}},
+    "priority": 10
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('ruleId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.origin: eq user
+  res.body.data.matchType: eq contains
+  res.body.data.categoryId: eq {{groceriesId}}
+}
+
+docs {
+  `rules.store`: `{ matchType (merchant|contains|regex), pattern,
+  categoryId?, transferAccountId?, paidByUserId?, payeeOverride?, priority? }`
+  → 201. Unsafe regexes (nested repetition, backreferences) answer 422.
+}

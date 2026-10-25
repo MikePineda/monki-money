@@ -1,0 +1,28 @@
+meta {
+  name: Household
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/household
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('householdName', res.body.data.name)
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{householdId}}
+  res.body.data.status: eq active
+  res.body.data.timezone: isString
+}
+
+docs {
+  `household.show`: `Household`.
+}

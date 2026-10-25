@@ -1,0 +1,19 @@
+meta {
+  name: Session after logging out everywhere
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 401
+}
+
+docs {
+  `auth.me` after `logout-all`: 401, the session is revoked.
+}

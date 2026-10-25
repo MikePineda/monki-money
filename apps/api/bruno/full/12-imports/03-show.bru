@@ -1,0 +1,42 @@
+meta {
+  name: Import with its rows
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/imports/{{importId}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const open = res.body.data.rows.filter((row) => !row.confirmedAt)
+    bru.setVar('importRowId', open[0] && open[0].id)
+    bru.setVar('importRowResolution', open[0] && open[0].proposedResolution)
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{importId}}
+  res.body.data.rows: isArray
+  res.body.data.reconciliation: isDefined
+}
+
+tests {
+  test('lists each row with its proposal', () => {
+    expect(bru.getVar('importRowId')).to.be.a('number')
+    res.body.data.rows.forEach((row) => {
+      expect(row.date).to.match(/^\d{4}-\d{2}-\d{2}$/)
+      expect(row.amountCents).to.be.a('number')
+      expect(row.resolution).to.be.a('string')
+    })
+  })
+}
+
+docs {
+  `imports.show`: `ImportBatch` + `rows: ImportRow[]` in file order
+  (`?resolution=` filters them, `?rows=0` answers the batch alone).
+}

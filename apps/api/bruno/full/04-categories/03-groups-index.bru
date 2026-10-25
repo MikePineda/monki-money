@@ -1,0 +1,32 @@
+meta {
+  name: Category groups
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/category-groups
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('groupOrder', JSON.stringify(res.body.data.map((group) => group.id)))
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('lists the new group', () => {
+    expect(res.body.data.map((group) => group.id)).to.include(bru.getVar('groupId'))
+  })
+}
+
+docs {
+  `category_groups.index`: `CategoryGroup[]` by `sortOrder`.
+}

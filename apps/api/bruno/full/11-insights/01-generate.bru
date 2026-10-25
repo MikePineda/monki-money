@@ -1,0 +1,42 @@
+meta {
+  name: Generate the month insight
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/insights/{{month}}/generate
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "force": false
+  }
+}
+
+script:post-response {
+  bru.setVar('insightStored', res.status === 200 || res.status === 201)
+}
+
+tests {
+  test('writes the insight (201), returns the stored one (200), or 503 without an LLM', () => {
+    if (res.status === 503) {
+      expect(res.body.code).to.equal('E_INSIGHTS_UNAVAILABLE')
+      return
+    }
+    expect([200, 201]).to.include(res.status)
+    expect(res.body.data.month).to.equal(bru.getVar('month'))
+    expect(res.body.data.fresh).to.equal(res.status === 201)
+    expect(res.body.data.headline).to.be.a('string').and.not.be.empty
+    expect(res.body.data.highlights).to.be.an('array')
+  })
+}
+
+docs {
+  `insights.generate`: `{ force? }` → 201 `Insight & { fresh: true }` (written
+  now) or 200 `{ fresh: false }` (the stored one, no LLM call). 422
+  `month`/`future` or `noActivity`, 402 `E_LLM_QUOTA_EXCEEDED`, 503
+  `E_INSIGHTS_UNAVAILABLE` without an LLM.
+}

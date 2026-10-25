@@ -1,0 +1,28 @@
+meta {
+  name: Update the rule
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/rules/{{ruleId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "priority": 20,
+    "payeeOverride": "Bruno payee"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.priority: eq 20
+  res.body.data.payeeOverride: eq Bruno payee
+}
+
+docs {
+  `rules.update`: any field; the rule becomes `origin: user`.
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Resend verification
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/email/resend
+  body: none
+  auth: none
+}
+
+tests {
+  test('queues the mail (a no-op once verified), or answers 429 past 3 per 15 minutes', () => {
+    if (res.status === 429) {
+      expect(res.getHeader('retry-after')).to.not.be.undefined
+      return
+    }
+    expect(res.status).to.equal(202)
+    expect(res.body.data.queued).to.equal(true)
+  })
+}
+
+docs {
+  `auth.email.resend`: 202 `{ queued: true }`, a new link and code (no-op
+  once verified). 3 per 15 minutes per user, so back-to-back local runs may
+  see the 429 (`Retry-After`).
+}

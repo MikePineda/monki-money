@@ -1,0 +1,21 @@
+meta {
+  name: Recurring payments
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/recurring
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+docs {
+  `recurring.index`: `RecurringItem[]`, active first, then paused, then
+  dismissed; each by `nextExpectedDate`.
+}

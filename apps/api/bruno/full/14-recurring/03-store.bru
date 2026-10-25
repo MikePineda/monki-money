@@ -1,0 +1,45 @@
+meta {
+  name: Add a recurring payment
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/recurring
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "payee": "Bruno Gym {{runWord}}",
+    "merchantKey": "bruno gym {{runWord}}",
+    "cadence": "monthly",
+    "amountCents": 6500,
+    "nextExpectedDate": "{{today}}",
+    "amountTolerancePct": 10,
+    "categoryId": {{gymId}},
+    "accountId": {{accountAId}},
+    "paidByUserId": {{userId}}
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('recurringId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.source: eq manual
+  res.body.data.occurrences: eq 0
+  res.body.data.status: eq active
+  res.body.data.merchantKey: eq bruno gym {{runWord}}
+}
+
+docs {
+  `recurring.store`: `{ payee, merchantKey?, cadence, amountCents,
+  nextExpectedDate, amountTolerancePct?, categoryId?, accountId?,
+  paidByUserId? }` → 201 (`source: manual`).
+}

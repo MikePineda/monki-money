@@ -1,0 +1,63 @@
+meta {
+  name: Create an expense
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": "{{expenseClientId}}",
+    "accountId": {{accountAId}},
+    "kind": "expense",
+    "date": "{{today}}",
+    "amountCents": 4250,
+    "categoryId": {{groceriesId}},
+    "payee": "Bruno Market {{runId}}",
+    "description": "Bruno run {{runId}}",
+    "paidByUserId": {{userId}},
+    "tags": ["bruno-{{runId}}"]
+  }
+}
+
+script:pre-request {
+  const uuid = () =>
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+    })
+  bru.setVar('expenseClientId', uuid())
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('expenseId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.kind: eq expense
+  res.body.data.amountCents: eq -4250
+  res.body.data.source: eq manual
+  res.body.data.isSplit: eq false
+}
+
+tests {
+  test('stores the tags and the client id', () => {
+    expect(res.body.data.tags).to.deep.equal([`bruno-${bru.getVar('runId')}`])
+    expect(res.body.data.clientId).to.equal(bru.getVar('expenseClientId'))
+  })
+}
+
+docs {
+  `transactions.store`: `{ clientId?, accountId, kind: expense|income, date,
+  amountCents > 0, categoryId? | splits?, payee?, description?, paidByUserId?,
+  status?, isPrivate?, tags?, source? }` → 201. Amounts go in positive; the
+  ledger answers them signed (expenses negative).
+}

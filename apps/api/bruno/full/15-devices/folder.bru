@@ -1,0 +1,11 @@
+meta {
+  name: Uploads and push
+  seq: 15
+}
+
+docs {
+  Receipt uploads (presign only: nothing is PUT to the bucket) and a
+  synthetic Web Push subscription (registered twice, then removed). The
+  endpoint is on an allowed push host but never contacted (no scheduler in
+  the run).
+}

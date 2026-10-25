@@ -1,0 +1,55 @@
+meta {
+  name: Log in (full tier)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{smokeEmail}}",
+    "password": "{{smokePassword}}"
+  }
+}
+
+script:pre-request {
+  for (const key of ['SMOKE_EMAIL', 'SMOKE_PASSWORD']) {
+    if (!bru.getProcessEnv(key)) {
+      throw new Error(`${key} is not set: export it or put it in apps/api/bruno/.env`)
+    }
+  }
+}
+
+script:post-response {
+  // Never write into a household that is not the expected one: stop the
+  // whole run here (teardown included) instead of creating anything.
+  const expected = bru.getEnvVar('smokeHousehold')
+  const household = res.body && res.body.data && res.body.data.household
+  if (res.status !== 200 || !household || household.name !== expected) {
+    bru.runner.stopExecution()
+  } else {
+    bru.setVar('userId', res.body.data.user.id)
+    bru.setVar('householdId', household.id)
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.user.emailVerifiedAt: isString
+}
+
+tests {
+  test('lands in the expected household', () => {
+    expect(res.body.data.household.name).to.equal(bru.getEnvVar('smokeHousehold'))
+  })
+}
+
+docs {
+  `auth.login`. The household must be `smokeHousehold` (`Smoke`, or `E2E`
+  against the E2E stack); otherwise the run stops before any write.
+}

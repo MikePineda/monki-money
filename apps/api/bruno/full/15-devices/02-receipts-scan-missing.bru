@@ -1,0 +1,28 @@
+meta {
+  name: Scan a receipt that was never uploaded
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/receipts/scan
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "key": "{{receiptKey}}"
+  }
+}
+
+assert {
+  res.status: eq 404
+  res.body.code: eq E_ROW_NOT_FOUND
+}
+
+docs {
+  `receipts.scan`: `{ key }` → `ReceiptDraft` from the vision model. The run
+  uploads nothing, so the presigned key has no object: 404 `E_ROW_NOT_FOUND`
+  (also for a key outside the household's prefix). 10 per minute per user.
+}

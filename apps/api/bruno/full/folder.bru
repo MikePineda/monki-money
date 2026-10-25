@@ -1,0 +1,32 @@
+meta {
+  name: full
+  seq: 2
+}
+
+headers {
+  X-XSRF-TOKEN: {{xsrfToken}}
+}
+
+script:pre-request {
+  // The full tier creates, edits and deletes data: never against production.
+  // smoke:prod only runs the smoke folder; this guard covers a hand-run
+  // `bru run --env prod` of the whole collection.
+  if (bru.getEnvName() === 'prod') {
+    console.log(`skipped in prod (the full tier is local only): ${req.getMethod()} ${req.getUrl()}`)
+    bru.runner.skipRequest()
+  }
+}
+
+docs {
+  # Full tier (local and CI only)
+
+  Every resource of the API, in dependency order: session and profile,
+  household, accounts, categories, ledger, payslips, reports, tags, goals,
+  insights, imports, rules, recurring, devices, then the teardown that
+  deletes what the run created and revokes every session.
+
+  Each folder creates what it reads and chains ids through runtime
+  variables (`bru.setVar`). Names carry `{{runId}}` (set by
+  `01-session/01-config`), so runs never collide. The folder-level
+  `X-XSRF-TOKEN` header covers every write.
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Transfer
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/transfers/{{transferId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{transferId}}
+  res.body.data.memo: eq Bruno transfer {{runId}}
+  res.body.data.fromAccountId: eq {{accountAId}}
+}
+
+docs {
+  `transfers.show`: the transfer with both legs and the memo.
+}

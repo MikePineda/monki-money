@@ -1,0 +1,29 @@
+meta {
+  name: Reorder goals (same order)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/v1/goals/reorder
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "ids": []
+  }
+}
+
+script:pre-request {
+  req.setBody({ ids: JSON.parse(bru.getVar('goalOrder') || '[]') })
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `goals.reorder`: `{ ids }` → 204. The current order: nothing moves.
+}

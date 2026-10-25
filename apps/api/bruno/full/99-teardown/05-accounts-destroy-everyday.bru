@@ -1,0 +1,26 @@
+meta {
+  name: Delete the everyday account
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/accounts/{{accountAId}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Nothing to clean up when the request that sets it did not run.
+  if (!bru.getVar('accountAId')) {
+    bru.runner.skipRequest()
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `accounts.destroy` of account A; its import batches go with it.
+}

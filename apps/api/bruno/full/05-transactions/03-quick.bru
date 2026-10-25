@@ -1,0 +1,39 @@
+meta {
+  name: Quick add
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions/quick
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "accountId": {{accountAId}},
+    "amountCents": 1200,
+    "payee": "Bruno Cafe {{runId}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('quickId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.kind: eq expense
+  res.body.data.amountCents: eq -1200
+  res.body.data.categoryId: isNull
+  res.body.data.date: isString
+}
+
+docs {
+  `transactions.quick`: only `amountCents` is required. Defaults: the
+  person's last account, today in the household time zone, an expense, no
+  category.
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Notification settings
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/notifications
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('reminderTimeBefore', res.body.data.reminderTime)
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.summaryReady: isBoolean
+  res.body.data.dailyReminder: isBoolean
+  res.body.data.reminderTime: isString
+}
+
+docs {
+  `me.notifications.show`: `NotificationSettings` (`summaryReady`,
+  `dailyReminder`, `reminderTime` 'HH:mm'), the defaults until saved.
+}

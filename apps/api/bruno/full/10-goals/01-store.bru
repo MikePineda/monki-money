@@ -1,0 +1,40 @@
+meta {
+  name: Create a goal
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/goals
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bruno goal {{runId}}",
+    "targetCents": 1000000,
+    "startingCents": 0,
+    "monthlyContributionCents": 50000,
+    "accountId": {{accountAId}},
+    "userId": null
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('goalId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.status: eq active
+  res.body.data.targetCents: eq 1000000
+  res.body.data.accountId: eq {{accountAId}}
+}
+
+docs {
+  `goals.store`: `{ name, targetCents > 0, targetDate?, startingCents?,
+  monthlyContributionCents? (null = average), accountId?, userId? }` → 201.
+}

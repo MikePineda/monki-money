@@ -1,0 +1,11 @@
+meta {
+  name: Bank imports
+  seq: 12
+}
+
+docs {
+  A synthetic NAB export (apps/api/tests/fixtures/nab/pending-then-posted.csv)
+  staged on account A, reviewed row by row, classified and cancelled; staged
+  again and confirmed with every row ignored, so the ledger gets nothing. The
+  account's deletion in the teardown takes the batches with it.
+}

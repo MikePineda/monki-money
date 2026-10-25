@@ -1,0 +1,28 @@
+meta {
+  name: Update the transfer
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/transfers/{{transferId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "memo": "Bruno transfer {{runId}} (edited)",
+    "amountCents": 5500
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.memo: eq Bruno transfer {{runId}} (edited)
+  res.body.data.amountCents: eq 5500
+}
+
+docs {
+  `transfers.update`: any field; both legs are rewritten.
+}

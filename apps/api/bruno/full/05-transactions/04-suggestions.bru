@@ -1,0 +1,31 @@
+meta {
+  name: Suggestions
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/transactions/suggestions
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.asOf: isString
+  res.body.data.categories.expense: isArray
+  res.body.data.payees.expense: isArray
+  res.body.data.routes: isArray
+}
+
+tests {
+  test('learns the payee just typed', () => {
+    const payees = res.body.data.payees.expense.map((entry) => entry.payee)
+    expect(payees).to.include(`Bruno Market ${bru.getVar('runId')}`)
+  })
+}
+
+docs {
+  `transactions.suggestions`: quick-add suggestions for the reader
+  (categories, payees and transfer routes, best first, scored by recency).
+}

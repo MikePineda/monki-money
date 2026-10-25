@@ -1,0 +1,20 @@
+meta {
+  name: Delete the category
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/categories/{{categoryId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `categories.destroy`: `{ reassignToCategoryId? }` → 204 (its transactions
+  move to the replacement); 409 `E_CATEGORY_IN_USE` when referenced without one.
+}

@@ -1,0 +1,38 @@
+meta {
+  name: Goals with projections
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/goals?include=projection
+  body: none
+  auth: none
+}
+
+params:query {
+  include: projection
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('goalOrder', JSON.stringify(res.body.data.map((goal) => goal.id)))
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('carries the projection of each goal', () => {
+    const goal = res.body.data.find((entry) => entry.id === bru.getVar('goalId'))
+    expect(goal.projection.goalId).to.equal(bru.getVar('goalId'))
+    expect(goal.projection.rateSource).to.equal('contribution')
+  })
+}
+
+docs {
+  `goals.index`: `?status=&include=projection` → `Goal[]` by `sortOrder`.
+}

@@ -1,0 +1,42 @@
+meta {
+  name: Categories (flat)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/categories
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const bySlug = (slug) => (res.body.data.find((category) => category.slug === slug) || {}).id
+    bru.setVar('groceriesId', bySlug('groceries'))
+    bru.setVar('homeGoodsId', bySlug('home-goods'))
+    bru.setVar('taxesId', bySlug('taxes'))
+    bru.setVar('gymId', bySlug('gym'))
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('carries the system categories by slug', () => {
+    for (const name of ['groceriesId', 'homeGoodsId', 'taxesId', 'gymId']) {
+      expect(bru.getVar(name), name).to.be.a('number')
+    }
+    const groceries = res.body.data.find((category) => category.slug === 'groceries')
+    expect(groceries.isSystem).to.equal(true)
+  })
+}
+
+docs {
+  `categories.index` without `tree`: `Category[]` (`id`, `categoryGroupId`,
+  `slug`, `name` in the reader's locale, `icon`, `sortOrder`, `isHidden`,
+  `isSystem`).
+}

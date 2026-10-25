@@ -1,0 +1,36 @@
+meta {
+  name: Add a card
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/accounts/{{accountAId}}/cards
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "cardSuffix": "9999",
+    "userId": {{userId}},
+    "label": "Bruno card"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('cardId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.cardSuffix: eq "9999"
+  res.body.data.userId: eq {{userId}}
+}
+
+docs {
+  `accounts.cards.store`: `{ cardSuffix, userId?, label? }` → 201. Imports use
+  the suffix to tell who paid.
+}

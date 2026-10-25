@@ -1,0 +1,28 @@
+meta {
+  name: Resend the invitation
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/invitations/{{invitationId}}/resend
+  body: none
+  auth: none
+}
+
+tests {
+  test('resends it, or 404 when none was created', () => {
+    if (bru.getVar('invitationId') === 2147483647) {
+      expect(res.status).to.equal(404)
+      expect(res.body.code).to.equal('E_ROW_NOT_FOUND')
+      return
+    }
+    expect(res.status).to.equal(200)
+    expect(res.body.data.id).to.equal(bru.getVar('invitationId'))
+  })
+}
+
+docs {
+  `household.invitations.resend` (owner): a new link by email (the old one
+  stops working), fresh 7 days.
+}

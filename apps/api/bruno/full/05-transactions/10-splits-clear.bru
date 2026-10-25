@@ -1,0 +1,29 @@
+meta {
+  name: Merge the splits back
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/api/v1/transactions/{{expenseId}}/splits
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "splits": [],
+    "categoryId": {{groceriesId}}
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.isSplit: eq false
+  res.body.data.categoryId: eq {{groceriesId}}
+}
+
+docs {
+  `transactions.splits.update` with `splits: []`: a single transaction again,
+  with `categoryId`.
+}

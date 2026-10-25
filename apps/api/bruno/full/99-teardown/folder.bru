@@ -1,0 +1,10 @@
+meta {
+  name: Teardown
+  seq: 99
+}
+
+docs {
+  Deletes what the run created (in dependency order) and revokes every session
+  of the user. Each delete is skipped when the request that created its row did
+  not run, so a partial run still cleans up what it can.
+}

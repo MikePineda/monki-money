@@ -1,0 +1,28 @@
+meta {
+  name: Create a second household (refused)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/households
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bruno {{runId}}"
+  }
+}
+
+assert {
+  res.status: eq 409
+  res.body.code: eq E_ALREADY_IN_HOUSEHOLD
+}
+
+docs {
+  `households.store`: for verified users without a household (`{ name,
+  locale?, timezone?, currencyCode? }` → 201 `{ household, membership }`).
+  The smoke user already has one: 409 `E_ALREADY_IN_HOUSEHOLD`.
+}
