@@ -1,9 +1,15 @@
 /**
  * Push notification preferences of one person (`PATCH /me/notifications`).
  * The summary push says the monthly summary is ready; the daily reminder
- * asks, once a day after `reminderTime` (household time zone), whether
- * anything was logged today, and only when nothing was.
+ * asks, once a day after `reminderTime` (household time zone) on the chosen
+ * weekdays, whether anything was logged today, and only when nothing was.
  */
+
+/** ISO weekday: Monday 1 to Sunday 7 (Luxon's `weekday`). */
+export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+/** Every day of the week, Monday first. */
+export const EVERY_WEEKDAY: readonly Weekday[] = Object.freeze([1, 2, 3, 4, 5, 6, 7])
 
 /** `data` of `GET` / `PATCH /api/v1/me/notifications`. */
 export interface NotificationSettings {
@@ -13,6 +19,8 @@ export interface NotificationSettings {
   dailyReminder: boolean
   /** 24-hour 'HH:mm' in the household time zone. */
   reminderTime: string
+  /** The days (household time zone) the reminder goes out, Monday first; at least one. */
+  reminderWeekdays: Weekday[]
 }
 
 /** What a person without a saved choice gets. */
@@ -20,6 +28,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Readonly<NotificationSettings> = Obj
   summaryReady: true,
   dailyReminder: false,
   reminderTime: '20:00',
+  reminderWeekdays: [...EVERY_WEEKDAY],
 })
 
 /** 24-hour 'HH:mm'. */
@@ -44,4 +53,19 @@ export function reminderMinutes(time: string): number {
   if (!isReminderTime(time))
     throw new RangeError(`Not a reminder time (HH:mm, at most 23:30): ${time}`)
   return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+}
+
+/** One to seven distinct ISO weekdays (any order). */
+export function isReminderWeekdays(value: unknown): value is Weekday[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((day) => EVERY_WEEKDAY.includes(day as Weekday)) &&
+    new Set(value).size === value.length
+  )
+}
+
+/** Monday first, the way they are stored and shown. */
+export function sortedWeekdays(days: readonly Weekday[]): Weekday[] {
+  return [...days].sort((a, b) => a - b)
 }
