@@ -333,9 +333,7 @@ export class RecurringSheetComponent {
 
   protected pick(merchant: MerchantSuggestion): void {
     this.draft.set(
-      this.linking
-        ? linkSuggestion(this.draft(), merchant)
-        : pickSuggestion(this.draft(), merchant)
+      this.linking ? linkSuggestion(this.draft(), merchant) : pickSuggestion(this.draft(), merchant)
     )
     this.errors.set({})
   }
