@@ -1,13 +1,25 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 import PushSubscriptionService from '#services/push/push_subscription_service'
+import PushDeviceTransformer from '#transformers/push_device_transformer'
 import PushSubscriptionTransformer from '#transformers/push_subscription_transformer'
-import { destroyPushSubscriptionValidator, storePushSubscriptionValidator } from '#validators/push'
+import {
+  destroyPushSubscriptionValidator,
+  pushDeviceParamsValidator,
+  storePushSubscriptionValidator,
+} from '#validators/push'
 
-/** This device's Web Push subscription for the signed-in person, in the current household. */
+/** The signed-in person's Web Push devices in the current household. */
 @inject()
 export default class PushSubscriptionsController {
   constructor(protected subscriptions: PushSubscriptionService) {}
+
+  /** GET /push/subscriptions: the person's devices (browser, platform, last push), never endpoints. */
+  async index(ctx: HttpContext) {
+    const devices = await this.subscriptions.devices(ctx.household, ctx.auth.getUserOrFail())
+
+    return ctx.serialize(PushDeviceTransformer.transform(devices))
+  }
 
   /**
    * POST /push/subscriptions { endpoint, keys: { p256dh, auth } }: 201 new,
@@ -33,6 +45,15 @@ export default class PushSubscriptionsController {
     const { endpoint } = await ctx.request.validateUsing(destroyPushSubscriptionValidator)
 
     await this.subscriptions.unsubscribe(ctx.household, ctx.auth.getUserOrFail(), endpoint)
+
+    return ctx.response.noContent()
+  }
+
+  /** DELETE /push/subscriptions/:id: 204; 404 for a device that is not this person's. */
+  async remove(ctx: HttpContext) {
+    const { params } = await ctx.request.validateUsing(pushDeviceParamsValidator)
+
+    await this.subscriptions.remove(ctx.household, ctx.auth.getUserOrFail(), params.id)
 
     return ctx.response.noContent()
   }

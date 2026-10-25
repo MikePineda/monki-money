@@ -1231,6 +1231,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'push.subscriptions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/push/subscriptions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['index']>>>
+    }
+  }
   'push.subscriptions.store': {
     methods: ["POST"]
     pattern: '/api/v1/push/subscriptions'
@@ -1253,6 +1265,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/push').destroyPushSubscriptionValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'push.subscriptions.remove': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/push/subscriptions/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/push').pushDeviceParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/push').pushDeviceParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['remove']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['remove']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
 }

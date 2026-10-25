@@ -5,6 +5,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import PushSubscription from '#models/push_subscription'
 import { PushSubscriptionNotFound } from '#exceptions/errors'
+import { findInHousehold } from '#repositories/scoped'
 
 /** `PushSubscription.toJSON()` as the browser hands it over. */
 export interface SubscriptionInput {
@@ -117,6 +118,21 @@ export default class PushSubscriptionService {
         kept.map((device) => device.id)
       )
       .delete()
+  }
+
+  /** The person's devices in this household (Settings), oldest first. */
+  devices(household: Household, user: User): Promise<PushSubscription[]> {
+    return PushSubscription.query()
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .where('user_id', user.id)
+      .orderBy('id')
+  }
+
+  /** Forgets one of the person's devices by id; 404 for a partner's or another household's. */
+  async remove(household: Household, user: User, id: number): Promise<void> {
+    const subscription = await findInHousehold(PushSubscription, household, id)
+    if (subscription.userId !== user.id) throw new PushSubscriptionNotFound()
+    await subscription.delete()
   }
 
   /** Forgets one of the person's devices in this household; 404 for any other endpoint. */
