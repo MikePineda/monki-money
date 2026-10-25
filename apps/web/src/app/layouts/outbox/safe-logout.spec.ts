@@ -200,6 +200,19 @@ describe('SafeLogout', () => {
     expect(session.ended).not.toHaveBeenCalled()
   })
 
+  it('test_once_guarded_the_mores_logout_warns_only_once', async () => {
+    const guard = setup(queued(1))
+    guard.guardLogouts()
+    const done = guard.logout()
+    await vi.waitFor(() => expect(warning()).not.toBeNull())
+
+    press('outbox.logout.confirm')
+
+    expect(await done).toBe(true)
+    expect(session.ended).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('[data-testid="outbox.logout"]')).toHaveLength(0)
+  })
+
   it('test_a_guarded_logout_with_nothing_queued_ends_at_once', async () => {
     const guard = setup([])
     guard.guardLogouts()

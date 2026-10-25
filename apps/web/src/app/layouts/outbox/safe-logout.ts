@@ -30,9 +30,14 @@ export class SafeLogout {
     this.session.confirmLogout(() => this.confirm())
   }
 
-  /** Logs out, guarded; resolves with whether the session ended. */
-  logout(): Promise<boolean> {
-    this.guardLogouts()
+  /**
+   * Logs out, guarded; resolves with whether the session ended. Before the
+   * guard is registered it asks itself, once registered the session asks.
+   */
+  async logout(): Promise<boolean> {
+    if (!this.guarding && !(await this.confirm())) {
+      return false
+    }
     return this.session.logout()
   }
 
