@@ -14,6 +14,7 @@ import { findInHousehold } from '#repositories/scoped'
 import type { MemberRole } from '@monkimoney/shared'
 import type { AcceptInvitationInput } from '#services/auth/dto'
 import HouseholdCreator from '#services/households/household_creator'
+import PushSubscriptionService from '#services/push/push_subscription_service'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { AlreadyInHousehold, InvitationExpired, MemberLimitReached } from '#exceptions/errors'
 import {
@@ -143,6 +144,7 @@ export default class InvitationService {
         { user, role: invitation.role },
         trx
       )
+      await PushSubscriptionService.followPerson(user.id, household.id, trx)
 
       invitation.useTransaction(trx)
       invitation.acceptedAt = DateTime.now()
