@@ -24,8 +24,10 @@ export interface CreateRecurringInput {
 /**
  * `PATCH /recurring/:id`: only the given fields change; each one becomes a
  * person's edit that detection keeps. `status` pauses, resumes or dismisses.
+ * `merchantKey` links an item typed by hand to the bank merchant a person
+ * picked from the suggestions (a detected item's key never changes).
  */
-export interface UpdateRecurringInput extends Partial<Omit<CreateRecurringInput, 'merchantKey'>> {
+export interface UpdateRecurringInput extends Partial<CreateRecurringInput> {
   status?: RecurringStatus
 }
 
