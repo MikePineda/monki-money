@@ -18,9 +18,9 @@ assert {
 }
 
 tests {
-  test('is the smoke user in its own Smoke household', () => {
+  test('is the smoke user in its own smoke household', () => {
     expect(res.body.data.user.email).to.equal(bru.getProcessEnv('SMOKE_EMAIL').trim().toLowerCase())
-    expect(res.body.data.household.name).to.equal('Smoke')
+    expect(res.body.data.household.name).to.equal(bru.getEnvVar('smokeHousehold'))
   })
 }
 

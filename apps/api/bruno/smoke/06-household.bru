@@ -12,7 +12,7 @@ get {
 
 assert {
   res.status: eq 200
-  res.body.data.name: eq Smoke
+  res.body.data.name: eq {{smokeHousehold}}
   res.body.data.status: eq active
   res.body.data.currencyCode: eq AUD
 }

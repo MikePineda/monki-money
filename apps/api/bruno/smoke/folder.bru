@@ -1,0 +1,13 @@
+meta {
+  name: smoke
+  seq: 1
+}
+
+docs {
+  # Smoke tier (read-only)
+
+  The post-deploy check: `npm run smoke:prod` runs only this folder against
+  production. Probes, the CSRF handshake, the smoke user's own login, three
+  household reads and logout. Nothing here writes business data: writes
+  belong in `full/`.
+}

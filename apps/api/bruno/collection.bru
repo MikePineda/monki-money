@@ -38,12 +38,14 @@ script:post-response {
 }
 
 docs {
-  # monkimoney API: smoke collection and living docs
+  # monkimoney API: living docs, smoke test and CI check
 
-  Run order is the `seq` of each request: probes, the CSRF handshake
-  (`03-config`), login as the smoke user, household reads, logout.
+  Two tiers (see README.md): `smoke/` is read-only and the only folder that
+  runs against production (`npm run smoke:prod`); `full/` covers every
+  resource locally and in CI (`npm run smoke:local`, `npm run smoke:e2e`).
+  `npm run bruno:coverage` fails when a route has no request.
 
-  Rules every request follows (see README.md):
+  Rules every request follows:
 
   - A browser-like `User-Agent` (set here): Cloudflare's Browser Integrity
     Check answers 403 to non-browser clients.
