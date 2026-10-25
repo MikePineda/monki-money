@@ -37,7 +37,14 @@ function committed(overrides: Partial<Committed> = {}): Committed {
 describe('CommittedCardComponent', () => {
   async function render(
     value: Committed,
-    options: { incomeCents?: number; expenseCents?: number; lang?: 'en' | 'es' } = {}
+    options: {
+      incomeCents?: number
+      expenseCents?: number
+      lang?: 'en' | 'es'
+      past?: boolean
+      /** Renders nothing: do not wait for the catalogue's text. */
+      empty?: boolean
+    } = {}
   ) {
     const lang = options.lang ?? 'en'
     TestBed.configureTestingModule({
@@ -52,13 +59,19 @@ describe('CommittedCardComponent', () => {
     fixture.componentRef.setInput('committed', value)
     fixture.componentRef.setInput('incomeCents', options.incomeCents ?? 645_000)
     fixture.componentRef.setInput('expenseCents', options.expenseCents ?? 328_450)
+    if (options.past) {
+      fixture.componentRef.setInput('past', true)
+      fixture.componentRef.setInput('monthName', 'September')
+    }
     const root = fixture.nativeElement as HTMLElement
     // Wait for the scope catalogue: until it loads, its labels render empty.
-    await vi.waitFor(() =>
-      expect(root.textContent).toMatch(
-        /Already paid|Ya pagado|recurring payments|pagos recurrentes/
+    if (!options.empty) {
+      await vi.waitFor(() =>
+        expect(root.textContent).toMatch(
+          /Already paid|Ya pagado|recurring payments|pagos recurrentes|Bills in|Pagos recurrentes/
+        )
       )
-    )
+    }
     await fixture.whenStable()
     return { fixture, root }
   }
@@ -175,6 +188,64 @@ describe('CommittedCardComponent', () => {
     const button = root.querySelector<HTMLButtonElement>('[data-testid="month.committed.detect"]')
     expect(button?.disabled).toBe(true)
     expect(button?.textContent).toContain('Looking for recurring payments')
+  })
+
+  it('test_a_past_month_shows_what_its_bills_took_and_nothing_still_due', async () => {
+    const { root } = await render(
+      committed({
+        paidCents: 106_500,
+        upcomingCents: 0,
+        items: [
+          { ...RENT, dueDate: '2026-09-08', paid: true, overdue: false },
+          {
+            ...RENT,
+            id: 2,
+            payee: 'Telco One',
+            amountCents: 6_500,
+            dueDate: '2026-09-12',
+            paid: true,
+            overdue: false,
+          },
+        ],
+      }),
+      { past: true, expenseCents: 532_500 }
+    )
+
+    expect(text(root, '[data-testid="month.committed"]')).toContain('Bills in September')
+    expect(text(root, '[data-testid="month.committed.paid"]')).toBe('Paid $1,065.00')
+    // 1,065 of the 5,325 spent.
+    expect(text(root, '[data-testid="month.committed.share"] dt')).toBe('Of spending')
+    expect(text(root, '[data-testid="month.committed.share"] dd')).toBe('20%')
+    expect(root.querySelector('[data-testid="month.committed.due"]')).toBeNull()
+    expect(root.querySelector('[data-testid="month.committed.free"]')).toBeNull()
+    const leaves = (row: Element) =>
+      [...row.querySelectorAll('span')]
+        .filter((span) => span.children.length === 0)
+        .map((span) => span.textContent?.trim())
+    expect([...root.querySelectorAll('[data-testid="month.committed.item"]')].map(leaves)).toEqual([
+      ['Harbour Lettings', 'Paid 8 Sept', '$500.00'],
+      ['Telco One', 'Paid 12 Sept', '$65.00'],
+    ])
+  })
+
+  it('test_a_past_month_without_bills_paid_says_so_and_never_offers_detection', async () => {
+    const { root } = await render(committed({ paidCents: 0, upcomingCents: 0, items: [] }), {
+      past: true,
+    })
+
+    expect(text(root, '[data-testid="month.committed"]')).toContain(
+      'No recurring payment was paid in September.'
+    )
+  })
+
+  it('test_a_past_month_of_a_household_without_bills_shows_nothing', async () => {
+    const { root } = await render(
+      committed({ recurringCount: 0, paidCents: 0, upcomingCents: 0, items: [] }),
+      { past: true, empty: true }
+    )
+
+    expect(root.querySelector('[data-testid="month.committed.hint"]')).toBeNull()
+    expect(root.querySelector('[data-testid="month.committed"]')).toBeNull()
   })
 
   it('test_the_card_speaks_spanish', async () => {

@@ -17,15 +17,17 @@ const recurringFields = {
   paidByUserId: id().nullable().optional(),
 }
 
+/** A suggestion's merchant key (lowercase words, as the importer writes them). */
+const merchantKey = vine
+  .string()
+  .trim()
+  .maxLength(255)
+  .regex(/^[a-z]+( [a-z]+)*$/)
+  .optional()
+
 export const createRecurringValidator = vine.create({
   ...recurringFields,
-  /** A suggestion's merchant key (lowercase words, as the importer writes them). */
-  merchantKey: vine
-    .string()
-    .trim()
-    .maxLength(255)
-    .regex(/^[a-z]+( [a-z]+)*$/)
-    .optional(),
+  merchantKey,
 })
 
 export const updateRecurringValidator = vine.create({
@@ -36,6 +38,8 @@ export const updateRecurringValidator = vine.create({
   amountCents: recurringFields.amountCents.optional(),
   nextExpectedDate: recurringFields.nextExpectedDate.optional(),
   status: vine.enum(RECURRING_STATUSES).optional(),
+  /** Links an item typed by hand to a suggestion's merchant (a person picked it). */
+  merchantKey,
 })
 
 export const recurringParamsValidator = vine.create({

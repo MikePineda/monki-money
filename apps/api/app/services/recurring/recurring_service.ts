@@ -14,7 +14,8 @@ import { findInHousehold } from '#repositories/scoped'
 import { EDITABLE_FIELDS } from '#domain/recurring/redetection'
 import { payeeMerchantKey } from '#domain/recurring/merchant_key'
 import LedgerReferences from '#services/ledger/ledger_references'
-import { DEFAULT_TOLERANCE_PCT } from '#domain/recurring/detection'
+import { itemOfPayment } from '#domain/recurring/matching'
+import { DEFAULT_TOLERANCE_PCT, withinTolerance } from '#domain/recurring/detection'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import RecurringDetector, { lockRecurringItems } from '#services/recurring/recurring_detector'
 import type {
@@ -57,8 +58,9 @@ export default class RecurringService {
   }
 
   /**
-   * The merchants the household paid in the last months that no item
-   * tracks yet, most paid first: adding one of them keys the item like the
+   * The merchants the household paid in the last months whose payments no
+   * item pays yet (a merchant with one tracked line still offers another
+   * amount), most paid first: adding one of them keys the item like the
    * bank's rows. A partner's private purchases are never offered.
    */
   async merchants(household: Household, viewer: User): Promise<MerchantSuggestion[]> {
@@ -67,14 +69,12 @@ export default class RecurringService {
     const payments = await this.payments.between(household, addDays(today, -SUGGESTION_DAYS), today)
     const tracked = await RecurringItem.query()
       .withScopes((scopes) => scopes.forHousehold(household))
-      .select('merchant_key')
-    const taken = new Set(tracked.map((item) => item.merchantKey))
+      .select('id', 'merchant_key', 'amount_cents', 'amount_tolerance_pct')
 
     const byKey = new Map<string, MerchantSuggestion>()
     for (const payment of payments) {
-      // Tracked under its bank key, or under its payee key (an item typed by hand).
-      if (!payment.merchantKey || taken.has(payment.merchantKey)) continue
-      if (payment.payeeKey && taken.has(payment.payeeKey)) continue
+      // A payment an item already pays (by bank key, payee key or name, and amount) is tracked.
+      if (!payment.merchantKey || itemOfPayment(payment, tracked)) continue
       if (isHiddenFrom(payment, reader)) continue
       const entry = byKey.get(payment.merchantKey)
       byKey.set(payment.merchantKey, {
@@ -102,7 +102,7 @@ export default class RecurringService {
 
     return db.transaction(async (trx) => {
       await lockRecurringItems(household, trx)
-      await this.assertUntracked(household, merchantKey, trx)
+      await this.assertUntracked(household, merchantKey, input.amountCents, trx)
       return RecurringItem.create(
         {
           householdId: household.id,
@@ -126,7 +126,12 @@ export default class RecurringService {
     })
   }
 
-  /** Changes what was sent and remembers it as a person's edit (detection keeps it). */
+  /**
+   * Changes what was sent and remembers it as a person's edit (detection
+   * keeps it). A new `merchantKey` re-keys an item typed by hand (422
+   * `merchantKey`/`fixed` on a detected one, `merchantKey`/`taken` when
+   * that merchant already has an item of about its amount).
+   */
   async update(household: Household, itemId: number, input: UpdateRecurringInput) {
     await findInHousehold(RecurringItem, household, itemId)
     await this.assertReferences(household, input)
@@ -137,6 +142,17 @@ export default class RecurringService {
         .where('household_id', household.id)
         .where('id', itemId)
         .firstOrFail()
+
+      if (input.merchantKey !== undefined && input.merchantKey !== item.merchantKey) {
+        if (item.source !== 'manual') throw new FieldError('merchantKey', 'fixed')
+        await this.assertUntracked(
+          household,
+          input.merchantKey,
+          input.amountCents ?? item.amountCents,
+          trx,
+          { field: 'merchantKey', except: item.id }
+        )
+      }
 
       const { status, ...fields } = input
       const changed = Object.fromEntries(
@@ -162,16 +178,29 @@ export default class RecurringService {
     await item.delete()
   }
 
+  /**
+   * One merchant may have several items (two phone lines) but not the same
+   * bill twice: an item under the key whose amount is within its tolerance
+   * of the new one is 422 `payee`/`taken`.
+   */
   protected async assertUntracked(
     household: Household,
     merchantKey: string,
-    trx: TransactionClientContract
+    amountCents: number,
+    trx: TransactionClientContract,
+    { field = 'payee', except }: { field?: string; except?: number } = {}
   ) {
     const existing = await RecurringItem.query({ client: trx })
       .where('household_id', household.id)
       .where('merchant_key', merchantKey)
-      .first()
-    if (existing) throw new FieldError('payee', 'taken')
+      .if(except !== undefined, (query) => query.whereNot('id', except!))
+    if (
+      existing.some((item) =>
+        withinTolerance(amountCents, item.amountCents, item.amountTolerancePct)
+      )
+    ) {
+      throw new FieldError(field, 'taken')
+    }
   }
 
   protected async assertReferences(household: Household, input: UpdateRecurringInput) {

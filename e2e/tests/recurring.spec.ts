@@ -41,4 +41,24 @@ test.describe('journey: recurring payments and what is committed this month', ()
     await expect(recurring.row(WEEKLY_PAYEE)).toContainText('Weekly')
     await expect(recurring.row(WEEKLY_PAYEE)).toContainText('$450.00')
   })
+
+  test('an item added by hand can be deleted after a confirm', async ({ page }, testInfo) => {
+    // Both device projects share the household: each one adds and deletes its own.
+    const payee = `Pulse Gym ${testInfo.project.name}`
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.logIn(SEEDED_OWNER.email, SEEDED_OWNER.password)
+    await expect(page).toHaveURL(/\/month$/)
+    const recurring = new RecurringPage(page)
+    await recurring.goto()
+
+    await recurring.addByHand(payee, ['2', '9', '9', '0'])
+    await expect(recurring.row(payee)).toContainText('$29.90')
+
+    await recurring.delete(payee)
+    await expect(recurring.row(payee)).toHaveCount(0)
+    await page.reload()
+    await recurring.waitReady()
+    await expect(recurring.row(payee)).toHaveCount(0)
+  })
 })

@@ -472,20 +472,32 @@ rest staged for the review screen.
 (weekly|fortnightly|monthly|quarterly|yearly), amountCents (typical,
 positive), amountTolerancePct, categoryId, accountId, paidByUserId (null =
 joint), lastPaidDate, nextExpectedDate, status (active|paused|dismissed),
-pausedByDetection, source (detected|manual), occurrences, createdAt,
-updatedAt }`. One per household and `merchantKey` (the importer's
+pausedByDetection, source (detected|manual), occurrences, confidence
+(high|low), createdAt, updatedAt }`. Keyed by `merchantKey` (the importer's
 normalized payee key: the bank row's for an imported transaction, else the
-payee's); `payee` is only its name and can be renamed. A payment belongs to
-an item when its bank merchant key or its payee's own key is the item's key,
-so an item typed as "Rent" matches the imported transfers the person named
-"Rent". `pausedByDetection`: paused because its payments stopped, not by a
-person.
+payee's); `payee` is only its name and can be renamed. A merchant may have
+several items (two phone lines, $65 and $45), told apart by their amount.
+A payment belongs to an item when, best first, its bank merchant key is the
+item's key, its payee's own key is (an item typed as "Rent" matches the
+imported transfers the person named "Rent"), or either key names the same
+merchant once domain and company words drop (`com`, `au`, `net`, `org`,
+`io`, `www`, `pty`, `ltd`, `limited`, `inc`, `llc`, `co`, `corp`,
+`corporation`, `the`: a typed "StreamFlix" matches the bank's
+`STREAMFLIX.COM`; never a prefix or a shared word, so "Rent" never matches
+"Rentokil"), and its amount is within the item's tolerance; between several
+items the best key wins, then the closest amount. `pausedByDetection`:
+paused because its payments stopped, not by a person. `confidence`: `low`
+for a detected yearly bill seen only twice (until a third payment), else
+`high`.
 
 Detection (`app/domain/recurring`) reads the household's expenses (whole
 transactions, never transfers, income, refunds or a member's private
 purchases) of the last twelve months, three years for yearly ones, grouped by
-merchant key. Payments of the same day are one (their sum: both partners at
-one gym). The typical amount is the median of the three latest payments;
+merchant key and then by amount band (sorted by amount, a payment joins the
+band of the one before while within 15% of it: two phone lines are two
+bands, a price creeping up stays one). Per band: payments of the same day
+are one (their sum: both partners at one gym). The typical amount is the
+median of the three latest payments;
 only payments within 15% of it count (a one-off purchase or an old price is
 left out). For each cadence the latest unbroken run decides: walking back
 from the newest payment while each gap is one step or two (a missed payment)
@@ -494,19 +506,30 @@ day of the month give or take 3 days, quarterly and yearly give or take 7),
 so a duplicate charge or a pause long ago does not hide what came after. The
 run needs three payments, at least 75% of its gaps one step, steady amounts
 (at least 80%, rounded down, of the merchant's payments within 50% of the typical amount are
-within the tolerance, an old price before the run aside: weekly groceries of
-varying amounts are not a bill) and a last payment no older than two steps
-plus 31 days. The payer is whoever paid at least 75% of the run, else joint.
+within the tolerance, an old price before the run and another band that is
+a pattern of its own aside: weekly groceries of varying amounts are not a
+bill) and a last payment no older than two steps plus 31 days. A yearly
+bill may instead be two payments one year apart (give or take 7 days,
+amounts within the tolerance, nothing else of that band in between) whose
+last one is no older than a year plus 31 days: found with `confidence:
+low`. The payer is whoever paid at least 75% of the run, else joint.
 `nextExpectedDate` is the first step after the last payment on or after
 today. Running it again is an idempotent upsert: a `dismissed` item is never
-recreated; a pattern lands on the item with its merchant key, else on an
-item typed by hand under one of its payee keys (never a second item for the
-same bill); the observations (`occurrences`, `lastPaidDate`) refresh, and the
+recreated; a pattern lands on an item with its merchant key, else on an
+item typed by hand under one of its payee keys or under a name that is its
+merchant once the words above drop (never a second item for the same
+bill). Among those, the item whose amount it is within the tolerance of
+(the merchant key first, then the closest amount); a pattern within no
+item's tolerance lands on the only item it could be when no other pattern
+could be that item (a new price), changes nothing when it could be several
+items, and is a new item when every item it could be is taken (a second
+line); the observations (`occurrences`, `lastPaidDate`) refresh, and the
 fields a person changed (any field sent to `PATCH`, `status` included) are
 never overwritten; a next date a person set holds until a payment reaches
 it. A detected item whose status no person chose is paused when its merchant has not been
 paid for two steps plus 31 days (a cancelled subscription), and resumed when
-its payments come back. It runs after every confirmed import too (best
+its payments come back; when other items share its merchant key, only
+payments within its tolerance count as its own. It runs after every confirmed import too (best
 effort, logged on failure).
 
 `committed` of `reports.month`: for each active item, its due dates are
@@ -514,7 +537,8 @@ projected from `nextExpectedDate` with its cadence (weekly rent falls due
 four or five times), on its day of the month for month-based cadences (a
 bill due on the 31st stays on the 31st after a short month), never before an
 item typed by hand starts. Its payments (amount within the item's tolerance;
-a partner's private one never counts for the reader) are read from 60 days
+a partner's private one never counts for the reader; between several items
+of one merchant, see above) are read from 60 days
 before the month: each pays the due date it is closest to within the
 cadence's window (weekly 3 days, fortnightly 7, monthly 14, quarterly 30,
 yearly 60), then a payment left over pays the latest unpaid due date before
@@ -523,20 +547,22 @@ never pays this month's due date. `paidCents` and the `paid` lines are the item'
 month. In the current month, every due date of the month nobody paid is
 still due (`upcomingCents`), with `overdue: true` when its date is past (often
 a bill whose bank export is not imported yet); a past month has nothing
-still due, a future one every due date. `recurringCount` counts the active
+still due and counts the paused items too (what the recurring payments took
+back then, a subscription cancelled since included), a future one every
+due date. `recurringCount` counts the active
 and paused items (0 = nothing detected or added yet). With `paidByUserId`,
 only that person's items and payments count. The client shows "Free after
 bills" as `incomeCents - expenseCents - upcomingCents`, and "—" until the
 month has income.
 
-| Name                  | Method and path            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| --------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `recurring.index`     | `GET /recurring`           | `RecurringItem[]`: active first, then paused, then dismissed; each by `nextExpectedDate`                                                                                                                                                                                                                                                                                                                                                                 |
-| `recurring.merchants` | `GET /recurring/merchants` | `[{ merchantKey, payee, amountCents, lastPaidDate, count }]`: merchants paid in the last 120 days that no item tracks (by bank key or payee key), most paid first (at most 40; a partner's private purchases never show), to add an item keyed like the bank's rows                                                                                                                                                                                      |
-| `recurring.store`     | `POST /recurring`          | `{ payee, merchantKey? (a suggestion's: lowercase words), cadence, amountCents > 0, nextExpectedDate, amountTolerancePct? (0-100, default 15), categoryId?, accountId?, paidByUserId? }` → 201 (`source: manual`, `occurrences: 0`; keyed by `merchantKey`, else by the payee). 422 `payee`/`merchantKey` (no letters to key it by), `payee`/`taken` (that merchant already has an item), `merchantKey`/`regex`, foreign ids `<field>`/`database.exists` |
-| `recurring.detect`    | `POST /recurring/detect`   | `{ created, updated }`: detection (see above)                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `recurring.update`    | `PATCH /recurring/:id`     | Any field of `store` but `merchantKey`, plus `status` (pause, resume, dismiss, restore). Every field sent is remembered as a person's edit that detection keeps; the merchant key never changes                                                                                                                                                                                                                                                          |
-| `recurring.destroy`   | `DELETE /recurring/:id`    | 204. A detected item can come back on the next detection; dismiss it to keep it away                                                                                                                                                                                                                                                                                                                                                                     |
+| Name                  | Method and path            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `recurring.index`     | `GET /recurring`           | `RecurringItem[]`: active first, then paused, then dismissed; each by `nextExpectedDate`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `recurring.merchants` | `GET /recurring/merchants` | `[{ merchantKey, payee, amountCents, lastPaidDate, count }]`: merchants paid in the last 120 days, counting only the payments no item pays (by key and amount, see above), most paid first (at most 40; a partner's private purchases never show), to add an item keyed like the bank's rows                                                                                                                                                                                                                                                 |
+| `recurring.store`     | `POST /recurring`          | `{ payee, merchantKey? (a suggestion's: lowercase words), cadence, amountCents > 0, nextExpectedDate, amountTolerancePct? (0-100, default 15), categoryId?, accountId?, paidByUserId? }` → 201 (`source: manual`, `occurrences: 0`; keyed by `merchantKey`, else by the payee). 422 `payee`/`merchantKey` (no letters to key it by), `payee`/`taken` (that merchant already has an item of about that amount: within its tolerance; another amount is a second item), `merchantKey`/`regex`, foreign ids `<field>`/`database.exists`         |
+| `recurring.detect`    | `POST /recurring/detect`   | `{ created, updated }`: detection (see above)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `recurring.update`    | `PATCH /recurring/:id`     | Any field of `store`, plus `status` (pause, resume, dismiss, restore). Every field sent but `merchantKey` is remembered as a person's edit that detection keeps. `merchantKey` (a suggestion's) links an item typed by hand to the bank merchant a person picked (the Recurring screen offers the merchants paid lately whose name holds the item's; nothing links without that tap); 422 `merchantKey`/`fixed` on a detected item (its key never changes), `merchantKey`/`taken` when that merchant already has an item of about its amount |
+| `recurring.destroy`   | `DELETE /recurring/:id`    | 204. Any item, typed or detected. A detected item can come back on the next detection; dismiss it to keep it away                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ### Receipts and uploads
 

@@ -32,8 +32,14 @@ export interface RecurringFields {
   paidByUserId: number | null
 }
 
-/** `PATCH /recurring/:id`: only what changed (each field sent becomes a person's edit). */
-export type RecurringPatch = Partial<RecurringFields> & { status?: RecurringStatus }
+/**
+ * `PATCH /recurring/:id`: only what changed (each field sent becomes a
+ * person's edit); `merchantKey` links an item typed by hand to a merchant.
+ */
+export type RecurringPatch = Partial<RecurringFields> & {
+  status?: RecurringStatus
+  merchantKey?: string
+}
 
 /** What the add/edit sheet edits. */
 export interface RecurringDraft extends RecurringFields {
@@ -77,6 +83,18 @@ export function pickSuggestion(
     merchantKey: merchant.merchantKey,
     amountCents: draft.amountCents > 0 ? draft.amountCents : merchant.amountCents,
   }
+}
+
+/**
+ * The draft once a person links an item typed by hand to a merchant paid
+ * lately: its name stays, its key becomes the merchant's (its payments
+ * then count as paid).
+ */
+export function linkSuggestion(
+  draft: RecurringDraft,
+  merchant: MerchantSuggestion
+): RecurringDraft {
+  return { ...draft, merchantKey: merchant.merchantKey }
 }
 
 /** A field the draft cannot be saved without. */
@@ -134,9 +152,13 @@ const EDITABLE = [
 
 /**
  * Only the fields the draft changed: the API remembers every field it
- * receives as a person's edit, which detection then leaves alone.
+ * receives as a person's edit, which detection then leaves alone. A
+ * merchant key goes only when a person linked the item to another one.
  */
-export function patchOf(item: RecurringFields, draft: RecurringDraft): RecurringPatch {
+export function patchOf(
+  item: RecurringFields & { merchantKey?: string },
+  draft: RecurringDraft
+): RecurringPatch {
   const next = createBody(draft)
   const patch: Record<string, unknown> = {}
   for (const key of EDITABLE) {
@@ -144,23 +166,26 @@ export function patchOf(item: RecurringFields, draft: RecurringDraft): Recurring
       patch[key] = next[key]
     }
   }
+  if (next.merchantKey && next.merchantKey !== item.merchantKey) {
+    patch['merchantKey'] = next.merchantKey
+  }
   return patch as RecurringPatch
 }
 
-/** What a row's sheet offers. */
-export type RecurringAction = 'edit' | 'pause' | 'resume' | 'dismiss' | 'restore'
+/** What a row's sheet offers; `delete` forgets the item (after a confirm). */
+export type RecurringAction = 'edit' | 'pause' | 'resume' | 'dismiss' | 'restore' | 'delete'
 
 const ACTIONS: Record<RecurringStatus, RecurringAction[]> = {
-  active: ['edit', 'pause', 'dismiss'],
-  paused: ['edit', 'resume', 'dismiss'],
-  dismissed: ['restore'],
+  active: ['edit', 'pause', 'dismiss', 'delete'],
+  paused: ['edit', 'resume', 'dismiss', 'delete'],
+  dismissed: ['restore', 'delete'],
 }
 
 export function actionsFor(status: RecurringStatus): RecurringAction[] {
   return ACTIONS[status]
 }
 
-/** The status an action leads to; null for an edit. */
+/** The status an action leads to; null for an edit or a delete. */
 export function statusAfter(action: RecurringAction): RecurringStatus | null {
   switch (action) {
     case 'pause':

@@ -26,7 +26,8 @@ const RECURRING_LOCK_NAMESPACE = 52_017
 /**
  * Serializes the writers of a household's recurring items (a detection run,
  * a person's edit) until `trx` ends, so two runs never insert the same
- * merchant twice and a run never overwrites an edit it did not see.
+ * pattern twice (no unique index does it: a merchant may have several
+ * items) and a run never overwrites an edit it did not see.
  */
 export async function lockRecurringItems(household: HouseholdRef, trx: TransactionClientContract) {
   await trx.rawQuery('SELECT pg_advisory_xact_lock(?, ?)', [
@@ -42,6 +43,7 @@ function trackedOf(item: RecurringItem): TrackedItem {
     payee: item.payee,
     cadence: item.cadence,
     amountCents: item.amountCents,
+    amountTolerancePct: item.amountTolerancePct,
     categoryId: item.categoryId,
     accountId: item.accountId,
     paidByUserId: item.paidByUserId,
@@ -81,18 +83,11 @@ export default class RecurringDetector {
     )
     const visible = payments.filter((payment) => !hasPrivateOwner(payment, memberIds))
     const detected = detectRecurring(visible, { today })
-    // The latest payment of every merchant and payee key (payments are oldest first).
-    const lastSeen = new Map<string, string>()
-    for (const payment of visible) {
-      for (const key of [payment.merchantKey, payment.payeeKey]) {
-        if (key) lastSeen.set(key, payment.date)
-      }
-    }
 
     return db.transaction(async (trx) => {
       await lockRecurringItems(household, trx)
       const items = await RecurringItem.query({ client: trx }).where('household_id', household.id)
-      const plan = planRedetection(items.map(trackedOf), detected, today, lastSeen)
+      const plan = planRedetection(items.map(trackedOf), detected, today, visible)
 
       for (const found of plan.create) {
         await RecurringItem.create(

@@ -17,7 +17,9 @@ export type CommittedReport = Committed & {
 /**
  * "Committed this month" for the Month view: the active recurring items,
  * what of them is already paid in the month and what is still due until
- * its end (app/domain/recurring/committed.ts). A partner's private payment
+ * its end (app/domain/recurring/committed.ts). For a past month, what the
+ * active and paused items took that month (a subscription cancelled since
+ * still took its share back then). A partner's private payment
  * never counts as paid for the reader (its details are not theirs to see).
  * With `paidByUserId`, only that person's items and payments count.
  */
@@ -33,16 +35,18 @@ export default class CommittedReportBuilder {
     const tracked = await RecurringItem.query()
       .withScopes((scopes) => scopes.forHousehold(household))
       .whereNot('status', 'dismissed')
-    const active = tracked.filter(
+    const { from, to } = monthRange(month)
+    // A past month counts what was paid back then, by items paused since too.
+    const past = to < today
+    const counted = tracked.filter(
       (item) =>
-        item.status === 'active' &&
+        (item.status === 'active' || (past && item.status === 'paused')) &&
         (paidByUserId === undefined || item.paidByUserId === paidByUserId)
     )
-    if (active.length === 0) {
+    if (counted.length === 0) {
       return { paidCents: 0, upcomingCents: 0, items: [], recurringCount: tracked.length }
     }
 
-    const { from, to } = monthRange(month)
     // From before the month too: a late payment pays last month's due date, not this month's.
     const around = await this.payments.between(
       household,
@@ -55,7 +59,7 @@ export default class CommittedReportBuilder {
         (paidByUserId === undefined || payment.paidByUserId === paidByUserId)
     )
     return {
-      ...committedInMonth(active, payments, { month, today }),
+      ...committedInMonth(counted, payments, { month, today }),
       recurringCount: tracked.length,
     }
   }

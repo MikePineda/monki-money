@@ -21,6 +21,11 @@ function detected(overrides: Partial<DetectedItem> = {}): DetectedItem {
   }
 }
 
+/** A payment the ledger holds for the rent. */
+function seen(date: string, amountCents: number) {
+  return { date, amountCents, merchantKey: 'harbour lettings', payeeKey: 'harbour lettings' }
+}
+
 /** What the database holds for `detected()` after a first detection. */
 function tracked(overrides: Partial<TrackedItem> = {}): TrackedItem {
   const { merchantKey, payee, cadence, amountCents, categoryId, accountId, paidByUserId } =
@@ -31,6 +36,7 @@ function tracked(overrides: Partial<TrackedItem> = {}): TrackedItem {
     payee,
     cadence,
     amountCents,
+    amountTolerancePct: 15,
     categoryId,
     accountId,
     paidByUserId,
@@ -267,8 +273,127 @@ test.group('Recurring: re-detection', () => {
   test('test_an_item_still_paid_at_a_new_price_is_not_paused', ({ assert }) => {
     const lapsed = tracked({ lastPaidDate: '2026-07-07', nextExpectedDate: '2026-07-14' })
 
-    const plan = planRedetection([lapsed], [], TODAY, new Map([['harbour lettings', '2026-10-13']]))
+    const plan = planRedetection([lapsed], [], TODAY, [seen('2026-10-13', 58_000)])
 
     assert.deepEqual(plan.update, [])
+  })
+
+  test('test_two_amounts_at_one_merchant_land_on_their_own_items', ({ assert }) => {
+    const phone = {
+      merchantKey: 'telco one',
+      payeeKeys: ['telco one'],
+      cadence: 'monthly' as const,
+      nextExpectedDate: '2026-11-13',
+    }
+    const big = tracked({ id: 1, ...phone, amountCents: 6_500 })
+    const small = tracked({ id: 2, ...phone, amountCents: 4_500 })
+    const found = [
+      detected({ ...phone, amountCents: 4_600, occurrences: 6 }),
+      detected({ ...phone, amountCents: 6_500, occurrences: 7 }),
+    ]
+
+    const plan = planRedetection([big, small], found, TODAY)
+
+    assert.deepEqual(plan.create, [])
+    assert.deepEqual(plan.update, [
+      { id: 2, changes: { amountCents: 4_600, occurrences: 6 } },
+      { id: 1, changes: { occurrences: 7 } },
+    ])
+  })
+
+  test('test_a_second_line_at_a_tracked_merchant_becomes_its_own_item', ({ assert }) => {
+    const phone = { merchantKey: 'telco one', payeeKeys: ['telco one'] }
+    const first = tracked({ ...phone, amountCents: 6_500 })
+    const second = detected({ ...phone, amountCents: 4_500 })
+
+    const plan = planRedetection(
+      [first],
+      [detected({ ...phone, amountCents: 6_500 }), second],
+      TODAY
+    )
+
+    assert.deepEqual(plan, { create: [second], update: [] })
+    // Run again once it exists: nothing to do (no duplicate, no flip-flop).
+    const both = [first, tracked({ id: 2, ...phone, amountCents: 4_500 })]
+    assert.deepEqual(
+      planRedetection(both, [second, detected({ ...phone, amountCents: 6_500 })], TODAY),
+      { create: [], update: [] }
+    )
+  })
+
+  test('test_a_dismissed_line_stays_dismissed_while_the_other_is_found', ({ assert }) => {
+    const phone = { merchantKey: 'telco one', payeeKeys: ['telco one'] }
+    const dismissed = tracked({ ...phone, amountCents: 4_500, status: 'dismissed' })
+    const other = detected({ ...phone, amountCents: 6_500 })
+
+    const plan = planRedetection(
+      [dismissed],
+      [detected({ ...phone, amountCents: 4_500, occurrences: 9 }), other],
+      TODAY
+    )
+
+    assert.deepEqual(plan, { create: [other], update: [] })
+  })
+
+  test('test_the_only_item_of_a_merchant_follows_its_bill_to_a_new_price', ({ assert }) => {
+    // One item, one pattern, 40% dearer: the same bill, not a second one.
+    const plan = planRedetection([tracked()], [detected({ amountCents: 70_000 })], TODAY)
+
+    assert.deepEqual(plan, { create: [], update: [{ id: 1, changes: { amountCents: 70_000 } }] })
+  })
+
+  test('test_a_pattern_between_two_lines_of_a_merchant_creates_nothing', ({ assert }) => {
+    // Neither line's amount: guessing would move one line onto the other.
+    const phone = { merchantKey: 'telco one', payeeKeys: ['telco one'] }
+    const lines = [
+      tracked({ id: 1, ...phone, amountCents: 6_500 }),
+      tracked({ id: 2, ...phone, amountCents: 4_500 }),
+    ]
+
+    assert.deepEqual(planRedetection(lines, [detected({ ...phone, amountCents: 5_500 })], TODAY), {
+      create: [],
+      update: [],
+    })
+  })
+
+  test('test_a_pattern_lands_on_a_typed_item_named_after_its_merchant', ({ assert }) => {
+    // Typed "StreamFlix"; the bank prints STREAMFLIX.COM.
+    const typed = tracked({
+      merchantKey: 'streamflix',
+      source: 'manual',
+      lastPaidDate: null,
+      occurrences: 0,
+    })
+
+    const plan = planRedetection(
+      [typed],
+      [detected({ merchantKey: 'streamflix com', payeeKeys: [] })],
+      TODAY
+    )
+
+    assert.deepEqual(plan.create, [])
+    assert.deepEqual(plan.update, [
+      { id: 1, changes: { occurrences: 4, lastPaidDate: '2026-10-13' } },
+    ])
+  })
+
+  test('test_a_pattern_never_lands_on_a_typed_item_that_only_shares_a_word', ({ assert }) => {
+    const typed = tracked({ merchantKey: 'rent', source: 'manual', lastPaidDate: null })
+    const found = detected({ merchantKey: 'rentokil pest', payeeKeys: ['rentokil pest'] })
+
+    assert.deepEqual(planRedetection([typed], [found], TODAY).create, [found])
+  })
+
+  test('test_a_line_that_stopped_is_paused_while_the_other_is_still_paid', ({ assert }) => {
+    const phone = { merchantKey: 'telco one', cadence: 'monthly' as const }
+    const old = { lastPaidDate: '2026-06-12', nextExpectedDate: '2026-07-12' }
+    const stopped = tracked({ id: 1, ...phone, ...old, amountCents: 4_500 })
+    const paid = tracked({ id: 2, ...phone, ...old, amountCents: 6_500 })
+
+    const plan = planRedetection([stopped, paid], [], TODAY, [
+      { ...seen('2026-10-12', 6_500), merchantKey: 'telco one', payeeKey: '' },
+    ])
+
+    assert.deepEqual(plan.update, [{ id: 1, changes: { status: 'paused' } }])
   })
 })

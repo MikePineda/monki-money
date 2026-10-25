@@ -271,4 +271,68 @@ test.group('Recurring: committed this month', () => {
       ]
     )
   })
+
+  test('test_two_lines_at_one_phone_company_are_paid_by_their_own_amounts', ({ assert }) => {
+    const phoneLine = (id: number, amountCents: number, day: string) =>
+      rent({
+        id,
+        payee: `Telco One ${id}`,
+        merchantKey: 'telco one',
+        cadence: 'monthly',
+        amountCents,
+        nextExpectedDate: `2026-10-${day}`,
+        lastPaidDate: `2026-09-${day}`,
+      })
+
+    // Both lines fall due on the 12th; only the $45 one is paid yet.
+    const committed = committedInMonth(
+      [phoneLine(1, 6_500, '12'), phoneLine(2, 4_500, '12')],
+      [paid('2026-10-12', 4_500, 'telco one')],
+      OCTOBER
+    )
+
+    assert.deepEqual(
+      committed.items.map((entry) => [entry.id, entry.dueDate, entry.paid]),
+      [
+        [2, '2026-10-12', true],
+        [1, '2026-10-12', false],
+      ]
+    )
+    assert.deepEqual([committed.paidCents, committed.upcomingCents], [4_500, 6_500])
+  })
+
+  test('test_a_typed_name_counts_the_bank_rows_of_its_merchant_as_paid', ({ assert }) => {
+    // Typed "StreamFlix"; the bank row says STREAMFLIX.COM.
+    const typed = rent({
+      payee: 'StreamFlix',
+      merchantKey: 'streamflix',
+      cadence: 'monthly',
+      amountCents: 1_899,
+      nextExpectedDate: '2026-10-05',
+      lastPaidDate: null,
+    })
+
+    const committed = committedInMonth(
+      [typed],
+      [{ ...paid('2026-10-05', 1_899, 'streamflix com'), payeeKey: '' }],
+      OCTOBER
+    )
+
+    assert.deepEqual(marks(committed), ['2026-10-05 P'])
+  })
+
+  test('test_a_typed_name_never_counts_another_merchant_sharing_a_word', ({ assert }) => {
+    const typed = rent({ merchantKey: 'rent', lastPaidDate: null, nextExpectedDate: '2026-10-20' })
+
+    const committed = committedInMonth(
+      [typed],
+      [
+        { ...paid('2026-10-20', 50_000, 'rentokil pest'), payeeKey: 'rentokil pest' },
+        { ...paid('2026-10-21', 50_000, 'car rental'), payeeKey: '' },
+      ],
+      OCTOBER
+    )
+
+    assert.equal(committed.paidCents, 0)
+  })
 })
