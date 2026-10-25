@@ -540,3 +540,278 @@ test.group('Tags', () => {
     assert.lengthOf(fromJanuary, 2)
   })
 })
+
+/** The tags of every row of the household, by id (for before/after comparisons). */
+async function tagsById(householdId: number) {
+  const rows = await Transaction.query().where('household_id', householdId).orderBy('id')
+  return new Map(rows.map((row) => [row.id, row.tags]))
+}
+
+test.group('Tags: rename and merge', () => {
+  test('test_renaming_a_tag_rewrites_it_on_every_transaction_of_the_household', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, receipt } = await seededTrip(client)
+
+    const response = await client
+      .patch(`/api/v1/tags/${encodeURIComponent(TRIP)}`)
+      .json({ name: 'Bali trip' })
+      .actingAs(owner)
+
+    response.assertStatus(200)
+    // Flights, the refund, the split receipt and both legs of the transfer.
+    response.assertBodyContains({ data: { tag: 'Bali trip', updated: 5 } })
+    const renamed = await Transaction.query()
+      .where('household_id', household.id)
+      .whereRaw('tags @> ?::jsonb', [JSON.stringify(['Bali trip'])])
+    assert.lengthOf(renamed, 5)
+    assert.isTrue(renamed.some((row) => row.kind === 'transfer' && row.amountCents > 0))
+    assert.isTrue(renamed.some((row) => row.kind === 'transfer' && row.amountCents < 0))
+    await receipt.refresh()
+    assert.deepEqual(receipt.tags, ['Bali trip'])
+    assert.equal(receipt.updatedByUserId, owner.id)
+    const old = await client.get(`/api/v1/tags/${encodeURIComponent(TRIP)}`).actingAs(owner)
+    old.assertStatus(404)
+    const detail = await client.get('/api/v1/tags/Bali%20trip').actingAs(owner)
+    detail.assertBodyContains({ data: { tag: 'Bali trip', count: 4, setAsideCents: 80_000 } })
+  })
+
+  test('test_rename_merges_into_an_existing_tag', async ({ client, assert }) => {
+    const { household, owner, accounts } = await seededTrip(client)
+    const both = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      createdByUserId: owner.id,
+      paidByUserId: owner.id,
+      date: '2026-12-20',
+      amountCents: -1_500,
+      tags: ['camping', 'snacks', TRIP],
+    }).create()
+
+    const response = await client.patch('/api/v1/tags/camping').json({ name: TRIP }).actingAs(owner)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ data: { tag: TRIP, updated: 2 } })
+    await both.refresh()
+    // No tag twice on one row: the renamed copy folds into the first one.
+    assert.deepEqual(both.tags, [TRIP, 'snacks'])
+    const index = await client.get('/api/v1/tags').actingAs(owner)
+    const names = index.body().data.map((line: any) => line.tag)
+    assert.notInclude(names, 'camping')
+    assert.include(
+      index.body().data.find((line: any) => line.tag === TRIP),
+      { count: 6 }
+    )
+  })
+
+  test('test_rename_can_fix_the_case_of_a_tag', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{}] })
+    const base = { householdId: household.id, accountId: accounts[0].id, createdByUserId: owner.id }
+    const [lower, proper] = await TransactionFactory.merge([
+      { ...base, tags: ['bali 2027'] },
+      { ...base, tags: ['Bali 2027'] },
+    ]).createMany(2)
+
+    const response = await client
+      .patch('/api/v1/tags/bali%202027')
+      .json({ name: 'Bali 2027' })
+      .actingAs(owner)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ data: { tag: 'Bali 2027', updated: 1 } })
+    await lower.refresh()
+    await proper.refresh()
+    assert.deepEqual(lower.tags, ['Bali 2027'])
+    assert.deepEqual(proper.tags, ['Bali 2027'])
+  })
+
+  test('test_rename_leaves_the_partners_private_rows_alone', async ({ client, assert }) => {
+    const { household, owner, member } = await seededTrip(client)
+    const before = await tagsById(household.id)
+
+    await client
+      .patch(`/api/v1/tags/${encodeURIComponent(TRIP)}`)
+      .json({ name: 'Bali trip' })
+      .actingAs(owner)
+
+    const after = await tagsById(household.id)
+    const gift = [...before].find(([, tags]) => tags.includes('anniversary'))!
+    assert.deepEqual(after.get(gift[0]), [TRIP, 'anniversary'])
+    // The payer still finds their private gift under the old name.
+    const payers = await client.get(`/api/v1/tags/${encodeURIComponent(TRIP)}`).actingAs(member)
+    payers.assertStatus(200)
+    payers.assertBodyContains({ data: { count: 1 } })
+  })
+
+  test('test_renaming_a_tag_the_reader_cannot_see_answers_404', async ({ client, assert }) => {
+    const { household, owner } = await seededTrip(client)
+    const before = await tagsById(household.id)
+
+    for (const tag of ['anniversary', 'nowhere', 'bali 2027']) {
+      const response = await client
+        .patch(`/api/v1/tags/${encodeURIComponent(tag)}`)
+        .json({ name: 'Renamed' })
+        .actingAs(owner)
+      response.assertStatus(404)
+      response.assertBodyContains({ code: 'E_ROW_NOT_FOUND' })
+    }
+    assert.deepEqual(await tagsById(household.id), before)
+  })
+
+  test('test_a_tag_is_renamed_to_a_valid_tag_only', async ({ client, assert }) => {
+    const { household, owner } = await seededTrip(client)
+    const before = await tagsById(household.id)
+
+    for (const body of [
+      {},
+      { name: '' },
+      { name: '   ' },
+      { name: 'x'.repeat(41) },
+      { name: '..' },
+    ]) {
+      const response = await client
+        .patch(`/api/v1/tags/${encodeURIComponent(TRIP)}`)
+        .json(body)
+        .actingAs(owner)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field: 'name' }] })
+    }
+    const same = await client
+      .patch(`/api/v1/tags/${encodeURIComponent(TRIP)}`)
+      .json({ name: `  ${TRIP}  ` })
+      .actingAs(owner)
+    same.assertStatus(200)
+    same.assertBodyContains({ data: { tag: TRIP, updated: 0 } })
+    assert.deepEqual(await tagsById(household.id), before)
+  })
+})
+
+test.group('Tags: bulk tagging', () => {
+  test('test_bulk_tags_adds_and_removes_tags_on_the_selected_rows', async ({ client, assert }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{}] })
+    const base = { householdId: household.id, accountId: accounts[0].id, createdByUserId: owner.id }
+    const [first, second, untouched] = await TransactionFactory.merge([
+      { ...base, tags: ['camping'] },
+      { ...base, tags: [] },
+      { ...base, tags: ['camping'] },
+    ]).createMany(3)
+
+    const response = await client
+      .post('/api/v1/transactions/bulk-tags')
+      .json({ ids: [first.id, second.id], add: [TRIP, ' food '], remove: ['camping'] })
+      .actingAs(owner)
+
+    response.assertStatus(200)
+    response.assertBodyContains({ data: { updated: 2, skipped: 0 } })
+    await first.refresh()
+    await second.refresh()
+    await untouched.refresh()
+    assert.deepEqual(first.tags, [TRIP, 'food'])
+    assert.deepEqual(second.tags, [TRIP, 'food'])
+    assert.deepEqual(untouched.tags, ['camping'])
+    assert.equal(first.updatedByUserId, owner.id)
+  })
+
+  test('test_bulk_tags_on_a_transfer_leg_tags_both_legs', async ({ client, assert }) => {
+    const { owner, accounts } = await createHousehold({
+      accounts: [{ name: 'Everyday' }, { name: 'Savings', kind: 'savings' }],
+    })
+    const transfer = await client
+      .post('/api/v1/transfers')
+      .json({
+        fromAccountId: accounts[0].id,
+        toAccountId: accounts[1].id,
+        date: '2026-07-15',
+        amountCents: 80_000,
+      })
+      .actingAs(owner)
+    const [outgoing] = transfer.body().data.legs
+
+    const response = await client
+      .post('/api/v1/transactions/bulk-tags')
+      .json({ ids: [outgoing.id], add: [TRIP], remove: [] })
+      .actingAs(owner)
+
+    response.assertBodyContains({ data: { updated: 1, skipped: 0 } })
+    const legs = await Transaction.query().where('transfer_id', transfer.body().data.id)
+    assert.lengthOf(legs, 2)
+    assert.isTrue(legs.every((leg) => leg.tags.includes(TRIP)))
+    const tags = await client.get('/api/v1/tags').actingAs(owner)
+    assert.include(tags.body().data[0], { tag: TRIP, count: 1, setAsideCents: 80_000 })
+  })
+
+  test('test_bulk_tags_skips_the_partners_private_rows', async ({ client, assert }) => {
+    const { household, owner, member, accounts } = await createHousehold({
+      users: 2,
+      accounts: [{}],
+    })
+    const base = { householdId: household.id, accountId: accounts[0].id }
+    const mine = await TransactionFactory.merge({ ...base, createdByUserId: owner.id }).create()
+    const gift = await TransactionFactory.merge({
+      ...base,
+      paidByUserId: member.id,
+      createdByUserId: member.id,
+      isPrivate: true,
+      tags: ['anniversary'],
+    }).create()
+
+    const response = await client
+      .post('/api/v1/transactions/bulk-tags')
+      .json({ ids: [mine.id, gift.id], add: [TRIP], remove: ['anniversary'] })
+      .actingAs(owner)
+
+    response.assertBodyContains({ data: { updated: 1, skipped: 1 } })
+    await gift.refresh()
+    assert.deepEqual(gift.tags, ['anniversary'])
+    await mine.refresh()
+    assert.deepEqual(mine.tags, [TRIP])
+  })
+
+  test('test_bulk_tags_skips_a_row_that_would_carry_more_than_twenty_tags', async ({
+    client,
+    assert,
+  }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{}] })
+    const full = Array.from({ length: 20 }, (_, index) => `tag ${index}`)
+    const base = { householdId: household.id, accountId: accounts[0].id, createdByUserId: owner.id }
+    const [crowded, roomy] = await TransactionFactory.merge([
+      { ...base, tags: full },
+      { ...base, tags: [] },
+    ]).createMany(2)
+
+    const response = await client
+      .post('/api/v1/transactions/bulk-tags')
+      .json({ ids: [crowded.id, roomy.id], add: [TRIP] })
+      .actingAs(owner)
+
+    response.assertBodyContains({ data: { updated: 1, skipped: 1 } })
+    await crowded.refresh()
+    assert.deepEqual(crowded.tags, full)
+  })
+
+  test('test_bulk_tags_needs_rows_and_a_tag_to_add_or_remove', async ({ client }) => {
+    const { owner, household, accounts } = await createHousehold({ accounts: [{}] })
+    const row = await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+    }).create()
+
+    const cases: Array<[Record<string, unknown>, string]> = [
+      [{ ids: [row.id] }, 'add'],
+      [{ ids: [row.id], add: [], remove: [] }, 'add'],
+      [{ ids: [], add: [TRIP] }, 'ids'],
+      [{ ids: [row.id], add: ['..'] }, 'add.0'],
+      [{ ids: [row.id], add: Array.from({ length: 21 }, (_, i) => `t${i}`) }, 'add'],
+      [{ ids: [row.id + 1_000], add: [TRIP] }, 'ids'],
+    ]
+    for (const [body, field] of cases) {
+      const response = await client
+        .post('/api/v1/transactions/bulk-tags')
+        .json(body)
+        .actingAs(owner)
+      response.assertStatus(422)
+      response.assertBodyContains({ errors: [{ field }] })
+    }
+  })
+})

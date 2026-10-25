@@ -596,6 +596,143 @@ test.group('Payslips: list, candidates and delete', () => {
   })
 })
 
+/**
+ * A September payslip that created the transfer of its net (so its memo
+ * was copied onto the transfer and both legs), with the gross made private
+ * by the person it belongs to (the owner): the partner must not read the
+ * memo anywhere in the ledger.
+ */
+async function recordPrivatePayslip(client: any, fixture: Fixture) {
+  const created = await client
+    .post('/api/v1/payslips')
+    .json(
+      payslipBody(fixture, {
+        date: '2026-09-30',
+        transferId: undefined,
+        toAccountId: fixture.bank.id,
+        memo: 'September invoice',
+      })
+    )
+    .actingAs(fixture.owner)
+  created.assertStatus(201)
+  const [gross] = await linesOf(created.body().data.id)
+  const hidden = await client
+    .patch(`/api/v1/transactions/${gross.id}`)
+    .json({ isPrivate: true })
+    .actingAs(fixture.owner)
+  hidden.assertStatus(200)
+  const transferId: number = created.body().data.transferId
+  const legs = await Transaction.query().where('transfer_id', transferId).orderBy('amount_cents')
+  return { transferId, legs }
+}
+
+test.group('Payslips: memo privacy in the ledger', () => {
+  test('test_the_ledger_listing_hides_a_private_payslips_memo_on_its_transfer_legs', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const { legs } = await recordPrivatePayslip(client, fixture)
+    const legIds = legs.map((leg) => leg.id)
+
+    const partner = await client
+      .get('/api/v1/transactions')
+      .qs({ month: '2026-09' })
+      .actingAs(fixture.member)
+    const owner = await client
+      .get('/api/v1/transactions')
+      .qs({ month: '2026-09' })
+      .actingAs(fixture.owner)
+
+    partner.assertStatus(200)
+    const partnersLegs = partner.body().data.filter((row: any) => legIds.includes(row.id))
+    assert.lengthOf(partnersLegs, 2)
+    assert.isTrue(partnersLegs.every((leg: any) => leg.description === null))
+    // The legs themselves are not private: only the memo they carry is.
+    assert.isTrue(partnersLegs.every((leg: any) => leg.isMasked === false))
+    const ownersLegs = owner.body().data.filter((row: any) => legIds.includes(row.id))
+    assert.isTrue(ownersLegs.every((leg: any) => leg.description === 'September invoice'))
+  })
+
+  test('test_searching_the_ledger_never_matches_a_private_payslips_memo', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const { legs } = await recordPrivatePayslip(client, fixture)
+
+    const partner = await client
+      .get('/api/v1/transactions')
+      .qs({ q: 'September invoice' })
+      .actingAs(fixture.member)
+    const owner = await client
+      .get('/api/v1/transactions')
+      .qs({ q: 'September invoice' })
+      .actingAs(fixture.owner)
+
+    partner.assertStatus(200)
+    assert.deepEqual(partner.body().data, [])
+    // The owner finds both legs and the gross line, whose note is the memo too.
+    assert.lengthOf(owner.body().data, 3)
+    assert.includeMembers(
+      owner.body().data.map((row: any) => row.id),
+      legs.map((leg) => leg.id)
+    )
+  })
+
+  test('test_the_transfer_hides_a_private_payslips_memo_from_the_partner', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const { transferId } = await recordPrivatePayslip(client, fixture)
+
+    const partner = await client.get(`/api/v1/transfers/${transferId}`).actingAs(fixture.member)
+    const owner = await client.get(`/api/v1/transfers/${transferId}`).actingAs(fixture.owner)
+
+    partner.assertStatus(200)
+    assert.isNull(partner.body().data.memo)
+    assert.isTrue(partner.body().data.legs.every((leg: any) => leg.description === null))
+    assert.equal(partner.body().data.amountCents, 370_000)
+    assert.equal(owner.body().data.memo, 'September invoice')
+    assert.isTrue(
+      owner.body().data.legs.every((leg: any) => leg.description === 'September invoice')
+    )
+  })
+
+  test('test_the_transaction_sheet_hides_a_private_payslips_memo_on_a_leg', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await walletWithPayout()
+    const { legs } = await recordPrivatePayslip(client, fixture)
+
+    for (const leg of legs) {
+      const partner = await client.get(`/api/v1/transactions/${leg.id}`).actingAs(fixture.member)
+      const owner = await client.get(`/api/v1/transactions/${leg.id}`).actingAs(fixture.owner)
+      partner.assertStatus(200)
+      assert.isNull(partner.body().data.description)
+      assert.equal(owner.body().data.description, 'September invoice')
+    }
+  })
+
+  test('test_a_memo_typed_on_the_transfer_afterwards_shows_again', async ({ client, assert }) => {
+    const fixture = await walletWithPayout()
+    const { transferId } = await recordPrivatePayslip(client, fixture)
+    // The partner writes their own memo on the payout: it is theirs to read.
+    const edited = await client
+      .patch(`/api/v1/transfers/${transferId}`)
+      .json({ memo: 'Payday' })
+      .actingAs(fixture.member)
+    edited.assertStatus(200)
+
+    const partner = await client.get(`/api/v1/transfers/${transferId}`).actingAs(fixture.member)
+
+    assert.equal(partner.body().data.memo, 'Payday')
+    assert.isTrue(partner.body().data.legs.every((leg: any) => leg.description === 'Payday'))
+  })
+})
+
 test.group('Payslips: ledger', () => {
   test('test_payslip_raises_month_income_by_the_gross_and_expenses_by_the_deductions', async ({
     client,

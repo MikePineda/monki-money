@@ -16,3 +16,12 @@ export const tagShowValidator = vine.create({
   params: vine.object({ tag: tag() }),
   ...range,
 })
+
+/**
+ * `PATCH /tags/:tag { name }`: the new label follows the same rule. A name
+ * already in use merges the two tags.
+ */
+export const renameTagValidator = vine.create({
+  params: vine.object({ tag: tag() }),
+  name: tag(),
+})

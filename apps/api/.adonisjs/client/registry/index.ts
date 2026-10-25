@@ -330,6 +330,12 @@ const routes = {
     tokens: [{"old":"/api/v1/transactions/bulk-categorize","type":0,"val":"api","end":""},{"old":"/api/v1/transactions/bulk-categorize","type":0,"val":"v1","end":""},{"old":"/api/v1/transactions/bulk-categorize","type":0,"val":"transactions","end":""},{"old":"/api/v1/transactions/bulk-categorize","type":0,"val":"bulk-categorize","end":""}],
     types: placeholder as Registry['transactions.bulkCategorize']['types'],
   },
+  'transactions.bulkTags': {
+    methods: ["POST"],
+    pattern: '/api/v1/transactions/bulk-tags',
+    tokens: [{"old":"/api/v1/transactions/bulk-tags","type":0,"val":"api","end":""},{"old":"/api/v1/transactions/bulk-tags","type":0,"val":"v1","end":""},{"old":"/api/v1/transactions/bulk-tags","type":0,"val":"transactions","end":""},{"old":"/api/v1/transactions/bulk-tags","type":0,"val":"bulk-tags","end":""}],
+    types: placeholder as Registry['transactions.bulkTags']['types'],
+  },
   'transactions.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/transactions/:id',
@@ -437,6 +443,12 @@ const routes = {
     pattern: '/api/v1/tags/:tag',
     tokens: [{"old":"/api/v1/tags/:tag","type":0,"val":"api","end":""},{"old":"/api/v1/tags/:tag","type":0,"val":"v1","end":""},{"old":"/api/v1/tags/:tag","type":0,"val":"tags","end":""},{"old":"/api/v1/tags/:tag","type":1,"val":"tag","end":""}],
     types: placeholder as Registry['tags.show']['types'],
+  },
+  'tags.update': {
+    methods: ["PATCH"],
+    pattern: '/api/v1/tags/:tag',
+    tokens: [{"old":"/api/v1/tags/:tag","type":0,"val":"api","end":""},{"old":"/api/v1/tags/:tag","type":0,"val":"v1","end":""},{"old":"/api/v1/tags/:tag","type":0,"val":"tags","end":""},{"old":"/api/v1/tags/:tag","type":1,"val":"tag","end":""}],
+    types: placeholder as Registry['tags.update']['types'],
   },
   'goals.index': {
     methods: ["GET","HEAD"],
