@@ -196,14 +196,118 @@ test.group('Summary ready push', (group) => {
     assert.isNotNull(insight.notifiedAt)
   })
 
-  test('test_a_summary_someone_tapped_or_written_long_ago_is_not_announced', async ({
+  test('test_a_summary_a_partner_generated_after_the_month_ended_is_announced_to_the_others', async ({
     assert,
     cleanup,
   }) => {
     const push = fakePush(cleanup)
-    const tapped = await couple()
+    const { household, owner, member, ownerPhone, partnerPhone } = await couple()
+    // The owner tapped Generate at 07:10 on the 1st, before the scheduled run.
+    const insight = await scheduledSummary(household.id, {
+      byUserId: owner.id,
+      generatedAt: FIRST_OF_OCTOBER.set({ hour: 7, minute: 10 }),
+    })
+
+    await tickAt(
+      await app.container.make(SummaryReadyJob),
+      FIRST_OF_OCTOBER.set({ hour: 7, minute: 15 })
+    )
+
+    assert.lengthOf(push.to(ownerPhone.endpoint), 0, 'the author sees it on screen')
+    assert.deepEqual(push.to(partnerPhone.endpoint), [
+      {
+        title: 'Tu resumen de septiembre está listo',
+        body: 'Mira en un minuto cómo te fue en septiembre.',
+        url: '/month/2026-09',
+        tag: 'summary-2026-09',
+      },
+    ])
+    const runs = await runsOf(household.id)
+    assert.deepEqual(
+      runs.map((run) => run.user_id),
+      [member.id]
+    )
+    await insight.refresh()
+    assert.isNotNull(insight.notifiedAt)
+  })
+
+  test('test_the_scheduled_run_after_a_tapped_summary_tells_nobody_twice', async ({
+    assert,
+    cleanup,
+  }) => {
+    const push = fakePush(cleanup)
+    const { household, owner, accounts, ownerPhone, partnerPhone } = await couple()
+    await TransactionFactory.merge({
+      householdId: household.id,
+      accountId: accounts[0].id,
+      createdByUserId: owner.id,
+      date: '2026-09-03',
+      amountCents: -8_000,
+    }).create()
+    await scheduledSummary(household.id, {
+      byUserId: owner.id,
+      generatedAt: FIRST_OF_OCTOBER.set({ hour: 7, minute: 10 }),
+    })
+    const scheduler = new Scheduler(
+      [await app.container.make(MonthlyInsightsJob), await app.container.make(SummaryReadyJob)],
+      () => FIRST_OF_OCTOBER,
+      { info: () => undefined, warn: () => undefined, error: () => undefined }
+    )
+
+    await tickAt(
+      await app.container.make(SummaryReadyJob),
+      FIRST_OF_OCTOBER.set({ hour: 7, minute: 15 })
+    )
+    await scheduler.tick()
+
+    assert.lengthOf(push.to(partnerPhone.endpoint), 1)
+    assert.lengthOf(push.to(ownerPhone.endpoint), 0)
+  })
+
+  test('test_a_summary_tapped_before_its_month_ended_or_for_an_older_month_is_not_announced', async ({
+    assert,
+    cleanup,
+  }) => {
+    const push = fakePush(cleanup)
+    const midMonth = await couple()
+    const older = await couple()
+    const twentieth = DateTime.fromISO('2026-09-20T10:00:00+10:00', { setZone: true })
+    const partial = await scheduledSummary(midMonth.household.id, {
+      byUserId: midMonth.owner.id,
+      generatedAt: twentieth,
+    })
+    const [row] = await db
+      .table('monthly_insights')
+      .insert({
+        household_id: older.household.id,
+        month: '2026-08',
+        locale: 'en',
+        headline: 'August',
+        body_markdown: 'August.',
+        highlights: '[]',
+        input_json: '{}',
+        model: 'fake',
+        generated_by_user_id: older.owner.id,
+        generated_at: FIRST_OF_OCTOBER.toJSDate(),
+        created_at: FIRST_OF_OCTOBER.toJSDate(),
+        updated_at: FIRST_OF_OCTOBER.toJSDate(),
+      })
+      .returning('id')
+    const job = await app.container.make(SummaryReadyJob)
+
+    await tickAt(job, twentieth.plus({ minutes: 5 }))
+    await tickAt(job, FIRST_OF_OCTOBER.plus({ minutes: 5 }))
+
+    assert.deepEqual(push.sent, [])
+    await partial.refresh()
+    assert.isNull(partial.notifiedAt, 'left for the scheduled summary that replaces it')
+    const august = await MonthlyInsight.findOrFail(row.id)
+    assert.isNull(august.notifiedAt)
+  })
+
+  test('test_a_summary_written_long_ago_is_not_announced', async ({ assert, cleanup }) => {
+    const push = fakePush(cleanup)
     const old = await couple()
-    await scheduledSummary(tapped.household.id, { byUserId: tapped.owner.id })
     await scheduledSummary(old.household.id, {
       generatedAt: FIRST_OF_OCTOBER.minus({ days: 2 }),
     })

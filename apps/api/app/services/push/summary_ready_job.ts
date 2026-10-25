@@ -8,6 +8,7 @@ import { summaryReadyPayload } from '#services/push/push_messages'
 import UserNotificationSetting from '#models/user_notification_setting'
 import { describeReport, pushRunResult } from '#services/push/push_outcome'
 import type { ScheduledJob, TickContext } from '#services/scheduler/scheduler'
+import { isAnnounceable, recipientsOf } from '#domain/push/summary_announcement'
 
 /** Name in `scheduler_runs.job` and in the logs. */
 export const SUMMARY_READY_JOB = 'summary-ready-push'
@@ -23,16 +24,19 @@ export const ANNOUNCE_WITHIN = { hours: 24 }
 const TTL_SECONDS = 24 * 60 * 60
 
 /**
- * "Your summary of {month} is ready": after the scheduled monthly summary
- * is written (MonthlyInsightsJob, same tick, which runs first), every
- * member with the summary push on and a device gets one notification in
- * their own language. It picks the summaries the scheduler (or `node ace
- * insights:generate`) wrote, i.e. `generated_by_user_id` NULL, that nobody
- * was told about yet (`monthly_insights.notified_at` NULL); a summary someone
- * tapped is not announced. Each member is claimed once per month in
- * `scheduler_runs` (job, month, household, person), so a regenerated
- * summary, restarts and overlapping containers never notify twice. The
- * summary is marked as told once no member's push is left to retry.
+ * "Your summary of {month} is ready": once a monthly summary is written,
+ * every member with the summary push on and a device gets one notification
+ * in their own language. It picks the summaries nobody was told about yet
+ * (`monthly_insights.notified_at` NULL), whoever wrote them: the scheduler
+ * (MonthlyInsightsJob, same tick, which runs first), `node ace
+ * insights:generate`, or a member who tapped Generate once the month had
+ * ended (domain/push/summary_announcement.ts); that member is not told,
+ * they saw it on screen. A summary tapped mid-month or for an older month is
+ * left alone (the scheduled one replaces a partial summary and is announced
+ * then). Each member is claimed once per month in `scheduler_runs` (job,
+ * month, household, person), so a regenerated summary, restarts and
+ * overlapping containers never notify twice. The summary is marked as told
+ * once no member's push is left to retry.
  */
 @inject()
 export default class SummaryReadyJob implements ScheduledJob {
@@ -47,13 +51,13 @@ export default class SummaryReadyJob implements ScheduledJob {
   async tick({ now, signal }: TickContext): Promise<void> {
     const pending = await MonthlyInsight.query()
       .whereNull('notified_at')
-      .whereNull('generated_by_user_id')
       .where('generated_at', '>=', now().minus(ANNOUNCE_WITHIN).toJSDate())
       .preload('household')
       .orderBy('id')
 
     for (const insight of pending) {
       if (signal.aborted) return
+      if (!isAnnounceable(insight, insight.household.timezone)) continue
       try {
         const settled = await this.announce(insight, { now, signal })
         if (settled) await insight.merge({ notifiedAt: now() }).save()
@@ -75,10 +79,17 @@ export default class SummaryReadyJob implements ScheduledJob {
       .where('household_id', household.id)
       .preload('user')
       .orderBy('id')
-    const optedOut = await this.optedOut(members.map((member) => member.userId))
+    const told = new Set(
+      recipientsOf(
+        members.map((member) => member.userId),
+        insight.generatedByUserId
+      )
+    )
+    const recipients = members.filter((member) => told.has(member.userId))
+    const optedOut = await this.optedOut(recipients.map((member) => member.userId))
 
     let settled = true
-    for (const { user } of members) {
+    for (const { user } of recipients) {
       if (signal.aborted) return false
       if (optedOut.has(user.id)) continue
       const devices = await this.notifier.devicesOf(user.id, household.id)
