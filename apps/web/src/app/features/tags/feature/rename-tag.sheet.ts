@@ -11,6 +11,8 @@ import { TextFieldComponent } from '../../../shared/ui/text-field/text-field.com
 
 /** The longest tag the API takes (trimmed). */
 const MAX_TAG_LENGTH = 40
+/** Full key, translated on demand: t(tags.detail.rename.tooLong) */
+const TOO_LONG_KEY = 'tags.detail.rename.tooLong'
 
 export interface RenameTagData {
   tag: string
@@ -111,7 +113,7 @@ export class RenameTagSheetComponent {
 
   protected readonly error = computed(() => {
     if (this.target().length > MAX_TAG_LENGTH) {
-      return this.transloco.translate('tags.detail.rename.tooLong', { max: MAX_TAG_LENGTH })
+      return this.transloco.translate(TOO_LONG_KEY, { max: MAX_TAG_LENGTH })
     }
     return this.serverError()
   })

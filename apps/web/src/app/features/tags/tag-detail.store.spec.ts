@@ -82,6 +82,8 @@ describe('TagDetailStore', () => {
   it('test_a_date_range_reads_the_tag_for_those_dates_keeping_it_on_screen', async () => {
     const store = setup()
     await settle()
+    // On screen.
+    expect(store.detail()?.expenseCents).toBe(13_000)
     api.show.mockResolvedValueOnce(aTagDetail({ expenseCents: 5_000 }))
 
     store.setRange({ from: '2026-01-01', to: '2026-12-31' })
