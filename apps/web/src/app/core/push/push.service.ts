@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core'
+import { Injectable, inject, signal } from '@angular/core'
 import { SwPush } from '@angular/service-worker'
 import { sameServerKey } from '../../domain/push'
 import { hasStatus, toApiError } from '../api/http-errors'
@@ -41,6 +41,10 @@ export class PushService {
   private readonly window = inject(WINDOW)
   private readonly api = inject(PushApi)
   private readonly config = inject(ConfigStore)
+  private readonly registeredId = signal<number | null>(null)
+
+  /** The API's id of this device once registered this session (marks it in the device list). */
+  readonly deviceId = this.registeredId.asReadonly()
 
   /** Whether this browser can receive Web Push at all. */
   get supported(): boolean {
@@ -119,6 +123,7 @@ export class PushService {
       await this.api.unsubscribe(current.endpoint).catch(() => undefined)
       await this.sw!.unsubscribe().catch(() => undefined)
     }
+    this.registeredId.set(null)
     return 'off'
   }
 
@@ -146,10 +151,11 @@ export class PushService {
   /** Tells the API about this device; false when the endpoint belongs to someone else (404). */
   private async register(subscription: PushSubscription): Promise<boolean> {
     try {
-      await this.api.subscribe(bodyOf(subscription))
+      this.remember(await this.api.subscribe(bodyOf(subscription)))
       return true
     } catch (error) {
       if (hasStatus(toApiError(error), 404)) {
+        this.registeredId.set(null)
         return false
       }
       // Offline or a server error: the browser is subscribed, the next visit syncs it.
@@ -169,7 +175,11 @@ export class PushService {
     }
     await this.sw!.unsubscribe().catch(() => undefined)
     const subscription = await this.sw!.requestSubscription({ serverPublicKey: key })
-    await this.api.subscribe(bodyOf(subscription))
+    this.remember(await this.api.subscribe(bodyOf(subscription)))
+  }
+
+  private remember(device: { id: number } | undefined): void {
+    this.registeredId.set(device?.id ?? null)
   }
 }
 
