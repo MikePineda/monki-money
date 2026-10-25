@@ -61,7 +61,7 @@ Merge to `main` -> Dokploy webhook -> ARM64 build on the server (target
 .claude/skills/ship/scripts/wait-for-deploy.sh "$SMOKE_BASE_URL" "$(git rev-parse origin/main)"
 
 # 2. Smoke as the smoke user: health, CSRF handshake, login, me, household,
-#    accounts, categories, logout (Bruno, read-only in prod).
+#    accounts, categories, logout (the Bruno smoke tier, read-only).
 npm run smoke:prod
 
 # 3. PWA files are never cached.
@@ -196,24 +196,38 @@ update the allowlist (otherwise every request is answered 403).
 
 ## Smoke test (Bruno)
 
-Collection: `apps/api/bruno` (how it works and how to add a request:
-`apps/api/bruno/README.md`). Nine requests in `seq` order: `/api/health`,
-`/api/health/live`, `/api/v1/config` (CSRF handshake), login, `auth/me`,
-`household`, `accounts`, `categories?tree=1`, logout. Runs with `--bail`.
+Collection: `apps/api/bruno` (tiers, variables, how to add a request and the
+coverage check: `apps/api/bruno/README.md`). Two tiers, one folder each:
+
+- `smoke/` (read-only, 9 requests in `seq` order): `/api/health`,
+  `/api/health/live`, `/api/v1/config` (CSRF handshake), login, `auth/me`,
+  `household`, `accounts`, `categories?tree=1`, logout. The only tier that
+  runs against production, with `--bail`.
+- `full/` (local and CI only): every resource of the API, creating what it
+  reads and deleting it again, then `logout-all`. Its folder script skips
+  it entirely when the environment is `prod`.
 
 ```bash
-npm run smoke:local      # against npm run dev (http://localhost:3333)
-npm run smoke:prod       # against SMOKE_BASE_URL, after every deploy
+npm run smoke:prod       # smoke tier against SMOKE_BASE_URL, after every deploy
+npm run smoke:local      # both tiers against npm run dev (http://localhost:3333)
+npm run smoke:e2e        # both tiers against a running E2E stack (127.0.0.1:3334, the E2E seed's owner)
+npm run bruno:coverage   # fails when a route has no request (also in CI)
 ```
+
+CI: the `bruno` job of `.github/workflows/ci.yml` runs the coverage check,
+boots the E2E stack like the `e2e` job (`docker-compose.test.yml`, API build,
+`migration:run`, `seed:e2e`, fake LLM fixtures), starts the API on 3334 and
+runs `npm run smoke:e2e` (`bru run --env local`). On failure it uploads the
+Bruno HTML report and the API log (`bruno-report`). Not a required check yet.
 
 Credentials: `SMOKE_EMAIL` and `SMOKE_PASSWORD` exported in the shell or in
 `apps/api/bruno/.env` (gitignored); the production base URL is
 `SMOKE_BASE_URL` (same places, or `docs/internal/ops.env`). Environments only
-reference `{{process.env.*}}`. Against `prod` the collection only reads (plus the
-smoke user's login/logout): its pre-request script skips any other write,
-and `04-login` fails the run unless the user landed in the "Smoke"
-household. Five failed logins per minute block the IP + email for 20
-minutes, so fix a wrong password before retrying.
+reference `{{process.env.*}}`. Against `prod` only the smoke tier runs, the
+collection's pre-request script skips any write other than the smoke user's
+login/logout, and `smoke/04-login` fails the run unless the user landed in
+the "Smoke" household. Five failed logins per minute block the IP + email
+for 20 minutes, so fix a wrong password before retrying.
 
 **Smoke user (one-time setup in production).** The production bootstrap
 seeder creates it from `SMOKE_EMAIL` / `SMOKE_PASSWORD`: verified, alone in
