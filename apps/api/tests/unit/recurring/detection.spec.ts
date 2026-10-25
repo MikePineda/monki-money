@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
 import { addDays } from '#domain/importing/iso_days'
 import { addMonthsKeepingDay } from '#domain/recurring/cadence'
-import { cadenceOf, detectRecurring, type Payment } from '#domain/recurring/detection'
+import { cadenceOf, confidenceOf, detectRecurring, type Payment } from '#domain/recurring/detection'
 
 let nextId = 1
 
@@ -245,8 +245,103 @@ test.group('Recurring: detection', () => {
 
     const [item] = detectRecurring(insurance, { today: TODAY })
     assert.include(item, { cadence: 'yearly', nextExpectedDate: '2027-10-01', occurrences: 3 })
-    // Two payments a year apart are not a pattern yet.
-    assert.deepEqual(detectRecurring(insurance.slice(1), { today: TODAY }), [])
+  })
+
+  test('test_a_yearly_bill_is_found_from_two_payments_a_year_apart', ({ assert }) => {
+    const insurance = ['2025-10-01', '2026-10-02'].map((date, index) =>
+      payment({ date, amountCents: [120_000, 126_000][index], merchantKey: 'car insurance' })
+    )
+
+    const [item] = detectRecurring(insurance, { today: TODAY })
+    assert.include(item, {
+      cadence: 'yearly',
+      amountCents: 123_000,
+      lastPaidDate: '2026-10-02',
+      nextExpectedDate: '2027-10-02',
+      occurrences: 2,
+    })
+    assert.equal(confidenceOf({ source: 'detected', occurrences: item.occurrences }), 'low')
+    assert.equal(confidenceOf({ source: 'detected', occurrences: 3 }), 'high')
+    assert.equal(confidenceOf({ source: 'manual', occurrences: 0 }), 'high')
+  })
+
+  test('test_two_payments_that_are_not_a_yearly_bill_are_not_found', ({ assert }) => {
+    const yearApart = (amounts: [number, number], dates = ['2025-10-01', '2026-10-01']) =>
+      dates.map((date, index) =>
+        payment({ date, amountCents: amounts[index], merchantKey: 'seaside bistro' })
+      )
+
+    // Different amounts: two dinners, not a renewal.
+    assert.deepEqual(detectRecurring(yearApart([12_000, 21_000]), { today: TODAY }), [])
+    // Eleven months apart, or two years apart (a missed renewal).
+    assert.deepEqual(
+      detectRecurring(yearApart([12_000, 12_000], ['2025-11-01', '2026-10-01']), { today: TODAY }),
+      []
+    )
+    assert.deepEqual(
+      detectRecurring(yearApart([12_000, 12_000], ['2024-10-01', '2026-10-01']), { today: TODAY }),
+      []
+    )
+    // The second one is over a year old: the renewal after it never came.
+    assert.deepEqual(
+      detectRecurring(yearApart([12_000, 12_000], ['2024-08-01', '2025-08-01']), { today: TODAY }),
+      []
+    )
+    // Other spending at the merchant around them: a place the household goes to.
+    const visits = ['2026-01-10', '2026-03-14', '2026-06-20'].map((date) =>
+      payment({ date, amountCents: 11_000, merchantKey: 'seaside bistro' })
+    )
+    assert.deepEqual(
+      detectRecurring([...yearApart([12_000, 12_000]), ...visits], { today: TODAY }),
+      []
+    )
+  })
+
+  test('test_two_amounts_at_one_merchant_become_two_items', ({ assert }) => {
+    // Two phone lines on different days: $65 on the 12th, $45 on the 20th.
+    const months = ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10']
+    const lines = months.flatMap((month) => [
+      payment({ date: `${month}-12`, amountCents: 6_500, merchantKey: 'telco one' }),
+      ...(month === '2026-10'
+        ? []
+        : [payment({ date: `${month}-20`, amountCents: 4_500, merchantKey: 'telco one' })]),
+    ])
+
+    const detected = detectRecurring(lines, { today: TODAY })
+    assert.deepEqual(
+      detected.map((item) => [item.merchantKey, item.amountCents, item.nextExpectedDate]),
+      [
+        ['telco one', 4_500, '2026-10-20'],
+        ['telco one', 6_500, '2026-11-12'],
+      ]
+    )
+  })
+
+  test('test_two_lines_charged_on_the_same_day_are_still_two_items', ({ assert }) => {
+    const lines = ['2026-07-12', '2026-08-12', '2026-09-12', '2026-10-12'].flatMap((date) => [
+      payment({ date, amountCents: 6_500, merchantKey: 'telco one' }),
+      payment({ date, amountCents: 4_500, merchantKey: 'telco one' }),
+    ])
+
+    assert.deepEqual(
+      detectRecurring(lines, { today: TODAY }).map((item) => item.amountCents),
+      [4_500, 6_500]
+    )
+  })
+
+  test('test_a_merchant_bands_its_amounts_without_inventing_bills', ({ assert }) => {
+    // A $65 bill with an irregular $45 add-on now and then: one item.
+    const bills = ['2026-07-12', '2026-08-12', '2026-09-12', '2026-10-12'].map((date) =>
+      payment({ date, amountCents: 6_500, merchantKey: 'telco one' })
+    )
+    const addOns = ['2026-07-03', '2026-09-25'].map((date) =>
+      payment({ date, amountCents: 4_500, merchantKey: 'telco one' })
+    )
+
+    assert.deepEqual(
+      detectRecurring([...bills, ...addOns], { today: TODAY }).map((item) => item.amountCents),
+      [6_500]
+    )
   })
 
   test('test_one_bill_off_the_usual_amount_among_four_is_still_steady', ({ assert }) => {
