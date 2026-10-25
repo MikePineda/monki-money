@@ -117,8 +117,10 @@ export class HouseholdDirectory {
   }
 
   private owner(): { userId: number; householdId: number } | null {
-    const userId = this.session.user()?.id
-    const householdId = this.session.household()?.id
+    // Read from `me` (one signal): spec stand-ins of the session carry it too.
+    const me = this.session.me()
+    const userId = me?.user.id
+    const householdId = me?.household?.id
     return userId === undefined || householdId === undefined ? null : { userId, householdId }
   }
 
