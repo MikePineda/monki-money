@@ -86,6 +86,8 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
               accountId: row.suggestedTransferAccountId,
               legTransactionId: row.transferLegTransactionId,
               ruleId: row.transferRuleId,
+              // Several accounts the linked holder is known in; `accountId` is null then.
+              candidateAccountIds: row.transferCandidateAccountIds ?? [],
             },
       suggestedPaidByUserId: row.suggestedPaidByUserId,
       decision: text(row.decision),

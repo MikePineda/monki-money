@@ -260,7 +260,7 @@ export class ImportBatchSchema extends BaseModel {
 }
 
 export class ImportRowSchema extends BaseModel {
-  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'proposedResolution', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
+  static $columns = ['accountId', 'amountCents', 'balanceCents', 'bankDate', 'cardSuffix', 'confirmedAt', 'createdAt', 'date', 'decidedAt', 'decidedByUserId', 'decision', 'descriptionNormalized', 'descriptionRaw', 'externalHash', 'householdId', 'id', 'importBatchId', 'isFutureDated', 'isPending', 'matchScore', 'matchTransactionId', 'merchantFullKey', 'merchantKey', 'nabCategory', 'nabMerchant', 'needsReview', 'occurrence', 'processedOn', 'proposedResolution', 'raw', 'reasons', 'resolution', 'rowIndex', 'suggestedCategoryId', 'suggestedPaidByUserId', 'suggestedPayee', 'suggestedTransferAccountId', 'suggestionConfidence', 'suggestionNeedsReview', 'suggestionRuleId', 'suggestionSource', 'transactionId', 'transactionType', 'transferCandidateAccountIds', 'transferLegHash', 'transferLegTransactionId', 'transferRuleId', 'transferSignal', 'updatedAt', 'upgradesPending'] as const
   $columns = ImportRowSchema.$columns
   @column()
   declare accountId: number
@@ -348,6 +348,8 @@ export class ImportRowSchema extends BaseModel {
   declare transactionId: number | null
   @column()
   declare transactionType: string
+  @jsonColumn()
+  declare transferCandidateAccountIds: number[]
   @column()
   declare transferLegHash: string | null
   @column()
@@ -383,6 +385,27 @@ export class InvitationSchema extends BaseModel {
   declare role: MemberRole
   @column()
   declare tokenHash: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class LinkedHolderAccountSchema extends BaseModel {
+  static $columns = ['accountId', 'confirmedCount', 'createdAt', 'holderKey', 'householdId', 'id', 'lastConfirmedAt', 'updatedAt'] as const
+  $columns = LinkedHolderAccountSchema.$columns
+  @column()
+  declare accountId: number
+  @column()
+  declare confirmedCount: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare holderKey: string
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastConfirmedAt: DateTime
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }

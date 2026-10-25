@@ -1,9 +1,11 @@
+import { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import type User from '#models/user'
 import ImportNab from '#commands/import_nab'
 import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
 import MerchantRule from '#models/merchant_rule'
+import LinkedHolderAccount from '#models/linked_holder_account'
 import Transaction from '#models/transaction'
 import type { ApiClient } from '@japa/api-client'
 import ace from '@adonisjs/core/services/ace'
@@ -13,8 +15,10 @@ import { createHousehold } from '#tests/helpers/household'
 import { nabCsv, nabFixture } from '#tests/helpers/importing'
 import { categoryBySlug, freezeClock } from '#tests/helpers/ledger'
 import { AccountFactory } from '#database/factories/account_factory'
+import { TransactionFactory } from '#database/factories/transaction_factory'
 import {
   EVERYDAY_NUMBER,
+  SAVINGS_NUMBER,
   nabHousehold,
   nabLine,
   rowsStartingWith,
@@ -69,6 +73,45 @@ async function stage(client: ApiClient, user: User, csv: Buffer) {
   detail.assertStatus(200)
   const rows: any[] = detail.body().data.rows
   return { batch, rows, row: (prefix: string) => rowsStartingWith(rows, prefix)[0] }
+}
+
+/** The accounts the household learned the fixture's linked holder moves money to. */
+async function holderAccounts(householdId: number) {
+  const rows = await LinkedHolderAccount.query()
+    .where('household_id', householdId)
+    .where('holder_key', HOLDER_PATTERN)
+    .orderBy('account_id')
+  return rows.map((row) => row.accountId)
+}
+
+/** A third NAB account: a second savings account for holidays. */
+function holidaySavingsOf(householdId: number) {
+  return AccountFactory.merge({
+    householdId,
+    name: 'Holiday savings',
+    institution: 'NAB',
+    kind: 'savings',
+  }).create()
+}
+
+/** Confirms `batchId` sending the rows that start with each prefix to `accountId`. */
+function confirmTransfers(
+  client: ApiClient,
+  user: User,
+  batchId: number,
+  rows: Array<{ id: number }>,
+  accountId: number
+) {
+  return client
+    .post(`/api/v1/imports/${batchId}/confirm`)
+    .json({
+      decisions: rows.map((row) => ({
+        rowId: row.id,
+        resolution: 'transfer_leg',
+        transferAccountId: accountId,
+      })),
+    })
+    .actingAs(user)
 }
 
 /** The household's merchant rule for the fixture's linked holder, if any. */
@@ -198,14 +241,13 @@ test.group('Imports: transfers to linked accounts', (group) => {
 
     confirm.assertStatus(200)
     assert.include(confirm.body().data, { transfers: 3, remaining: 0 })
-    // NAB's own memo (sent by the bank's rule) teaches the holder; the guesses nobody checked do not.
-    const rule = await holderRule(home.household.id)
-    assert.include(rule?.serialize(), {
-      transferAccountId: home.savings.id,
-      categoryId: null,
-      origin: 'learned',
-    })
-    // The memo the person typed is not a merchant: nothing is learned under it.
+    // NAB's own memo (sent by the bank's rule) teaches the holder's account;
+    // the guesses nobody checked do not.
+    assert.deepEqual(await holderAccounts(home.household.id), [home.savings.id])
+    const [learned] = await LinkedHolderAccount.query().where('household_id', home.household.id)
+    assert.equal(learned.confirmedCount, 1)
+    // No merchant rule: neither on the holder nor on the memos the person typed.
+    assert.isNull(await holderRule(home.household.id))
     const memoRules = await MerchantRule.query()
       .where('household_id', home.household.id)
       .whereIn('pattern', ['holiday fund morrow aj', 'xd morrow aj'])
@@ -226,9 +268,10 @@ test.group('Imports: transfers to linked accounts', (group) => {
     })
     assert.include(later.row('ONLINE A2000000011 Bali trip').transfer, {
       accountId: home.savings.id,
-      signal: 'rule',
-      ruleId: rule!.id,
+      signal: 'bank_category',
+      ruleId: null,
     })
+    assert.deepEqual(later.row('ONLINE A2000000011 Bali trip').transfer.candidateAccountIds, [])
     assert.include(later.row('MORROW AJ C2000000012'), { resolution: 'new', transfer: null })
   })
 
@@ -266,14 +309,15 @@ test.group('Imports: transfers to linked accounts', (group) => {
 
     confirm.assertStatus(200)
     assert.include(confirm.body().data, { transfers: 3, remaining: 0 })
-    const rule = await holderRule(home.household.id)
-    assert.equal(rule?.transferAccountId, holiday.id)
+    assert.deepEqual(await holderAccounts(home.household.id), [holiday.id])
+    const [learned] = await LinkedHolderAccount.query().where('household_id', home.household.id)
+    assert.equal(learned.confirmedCount, 3, 'one more confirmation per row')
 
     const later = await stage(client, home.owner, laterExport())
     assert.include(later.batch.counts, { transferLeg: 1, needsConfirmation: 0 })
     assert.include(later.row('ONLINE A2000000011 Bali trip').transfer, {
       accountId: holiday.id,
-      signal: 'rule',
+      signal: 'bank_category',
     })
     const stored = await ImportRow.query()
       .where('import_batch_id', later.batch.id)
@@ -437,8 +481,7 @@ test.group('Imports: transfers to linked accounts', (group) => {
         })),
       })
       .actingAs(teacher.owner)
-    const learned = await holderRule(teacher.household.id)
-    assert.equal(learned?.transferAccountId, holidaySavings.id)
+    assert.deepEqual(await holderAccounts(teacher.household.id), [holidaySavings.id])
 
     // One other NAB account here: a leak of the teacher's accounts would make it
     // ambiguous, a leak of its rules would send the row to the teacher's savings.
@@ -455,5 +498,261 @@ test.group('Imports: transfers to linked accounts', (group) => {
       ruleId: null,
     })
     assert.isNull(await holderRule(other.household.id))
+    assert.deepEqual(await holderAccounts(other.household.id), [])
+  })
+
+  test('test_a_holder_confirmed_to_two_accounts_is_staged_for_review_with_both', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const holiday = await holidaySavingsOf(home.household.id)
+    const first = await stage(client, home.owner, nabFixture(FIXTURE))
+    // The holiday memo goes to the holiday account, the other two to savings.
+    const confirm = await client
+      .post(`/api/v1/imports/${first.batch.id}/confirm`)
+      .json({
+        decisions: [
+          { prefix: HOLIDAY_MEMO, accountId: holiday.id },
+          { prefix: BANK_MEMO, accountId: home.savings.id },
+          { prefix: SHORT_MEMO, accountId: home.savings.id },
+        ].map(({ prefix, accountId }) => ({
+          rowId: first.row(prefix).id,
+          resolution: 'transfer_leg',
+          transferAccountId: accountId,
+        })),
+      })
+      .actingAs(home.owner)
+    confirm.assertStatus(200)
+    assert.deepEqual(
+      await holderAccounts(home.household.id),
+      [home.savings.id, holiday.id].sort((a, b) => a - b)
+    )
+
+    const later = await stage(client, home.owner, laterExport())
+
+    // Never a confident leg to whichever account came last: a person picks.
+    const bali = later.row('ONLINE A2000000011 Bali trip')
+    assert.include(bali, { resolution: 'needs_confirmation' })
+    assert.include(bali.transfer, { accountId: null, signal: 'bank_category' })
+    assert.deepEqual(
+      bali.transfer.candidateAccountIds,
+      [home.savings.id, holiday.id].sort((a, b) => a - b)
+    )
+    assert.include(bali.reasons, 'transfer_destination_unknown')
+    assert.include(later.batch.counts, { needsConfirmation: 1, transferLeg: 0 })
+  })
+
+  test('test_a_holder_rule_learned_by_an_earlier_release_still_counts', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const holiday = await holidaySavingsOf(home.household.id)
+    const earlier = await MerchantRule.create({
+      householdId: home.household.id,
+      matchType: 'merchant',
+      pattern: HOLDER_PATTERN,
+      transferAccountId: home.savings.id,
+      origin: 'learned',
+    })
+
+    // Its account is the one known account: a confident leg, as before.
+    const first = await stage(client, home.owner, laterExport())
+    const bali = first.row('ONLINE A2000000011 Bali trip')
+    assert.include(bali, { resolution: 'transfer_leg', needsReview: false })
+    assert.include(bali.transfer, {
+      accountId: home.savings.id,
+      signal: 'rule',
+      ruleId: earlier.id,
+    })
+
+    // A transfer of that holder confirmed elsewhere adds an account; the rule stays as it was.
+    const confirm = await confirmTransfers(client, home.owner, first.batch.id, [bali], holiday.id)
+    confirm.assertStatus(200)
+    await earlier.refresh()
+    assert.equal(earlier.transferAccountId, home.savings.id)
+    assert.deepEqual(await holderAccounts(home.household.id), [holiday.id])
+
+    const next = await stage(
+      client,
+      home.owner,
+      nabCsv([
+        nabLine({
+          date: '14 Oct 26',
+          amount: '-15.00',
+          type: 'TRANSFER DEBIT',
+          details: 'ONLINE A2000000021 Concert MORROW AJ',
+          balance: '1510.00',
+          category: 'Internal transfers',
+        }),
+      ])
+    )
+    const concert = next.row('ONLINE A2000000021 Concert')
+    assert.include(concert, { resolution: 'needs_confirmation' })
+    assert.deepEqual(
+      concert.transfer.candidateAccountIds,
+      [home.savings.id, holiday.id].sort((a, b) => a - b)
+    )
+  })
+
+  test('test_upper_case_memo_still_finds_the_holder', async ({ client, assert }) => {
+    const home = await nabHousehold()
+    const holiday = await holidaySavingsOf(home.household.id)
+    const upload = nabFixture('upper-case-memo.csv')
+
+    // First import: nothing known yet. NAB's own memo in the same file tells
+    // where the memo typed in capitals ends.
+    const first = await stage(client, home.owner, upload)
+    const decided = await client
+      .post(`/api/v1/imports/${first.batch.id}/confirm`)
+      .json({
+        decisions: [
+          {
+            rowId: first.row('ONLINE A3000000001').id,
+            resolution: 'transfer_leg',
+            transferAccountId: holiday.id,
+          },
+          {
+            rowId: first.row('ONLINE A3000000002').id,
+            resolution: 'transfer_leg',
+            transferAccountId: holiday.id,
+          },
+          { rowId: first.row('ONLINE A3000000003').id, resolution: 'ignored' },
+          { rowId: first.row('ONLINE C3000000004').id, resolution: 'ignored' },
+        ],
+      })
+      .actingAs(home.owner)
+    decided.assertStatus(200)
+    const learned = await LinkedHolderAccount.query().where('household_id', home.household.id)
+    assert.deepEqual(
+      learned.map((row) => [row.holderKey, row.accountId, row.confirmedCount]),
+      [[HOLDER_PATTERN, holiday.id, 2]]
+    )
+
+    // The same memos later: the one in capitals follows the holder.
+    const again = nabCsv([
+      nabLine({
+        date: '13 Oct 26',
+        amount: '-70.00',
+        type: 'TRANSFER DEBIT',
+        details: 'ONLINE A3000000012 SKI WEEKEND MORROW AJ',
+        balance: '1490.00',
+        category: 'Internal transfers',
+      }),
+      nabLine({
+        date: '12 Oct 26',
+        amount: '-60.00',
+        type: 'TRANSFER DEBIT',
+        details: 'ONLINE A3000000011 BALI MORROW AJX',
+        balance: '1560.00',
+        category: 'Internal transfers',
+      }),
+      nabLine({
+        date: '11 Oct 26',
+        amount: '-40.00',
+        type: 'TRANSFER DEBIT',
+        details: 'ONLINE C3000000013 GIFT MORROW AJ',
+        balance: '1620.00',
+        category: 'Transfers out',
+      }),
+    ])
+    const later = await stage(client, home.owner, again)
+    assert.include(later.row('ONLINE A3000000012 SKI WEEKEND'), {
+      resolution: 'transfer_leg',
+      needsReview: false,
+    })
+    assert.include(later.row('ONLINE A3000000012 SKI WEEKEND').transfer, {
+      accountId: holiday.id,
+    })
+    // Another holder (`MORROW AJX`) is not this one: a person decides.
+    assert.include(later.row('ONLINE A3000000011 BALI'), { resolution: 'needs_confirmation' })
+    assert.isNull(later.row('ONLINE A3000000011 BALI').transfer.accountId)
+    // A payment to someone of that name is never a transfer.
+    assert.include(later.row('ONLINE C3000000013 GIFT'), { resolution: 'new', transfer: null })
+  })
+
+  test('test_both_exports_in_one_upload_settle_the_transfer_by_its_opposite_leg', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold({ savingsNumber: SAVINGS_NUMBER })
+    const holiday = await holidaySavingsOf(home.household.id)
+    // The holder is known in both savings accounts: alone, the row would wait for a person.
+    await LinkedHolderAccount.createMany(
+      [home.savings.id, holiday.id].map((accountId) => ({
+        householdId: home.household.id,
+        holderKey: HOLDER_PATTERN,
+        accountId,
+        lastConfirmedAt: DateTime.now(),
+      }))
+    )
+    const both = nabCsv([
+      nabLine({
+        date: '04 Oct 26',
+        amount: '-250.00',
+        type: 'TRANSFER DEBIT',
+        details: 'ONLINE A2000000002 Holiday fund MORROW AJ',
+        balance: '1700.00',
+        category: 'Internal transfers',
+      }),
+      nabLine({
+        date: '04 Oct 26',
+        amount: '250.00',
+        account: SAVINGS_NUMBER,
+        type: 'TRANSFER CREDIT',
+        details: 'ONLINE A2000000002 Holiday fund MORROW AJ',
+        balance: '5250.00',
+        category: 'Internal transfers',
+      }),
+    ])
+
+    const upload = await uploadCsv(client, home.owner, both)
+
+    upload.assertStatus(201)
+    const batches: any[] = upload.body().data
+    assert.lengthOf(batches, 2)
+    const rowOf = async (accountId: number) => {
+      const batch = batches.find((candidate) => candidate.accountId === accountId)
+      const detail = await client.get(`/api/v1/imports/${batch.id}`).actingAs(home.owner)
+      return detail.body().data.rows[0]
+    }
+    const everydayRow = await rowOf(home.everyday.id)
+    const savingsRow = await rowOf(home.savings.id)
+    assert.include(everydayRow, { resolution: 'transfer_leg', needsReview: false })
+    assert.include(everydayRow.transfer, { accountId: home.savings.id, signal: 'bank_category' })
+    assert.include(savingsRow, { resolution: 'transfer_leg', needsReview: false })
+    assert.include(savingsRow.transfer, { accountId: home.everyday.id })
+  })
+
+  test('test_an_opposite_leg_already_in_the_ledger_settles_the_transfer', async ({
+    client,
+    assert,
+  }) => {
+    const home = await nabHousehold()
+    const holiday = await holidaySavingsOf(home.household.id)
+    await LinkedHolderAccount.createMany(
+      [home.savings.id, holiday.id].map((accountId) => ({
+        householdId: home.household.id,
+        holderKey: HOLDER_PATTERN,
+        accountId,
+        lastConfirmedAt: DateTime.now(),
+      }))
+    )
+    // The holiday deposit was typed by hand.
+    const deposit = await TransactionFactory.merge({
+      householdId: home.household.id,
+      accountId: holiday.id,
+      kind: 'income',
+      date: '2026-10-12',
+      amountCents: 8_000,
+      createdByUserId: home.owner.id,
+    }).create()
+
+    const { row } = await stage(client, home.owner, laterExport())
+
+    const bali = row('ONLINE A2000000011 Bali trip')
+    assert.include(bali, { resolution: 'transfer_leg', needsReview: false })
+    assert.include(bali.transfer, { accountId: holiday.id, legTransactionId: deposit.id })
   })
 })
