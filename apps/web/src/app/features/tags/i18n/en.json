@@ -12,7 +12,10 @@
   "empty": {
     "title": "No tags yet",
     "body": "Open a transaction or a transfer to savings and add a tag, such as \"Bali 2027\". Everything carrying it adds up here.",
-    "action": "Go to transactions"
+    "action": "Go to transactions",
+    "periodTitle": "No tags in this period",
+    "periodBody": "No transaction with a tag falls in these dates. Try a longer period.",
+    "periodAction": "Show all time"
   },
   "error": {
     "title": "Your tags could not be loaded",
@@ -47,6 +50,27 @@
       "you": "You",
       "joint": "Shared"
     },
-    "movements": "See these transactions"
+    "movements": "See these transactions",
+    "rename": {
+      "action": "Rename tag",
+      "title": "Rename tag",
+      "name": "Name",
+      "body": "Every transaction tagged \"{tag}\" gets the new name. Your partner's private transactions keep theirs.",
+      "mergeBody": "There is already a tag called \"{name}\". Both become one: every transaction tagged \"{tag}\" will carry \"{name}\" instead.",
+      "save": "Rename",
+      "merge": "Merge tags",
+      "tooLong": "Use {max} characters or fewer."
+    }
+  },
+  "period": {
+    "title": "Show tags for",
+    "all": "All time",
+    "last12": "Last 12 months",
+    "thisYear": "This year",
+    "lastYear": "Last year"
+  },
+  "toast": {
+    "renamed": "Renamed to \"{name}\" on {count, plural, one {# transaction} other {# transactions}}",
+    "merged": "Merged into \"{name}\" on {count, plural, one {# transaction} other {# transactions}}"
   }
 }

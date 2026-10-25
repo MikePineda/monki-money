@@ -1,7 +1,12 @@
-import { Component, computed, effect, inject, input, untracked } from '@angular/core'
-import { RouterLink } from '@angular/router'
+import { Component, Injector, computed, effect, inject, input, untracked } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
+import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
+import { map } from 'rxjs'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
+import { TagsStore } from '../../../core/ledger/tags.store'
+import { MonthStore } from '../../../core/month/month.store'
+import { ToastStore } from '../../../core/ui/toast.store'
 import type { ChartColor } from '../../../domain/charts/colors'
 import { label as monthLabel } from '../../../domain/month'
 import { spendByPerson } from '../../../domain/month-view'
@@ -16,6 +21,7 @@ import { TrendLineComponent } from '../../../shared/charts/trend-line/trend-line
 import { AmountDisplayComponent } from '../../../shared/ui/amount-display/amount-display.component'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { BannerComponent } from '../../../shared/ui/banner/banner.component'
+import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component'
 import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component'
@@ -23,7 +29,10 @@ import type { Person } from '../../../shared/ui/person-dot/person-dot.component'
 import { SkeletonComponent } from '../../../shared/ui/skeleton/skeleton.component'
 import { StatTileComponent } from '../../../shared/ui/stat-tile/stat-tile.component'
 import { TagDetailStore } from '../tag-detail.store'
+import { tagPeriodOf, tagRangeOf, type TagPeriod } from '../tag-period'
 import { provideTagsScope } from '../tags.scope'
+import { TagPeriodComponent } from '../ui/tag-period.component'
+import { RenameTagSheetComponent, type RenameTagData, type RenamedTag } from './rename-tag.sheet'
 
 /**
  * Keys read from TypeScript, relative to the `tags` scope:
@@ -58,6 +67,9 @@ function markColor(person: Person): ChartColor {
  * (tagged transfers into savings) and the net as stat tiles; spending by
  * category, the month-by-month trend and who paid, each chart with its
  * table view; and a link to the transactions list filtered by the tag.
+ * The period chip narrows every number to a date range (`?period=`, kept
+ * from the list), and the pencil renames the tag everywhere (typing the
+ * name of another tag merges the two).
  */
 @Component({
   selector: 'app-tag-detail-page',
@@ -73,17 +85,37 @@ function markColor(person: Person): ChartColor {
     SkeletonComponent,
     StackedBar100Component,
     StatTileComponent,
+    TagPeriodComponent,
     TranslocoPipe,
     TrendLineComponent,
   ],
   providers: [TagDetailStore, provideTagsScope()],
   template: `
     <header class="flex h-14 items-center gap-1 pr-1 pl-1">
-      <a appIconButton icon="arrow-left" routerLink="/tags" [label]="'tags.back' | transloco"></a>
+      <a
+        appIconButton
+        icon="arrow-left"
+        routerLink="/tags"
+        queryParamsHandling="preserve"
+        [label]="'tags.back' | transloco"
+      ></a>
       <h1 class="min-w-0 flex-1 truncate text-heading text-ink-1" data-testid="tag.name">
         {{ tag() }}
       </h1>
+      @if (store.status() === 'ready') {
+        <button
+          appIconButton
+          type="button"
+          icon="pencil"
+          data-testid="tag.rename"
+          [label]="'tags.detail.rename.action' | transloco"
+          (click)="rename()"
+        ></button>
+      }
     </header>
+    @if (store.status() !== 'notFound') {
+      <app-tag-period class="px-4 pb-2" [period]="datePeriod()" (changed)="choosePeriod($event)" />
+    }
 
     @switch (store.status()) {
       @case ('loading') {
@@ -214,9 +246,22 @@ export default class TagDetailPage {
   protected readonly store = inject(TagDetailStore)
   private readonly directory = inject(HouseholdDirectory)
   private readonly locale = inject(APP_LOCALE)
+  private readonly router = inject(Router)
+  private readonly route = inject(ActivatedRoute)
+  private readonly months = inject(MonthStore)
+  private readonly tags = inject(TagsStore)
+  private readonly sheets = inject(BottomSheetService)
+  private readonly toasts = inject(ToastStore)
+  private readonly injector = inject(Injector)
 
   /** `/tags/:tag`, bound (already decoded) by the router. */
   readonly tag = input.required<string>()
+
+  /** `?period=` (every date when absent), shared with the list. */
+  protected readonly datePeriod = toSignal(
+    this.route.queryParamMap.pipe(map((params) => tagPeriodOf(params.get('period')))),
+    { initialValue: tagPeriodOf(this.route.snapshot.queryParamMap.get('period')) }
+  )
 
   private readonly labels = translateSignal(LABEL_KEYS)
   private readonly text = computed(() => {
@@ -277,9 +322,56 @@ export default class TagDetailPage {
 
   constructor() {
     void this.directory.load().catch(() => undefined)
+    void this.tags.load()
     effect(() => {
       const tag = this.tag()
       untracked(() => this.store.open(tag))
     })
+    effect(() => {
+      const range = tagRangeOf(this.datePeriod(), this.months.current())
+      untracked(() => this.store.setRange(range))
+    })
+  }
+
+  protected choosePeriod(period: TagPeriod): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { period: period === 'all' ? null : period },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    })
+  }
+
+  /**
+   * Renames (or merges) the tag everywhere, then opens it under its new
+   * name: the months it spans change, so every list and total reads again.
+   */
+  protected rename(): void {
+    const tag = this.tag()
+    this.sheets
+      .open<RenamedTag, RenameTagData>(RenameTagSheetComponent, {
+        data: { tag, known: this.tags.names() },
+        injector: this.injector,
+      })
+      .closed.subscribe((renamed) => {
+        if (!renamed) {
+          return
+        }
+        const detail = this.detail()
+        for (const month of detail ? tagPeriod(detail.firstDate, detail.lastDate) : []) {
+          this.months.invalidate(month)
+        }
+        void this.tags.refresh()
+        this.toasts.show({
+          /** t(tags.toast.renamed, tags.toast.merged) */
+          messageKey: renamed.merged ? 'tags.toast.merged' : 'tags.toast.renamed',
+          params: { name: renamed.tag, count: renamed.updated },
+          status: 'good',
+        })
+        void this.router.navigate(['/tags', renamed.tag], {
+          queryParamsHandling: 'preserve',
+          replaceUrl: true,
+        })
+      })
   }
 }
