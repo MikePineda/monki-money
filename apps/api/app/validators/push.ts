@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { idParams } from '#validators/rules'
 import { isReminderTime, isReminderWeekdays } from '@monkimoney/shared'
 import type { FieldContext } from '@vinejs/vine/types'
 import { isAuthSecret, isP256dhKey, isPushServiceEndpoint } from '#domain/push/push_subscription'
@@ -59,6 +60,11 @@ export const storePushSubscriptionValidator = vine.create({
 /** `DELETE /push/subscriptions`: the endpoint in the body (it is a secret: never in the URL). */
 export const destroyPushSubscriptionValidator = vine.create({
   endpoint: endpoint(),
+})
+
+/** `DELETE /push/subscriptions/:id`: one of the person's devices, from the Settings list. */
+export const pushDeviceParamsValidator = vine.create({
+  params: idParams(),
 })
 
 /** `PATCH /me/notifications`: any subset. */
