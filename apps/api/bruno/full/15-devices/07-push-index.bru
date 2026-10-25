@@ -1,0 +1,22 @@
+meta {
+  name: List this person's devices
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/push/subscriptions
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+docs {
+  `push.subscriptions.index`: the person's own devices as
+  `{ id, browser, platform, lastUsedAt, createdAt }[]`, never the endpoint or
+  keys. Empty here because the run removed its subscription just before.
+}
