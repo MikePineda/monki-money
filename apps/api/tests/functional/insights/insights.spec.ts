@@ -356,4 +356,119 @@ test.group('Monthly insights', (group) => {
     assert.equal(llm.requests.length, calls)
     assert.lengthOf(await MonthlyInsight.query().where('household_id', household.id), 0)
   })
+
+  test('test_the_month_in_progress_is_compared_with_the_same_days_of_the_previous_month', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, accounts } = await createHousehold({
+      users: 1,
+      taxonomy: true,
+      accounts: [{ name: 'Everyday' }],
+    })
+    const [groceries, restaurants, salary] = await Promise.all(
+      ['groceries', 'restaurants-takeaway', 'salary'].map((slug) =>
+        categoryBySlug(household.id, slug)
+      )
+    )
+    const base = { householdId: household.id, accountId: accounts[0].id, createdByUserId: owner.id }
+    await TransactionFactory.merge([
+      // 1-15 October: today is the 15th in Brisbane.
+      { ...base, kind: 'income', date: '2026-10-01', amountCents: 500_000, categoryId: salary.id },
+      { ...base, date: '2026-10-04', amountCents: -30_000, categoryId: groceries.id },
+      // September up to the 15th: the base of the comparison.
+      { ...base, kind: 'income', date: '2026-09-01', amountCents: 500_000, categoryId: salary.id },
+      { ...base, date: '2026-09-15', amountCents: -20_000, categoryId: groceries.id },
+      // The rest of September never counts against half a month.
+      { ...base, date: '2026-09-16', amountCents: -50_000, categoryId: groceries.id },
+      { ...base, date: '2026-09-28', amountCents: -12_000, categoryId: restaurants.id },
+    ]).createMany(6)
+    const llm = await fakeLlm()
+
+    const response = await client.post('/api/v1/insights/2026-10/generate').actingAs(owner)
+
+    response.assertStatus(201)
+    const row = await MonthlyInsight.query().where('household_id', household.id).firstOrFail()
+    assert.deepEqual(row.inputJson, {
+      month: '2026-10',
+      currencyCode: 'AUD',
+      inProgress: { daysElapsed: 15, daysInMonth: 31, previousThroughDay: 15 },
+      totals: { incomeCents: 500_000, expenseCents: 30_000, netCents: 470_000 },
+      previousTotals: { incomeCents: 500_000, expenseCents: 20_000, netCents: 480_000 },
+      byCategory: [
+        {
+          slug: 'groceries',
+          name: 'Groceries',
+          kind: 'expense',
+          amountCents: 30_000,
+          previousAmountCents: 20_000,
+        },
+        {
+          slug: 'salary',
+          name: 'Salary',
+          kind: 'income',
+          amountCents: 500_000,
+          previousAmountCents: 500_000,
+        },
+      ],
+    })
+    // The model is told, outside the data, how far the month has got.
+    const request = llm.requests.at(-1)!
+    const user = request.messages[0].content.find((block) => block.type === 'text')
+    const text = user && 'text' in user ? user.text : ''
+    assert.include(text, 'in progress')
+    assert.include(text, '15 days elapsed of 31')
+  })
+
+  test('test_a_previous_month_quiet_in_the_same_days_compares_as_zero_not_as_missing', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, accounts } = await createHousehold({
+      users: 1,
+      taxonomy: true,
+      accounts: [{ name: 'Everyday' }],
+    })
+    const base = { householdId: household.id, accountId: accounts[0].id, createdByUserId: owner.id }
+    await TransactionFactory.merge([
+      { ...base, date: '2026-10-02', amountCents: -4_000 },
+      // September had movements, only after the 15th.
+      { ...base, date: '2026-09-20', amountCents: -9_000 },
+    ]).createMany(2)
+
+    const response = await client.post('/api/v1/insights/2026-10/generate').actingAs(owner)
+
+    response.assertStatus(201)
+    const row = await MonthlyInsight.query().where('household_id', household.id).firstOrFail()
+    assert.deepEqual(row.inputJson.previousTotals, {
+      incomeCents: 0,
+      expenseCents: 0,
+      netCents: 0,
+    })
+    assert.deepEqual(
+      row.inputJson.byCategory.map((line) => [
+        line.slug,
+        line.amountCents,
+        line.previousAmountCents,
+      ]),
+      [['uncategorized', 4_000, 0]]
+    )
+  })
+
+  test('test_a_finished_month_keeps_the_full_previous_month_and_no_progress_note', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner } = await seededHousehold()
+    const llm = await fakeLlm()
+
+    const response = await client.post('/api/v1/insights/2026-09/generate').actingAs(owner)
+
+    response.assertStatus(201)
+    const row = await MonthlyInsight.query().where('household_id', household.id).firstOrFail()
+    assert.notProperty(row.inputJson, 'inProgress')
+    const request = llm.requests.at(-1)!
+    const user = request.messages[0].content.find((block) => block.type === 'text')
+    assert.notInclude(user && 'text' in user ? user.text : '', 'in progress')
+  })
 })

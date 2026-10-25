@@ -17,10 +17,13 @@ import { postingsForHousehold } from '#domain/ledger/privacy'
 import PostingsRepository from '#repositories/postings_repository'
 import { householdMemberIds } from '#services/ledger/privacy_viewer'
 import EntitlementsService from '#services/entitlements/entitlements_service'
-import { addMonths, currentMonth, monthRange, type Month } from '#domain/calendar/month'
+import type { Posting } from '#domain/ledger/posting'
+import { dayReached, sameDaysOf } from '#domain/reports/month_to_date'
+import { addMonths, currentMonth, monthRange, todayIn, type Month } from '#domain/calendar/month'
 import type {
   InsightCategoryLine,
   InsightInput,
+  InsightProgress,
   InsightTotals,
   MonthlyInsight as Answer,
 } from '#llm/types'
@@ -107,12 +110,8 @@ export default class InsightService {
     if (!this.available) throw new InsightsUnavailable()
     await this.entitlements.assertLlmQuota(household, now)
 
-    const input = await this.input(
-      household,
-      summary,
-      summarizeMonth(postings, previousMonth),
-      locale
-    )
+    const base = comparisonBase(postings, month, todayIn(now, household.timezone))
+    const input = await this.input(household, summary, base, locale)
     const result = await this.llm.monthlyInsight(input, {
       householdId: household.id,
       userId: user?.id ?? null,
@@ -139,14 +138,17 @@ export default class InsightService {
     return app.inTest
   }
 
-  /** The figures the model gets: totals, the month before and one line per category. */
+  /**
+   * The figures the model gets: totals, the month before (over the same
+   * days while `summary`'s month is running) and one line per category.
+   */
   protected async input(
     household: Household,
     summary: MonthSummary,
-    previous: MonthSummary,
+    base: ComparisonBase,
     locale: Locale
   ): Promise<InsightInput> {
-    const hasPrevious = previous.transactionCount > 0
+    const { previous, hasPrevious, progress } = base
     const nameOf = await this.namer(household, [summary, previous], locale)
     const keyOf = (line: CategoryLine) => `${line.bucket}:${line.categoryId}:${line.kind}`
     const previousAmounts = new Map(
@@ -177,6 +179,7 @@ export default class InsightService {
     return {
       month: summary.month,
       currencyCode: household.currencyCode,
+      ...(progress ? { inProgress: progress } : {}),
       totals: totalsOf(summary),
       previousTotals: hasPrevious ? totalsOf(previous) : null,
       byCategory: [...lines.values()].sort(
@@ -255,6 +258,45 @@ export default class InsightService {
       ])
 
     return this.find(household, input.month, locale)
+  }
+}
+
+/** What the month is compared with. */
+interface ComparisonBase {
+  /** The previous month, whole or over the same days as the running month. */
+  previous: MonthSummary
+  /** The previous month had income or spending at all (any day). */
+  hasPrevious: boolean
+  /** Set while the month is running today. */
+  progress: InsightProgress | null
+}
+
+/**
+ * The previous month whole once `month` has ended; while it is running,
+ * only its first days up to today's day (capped at its length), like the
+ * Month view (`previousToDate`): half a month never reads as spending far
+ * less than a whole one. A previous month quiet on those days still
+ * compares (as zero) when it had activity later on.
+ */
+function comparisonBase(postings: Posting[], month: Month, today: string): ComparisonBase {
+  const previousMonth = addMonths(month, -1)
+  const whole = summarizeMonth(postings, previousMonth)
+  const hasPrevious = whole.transactionCount > 0
+  const day = dayReached(month, today)
+  if (day === null) return { previous: whole, hasPrevious, progress: null }
+
+  const window = sameDaysOf(previousMonth, day)
+  const sameDays = postings.filter(
+    (posting) => posting.date >= window.from && posting.date <= window.to
+  )
+  return {
+    previous: summarizeMonth(sameDays, previousMonth),
+    hasPrevious,
+    progress: {
+      daysElapsed: day,
+      daysInMonth: Number(monthRange(month).to.slice(8, 10)),
+      previousThroughDay: window.throughDay,
+    },
   }
 }
 
