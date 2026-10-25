@@ -15,6 +15,7 @@ import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component'
 import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component'
 import { PersonDotComponent, type Person } from '../../../shared/ui/person-dot/person-dot.component'
+import { openConfirmSheet } from '../../../shared/ui/confirm-sheet/confirm-sheet.component'
 import { openSelectSheet } from '../../../shared/ui/select-sheet/select-sheet.component'
 import { SkeletonComponent } from '../../../shared/ui/skeleton/skeleton.component'
 import { RecurringStore } from '../recurring.store'
@@ -25,7 +26,9 @@ import { RecurringSheetComponent, type RecurringSheetData } from '../ui/recurrin
  * Keys read from TypeScript:
  * t(recurring.next, recurring.noCategory, recurring.pausedByDetection)
  * t(recurring.actions.edit, recurring.actions.pause, recurring.actions.resume)
- * t(recurring.actions.dismiss, recurring.actions.restore)
+ * t(recurring.actions.dismiss, recurring.actions.restore, recurring.actions.delete)
+ * t(recurring.lowConfidence, recurring.deleteSheet.title, recurring.deleteSheet.body)
+ * t(recurring.deleteSheet.bodyDetected, recurring.deleteSheet.confirm, recurring.deleteSheet.keep)
  */
 const ACTION_ICONS: Record<RecurringAction, IconName> = {
   edit: 'pencil',
@@ -33,6 +36,7 @@ const ACTION_ICONS: Record<RecurringAction, IconName> = {
   resume: 'rotate-ccw',
   dismiss: 'x',
   restore: 'archive-restore',
+  delete: 'trash-2',
 }
 
 /** A key of this scope, read only to know when the catalogue is in: t(recurring.title) */
@@ -52,9 +56,11 @@ interface RecurringView {
  * subscriptions, found in the ledger or typed by hand. Active ones first
  * (next due date first), then paused and dismissed ones under their own
  * headings. Tap one to edit it (amount, frequency, category, who pays),
- * pause or resume it, or dismiss it ("not a bill": detection never brings
- * it back). "Detect again" and "Add manually" sit at the top; an empty
- * list explains that detection needs about three payments.
+ * pause or resume it, dismiss it ("not a bill": detection never brings
+ * it back) or delete it (after a confirm; a detected one may be found
+ * again). A yearly bill detected from two payments asks to be checked.
+ * "Detect again" and "Add manually" sit at the top; an empty list explains
+ * that detection needs about three payments.
  */
 @Component({
   selector: 'app-recurring-page',
@@ -264,8 +270,29 @@ export default class RecurringPage {
     }).subscribe((action) => {
       if (action === 'edit') {
         this.openSheet({ item })
+      } else if (action === 'delete') {
+        this.confirmDelete(item)
       } else if (action !== undefined) {
         void this.store.act(item, action)
+      }
+    })
+  }
+
+  /** Deleting asks first; a detected item may come back, "Not a bill" keeps it away. */
+  private confirmDelete(item: RecurringItem): void {
+    openConfirmSheet(this.sheets, {
+      title: this.t('recurring.deleteSheet.title', { payee: item.payee }),
+      body: this.t(
+        item.source === 'detected'
+          ? 'recurring.deleteSheet.bodyDetected'
+          : 'recurring.deleteSheet.body'
+      ),
+      confirmLabel: this.t('recurring.deleteSheet.confirm'),
+      cancelLabel: this.t('recurring.deleteSheet.keep'),
+      destructive: true,
+    }).subscribe((confirmed) => {
+      if (confirmed) {
+        void this.store.remove(item)
       }
     })
   }
@@ -284,6 +311,9 @@ export default class RecurringPage {
       this.t(`recurring.cadence.${item.cadence}`),
       this.whenOf(item),
       category?.category.name ?? this.t('recurring.noCategory'),
+      item.confidence === 'low' && item.status !== 'dismissed'
+        ? this.t('recurring.lowConfidence')
+        : '',
     ]
     return {
       item,

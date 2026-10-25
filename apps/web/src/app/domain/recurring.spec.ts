@@ -4,6 +4,7 @@ import {
   createBody,
   draftFrom,
   draftProblems,
+  linkSuggestion,
   patchOf,
   pickSuggestion,
   sectionsOf,
@@ -83,16 +84,12 @@ describe('recurring payments', () => {
   })
 
   it('test_each_status_offers_its_own_actions', () => {
-    expect(actionsFor('active')).toEqual(['edit', 'pause', 'dismiss'])
-    expect(actionsFor('paused')).toEqual(['edit', 'resume', 'dismiss'])
-    expect(actionsFor('dismissed')).toEqual(['restore'])
-    expect((['pause', 'resume', 'dismiss', 'restore', 'edit'] as const).map(statusAfter)).toEqual([
-      'paused',
-      'active',
-      'dismissed',
-      'active',
-      null,
-    ])
+    expect(actionsFor('active')).toEqual(['edit', 'pause', 'dismiss', 'delete'])
+    expect(actionsFor('paused')).toEqual(['edit', 'resume', 'dismiss', 'delete'])
+    expect(actionsFor('dismissed')).toEqual(['restore', 'delete'])
+    expect(
+      (['pause', 'resume', 'dismiss', 'restore', 'edit', 'delete'] as const).map(statusAfter)
+    ).toEqual(['paused', 'active', 'dismissed', 'active', null, null])
   })
 
   it('test_a_new_draft_starts_monthly_today_and_needs_a_payee_and_an_amount', () => {
@@ -156,5 +153,13 @@ describe('recurring payments', () => {
     expect(patchOf(item, { ...draftFrom(item, '2026-10-16'), payee: '  Rent ' })).toEqual({
       payee: 'Rent',
     })
+  })
+
+  it('test_linking_a_typed_item_keeps_its_name_and_sends_the_merchant_key', () => {
+    const typed = { ...rent({ payee: 'Rent' }), merchantKey: 'rent' }
+    const linked = linkSuggestion(draftFrom(typed, '2026-10-16'), merchant({ payee: 'RENT HL' }))
+
+    expect(linked).toMatchObject({ payee: 'Rent', merchantKey: 'rent harbour lettings' })
+    expect(patchOf(typed, linked)).toEqual({ merchantKey: 'rent harbour lettings' })
   })
 })

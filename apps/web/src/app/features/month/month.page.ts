@@ -257,11 +257,13 @@ function markColor(person: Person): ChartColor {
               </app-stat-tile>
             </section>
 
-            @if (isCurrent()) {
+            @if (isCurrent() || isPast()) {
               <app-committed-card
                 [committed]="report.committed"
                 [incomeCents]="report.incomeCents"
                 [expenseCents]="report.expenseCents"
+                [past]="isPast()"
+                [monthName]="monthName()"
                 [detecting]="detecting()"
                 (detect)="detectRecurring()"
               />
@@ -409,8 +411,10 @@ export default class MonthPage {
     this.dimmed() ? 'reloading' : 'ready'
   )
   protected readonly isEmpty = computed(() => (this.report()?.transactionCount ?? 0) === 0)
-  /** "Committed this month" is about the month being lived, not past ones. */
+  /** "Committed this month" is about the month being lived. */
   protected readonly isCurrent = computed(() => this.shownMonth() === this.current())
+  /** A month already over: its card shows what the recurring payments took in it. */
+  protected readonly isPast = computed(() => this.shownMonth() < this.current())
 
   protected readonly monthName = computed(() => this.longName(this.shownMonth()))
 

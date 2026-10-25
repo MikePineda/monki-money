@@ -99,6 +99,31 @@ describe('RecurringStore', () => {
     expect(months.invalidate).not.toHaveBeenCalled()
   })
 
+  it('test_deleting_removes_the_item_at_once_and_refreshes_the_month', async () => {
+    const store = await setup()
+
+    await store.remove(PHONE)
+
+    expect(api.remove).toHaveBeenCalledWith(2)
+    expect(store.items().map((item) => item.id)).toEqual([1, 3])
+    expect(toast()).toMatchObject({
+      messageKey: 'recurring.toast.deleted',
+      params: { payee: 'Telco One' },
+    })
+    expect(months.invalidate).toHaveBeenCalledWith('2026-10')
+  })
+
+  it('test_a_refused_delete_puts_the_item_back', async () => {
+    const store = await setup()
+    api.remove.mockRejectedValueOnce(httpError(500))
+
+    await store.remove(PHONE)
+
+    expect(store.items().map((item) => item.id)).toEqual([1, 2, 3])
+    expect(toast()?.messageKey).toBe('errors.server')
+    expect(months.invalidate).not.toHaveBeenCalled()
+  })
+
   it('test_an_edit_sends_only_what_changed_and_reloads_the_list', async () => {
     const store = await setup()
 
