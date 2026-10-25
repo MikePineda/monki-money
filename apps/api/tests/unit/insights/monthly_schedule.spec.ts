@@ -54,21 +54,35 @@ function facts(overrides: Partial<MonthlyInsightFacts> = {}): MonthlyInsightFact
 const GENERATE = { generate: true, replace: false }
 
 test.group('Insights: monthly schedule', () => {
-  test('test_the_monthly_job_is_due_once_the_first_of_the_month_passes_eight_in_the_household_timezone', ({
+  test('test_the_monthly_job_is_due_from_eight_on_the_first_through_the_end_of_the_fourth', ({
     assert,
   }) => {
     assert.isFalse(isMonthlyInsightDue(at('2026-10-01T07:59:59+10:00'), BRISBANE))
     assert.isTrue(isMonthlyInsightDue(at('2026-10-01T08:00:00+10:00'), BRISBANE))
     assert.isTrue(isMonthlyInsightDue(at('2026-10-01T23:59:00+10:00'), BRISBANE))
-    // The last days of a month are never due, nor is the 2nd (catch-up is by hand).
+    // A 1st with the app down all day is caught up through the 4th, at any hour.
+    assert.isTrue(isMonthlyInsightDue(at('2026-10-02T00:00:00+10:00'), BRISBANE))
+    assert.isTrue(isMonthlyInsightDue(at('2026-10-02T06:30:00+10:00'), BRISBANE))
+    assert.isTrue(isMonthlyInsightDue(at('2026-10-04T23:59:59+10:00'), BRISBANE))
+    // The last days of a month and the 5th onwards are never due.
     assert.isFalse(isMonthlyInsightDue(at('2026-09-30T12:00:00+10:00'), BRISBANE))
-    assert.isFalse(isMonthlyInsightDue(at('2026-10-02T08:30:00+10:00'), BRISBANE))
+    assert.isFalse(isMonthlyInsightDue(at('2026-10-05T00:00:00+10:00'), BRISBANE))
+    assert.isFalse(isMonthlyInsightDue(at('2026-10-20T09:00:00+10:00'), BRISBANE))
 
     // The instant is read in the household's zone, not in the server's (UTC).
     const brisbaneBreakfast = at('2026-09-30T22:30:00Z')
     assert.isTrue(isMonthlyInsightDue(brisbaneBreakfast, BRISBANE))
     assert.isFalse(isMonthlyInsightDue(brisbaneBreakfast, LONDON), 'still 30 September in London')
     assert.isTrue(isMonthlyInsightDue(at('2026-10-01T07:15:00Z'), LONDON), '08:15 BST')
+    const brisbaneFifth = at('2026-10-04T14:30:00Z')
+    assert.isFalse(isMonthlyInsightDue(brisbaneFifth, BRISBANE), 'already the 5th in Brisbane')
+    assert.isTrue(isMonthlyInsightDue(brisbaneFifth, LONDON), 'still the 4th in London')
+  })
+
+  test('test_every_day_of_the_window_summarises_the_month_that_ended', ({ assert }) => {
+    for (const iso of ['2026-10-01T08:00:00+10:00', '2026-10-04T23:59:00+10:00']) {
+      assert.equal(insightPeriodKey(at(iso), BRISBANE), '2026-09', iso)
+    }
   })
 
   test('test_the_period_key_is_the_month_being_summarised', ({ assert }) => {

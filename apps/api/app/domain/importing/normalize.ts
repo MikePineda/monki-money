@@ -128,21 +128,47 @@ const MAX_HOLDER_LENGTH = 60
  * lower-case memo, a reference with digits), in a lone initial (`rent X`),
  * or in a run longer than a name (`MAX_HOLDER_WORDS`, `MAX_HOLDER_LENGTH`).
  * Only meaningful on rows the bank marks as internal transfers.
+ *
+ * A memo typed in capitals (`ONLINE A1234567890 BALI SMITH JO`) joins the
+ * run, so the holders the household already knows (`knownHolders`, any
+ * case: compared like merchant keys) come first: the longest one that ends
+ * the run word by word is the holder (`SMITH JO`, never `BALI SMITH JO`;
+ * `SMITH JOE` is not `SMITH JO`). With none known, the whole run is read.
  */
-export function linkedAccountHolder(details: string): string | null {
+export function linkedAccountHolder(
+  details: string,
+  knownHolders: readonly string[] = []
+): string | null {
   const words = normalizeDescription(details).split(' ')
   let start = words.length
   while (start > 0 && NAME_WORD.test(words[start - 1])) start--
-  while (start < words.length && words[start] === '&') start++
+  const run = words.slice(start)
 
-  const holder = words.slice(start)
+  const known = new Set(knownHolders.map(keyOf).filter((key) => key !== ''))
+  if (known.size > 0) {
+    for (let from = 0; from < run.length; from++) {
+      if (run[from] === '&') continue
+      const holder = run.slice(from)
+      if (known.has(keyOf(holder.join(' '))) && isPlausibleHolder(holder)) {
+        return holder.join(' ')
+      }
+    }
+  }
+
+  let first = 0
+  while (first < run.length && run[first] === '&') first++
+  const holder = run.slice(first)
+  return isPlausibleHolder(holder) ? holder.join(' ') : null
+}
+
+function isPlausibleHolder(holder: readonly string[]): boolean {
   const text = holder.join(' ')
-  const plausible =
+  return (
     holder.length > 0 &&
     holder.length <= MAX_HOLDER_WORDS &&
     text.length <= MAX_HOLDER_LENGTH &&
     holder.some((word) => HAS_TWO_LETTERS.test(word))
-  return plausible ? text : null
+  )
 }
 
 export interface MerchantSource {

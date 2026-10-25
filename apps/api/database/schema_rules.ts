@@ -118,6 +118,7 @@ export default {
         // jsonb: stringified on write (see database/json_column.ts).
         raw: json('Record<string, string>'),
         reasons: json('string[]'),
+        transfer_candidate_account_ids: json('number[]'),
         decision: {
           tsType: 'ImportRowDecision',
           imports: [

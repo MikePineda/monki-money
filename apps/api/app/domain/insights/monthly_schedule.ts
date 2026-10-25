@@ -5,13 +5,17 @@ import { excludeTransfers } from '#domain/reports/month_summary'
 import { addMonths, currentMonth, monthOf, type Month } from '#domain/calendar/month'
 
 /**
- * When the monthly summary is written without anyone asking: on the 1st of
- * each month, from 08:00 in the household's time zone, for the month that
- * just ended. Pure: `now` is always passed in.
+ * When the monthly summary is written without anyone asking: from 08:00 on
+ * the 1st of each month in the household's time zone, for the month that
+ * just ended, with a catch-up window through the end of the 4th. Pure:
+ * `now` is always passed in.
  */
 
 /** Local hour (household time zone) from which the 1st is due. */
 export const MONTHLY_INSIGHT_HOUR = 8
+
+/** Last day of the month (household time zone) on which a missed run is still caught up. */
+export const MONTHLY_INSIGHT_LAST_DAY = 4
 
 /** Why a household gets no scheduled summary for a month. */
 export type MonthlyInsightSkipReason =
@@ -38,13 +42,15 @@ export type MonthlyInsightDecision =
   { generate: true; replace: boolean } | { generate: false; reason: MonthlyInsightSkipReason }
 
 /**
- * Due from 08:00 to midnight on the 1st, household local time. A 1st missed
- * entirely (the app down all day) is caught up by hand
- * (`node ace insights:generate`).
+ * Due from 08:00 on the 1st through the end of the 4th, household local
+ * time: a 1st with the app down all day is caught up on the next tick
+ * (`scheduler_runs` keeps it to one run per household and month). Later
+ * in the month only `node ace insights:generate` writes it.
  */
 export function isMonthlyInsightDue(now: DateTime, zone: string): boolean {
   const local = now.setZone(zone)
-  return local.isValid && local.day === 1 && local.hour >= MONTHLY_INSIGHT_HOUR
+  if (!local.isValid || local.day > MONTHLY_INSIGHT_LAST_DAY) return false
+  return local.day > 1 || local.hour >= MONTHLY_INSIGHT_HOUR
 }
 
 /** The month a run at `now` summarises: the one before the household's current month. */

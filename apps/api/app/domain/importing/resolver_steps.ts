@@ -4,6 +4,7 @@ import {
   suggestionInputFor,
 } from '#domain/importing/suggesters/category_suggester'
 import { detectTransfer } from '#domain/importing/transfer_detector'
+import { knownLinkedHolderKeys } from '#domain/importing/linked_accounts'
 import type { ResolvedRow, ResolverContext, StagedRow, TransferLeg } from '#domain/importing/types'
 
 /**
@@ -77,14 +78,23 @@ export class ZeroAmountStep implements ResolverStep {
 
 /**
  * Internal transfers become `transfer_leg` when the other account is known
- * (opposite leg, rule, or the only possible account), else
- * `needs_confirmation` so the user picks it. A guessed account (the only
+ * (opposite leg, rule, the one account the linked holder is known in, or
+ * the only possible account), else `needs_confirmation` so the user picks
+ * it (among the holder's known accounts, when it has several). Holders
+ * NAB's own memo names anywhere in the batch count as known, so a memo
+ * typed in capitals still ends at the holder. A guessed account (the only
  * possible one) is flagged for review and never auto-confirmed.
  * Each opposite leg is claimed by one row only.
  */
 export class TransferStep implements ResolverStep {
   run(rows: readonly ResolvedRow[], context: ResolverContext): ResolvedRow[] {
     const claimed = new Set<TransferLeg>()
+    const linkedHolders = context.linkedHolders ?? []
+    const holderKeys = knownLinkedHolderKeys(
+      context.rules,
+      linkedHolders,
+      rows.map((resolved) => resolved.row)
+    )
     return rows.map((resolved) => {
       if (resolved.settled) return resolved
       const legs = context.transferLegs.filter((leg) => !claimed.has(leg))
@@ -92,6 +102,8 @@ export class TransferStep implements ResolverStep {
         rules: context.rules,
         legs,
         accounts: context.accounts,
+        linkedHolders,
+        holderKeys,
       })
       if (!transfer) return resolved
       if (transfer.oppositeLeg) claimed.add(transfer.oppositeLeg)

@@ -385,7 +385,13 @@ the previous month's (null when it had no activity) and one line per category
 (`{ slug, name, kind, amountCents, previousAmountCents }`, uncategorized as
 slug `uncategorized`, names in that language), with every private purchase
 counted in the totals but never as a line, the requester's own included: any
-member reads the stored text.
+member reads the stored text. For the month still running (household time
+zone) the input also carries `inProgress: { daysElapsed, daysInMonth,
+previousThroughDay }` and the previous figures cover only the previous
+month's first `previousThroughDay` days (the Month view's same-day base,
+`previousToDate`; zero, not null, when that month was quiet on those days);
+the prompt says the month is in progress, N days elapsed of M. A month that
+has ended keeps the whole previous month and no `inProgress`.
 
 | Name                | Method and path                  | Notes                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -429,7 +435,10 @@ null for a row staged before it was kept and decided since), needsReview, reason
 transaction: { date, amountCents, payee, source, status } } | null,
 suggestion: { source (rule|nab_map|llm|none), categoryId, confidence,
 needsReview, ruleId, payee } | null, transfer: { signal
-(rule|bank_category|linked_account_memo), accountId, legTransactionId, ruleId }
+(rule|bank_category|linked_account_memo), accountId, legTransactionId, ruleId,
+candidateAccountIds? (only when the linked holder is known to move money to
+several accounts and no opposite leg says which: ascending ids, accountId null,
+resolution needs_confirmation, reason transfer_destination_unknown) }
 | null, suggestedPaidByUserId, decision, decidedAt, transactionId, confirmedAt,
 isMasked }`. A row linked to the partner's private transaction comes with
 `isMasked: true` and no bank text, merchant keys, NAB category/merchant,

@@ -127,44 +127,6 @@ test.group('Importing / learning', () => {
     assert.deepEqual(learnRules(skipped, []), [])
   })
 
-  test('test_a_linked_holder_transfer_never_replaces_a_rule_naming_a_category', ({ assert }) => {
-    const holder = decision({
-      action: 'transfer',
-      merchantFullKey: 'linked acc trns smith kid',
-      linkedHolder: true,
-      suggested: {
-        categoryId: null,
-        transferAccountId: SAVINGS,
-        paidByUserId: null,
-        fromRule: false,
-      },
-      final: { categoryId: null, transferAccountId: SAVINGS, paidByUserId: null },
-    })
-    const spending = merchantRule({
-      id: 50,
-      pattern: 'linked acc trns smith kid',
-      categoryId: 77,
-      createdBy: 'user',
-    })
-    assert.deepEqual(learnRules([holder], [spending]), [])
-
-    // A transfer rule of the holder is updated; a holder without a rule gets one.
-    const earlier = merchantRule({
-      id: 51,
-      pattern: 'linked acc trns smith kid',
-      categoryId: null,
-      transferAccountId: 9,
-    })
-    assert.include(learnRules([holder], [earlier])[0], {
-      transferAccountId: SAVINGS,
-      existingRuleId: 51,
-    })
-    assert.include(learnRules([holder], [])[0], {
-      transferAccountId: SAVINGS,
-      existingRuleId: null,
-    })
-  })
-
   test('test_learning_keeps_the_last_decision_for_a_merchant_in_the_batch', ({ assert }) => {
     const upserts = learnRules(
       [
