@@ -1,0 +1,20 @@
+meta {
+  name: Remove a device that is not mine
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/push/subscriptions/999999999
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 404
+}
+
+docs {
+  `push.subscriptions.remove`: 204 for one of the person's own devices; a
+  partner's, another household's or a missing id answers 404.
+}
