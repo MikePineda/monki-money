@@ -363,15 +363,17 @@ scheduler (production only, `SCHEDULER=off` stops them with the insights):
   month's summary (one written by `node ace insights:generate` at the next
   tick), every member with the switch on (the default) and a device gets
   "Your September summary is ready" in their own language, opening that
-  month. Once per person and
-  month (`scheduler_runs`, job + month + household + person), so a
-  regenerated summary is never announced twice; a summary someone tapped is
-  never announced. `monthly_insights.notified_at` marks the summary as told
-  once nobody's push is left to retry; summaries older than a day are never
-  announced.
-- **Daily reminder** (`daily-reminder`, opt-in): once the household's local
-  time passes the person's reminder time (20:00 by default) the local day
-  is claimed (period key `YYYY-MM-DD`, per person) and "Did you log anything
+  month. A summary a member taps Generate for once the month has ended
+  (before the 08:00 run, say) is announced the same way to everyone but
+  that member; one tapped mid-month or for an older month is not (the
+  scheduled run replaces a partial one and announces it). Once per person
+  and month (`scheduler_runs`, job + month + household + person), so a
+  regenerated summary is never announced twice.
+  `monthly_insights.notified_at` marks the summary as told once nobody's
+  push is left to retry; summaries older than a day are never announced.
+- **Daily reminder** (`daily-reminder`, opt-in): on the weekdays the person
+  chose (every day by default), once the household's local time passes
+  their reminder time (20:00 by default) the local day is claimed (period key `YYYY-MM-DD`, per person) and "Did you log anything
   today?" goes out only when the person created nothing that day (quick
   add, receipt, import, transfer); otherwise the day is recorded as
   `skipped:logged-today`. No amounts, merchants or names in any payload.
@@ -380,9 +382,15 @@ Every send has a hard 10 s deadline (`PUSH_SEND_TIMEOUT_MS`): past it the
 request is dropped and counts as a failure, so a slow push service never holds
 up the tick. A push no device accepted is retried an hour later, 3 attempts at
 most (the scheduler's rule); a 404/410 from the push service deletes that subscription,
-any other failure adds one to `push_subscriptions.failures`. iPhone and iPad
+any other failure adds one to `push_subscriptions.failures` and the tenth in a
+row deletes it too (a successful send resets the count). iPhone and iPad
 only receive pushes in the installed app (iOS 16.4+); each person turns
-notifications on per device in Settings → Notifications.
+notifications on per device in Settings → Notifications, where they also see
+their devices (browser, platform, last notification) and can remove any of
+them. Devices follow their person: accepting an invitation or creating a
+household moves the person's subscriptions there, leaving a household
+detaches them (`household_id` NULL, nothing is sent) until they join or
+create another one.
 
 **Push services.** The API only stores and contacts endpoints on the hosts
 listed in `PUSH_SERVICE_HOSTS` (`apps/api/app/domain/push/push_subscription.ts`):
@@ -410,21 +418,25 @@ over the stored ones.
 stored private key unreadable: `GET /config` then answers
 `vapidPublicKey: null` and the log says `push: no VAPID key pair, push is
 unavailable`; or to replace a pair). Subscriptions are bound to the key they
-were made with, so drop them too; each device subscribes again by itself the
-next time its person opens Settings (the web notices the new key):
+were made with, so they go too; each device subscribes again by itself the
+next time its person opens Settings (the web notices the new key).
+`node ace push:rotate-keys` stores a fresh pair in `app_settings` and deletes
+every push subscription in one transaction, then prints how many devices must
+subscribe again. Without `--force` it only says what it would do; it refuses
+while `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` are set (rotate those in the
+Dokploy environment instead, then delete the subscriptions the same way):
 
 ```bash
-ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney' <<'SQL'
-DELETE FROM app_settings WHERE key IN ('vapid_public_key', 'vapid_private_key');
-DELETE FROM push_subscriptions;
-SQL
-# Then reload the service (application-reload): each process caches the pair.
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace push:rotate-keys'          # dry run: how many devices
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace push:rotate-keys --force'
+# Then reload the service (application-reload): every other process cached the old pair.
 ```
 
 **Test a push by hand.** Sends "Notifications work" (opening Settings) to
 every device the user registered in their current household, through the
 real push services; one line per device (`sent`, `gone (410), subscription
-deleted`, `failed (...)`), exit code 1 when no device got it. It ignores the
+deleted`, `failed (...)`, `failed (...), subscription deleted after 10
+failures in a row`), exit code 1 when no device got it. It ignores the
 person's switches and the scheduler. User ids are in `users`.
 
 ```bash
