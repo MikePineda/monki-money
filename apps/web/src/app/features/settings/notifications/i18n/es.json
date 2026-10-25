@@ -16,5 +16,15 @@
   "reminderHint": "Solo los días en que no hayas registrado nada.",
   "reminderTime": "Recuérdame a las",
   "timeZone": "Zona horaria: {zone}",
-  "disable": "Desactivar en este dispositivo"
+  "reminderDays": "Estos días",
+  "disable": "Desactivar en este dispositivo",
+  "devices": {
+    "title": "Tus dispositivos",
+    "label": "{browser} en {platform}",
+    "unknown": "Dispositivo desconocido",
+    "thisDevice": "Este dispositivo",
+    "lastUsed": "Última notificación {when}",
+    "neverUsed": "Sin notificaciones todavía",
+    "remove": "Quitar {device}"
+  }
 }
