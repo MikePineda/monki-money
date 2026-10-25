@@ -171,6 +171,38 @@ test.group('Importing / resolver', () => {
     assert.deepEqual(ambiguous.reasons, ['transfer_destination_unknown'])
   })
 
+  test('test_a_holder_known_in_several_accounts_waits_for_a_person_with_the_candidates', async ({
+    assert,
+  }) => {
+    const accounts = [
+      householdAccount({ id: EVERYDAY, institution: 'NAB', kind: 'transaction' }),
+      householdAccount({ id: SAVINGS, institution: 'NAB', kind: 'savings' }),
+      householdAccount({ id: 4, institution: 'NAB', kind: 'savings' }),
+    ]
+    const holderKey = 'linked acc trns sample househo'
+    const linkedHolders = [
+      { holderKey, accountId: 4 },
+      { holderKey, accountId: SAVINGS },
+    ]
+
+    const [resolved] = await resolve([linkedTransfer], context({ accounts, linkedHolders }))
+
+    assert.equal(resolved.resolution, 'needs_confirmation')
+    assert.isNull(resolved.transfer?.counterpartAccountId)
+    assert.deepEqual(resolved.transfer?.candidateAccountIds, [SAVINGS, 4])
+    assert.deepEqual(resolved.reasons, ['transfer_destination_unknown'])
+
+    // Known in one account only: a confident transfer leg.
+    const [single] = await resolve(
+      [linkedTransfer],
+      context({ accounts, linkedHolders: [linkedHolders[0]] })
+    )
+    assert.equal(single.resolution, 'transfer_leg')
+    assert.equal(single.transfer?.counterpartAccountId, 4)
+    assert.isFalse(single.needsReview)
+    assert.deepEqual(single.reasons, [])
+  })
+
   test('test_transfer_already_entered_by_hand_is_offered_as_a_match', async ({ assert }) => {
     const manualLeg = candidate({ id: 77, amountCents: -75000, date: '2026-07-31', payee: null })
     const [resolved] = await resolve([linkedTransfer], context({ candidates: [manualLeg] }))

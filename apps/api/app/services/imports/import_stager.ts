@@ -176,10 +176,11 @@ export default class ImportStager {
     accounts: Map<string, Account>
   ): Promise<AccountPlan[]> {
     const today = todayIn(this.clock.now(), household.timezone)
-    const [rules, categoryIdBySlug, householdAccounts] = await Promise.all([
+    const [rules, categoryIdBySlug, householdAccounts, linkedHolders] = await Promise.all([
       this.loader.rules(household),
       this.loader.categoryIdBySlug(household),
       this.loader.accounts(household),
+      this.loader.linkedHolders(household),
     ])
     const suggester = stagingSuggester(rules, categoryIdBySlug)
 
@@ -204,6 +205,7 @@ export default class ImportStager {
         existingHashes: new Set(plan.existing.keys()),
         rules,
         accounts: householdAccounts,
+        linkedHolders,
         otherStaged,
         actorId: actor.id,
       })
@@ -403,6 +405,7 @@ function rowValues(
     transfer_rule_id: transfer?.ruleId ?? null,
     transfer_leg_transaction_id: transfer?.oppositeLeg?.transactionId ?? null,
     transfer_leg_hash: transfer?.oppositeLeg?.externalHash ?? null,
+    transfer_candidate_account_ids: JSON.stringify(transfer?.candidateAccountIds ?? []),
     suggested_paid_by_user_id: resolved.paidByUserId,
     confirmed_at: duplicate ? now : null,
     created_at: now,

@@ -16,12 +16,6 @@ export interface LearningDecision {
   final: Targets
   /** `false` when the user unticked "remember for next time". */
   learnRule?: boolean
-  /**
-   * The pattern is a linked holder's key (`linkedHolderKey`), shared by
-   * every internal transfer to that holder whatever its memo: it never
-   * turns a rule that names a category into a transfer rule.
-   */
-  linkedHolder?: boolean
 }
 
 /**
@@ -56,9 +50,10 @@ function target(
  * differs from the suggestion, or whose suggestion did not come from a rule
  * (LLM, NAB map, none), or whose payer the user changed. The payer is only
  * stored when the user changed it (a card holder is not a merchant fact).
- * Matched and ignored rows, uncategorized rows and opt-outs teach nothing,
- * and a linked holder's transfer never replaces a rule naming a category;
- * within one batch the last decision for a merchant wins.
+ * Matched and ignored rows, uncategorized rows and opt-outs teach nothing;
+ * within one batch the last decision for a merchant wins. A linked
+ * holder's internal transfers teach no rule: the confirm step keeps the
+ * accounts each holder moves money to (`linked_holder_accounts`).
  */
 export function learnRules(
   decisions: readonly LearningDecision[],
@@ -81,7 +76,6 @@ export function learnRules(
     const existing = existingRules.find(
       (rule) => rule.matchType === 'merchant' && rule.pattern === pattern
     )
-    if (decision.linkedHolder && existing && existing.categoryId !== null) continue
     upserts.set(pattern, {
       matchType: 'merchant',
       pattern,

@@ -5,6 +5,7 @@ import Transfer from '#models/transfer'
 import { inject } from '@adonisjs/core'
 import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
+import MerchantRule from '#models/merchant_rule'
 import type Household from '#models/household'
 import Transaction from '#models/transaction'
 import db from '@adonisjs/lucid/services/db'
@@ -18,7 +19,13 @@ import { hasPrivateOwner, isHiddenFrom, type PrivacyViewer } from '#domain/ledge
 import RuleLearner from '#services/rules/rule_learner'
 import { decodeHtmlEntities } from '#importers/html_entities'
 import type { LearningDecision } from '#domain/importing/learning'
-import { linkedHolderKey } from '#domain/importing/linked_accounts'
+import {
+  LINKED_HOLDER_KEY_PREFIX,
+  knownLinkedHolderKeys,
+  linkedHolderKey,
+} from '#domain/importing/linked_accounts'
+import LinkedHolders from '#services/imports/linked_holders'
+import type { LinkedHolderAccount } from '#domain/importing/types'
 import ImportDecisions from '#services/imports/import_decisions'
 import ImportBookkeeping from '#services/imports/import_bookkeeping'
 import { ImportBatchClosed, ImportRowsUndecided } from '#exceptions/errors'
@@ -78,7 +85,8 @@ export default class ImportConfirmer {
     protected decisions: ImportDecisions,
     protected learner: RuleLearner,
     protected bookkeeping: ImportBookkeeping,
-    protected recurring: RecurringDetector
+    protected recurring: RecurringDetector,
+    protected holders: LinkedHolders
   ) {}
 
   async confirm(
@@ -477,12 +485,14 @@ export default class ImportConfirmer {
    * change) teaches nothing; a person's explicit decisions come last so
    * they win over the guesses for the same merchant.
    *
-   * An internal transfer that names its linked holder teaches the holder's
-   * rule (`linkedHolderKey`) instead of its merchant key: the memo NAB
-   * shows changes from one transfer to the next, the holder does not. It
+   * An internal transfer that names its linked holder teaches no merchant
+   * rule: it adds its account to the accounts that holder's transfers go
+   * to (`linked_holder_accounts`, keyed by `linkedHolderKey`: the memo NAB
+   * shows changes from one transfer to the next, the holder does not). It
    * teaches even when a rule proposed the account, since the bank's
-   * generic `Linked Acc Trns` rule says nothing about the holder, but it
-   * never replaces a rule on that key that names a category.
+   * generic `Linked Acc Trns` rule says nothing about the holder. The
+   * holders the household knows, and the ones NAB's own memo names in this
+   * batch, tell where a memo typed in capitals ends.
    */
   protected async learn(
     household: Household,
@@ -491,7 +501,17 @@ export default class ImportConfirmer {
     trx: TransactionClientContract
   ) {
     const decisions: Array<LearningDecision & { explicit: boolean }> = []
+    const holders: LinkedHolderAccount[] = []
     const hits: number[] = []
+    const detailsOf = (row: ImportRow) => ({
+      details: decodeHtmlEntities(row.descriptionRaw),
+      nabCategory: row.nabCategory,
+    })
+    const holderKeys = await this.knownHolderKeys(
+      household,
+      applied.map(({ row }) => detailsOf(row)),
+      trx
+    )
 
     for (const { row, effective, action } of applied) {
       const ruleId = action === 'transfer' ? row.transferRuleId : row.suggestionRuleId
@@ -500,24 +520,22 @@ export default class ImportConfirmer {
       if (!effective.decided && row.suggestionNeedsReview && action === 'create') continue
       if (action === 'transfer' && isGuessedTransfer(row, effective)) continue
 
-      const holderKey =
-        action === 'transfer'
-          ? linkedHolderKey({
-              details: decodeHtmlEntities(row.descriptionRaw),
-              nabCategory: row.nabCategory,
-            })
-          : null
+      const holderKey = action === 'transfer' ? linkedHolderKey(detailsOf(row), holderKeys) : null
+      if (holderKey !== null) {
+        if (effective.learnRule) {
+          holders.push({ holderKey, accountId: effective.transferAccountId! })
+        }
+        continue
+      }
       decisions.push({
         action,
-        merchantFullKey: holderKey ?? row.merchantFullKey,
+        merchantFullKey: row.merchantFullKey,
         suggested: {
           categoryId: row.suggestedCategoryId,
           transferAccountId: row.suggestedTransferAccountId,
           paidByUserId: row.suggestedPaidByUserId,
           fromRule:
-            action === 'transfer'
-              ? holderKey === null && row.transferSignal === 'rule'
-              : row.suggestionSource === 'rule',
+            action === 'transfer' ? row.transferSignal === 'rule' : row.suggestionSource === 'rule',
         },
         final: {
           categoryId:
@@ -526,14 +544,31 @@ export default class ImportConfirmer {
           paidByUserId: effective.paidByUserId,
         },
         learnRule: effective.learnRule,
-        linkedHolder: holderKey !== null,
         explicit: effective.decided,
       })
     }
 
     decisions.sort((a, b) => Number(a.explicit) - Number(b.explicit))
     await this.learner.learnFromImport(household, actor, decisions, trx)
+    await this.holders.remember(household, holders, trx)
     await this.learner.recordHits(hits, trx)
+  }
+
+  /** Linked holder keys the household knows, plus those NAB's own memo names in `rows`. */
+  protected async knownHolderKeys(
+    household: Household,
+    rows: readonly { details: string; nabCategory: string | null }[],
+    trx: TransactionClientContract
+  ) {
+    const rules = await MerchantRule.query({ client: trx })
+      .withScopes((scopes) => scopes.forHousehold(household))
+      .where('match_type', 'merchant')
+      .whereLike('pattern', `${LINKED_HOLDER_KEY_PREFIX}%`)
+    return knownLinkedHolderKeys(
+      rules.map((rule) => rule.toRule()),
+      await this.holders.of(household, trx),
+      rows
+    )
   }
 }
 
