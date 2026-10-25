@@ -1,4 +1,4 @@
-import { signal } from '@angular/core'
+import { signal, type WritableSignal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import type { NotificationSettings } from '@monkimoney/shared'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
@@ -8,13 +8,28 @@ import { PushApi } from '../../../core/push/push.api'
 import { PushService, type PushState } from '../../../core/push/push.service'
 import { InstallService } from '../../../core/pwa/install.service'
 import { ToastStore } from '../../../core/ui/toast.store'
+import type { PushDevice } from '../../../core/push/push.api'
+import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
 import { NotificationsSectionComponent } from './notifications-section.component'
 
 const DEFAULTS: NotificationSettings = {
   summaryReady: true,
   dailyReminder: false,
   reminderTime: '20:00',
+  reminderWeekdays: [1, 2, 3, 4, 5, 6, 7],
 }
+
+/** This phone (id 1), told yesterday, and an old laptop never told anything. */
+const DEVICES: PushDevice[] = [
+  {
+    id: 1,
+    browser: 'Safari',
+    platform: 'iPhone',
+    lastUsedAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-10-01T10:00:00.000Z',
+  },
+  { id: 2, browser: null, platform: null, lastUsedAt: null, createdAt: '2026-09-01T10:00:00.000Z' },
+]
 
 const SETTLED_STATES = ['unsupported', 'unavailable', 'denied', 'enable', 'enabled']
   .map((state) => `[data-testid="notifications.${state}"]`)
@@ -27,6 +42,9 @@ interface Render {
   settings?: NotificationSettings
   iosSafari?: boolean
   lang?: 'en' | 'es'
+  devices?: PushDevice[]
+  /** The API id of this device once registered. */
+  deviceId?: number | null
 }
 
 describe('NotificationsSectionComponent', () => {
@@ -34,8 +52,14 @@ describe('NotificationsSectionComponent', () => {
     state: ReturnType<typeof vi.fn>
     enable: ReturnType<typeof vi.fn>
     disable: ReturnType<typeof vi.fn>
+    deviceId: WritableSignal<number | null>
   }
-  let api: { settings: ReturnType<typeof vi.fn>; updateSettings: ReturnType<typeof vi.fn> }
+  let api: {
+    settings: ReturnType<typeof vi.fn>
+    updateSettings: ReturnType<typeof vi.fn>
+    devices: ReturnType<typeof vi.fn>
+    removeDevice: ReturnType<typeof vi.fn>
+  }
 
   async function render(options: Render = {}) {
     let saved = options.settings ?? DEFAULTS
@@ -47,13 +71,22 @@ describe('NotificationsSectionComponent', () => {
         }
         return options.enabled ?? 'on'
       }),
-      disable: vi.fn(async () => 'off'),
+      disable: vi.fn(async () => {
+        push.deviceId.set(null)
+        return 'off'
+      }),
+      deviceId: signal(options.deviceId ?? null),
     }
+    let devices = options.devices ?? []
     api = {
       settings: vi.fn(async () => saved),
       updateSettings: vi.fn(async (changes: Partial<NotificationSettings>) => {
         saved = { ...saved, ...changes }
         return saved
+      }),
+      devices: vi.fn(async () => devices),
+      removeDevice: vi.fn(async (id: number) => {
+        devices = devices.filter((device) => device.id !== id)
       }),
     }
     TestBed.configureTestingModule({
@@ -67,6 +100,7 @@ describe('NotificationsSectionComponent', () => {
           useValue: { household: signal(aHousehold({ timezone: 'Australia/Brisbane' })) },
         },
         { provide: InstallService, useValue: { showIosHint: signal(options.iosSafari ?? false) } },
+        { provide: APP_LOCALE, useValue: signal(options.lang === 'es' ? 'es-MX' : 'en-AU') },
       ],
     })
     const fixture = TestBed.createComponent(NotificationsSectionComponent)
@@ -183,7 +217,7 @@ describe('NotificationsSectionComponent', () => {
   it('test_enabled_shows_the_saved_preferences_with_the_reminder_time_and_time_zone', async () => {
     const { root } = await render({
       state: 'on',
-      settings: { summaryReady: false, dailyReminder: true, reminderTime: '21:30' },
+      settings: { ...DEFAULTS, summaryReady: false, dailyReminder: true, reminderTime: '21:30' },
     })
 
     expect(
@@ -275,5 +309,138 @@ describe('NotificationsSectionComponent', () => {
     expect(text(root, 'settings.notifications')).toContain('Notificaciones')
     expect(text(root, 'notifications.summary')).toContain('Resumen del mes listo')
     expect(text(root, 'notifications.disable')).toBe('Desactivar en este dispositivo')
+  })
+
+  it('test_the_weekday_picker_shows_every_day_and_saves_the_chosen_ones_monday_first', async () => {
+    const { fixture, root } = await render({
+      state: 'on',
+      settings: { ...DEFAULTS, dailyReminder: true },
+    })
+    const days = [...root.querySelectorAll('[data-testid^="notifications.weekday."]')]
+    expect(days.map((day) => day.textContent?.trim())).toEqual([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ])
+    expect(days.every((day) => day.getAttribute('aria-pressed') === 'true')).toBe(true)
+    expect(text(root, 'notifications.weekdays')).toContain('On these days')
+
+    click(root, 'notifications.weekday.6')
+    await fixture.whenStable()
+
+    expect(api.updateSettings).toHaveBeenCalledExactlyOnceWith({
+      reminderWeekdays: [1, 2, 3, 4, 5, 7],
+    })
+    await vi.waitFor(() =>
+      expect(
+        root.querySelector('[data-testid="notifications.weekday.6"]')?.getAttribute('aria-pressed')
+      ).toBe('false')
+    )
+  })
+
+  it('test_the_last_chosen_weekday_cannot_be_turned_off', async () => {
+    const { fixture, root } = await render({
+      state: 'on',
+      settings: { ...DEFAULTS, dailyReminder: true, reminderWeekdays: [3] },
+    })
+    const wednesday = root.querySelector<HTMLButtonElement>(
+      '[data-testid="notifications.weekday.3"]'
+    )!
+
+    expect(wednesday.disabled).toBe(true)
+    wednesday.click()
+    await fixture.whenStable()
+
+    expect(api.updateSettings).not.toHaveBeenCalled()
+  })
+
+  it('test_the_weekdays_are_named_in_the_readers_language', async () => {
+    const { root } = await render({
+      state: 'on',
+      lang: 'es',
+      settings: { ...DEFAULTS, dailyReminder: true },
+    })
+
+    expect(
+      root.querySelector('[data-testid="notifications.weekday.1"]')?.getAttribute('aria-label')
+    ).toBe('lunes')
+    expect(text(root, 'notifications.weekdays')).toContain('Estos días')
+  })
+
+  it('test_the_device_list_names_each_device_and_marks_this_one', async () => {
+    const { root } = await render({ state: 'on', devices: DEVICES, deviceId: 1 })
+
+    await vi.waitFor(() => expect(text(root, 'notifications.device.1')).not.toBe(''))
+    expect(text(root, 'notifications.devices')).toContain('Your devices')
+    expect(text(root, 'notifications.device.1')).toContain('Safari on iPhone')
+    expect(text(root, 'notifications.device.1')).toContain('This device')
+    expect(text(root, 'notifications.device.1')).toContain('Last notification yesterday')
+    expect(text(root, 'notifications.device.2')).toContain('Unknown device')
+    expect(text(root, 'notifications.device.2')).toContain('No notification yet')
+    expect(text(root, 'notifications.device.2')).not.toContain('This device')
+  })
+
+  it('test_the_device_list_shows_even_where_this_browser_cannot_get_notifications', async () => {
+    const { root } = await render({ state: 'unsupported', devices: DEVICES })
+
+    await vi.waitFor(() => expect(text(root, 'notifications.device.2')).not.toBe(''))
+  })
+
+  it('test_removing_another_device_forgets_it', async () => {
+    const { fixture, root } = await render({ state: 'on', devices: DEVICES, deviceId: 1 })
+    await vi.waitFor(() => expect(text(root, 'notifications.device.2')).not.toBe(''))
+    const remove = root.querySelector<HTMLElement>(
+      '[data-testid="notifications.device.2"] [data-testid="notifications.removeDevice"]'
+    )!
+    expect(remove.getAttribute('aria-label')).toBe('Remove Unknown device')
+
+    remove.click()
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="notifications.device.2"]')).toBeNull()
+    )
+    await fixture.whenStable()
+
+    expect(api.removeDevice).toHaveBeenCalledExactlyOnceWith(2)
+    expect(push.disable).not.toHaveBeenCalled()
+    expect(text(root, 'notifications.enabled')).toBe('On for this device.')
+  })
+
+  it('test_removing_this_device_turns_notifications_off_here', async () => {
+    const { fixture, root } = await render({ state: 'on', devices: DEVICES, deviceId: 1 })
+    await vi.waitFor(() => expect(text(root, 'notifications.device.1')).not.toBe(''))
+
+    root
+      .querySelector<HTMLElement>(
+        '[data-testid="notifications.device.1"] [data-testid="notifications.removeDevice"]'
+      )!
+      .click()
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="notifications.enable"]')).not.toBeNull()
+    )
+    await fixture.whenStable()
+
+    expect(push.disable).toHaveBeenCalledTimes(1)
+  })
+
+  it('test_a_device_that_cannot_be_removed_stays_and_says_why', async () => {
+    const { fixture, root } = await render({ state: 'on', devices: DEVICES, deviceId: 1 })
+    await vi.waitFor(() => expect(text(root, 'notifications.device.2')).not.toBe(''))
+    api.removeDevice.mockRejectedValueOnce(networkError())
+
+    root
+      .querySelector<HTMLElement>(
+        '[data-testid="notifications.device.2"] [data-testid="notifications.removeDevice"]'
+      )!
+      .click()
+    await vi.waitFor(() =>
+      expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('errors.offline')
+    )
+    await fixture.whenStable()
+
+    expect(root.querySelector('[data-testid="notifications.device.2"]')).not.toBeNull()
   })
 })
