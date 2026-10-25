@@ -1,12 +1,17 @@
 import { daysBetween } from '#domain/importing/iso_days'
 import { findMatchingRule } from '#domain/importing/rule_matching'
 import {
+  type BankTransferSignal,
   bankTransferSignal,
+  holderCounterparts,
+  knownLinkedHolderKeys,
   linkedHolderKey,
   onlyInternalTransferCounterpart,
+  sameInstitution,
 } from '#domain/importing/linked_accounts'
 import type {
   HouseholdAccount,
+  LinkedHolderAccount,
   MerchantRule,
   StagedRow,
   TransferDetection,
@@ -34,23 +39,35 @@ export interface TransferContext {
   legs: readonly TransferLeg[]
   /** Every account of the household (the importing one included). */
   accounts: readonly HouseholdAccount[]
+  /** Accounts each linked holder's transfers were confirmed to. */
+  linkedHolders?: readonly LinkedHolderAccount[]
+  /**
+   * Linked holder keys the household knows (`knownLinkedHolderKeys`); worked
+   * out from `rules` and `linkedHolders` when absent.
+   */
+  holderKeys?: ReadonlySet<string>
 }
 
-/** Opposite amount, another account (the given one if known), within two days; closest first. */
+/**
+ * Opposite amount, another account, within two days; closest first. Legs
+ * in `preferred` accounts (when any fits) win over the rest.
+ */
 function findOppositeLeg(
   row: TransferSubject,
   legs: readonly TransferLeg[],
-  accountId: number | null
+  accountIds: readonly number[] | null,
+  preferred: readonly number[] = []
 ): TransferLeg | null {
   const distance = (leg: TransferLeg) => Math.abs(daysBetween(row.date, leg.date))
   const fits = legs.filter(
     (leg) =>
       leg.accountId !== row.accountId &&
-      (accountId === null || leg.accountId === accountId) &&
+      (accountIds === null || accountIds.includes(leg.accountId)) &&
       leg.amountCents === -row.amountCents &&
       distance(leg) <= TRANSFER_LEG_WINDOW_DAYS
   )
-  fits.sort((a, b) => distance(a) - distance(b))
+  const rank = (leg: TransferLeg) => (preferred.includes(leg.accountId) ? 0 : 1)
+  fits.sort((a, b) => rank(a) - rank(b) || distance(a) - distance(b))
   return fits[0] ?? null
 }
 
@@ -60,32 +77,32 @@ function transferTarget(rule: MerchantRule | null | undefined, row: TransferSubj
   return accountId !== null && accountId !== row.accountId ? accountId : null
 }
 
-/** The household's rule on the key of the linked holder the row names (bank signal required). */
-function holderRule(row: TransferSubject, rules: readonly MerchantRule[]): MerchantRule | null {
-  const key = linkedHolderKey(row)
-  if (key === null) return null
-  const rule = rules.find(
-    (candidate) => candidate.matchType === 'merchant' && candidate.pattern === key
-  )
-  return rule ?? null
-}
-
 /**
  * Is the row one leg of a transfer between two accounts of the household?
  *
  * 1. The winning merchant rule decides first: a rule with
  *    `transferAccountId` makes it a transfer to/from that account (system
  *    rule: `Hnry ...` rows come from the Hnry account); a category rule
- *    makes it spending or income.
+ *    makes it spending or income. On a row carrying the bank's transfer
+ *    signal, a rule nobody typed (learned, or the bank defaults such as
+ *    `Linked Acc Trns` -> savings) yields to the opposite leg when that
+ *    sits in another account at the same bank and none sits in the rule's.
+ *    When NAB's own memo names a holder the household knows, the holder
+ *    decides instead of the bank's generic rules (step 2): its key is the
+ *    row's merchant key, the most specific rule level.
  * 2. Otherwise NAB's signals: category `Internal transfers` or the
  *    `Linked Acc Trns` memo. The other account is, in order: the one
- *    holding the opposite amount within two days; the account the learned
- *    rule of the linked holder names (`linkedHolderKey`: the memo the
- *    person typed varies, the holder does not); as a `guessed` proposal,
+ *    holding the opposite amount within two days (in one of the holder's
+ *    accounts first); the one account the linked holder's transfers were
+ *    confirmed to (`linkedHolders`, plus the account of an older rule on the
+ *    holder's key; the memo the person typed varies, the holder does not);
+ *    when the holder is known in several accounts, none: the row waits for
+ *    a person with them as `candidateAccountIds`; as a `guessed` proposal,
  *    the only other account at the same institution when it is a savings
- *    or transaction account of the same owner (`onlyInternalTransferCounterpart`),
- *    unless the holder's rule names a category. When none decides, the
- *    review screen asks for it.
+ *    or transaction account of the same owner (`onlyInternalTransferCounterpart`).
+ *    A rule on the holder's key naming a category calls its movements
+ *    spending: nothing is proposed. When none decides, the review screen
+ *    asks for it.
  *
  * Transfers to or from other people (PayID "hot pot", NAB's `Transfers
  * in/out`) carry neither signal: they are spending/income with the person
@@ -97,50 +114,77 @@ export function detectTransfer(
   context: TransferContext
 ): TransferDetection | null {
   const direction = row.amountCents < 0 ? 'out' : 'in'
-  const byRule = (rule: MerchantRule, accountId: number): TransferDetection => ({
+  const signal = bankTransferSignal(row)
+  const byRule = (
+    rule: MerchantRule,
+    accountId: number,
+    oppositeLeg = findOppositeLeg(row, context.legs, [accountId])
+  ): TransferDetection => ({
     signal: 'rule',
     direction,
     counterpartAccountId: accountId,
-    oppositeLeg: findOppositeLeg(row, context.legs, accountId),
+    oppositeLeg,
     ruleId: rule.id,
     guessed: false,
   })
-
-  const rule = findMatchingRule(context.rules, row)?.rule ?? null
-  const ruleAccountId = transferTarget(rule, row)
-  if (rule && ruleAccountId !== null) return byRule(rule, ruleAccountId)
-  if (rule && rule.categoryId !== null) return null
-
-  const signal = bankTransferSignal(row)
-  if (!signal) return null
-  const oppositeLeg = findOppositeLeg(row, context.legs, null)
-  if (oppositeLeg) {
-    return {
-      signal,
-      direction,
-      counterpartAccountId: oppositeLeg.accountId,
-      oppositeLeg,
-      ruleId: null,
-      guessed: false,
-    }
-  }
-
-  // A holder rule naming a category calls the holder's movements spending
-  // or income: no account is proposed, a person decides.
-  const holder = holderRule(row, context.rules)
-  const holderSpends = holder !== null && holder.categoryId !== null
-  const holderAccountId = holderSpends ? null : transferTarget(holder, row)
-  if (holder && holderAccountId !== null) return byRule(holder, holderAccountId)
-
-  const only = holderSpends
-    ? null
-    : onlyInternalTransferCounterpart(row.accountId, context.accounts)
-  return {
-    signal,
+  const byBank = (
+    bankSignal: BankTransferSignal,
+    details: Partial<TransferDetection> = {}
+  ): TransferDetection => ({
+    signal: bankSignal,
     direction,
-    counterpartAccountId: only?.id ?? null,
+    counterpartAccountId: null,
     oppositeLeg: null,
     ruleId: null,
-    guessed: only !== null,
+    guessed: false,
+    ...details,
+  })
+
+  const holderKeys =
+    context.holderKeys ?? knownLinkedHolderKeys(context.rules, context.linkedHolders ?? [])
+  const holderKey = signal ? linkedHolderKey(row, holderKeys) : null
+  const holder = holderKey === null ? null : holderCounterparts(holderKey, row.accountId, context)
+  const holderKnown = holder !== null && (holder.rule !== null || holder.accountIds.length > 0)
+  // NAB's own memo names the holder: the holder's key is the row's merchant key.
+  const holderDecides = holderKnown && row.merchantFullKey === holderKey
+
+  const rule = holderDecides ? null : (findMatchingRule(context.rules, row)?.rule ?? null)
+  const ruleAccountId = transferTarget(rule, row)
+  if (rule && ruleAccountId !== null) {
+    const ruleLeg = findOppositeLeg(row, context.legs, [ruleAccountId])
+    const elsewhere =
+      signal && !ruleLeg && rule.createdBy !== 'user'
+        ? findOppositeLeg(row, context.legs, null)
+        : null
+    if (elsewhere && sameInstitution(context.accounts, row.accountId, elsewhere.accountId)) {
+      return byBank(signal!, { counterpartAccountId: elsewhere.accountId, oppositeLeg: elsewhere })
+    }
+    return byRule(rule, ruleAccountId, ruleLeg)
   }
+  if (rule && rule.categoryId !== null) return null
+  if (!signal) return null
+
+  // A holder rule naming a category calls the holder's movements spending or
+  // income: on NAB's own memo that is the rule's answer, else a person decides.
+  const holderSpends = holder?.rule?.categoryId !== null && holder?.rule?.categoryId !== undefined
+  if (holderSpends && holderDecides) return null
+
+  const candidates = holder?.accountIds ?? []
+  const oppositeLeg = findOppositeLeg(row, context.legs, null, candidates)
+  if (oppositeLeg) {
+    return byBank(signal, { counterpartAccountId: oppositeLeg.accountId, oppositeLeg })
+  }
+  if (holderSpends) return byBank(signal)
+
+  if (candidates.length === 1) {
+    const [accountId] = candidates
+    const legacy = holder?.rule ?? null
+    return legacy && transferTarget(legacy, row) === accountId
+      ? byRule(legacy, accountId, null)
+      : byBank(signal, { counterpartAccountId: accountId })
+  }
+  if (candidates.length > 1) return byBank(signal, { candidateAccountIds: candidates })
+
+  const only = onlyInternalTransferCounterpart(row.accountId, context.accounts)
+  return byBank(signal, { counterpartAccountId: only?.id ?? null, guessed: only !== null })
 }

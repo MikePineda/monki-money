@@ -168,6 +168,16 @@ export interface HouseholdAccount {
   ownerUserId: number | null
 }
 
+/**
+ * One account a linked holder's internal transfers were confirmed to
+ * (`linked_holder_accounts`): a holder may move money to several.
+ */
+export interface LinkedHolderAccount {
+  /** `linkedHolderKey` of the holder (`linked acc trns smith jo`). */
+  holderKey: string
+  accountId: number
+}
+
 export interface TransferDetection {
   /** Why the row is an internal transfer. */
   signal: 'rule' | 'bank_category' | 'linked_account_memo'
@@ -182,6 +192,12 @@ export interface TransferDetection {
    * a leg or a rule: proposed, but a person must check it.
    */
   guessed: boolean
+  /**
+   * Set (two or more, ascending) when the linked holder is known to move
+   * money to several accounts and nothing says which one: the review
+   * screen offers them, `counterpartAccountId` stays null.
+   */
+  candidateAccountIds?: number[]
 }
 
 /** Why a row ended up where it did (review screen hints; `IMPORT_ROW_REASONS`). */
@@ -214,4 +230,6 @@ export interface ResolverContext {
   rules: readonly MerchantRule[]
   /** Every account of the household: an internal transfer's only possible counterpart. */
   accounts: readonly HouseholdAccount[]
+  /** Accounts each linked holder's transfers were confirmed to. */
+  linkedHolders?: readonly LinkedHolderAccount[]
 }
