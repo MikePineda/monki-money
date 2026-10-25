@@ -86,7 +86,8 @@ export function describeOutcome(outcome: MonthlyInsightOutcome): string {
 
 /**
  * Writes last month's summary for every household, so it is waiting on the
- * 1st: from 08:00 in the household's time zone, in the household's
+ * 1st: from 08:00 in the household's time zone (a 1st missed entirely is
+ * caught up through the 4th, `isMonthlyInsightDue`), in the household's
  * language, through the same InsightService as `POST /insights/:month/generate`
  * (quota, usage rows, invalid-output handling). A summary someone tapped
  * before the month ended covers part of it only, so it is replaced (one
