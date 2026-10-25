@@ -41,12 +41,12 @@ export interface ApiDefinition {
   }
   household: {
     restore: typeof routes['household.restore']
+    leave: typeof routes['household.leave']
     show: typeof routes['household.show']
     update: typeof routes['household.update']
     members: typeof routes['household.members']
     export: typeof routes['household.export']
     delete: typeof routes['household.delete']
-    leave: typeof routes['household.leave']
     transferOwnership: typeof routes['household.transferOwnership']
     invitations: {
       index: typeof routes['household.invitations.index']
