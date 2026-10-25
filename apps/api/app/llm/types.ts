@@ -108,10 +108,25 @@ export interface InsightCategoryLine {
   previousAmountCents?: number | null
 }
 
+/**
+ * The month is still running (household time zone): `previousTotals` and
+ * each `previousAmountCents` cover only the previous month's first
+ * `previousThroughDay` days (the Month view's same-day base).
+ */
+export interface InsightProgress {
+  /** Today's day of the month. */
+  daysElapsed: number
+  daysInMonth: number
+  /** Last day of the previous month counted (`daysElapsed`, capped at its length). */
+  previousThroughDay: number
+}
+
 export interface InsightInput {
   /** 'YYYY-MM'. */
   month: string
   currencyCode: string
+  /** Absent once the month has ended: the previous month then counts whole. */
+  inProgress?: InsightProgress
   totals: InsightTotals
   previousTotals?: InsightTotals | null
   byCategory: InsightCategoryLine[]
