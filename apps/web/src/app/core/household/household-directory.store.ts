@@ -33,6 +33,8 @@ export class HouseholdDirectory {
   private readonly _accounts = signal<Account[]>([])
   private readonly _status = signal<DirectoryStatus>('idle')
   private pending: Promise<void> | null = null
+  /** Bumped on logout: an answer for an earlier session is dropped, never shown to the next person. */
+  private generation = 0
 
   readonly accounts = this._accounts.asReadonly()
   readonly status = this._status.asReadonly()
@@ -75,22 +77,31 @@ export class HouseholdDirectory {
       return Promise.resolve()
     }
     this._status.set('loading')
-    this.pending = Promise.all([
+    const generation = this.generation
+    const pending = Promise.all([
       this.accountsApi.list(),
       force ? this.categories.reload() : this.categories.load(),
     ])
       .then(([accounts]) => {
-        this._accounts.set(accounts)
-        this._status.set('ready')
+        if (generation === this.generation) {
+          this._accounts.set(accounts)
+          this._status.set('ready')
+        }
       })
       .catch((error: unknown) => {
-        this._status.set('error')
-        throw error
+        if (generation === this.generation) {
+          this._status.set('error')
+          throw error
+        }
       })
       .finally(() => {
-        this.pending = null
+        // A request from before a logout must not clear the one that replaced it.
+        if (this.pending === pending) {
+          this.pending = null
+        }
       })
-    return this.pending
+    this.pending = pending
+    return pending
   }
 
   /**
@@ -133,6 +144,7 @@ export class HouseholdDirectory {
   }
 
   clear(): void {
+    this.generation++
     this._accounts.set([])
     this._status.set('idle')
     this.pending = null
