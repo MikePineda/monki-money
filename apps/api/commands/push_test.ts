@@ -6,7 +6,8 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
  * work", in the person's language, opening Settings) to every device the
  * person registered in their current household, through the real sender.
  * Prints one line per device (id, browser, outcome); a device the push
- * service no longer knows (404/410) is deleted, as in any send. Exits 1 when
+ * service no longer knows (404/410), or failing for the tenth time in a row,
+ * is deleted, as in any send. Exits 1 when
  * no device got it. Ignores the notification preferences and the scheduler.
  */
 export default class PushTest extends BaseCommand {
@@ -23,6 +24,7 @@ export default class PushTest extends BaseCommand {
     const { default: Clock } = await import('#services/clock')
     const { default: PushNotifier } = await import('#services/push/push_notifier')
     const { testPayload } = await import('#services/push/push_messages')
+    const { MAX_CONSECUTIVE_FAILURES } = await import('#domain/push/push_subscription')
 
     if (this.user === undefined) return this.fail('--user <id> is required')
     const user = await User.find(this.user)
@@ -44,14 +46,16 @@ export default class PushTest extends BaseCommand {
       { ttlSeconds: 60 * 60 },
       clock.now()
     )
-    for (const { subscription, delivery } of deliveries) {
+    for (const { subscription, delivery, removed } of deliveries) {
       const device = `device ${subscription.id} (${subscription.userAgent ?? 'unknown browser'})`
       const what =
         delivery.status === 'sent'
           ? 'sent'
           : delivery.status === 'gone'
             ? `gone (${delivery.statusCode}), subscription deleted`
-            : `failed (${delivery.error})`
+            : removed
+              ? `failed (${delivery.error}), subscription deleted after ${MAX_CONSECUTIVE_FAILURES} failures in a row`
+              : `failed (${delivery.error})`
       this.logger.log(`${device}: ${what}`)
     }
     if (!deliveries.some(({ delivery }) => delivery.status === 'sent')) this.exitCode = 1

@@ -69,6 +69,31 @@ test.group('push:test command', (group) => {
     command.assertLog(`device ${phone.id} (Pixel Chrome): failed (E_PUSH_REJECTED: 403)`)
   })
 
+  test('test_the_command_says_when_a_device_was_dropped_after_ten_failures', async ({
+    assert,
+    cleanup,
+  }) => {
+    const push = fakePush(cleanup)
+    const { household, owner } = await createHousehold()
+    const phone = await subscribeDevice(owner, household, {
+      userAgent: 'Pixel Chrome',
+      failures: 9,
+    })
+    push.answer(phone.endpoint, {
+      status: 'failed',
+      error: 'E_PUSH_REJECTED: 403',
+      statusCode: 403,
+    })
+
+    const { command } = await runCommand('--user', String(owner.id))
+
+    command.assertFailed()
+    command.assertLog(
+      `device ${phone.id} (Pixel Chrome): failed (E_PUSH_REJECTED: 403), subscription deleted after 10 failures in a row`
+    )
+    assert.isNull(await PushSubscription.find(phone.id))
+  })
+
   test('test_the_command_needs_a_known_user_with_a_device', async ({ cleanup }) => {
     fakePush(cleanup)
     const { owner } = await createHousehold()

@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon'
 import { inject } from '@adonisjs/core'
 import PushSubscription from '#models/push_subscription'
 import type { PushPayload } from '#domain/push/push_payload'
+import { isDeadDevice } from '#domain/push/push_subscription'
 import { PushSender, type PushDelivery, type PushOptions } from '#services/push/push_sender'
 
 /** What happened on each device of one notification. */
@@ -10,7 +11,7 @@ export interface PushReport {
   sent: number
   /** Devices whose subscription was gone (404/410) and was deleted. */
   gone: number
-  /** Devices that failed for another reason (kept, `failures` + 1). */
+  /** Devices that failed for another reason (`failures` + 1; dropped at the tenth in a row). */
   failed: number
   /** One line per failed device, never the endpoint. */
   errors: string[]
@@ -27,13 +28,16 @@ export const PUSH_SEND_TIMEOUT_MS = 10_000
 export interface DeviceDelivery {
   subscription: PushSubscription
   delivery: PushDelivery
+  /** The subscription was deleted: gone (404/410) or too many failures in a row. */
+  removed: boolean
 }
 
 /**
  * Sends one notification to every device of a person and keeps the
  * subscriptions tidy: a delivered message stamps `last_used_at` and resets
  * `failures`, a 404/410 deletes the subscription, any other failure adds
- * one to `failures`. Every send has a hard deadline (PUSH_SEND_TIMEOUT_MS).
+ * one to `failures` and the tenth in a row deletes it too
+ * (MAX_CONSECUTIVE_FAILURES). Every send has a hard deadline (PUSH_SEND_TIMEOUT_MS).
  * Never throws for a device's sake.
  */
 @inject()
@@ -68,14 +72,16 @@ export default class PushNotifier {
     const deliveries: DeviceDelivery[] = []
     for (const subscription of devices) {
       const delivery = await this.sendOne(subscription, payload, options)
+      let removed = false
       if (delivery.status === 'sent') {
         await subscription.merge({ lastUsedAt: now, failures: 0 }).save()
-      } else if (delivery.status === 'gone') {
+      } else if (delivery.status === 'gone' || isDeadDevice(subscription.failures + 1)) {
         await subscription.delete()
+        removed = true
       } else {
-        await subscription.merge({ failures: Math.min(subscription.failures + 1, 32_000) }).save()
+        await subscription.merge({ failures: subscription.failures + 1 }).save()
       }
-      deliveries.push({ subscription, delivery })
+      deliveries.push({ subscription, delivery, removed })
     }
     return deliveries
   }
