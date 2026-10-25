@@ -37,7 +37,6 @@ Strategy and phases live in the plan; this is the inbox.
 - 2026-10-16 The insights schedule is due on the 1st only (08:00 to midnight, household time): a 1st with the app down all day is caught up by hand (`node ace insights:generate`). A catch-up window of a few days would self-heal, at the price of a call for households created early in the month.
 - 2026-10-16 Nothing tells the couple their scheduled summary is ready (push or email "Your September summary is waiting"); they find it when they open the Month view.
 - 2026-10-16 `scheduler_runs` gains one row per household and month and is never pruned; add a retention (13 months?) once there are many households, and show the last runs in the `pulse` skill.
-- 2026-10-16 Outbox: only the More tab's "Log out" warns about queued entries (`SafeLogout`); the other logouts (the invitation's "wrong account", the deleted-household and create-household screens) still call `SessionStore.logout()` directly.
 - 2026-10-16 Recurring screen: no delete (the API has `DELETE /recurring/:id`); dismissing covers "not a bill", and a hand-made item can only be dismissed.
 - 2026-10-16 Month view: the "Committed this month" card shows on the current month only; past months could show what the recurring payments took.
 - 2026-10-16 Recurring: yearly payments need three payments (detection reads three years); a yearly bill seen twice is only found once it is paid a third time (or added by hand).

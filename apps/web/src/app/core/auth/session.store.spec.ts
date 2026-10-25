@@ -205,6 +205,53 @@ describe('SessionStore', () => {
     }
   })
 
+  it('test_logout_asks_the_confirm_hooks_first_and_stays_signed_in_when_one_declines', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const before = vi.fn(async () => undefined)
+    store.beforeLogout(before)
+    store.confirmLogout(async () => true)
+    store.confirmLogout(async () => false)
+
+    const ended = await store.logout()
+
+    expect(ended).toBe(false)
+    expect(before).not.toHaveBeenCalled()
+    expect(api.logout).not.toHaveBeenCalled()
+    expect(store.isAuthenticated()).toBe(true)
+  })
+
+  it('test_logout_goes_on_once_every_confirm_hook_agrees', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const seen: string[] = []
+    store.confirmLogout(async () => {
+      seen.push(`confirm:${store.isAuthenticated()}`)
+      return true
+    })
+    store.beforeLogout(async () => {
+      seen.push('before')
+    })
+
+    const ended = await store.logout()
+
+    expect(ended).toBe(true)
+    expect(seen).toEqual(['confirm:true', 'before'])
+    expect(store.isAuthenticated()).toBe(false)
+    expect(TestBed.inject(Router).url).toBe('/login')
+  })
+
+  it('test_a_confirm_hook_that_fails_never_locks_the_person_in', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    store.confirmLogout(async () => {
+      throw new Error('chunk failed to load')
+    })
+
+    expect(await store.logout()).toBe(true)
+    expect(store.isAuthenticated()).toBe(false)
+  })
+
   it('test_an_expired_session_clears_without_running_the_logout_hooks', async () => {
     const store = setup(async () => aMe())
     await store.load()

@@ -6,24 +6,42 @@ import { BottomSheetService } from '../../shared/ui/bottom-sheet/bottom-sheet.se
 import { LogoutWarningSheetComponent, type LogoutChoice } from './logout-warning-sheet.component'
 
 /**
- * The explicit "Log out": straight away when nothing waits in the offline
- * outbox, otherwise only after the warning sheet (an explicit logout
- * deletes the outbox from this device, so its entries would be lost).
- * Resolves once the session ended or the person chose to stay.
+ * Every explicit logout of the app (More's "Log out", the invitation's
+ * "wrong account", the deleted-household and create-household screens):
+ * straight away when nothing waits in the offline outbox, otherwise only
+ * after the warning sheet (an explicit logout deletes the outbox from this
+ * device, so its entries would be lost). It guards `SessionStore.logout()`
+ * itself (`guardLogouts`, called once at start by `outbox-startup.ts`), so
+ * screens keep calling the session's logout.
  */
 @Injectable({ providedIn: 'root' })
 export class SafeLogout {
   private readonly outbox = inject(OutboxStore)
   private readonly session = inject(SessionStore)
   private readonly sheets = inject(BottomSheetService)
+  private guarding = false
 
-  async logout(): Promise<void> {
-    if (this.outbox.entries().length > 0) {
-      const sheet = this.sheets.open<LogoutChoice>(LogoutWarningSheetComponent)
-      if ((await firstValueFrom(sheet.closed)) !== 'logout') {
-        return
-      }
+  /** From now on every `SessionStore.logout()` asks first while entries wait. */
+  guardLogouts(): void {
+    if (this.guarding) {
+      return
     }
-    await this.session.logout()
+    this.guarding = true
+    this.session.confirmLogout(() => this.confirm())
+  }
+
+  /** Logs out, guarded; resolves with whether the session ended. */
+  logout(): Promise<boolean> {
+    this.guardLogouts()
+    return this.session.logout()
+  }
+
+  /** Nothing would be lost, or the person chose to log out (after "Sync now" or anyway). */
+  async confirm(): Promise<boolean> {
+    if (this.outbox.entries().length === 0) {
+      return true
+    }
+    const sheet = this.sheets.open<LogoutChoice>(LogoutWarningSheetComponent)
+    return (await firstValueFrom(sheet.closed)) === 'logout'
   }
 }
