@@ -59,6 +59,7 @@ export type ScannedRoutes = {
     'transactions.quick': { paramsTuple?: []; params?: {} }
     'transactions.suggestions': { paramsTuple?: []; params?: {} }
     'transactions.bulkCategorize': { paramsTuple?: []; params?: {} }
+    'transactions.bulkTags': { paramsTuple?: []; params?: {} }
     'transactions.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -77,6 +78,7 @@ export type ScannedRoutes = {
     'reports.balances': { paramsTuple?: []; params?: {} }
     'tags.index': { paramsTuple?: []; params?: {} }
     'tags.show': { paramsTuple: [ParamValue]; params: {'tag': ParamValue} }
+    'tags.update': { paramsTuple: [ParamValue]; params: {'tag': ParamValue} }
     'goals.index': { paramsTuple?: []; params?: {} }
     'goals.store': { paramsTuple?: []; params?: {} }
     'goals.reorder': { paramsTuple?: []; params?: {} }
@@ -217,6 +219,7 @@ export type ScannedRoutes = {
     'transactions.store': { paramsTuple?: []; params?: {} }
     'transactions.quick': { paramsTuple?: []; params?: {} }
     'transactions.bulkCategorize': { paramsTuple?: []; params?: {} }
+    'transactions.bulkTags': { paramsTuple?: []; params?: {} }
     'transfers.store': { paramsTuple?: []; params?: {} }
     'payslips.store': { paramsTuple?: []; params?: {} }
     'goals.store': { paramsTuple?: []; params?: {} }
@@ -242,6 +245,7 @@ export type ScannedRoutes = {
     'categories.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transactions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'transfers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'tags.update': { paramsTuple: [ParamValue]; params: {'tag': ParamValue} }
     'goals.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.rows.bulk': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'imports.rows.update': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'rowId': ParamValue} }

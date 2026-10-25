@@ -1,5 +1,10 @@
 import vine from '@vinejs/vine'
-import { ENTRY_KINDS, TRANSACTION_KINDS, TRANSACTION_STATUSES } from '@monkimoney/shared'
+import {
+  ENTRY_KINDS,
+  TRANSACTION_KINDS,
+  TRANSACTION_SOURCES,
+  TRANSACTION_STATUSES,
+} from '@monkimoney/shared'
 import {
   amount,
   id,
@@ -114,6 +119,17 @@ export const bulkCategorizeValidator = vine.create({
 })
 
 /**
+ * `POST /transactions/bulk-tags`: tags to add to and to remove from every
+ * selected row (at least one of them; the service answers 422 `add`
+ * `required` when both are empty).
+ */
+export const bulkTagsValidator = vine.create({
+  ids: vine.array(id()).minLength(1).maxLength(500).distinct(),
+  add: tags().optional(),
+  remove: tags().optional(),
+})
+
+/**
  * `GET /transactions`. Repeated params (`accountId[]=1&accountId[]=2`) or
  * a single value (`accountId=1`) both work.
  */
@@ -129,6 +145,8 @@ export const listTransactionsValidator = vine.create({
   paidBy: vine.enum(['joint'] as const).optional(),
   kind: vine.enum(TRANSACTION_KINDS).optional(),
   status: vine.enum(TRANSACTION_STATUSES).optional(),
+  /** Where the rows came from: typed by hand, a bank import, a scanned receipt, a bot. */
+  source: vine.enum(TRANSACTION_SOURCES).optional(),
   needsReview: vine.boolean().optional(),
   q: vine.string().trim().minLength(1).maxLength(100).optional(),
   tag: tag().optional(),
