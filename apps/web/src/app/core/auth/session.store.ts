@@ -36,6 +36,7 @@ export class SessionStore {
   private readonly clearHooks = new Set<() => void>()
   private readonly logoutHooks = new Set<() => void>()
   private readonly beforeLogoutHooks = new Set<() => Promise<unknown>>()
+  private readonly confirmLogoutHooks = new Set<() => Promise<boolean>>()
 
   readonly me = this._me.asReadonly()
   /** The boot call could not reach the API (offline or server error). */
@@ -152,8 +153,30 @@ export class SessionStore {
     this.beforeLogoutHooks.add(hook)
   }
 
-  /** Ends this session on the server (best effort) and everywhere in the app. */
-  async logout(): Promise<void> {
+  /**
+   * Asked before every explicit logout, wherever it is tapped (the offline
+   * outbox warns while entries wait, `layouts/outbox/safe-logout.ts`): false
+   * keeps the session. A hook that fails counts as yes, so a broken check
+   * never locks anyone in.
+   */
+  confirmLogout(hook: () => Promise<boolean>): void {
+    this.confirmLogoutHooks.add(hook)
+  }
+
+  /**
+   * Ends this session on the server (best effort) and everywhere in the
+   * app, once every {@link confirmLogout} hook agreed; resolves with
+   * whether it did.
+   */
+  async logout(): Promise<boolean> {
+    for (const confirm of this.confirmLogoutHooks) {
+      const agreed = await Promise.resolve()
+        .then(confirm)
+        .catch(() => true)
+      if (!agreed) {
+        return false
+      }
+    }
     let timer: ReturnType<typeof setTimeout> | undefined
     await Promise.race([
       Promise.allSettled([...this.beforeLogoutHooks].map((hook) => Promise.resolve().then(hook))),
@@ -170,6 +193,7 @@ export class SessionStore {
     }
     this.clear()
     await this.router.navigateByUrl('/login')
+    return true
   }
 
   /** Forgets the session, every store's data and the app's storage keys. */
