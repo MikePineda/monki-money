@@ -93,6 +93,13 @@ export default class ProductionBootstrap {
       // Bank defaults, transfer rules included now that the accounts exist.
       await this.systemRules.seed(household.id, trx)
 
+      // The starting accounts are the wizard's work: every device opens the app.
+      if (!household.onboardedAt) {
+        household.useTransaction(trx)
+        household.onboardedAt = DateTime.now()
+        await household.save()
+      }
+
       return { household, owner, member, accounts }
     })
   }

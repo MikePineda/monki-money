@@ -14,6 +14,8 @@ export default class HouseholdTransformer extends BaseTransformer<Household> {
       timezone: this.resource.timezone,
       settings: this.resource.settings,
       deletionScheduledAt: isoTimestamp(this.resource.deletionScheduledAt),
+      /** When the owner finished the onboarding wizard; null = not yet (or not recorded). */
+      onboardedAt: isoTimestamp(this.resource.onboardedAt),
       createdAt: isoTimestamp(this.resource.createdAt)!,
     }
   }

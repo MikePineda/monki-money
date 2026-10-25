@@ -94,6 +94,21 @@ test.group('Production bootstrap', () => {
     assert.isTrue(await hash.verify(owner.password, 'owner-password-123'))
   })
 
+  test('test_the_bootstrapped_household_counts_as_onboarded_and_keeps_its_stamp', async ({
+    assert,
+  }) => {
+    const bootstrap = await app.container.make(ProductionBootstrap)
+
+    const { household } = await bootstrap.run(input)
+    const first = await Household.findOrFail(household.id)
+    await bootstrap.run(input)
+
+    // Its starting accounts are the wizard's work: every device opens the app.
+    assert.isNotNull(first.onboardedAt)
+    const again = await Household.findOrFail(household.id)
+    assert.equal(again.onboardedAt?.toMillis(), first.onboardedAt!.toMillis())
+  })
+
   test('test_bootstrap_never_moves_a_member_who_already_has_another_household', async ({
     assert,
   }) => {

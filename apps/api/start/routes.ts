@@ -134,6 +134,9 @@ router
                 router.get('export', [controllers.Household, 'export']).as('export')
                 router.post('delete', [controllers.Household, 'destroy']).as('delete')
                 router
+                  .post('onboarding/complete', [controllers.Household, 'completeOnboarding'])
+                  .as('onboarding.complete')
+                router
                   .post('transfer-ownership', [controllers.Household, 'transferOwnership'])
                   .as('transferOwnership')
 

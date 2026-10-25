@@ -30,6 +30,7 @@ export type ScannedRoutes = {
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
+    'household.onboarding.complete': { paramsTuple?: []; params?: {} }
     'household.transferOwnership': { paramsTuple?: []; params?: {} }
     'household.invitations.index': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
@@ -201,6 +202,7 @@ export type ScannedRoutes = {
     'household.restore': { paramsTuple?: []; params?: {} }
     'household.leave': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
+    'household.onboarding.complete': { paramsTuple?: []; params?: {} }
     'household.transferOwnership': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
     'household.invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

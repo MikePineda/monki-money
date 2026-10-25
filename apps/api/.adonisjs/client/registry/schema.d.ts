@@ -319,6 +319,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'household.onboarding.complete': {
+    methods: ["POST"]
+    pattern: '/api/v1/household/onboarding/complete'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['completeOnboarding']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['completeOnboarding']>>>
+    }
+  }
   'household.transferOwnership': {
     methods: ["POST"]
     pattern: '/api/v1/household/transfer-ownership'
