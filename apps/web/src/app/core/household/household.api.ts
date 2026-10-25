@@ -107,6 +107,12 @@ export class HouseholdApi {
     await (await this.api()).request('household.leave', {})
   }
 
+  /** Owner only: the wizard ended; stamps `onboardedAt` (an earlier stamp is kept). */
+  async completeOnboarding() {
+    const { data } = await (await this.api()).request('household.onboarding.complete', {})
+    return data
+  }
+
   async restore() {
     const { data } = await (await this.api()).request('household.restore', {})
     return data
