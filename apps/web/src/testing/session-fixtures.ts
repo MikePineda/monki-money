@@ -140,7 +140,6 @@ export function sessionStubOf(me: WritableSignal<Me | null>) {
   return {
     me,
     user: computed(() => me()?.user ?? null),
-    household: computed(() => me()?.household ?? null),
     members: computed(() => me()?.members ?? []),
     partner: computed(() => me()?.partner ?? null),
     refresh: async (): Promise<void> => undefined,
