@@ -123,6 +123,56 @@ test.describe('offline outbox: quick add never loses an entry', () => {
     expect(data).toEqual([])
   })
 
+  test('the app starts without the API on the last session and queues to the outbox', async ({
+    page,
+    context,
+  }) => {
+    await signUpOwner(context)
+    // A first visit keeps the session and the household's accounts on this device.
+    await openQuickAdd(page)
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('mm:offline:directory') !== null))
+      .toBe(true)
+
+    // Cold start while the API cannot be reached: /auth/me never answers.
+    await page.route('**/api/**', (route) => route.abort('internetdisconnected'))
+    const quickAdd = new QuickAddPage(page)
+    await quickAdd.goto()
+    await expect(page).toHaveURL(/\/add$/)
+    await quickAdd.press('3', '00')
+    await quickAdd.saveOffline()
+    const [queuedId] = await queuedIds(page)
+    expect(queuedId).toBeTruthy()
+
+    // The connection comes back: the session is confirmed and the entry syncs.
+    await page.unroute('**/api/**')
+    await page.evaluate(() => window.dispatchEvent(new Event('online')))
+    await expect.poll(() => queuedIds(page)).toEqual([])
+    const response = await context.request.get('/api/v1/transactions?perPage=20')
+    const { data } = (await response.json()) as { data: LedgerRow[] }
+    expect(data.map((row) => `${row.kind}:${row.amountCents}:${row.clientId}`)).toEqual([
+      `expense:-300:${queuedId}`,
+    ])
+  })
+
+  test('after a logout the app no longer starts offline on that session', async ({
+    page,
+    context,
+  }) => {
+    await signUpOwner(context)
+    await openQuickAdd(page)
+    const settings = new SettingsPage(page)
+    await settings.goto()
+    await settings.logout.click()
+    await expect(page).toHaveURL(/\/login/)
+    expect(await page.evaluate(() => localStorage.getItem('mm:offline:session'))).toBeNull()
+
+    await page.route('**/api/**', (route) => route.abort('internetdisconnected'))
+    await page.goto('/add')
+
+    await expect(page).toHaveURL(/\/login/)
+  })
+
   test('logging out with an entry still queued warns before it is lost', async ({
     page,
     context,
