@@ -28,3 +28,47 @@ export function transactionMerchantKey(subject: PaymentSubject): string {
 export function payeeMerchantKey(payee: string): string {
   return merchantKey({ nabMerchant: payee, description: normalizeDescription(payee) })
 }
+
+/**
+ * Words that tell nothing about who was paid: a web domain (`.com`, `.au`)
+ * or a company form (`Pty Ltd`). Typed names rarely carry them, bank rows
+ * often do.
+ */
+const NOISE_WORDS = new Set([
+  'au',
+  'co',
+  'com',
+  'corp',
+  'corporation',
+  'inc',
+  'io',
+  'limited',
+  'llc',
+  'ltd',
+  'net',
+  'org',
+  'pty',
+  'the',
+  'www',
+])
+
+/** A merchant key without its noise words (`streamflix com au` -> `streamflix`); '' when only noise. */
+export function looseMerchantKey(key: string): string {
+  return key
+    .split(' ')
+    .filter((word) => word !== '' && !NOISE_WORDS.has(word))
+    .join(' ')
+}
+
+/**
+ * True when two merchant keys name the same merchant: equal, or equal once
+ * their noise words are dropped (`streamflix` and `streamflix com`). Never
+ * a prefix or a shared word: `rent` is not `rentokil pest` nor `rent
+ * harbour lettings`.
+ */
+export function keysNameTheSameMerchant(a: string, b: string): boolean {
+  if (a === '' || b === '') return false
+  if (a === b) return true
+  const loose = looseMerchantKey(a)
+  return loose !== '' && loose === looseMerchantKey(b)
+}
