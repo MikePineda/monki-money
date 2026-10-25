@@ -14,7 +14,10 @@ export default class NotificationSettingsController {
     return { data: await this.settings.of(ctx.auth.getUserOrFail()) }
   }
 
-  /** PATCH /me/notifications { summaryReady?, dailyReminder?, reminderTime? ('HH:mm') } */
+  /**
+   * PATCH /me/notifications { summaryReady?, dailyReminder?, reminderTime? ('HH:mm'),
+   * reminderWeekdays? (ISO weekdays, Monday 1) }
+   */
   async update(ctx: HttpContext): Promise<{ data: NotificationSettings }> {
     const changes = await ctx.request.validateUsing(updateNotificationSettingsValidator)
 

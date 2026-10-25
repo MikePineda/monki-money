@@ -60,6 +60,28 @@ test.group('Daily reminder: when it is due', () => {
     assert.isFalse(isDailyReminderDue(instant, BRISBANE, '25:00'))
   })
 
+  test('test_the_reminder_is_due_only_on_the_chosen_weekdays_in_the_household_time_zone', ({
+    assert,
+  }) => {
+    // Friday 16 October 2026, 20:30 in Brisbane; still Friday 04:30 in Mexico City.
+    const fridayEvening = at('2026-10-16T20:30:00+10:00')
+    const weekdays = [1, 2, 3, 4, 5] as const
+    const weekend = [6, 7] as const
+
+    assert.isTrue(isDailyReminderDue(fridayEvening, BRISBANE, '20:00', [...weekdays]))
+    assert.isFalse(isDailyReminderDue(fridayEvening, BRISBANE, '20:00', [...weekend]))
+    // 20:30 on Friday in Mexico City is already Saturday 12:30 in Brisbane.
+    const fridayInMexico = at('2026-10-16T20:30:00-06:00')
+    assert.isTrue(isDailyReminderDue(fridayInMexico, MEXICO_CITY, '20:00', [5]))
+    assert.isFalse(isDailyReminderDue(fridayInMexico, MEXICO_CITY, '20:00', [6]))
+  })
+
+  test('test_without_a_weekday_choice_every_day_is_a_reminder_day', ({ assert }) => {
+    const sundayEvening = at('2026-10-18T20:30:00+10:00')
+
+    assert.isTrue(isDailyReminderDue(sundayEvening, BRISBANE, '20:00'))
+  })
+
   test('test_the_reminder_day_is_the_local_calendar_date', ({ assert }) => {
     // 15:00 UTC on the 16th is already the 17th in Brisbane.
     assert.equal(reminderDay(at('2026-10-16T15:00:00Z'), BRISBANE), '2026-10-17')
