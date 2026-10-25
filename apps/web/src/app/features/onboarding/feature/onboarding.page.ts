@@ -3,6 +3,7 @@ import { Router } from '@angular/router'
 import { TranslocoPipe } from '@jsverse/transloco'
 import { OnboardingStatus } from '../../../core/auth/onboarding-status'
 import { SessionStore } from '../../../core/auth/session.store'
+import { HouseholdApi } from '../../../core/household/household.api'
 import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component'
 import { ProgressTrackComponent } from '../../../shared/ui/progress-track/progress-track.component'
 import { provideOnboardingScope } from '../onboarding.scope'
@@ -15,8 +16,10 @@ import { RegionStepComponent } from './region-step.component'
 /**
  * The onboarding wizard (< 2 minutes, 4 steps): household name, money and
  * time, accounts, partner invitation. Each step saves to the API as it goes
- * and the position is remembered, so closing the app resumes on the same
- * step. Full screen: no tab bar until the household is set up.
+ * and the position is remembered on the device, so closing the app resumes
+ * on the same step; the end is recorded on the household (`onboardedAt`),
+ * so no device shows the wizard again. Full screen: no tab bar until the
+ * household is set up.
  */
 @Component({
   selector: 'app-onboarding-page',
@@ -83,6 +86,7 @@ import { RegionStepComponent } from './region-step.component'
 export default class OnboardingPage {
   private readonly session = inject(SessionStore)
   private readonly status = inject(OnboardingStatus)
+  private readonly households = inject(HouseholdApi)
   private readonly router = inject(Router)
 
   protected readonly total = ONBOARDING_STEPS
@@ -105,6 +109,12 @@ export default class OnboardingPage {
   }
 
   protected async finish(): Promise<void> {
+    try {
+      // On record for the household, so no other device opens the wizard again.
+      this.session.patchHousehold(await this.households.completeOnboarding())
+    } catch {
+      // Offline or failing: this device still moves on (its accounts settle it elsewhere).
+    }
     this.status.complete(this.householdId())
     await this.router.navigateByUrl('/month')
   }

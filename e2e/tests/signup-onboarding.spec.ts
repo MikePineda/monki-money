@@ -37,5 +37,11 @@ test.describe('journey 2: sign-up, verification and onboarding', () => {
     // Set up: the app opens on the month from now on.
     await page.goto('/')
     await expect(page).toHaveURL(/\/month$/)
+
+    // On record for the household, so any other device opens the app too.
+    const me = await page.request.get('/api/v1/auth/me')
+    expect(me.ok()).toBe(true)
+    const { data } = (await me.json()) as { data: { household: { onboardedAt: string | null } } }
+    expect(data.household.onboardedAt).not.toBeNull()
   })
 })

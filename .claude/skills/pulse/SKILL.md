@@ -1,6 +1,6 @@
 ---
 name: pulse
-description: Read-only production health report for monkimoney - deployed version and sha, service replicas, recent errors in the logs, last Dokploy deployments, R2 backups, server disk, app activity and LLM usage/cost - summarized on one screen. Use when asked "/pulse", "how's the app doing?", "¿cómo va la app?", "¿qué show con monkimoney?", "is prod healthy?", or about production errors, backups, disk or LLM spend.
+description: Read-only production health report for monkimoney - deployed version and sha, service replicas, recent errors in the logs, last Dokploy deployments, R2 backups, server disk, app activity, LLM usage/cost and the scheduler's last runs - summarized on one screen. Use when asked "/pulse", "how's the app doing?", "¿cómo va la app?", "¿qué show con monkimoney?", "is prod healthy?", or about production errors, backups, disk, LLM spend or scheduled jobs.
 ---
 
 # monkimoney pulse: how is production doing?
@@ -108,7 +108,29 @@ usage, a household near its monthly cap, latency well above a few seconds.
 Do not flag quiet days (no transactions is not an outage) or the "Smoke"
 household's rows (the post-deploy smoke user).
 
-## 8. Report (one screen)
+## 8. Scheduler (last runs)
+
+The in-process scheduler's jobs (monthly insights, summary-ready push,
+daily reminder, the daily `scheduler_runs` prune) log every run in
+`scheduler_runs`. Read the latest ones with the read-only command inside
+the app container:
+
+```bash
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) \
+  node ace scheduler:runs --limit 30 --json'
+```
+
+Each entry: `job`, `periodKey`, `householdId`, `userId`, `attempts`,
+`startedAt`, `finishedAt`, `outcome` (null while running) and `error` (ids
+only, no personal data). Flag: a `failed:final`, a `failed` with
+`attempts` at 3 (given up), a run with no `finishedAt` older than 30
+minutes (dead, taken over on the next tick), or no
+`scheduler-runs-retention` run in the last two days (the scheduler is not
+ticking, or `SCHEDULER=off`). Skips (`skipped:<reason>`) and
+`released` are normal. On the 1st of a month, expect one
+`monthly-insights` run per active household with activity.
+
+## 9. Report (one screen)
 
 Lead with a one-line verdict, then one line per area. Answer in the
 language the user wrote in. Shape:
@@ -122,6 +144,7 @@ monkimoney: healthy (v0.1.0, sha 980b2f0 = origin/main)
 - disk: / 71%, data disk 38%
 - activity: 1 household, 2 users, 4 accounts; 37 transactions in 7 d
 - LLM this month: 120 calls, 2 failed, $0.41
+- scheduler: last runs ok, prune 2026-10-15 (pruned:0); or: 1x failed:final monthly-insights
 - action: none (or the one thing the owner should look at)
 ```
 

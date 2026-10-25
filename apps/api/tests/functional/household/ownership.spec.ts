@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { DateTime } from 'luxon'
 import type User from '#models/user'
 import type Household from '#models/household'
 import HouseholdMember from '#models/household_member'
@@ -225,5 +226,26 @@ test.group('Household / ownership transfer', (group) => {
     // The former owner's personal account stays with the household, joint.
     await accounts[0].refresh()
     assert.isNull(accounts[0].ownerUserId)
+  })
+
+  test('test_ownership_transfer_stays_blocked_while_the_household_is_pending_deletion', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    household.merge({
+      status: 'pending_deletion',
+      deletionScheduledAt: DateTime.now().plus({ days: 30 }),
+    })
+    await household.save()
+
+    const response = await client
+      .post(URL)
+      .json({ userId: member.id, password: FACTORY_PASSWORD })
+      .actingAs(owner)
+
+    response.assertStatus(403)
+    response.assertBodyContains({ code: 'E_HOUSEHOLD_PENDING_DELETION' })
+    assert.deepEqual(await roles(household), rolesOf(owner, member))
   })
 })

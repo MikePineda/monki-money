@@ -35,6 +35,9 @@ describe('OnboardingPage', () => {
     households = {
       update: vi.fn(async (body: object) => ({ ...aHousehold(), ...body })),
       invite: vi.fn(async () => ({})),
+      completeOnboarding: vi.fn(async () =>
+        aHousehold({ name: 'Sam’s home', onboardedAt: '2026-10-02T09:00:00.000Z' })
+      ),
     }
     accounts = {
       list: vi.fn(async () => created),
@@ -81,7 +84,7 @@ describe('OnboardingPage', () => {
     const stepLabel = () => root.querySelector('[data-testid="onboarding.stepLabel"]')?.textContent
     const click = (testId: string) =>
       root.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)?.click()
-    return { harness, root, loader, stepLabel, click }
+    return { harness, root, loader, stepLabel, click, household }
   }
 
   afterEach(() => localStorage.clear())
@@ -176,5 +179,34 @@ describe('OnboardingPage', () => {
 
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/month'))
     expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull()
+  })
+
+  it('test_finishing_records_the_end_on_the_household_for_every_device', async () => {
+    localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ householdId: 10, step: 3 }))
+    const { click, root, household } = await open()
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="onboarding.later"]')).not.toBeNull()
+    )
+
+    click('onboarding.later')
+
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/month'))
+    expect(households['completeOnboarding']).toHaveBeenCalledTimes(1)
+    expect(household().onboardedAt).toBe('2026-10-02T09:00:00.000Z')
+  })
+
+  it('test_finishing_offline_still_opens_the_month', async () => {
+    localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ householdId: 10, step: 3 }))
+    const { click, root, household } = await open()
+    households['completeOnboarding'].mockRejectedValue(new TypeError('Failed to fetch'))
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="onboarding.later"]')).not.toBeNull()
+    )
+
+    click('onboarding.later')
+
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/month'))
+    expect(localStorage.getItem(ONBOARDING_KEY)).toBeNull()
+    expect(household().onboardedAt).toBeNull()
   })
 })

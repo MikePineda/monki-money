@@ -24,12 +24,13 @@ export type ScannedRoutes = {
     'me.notifications.update': { paramsTuple?: []; params?: {} }
     'households.store': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
+    'household.leave': { paramsTuple?: []; params?: {} }
     'household.show': { paramsTuple?: []; params?: {} }
     'household.update': { paramsTuple?: []; params?: {} }
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
     'household.delete': { paramsTuple?: []; params?: {} }
-    'household.leave': { paramsTuple?: []; params?: {} }
+    'household.onboarding.complete': { paramsTuple?: []; params?: {} }
     'household.transferOwnership': { paramsTuple?: []; params?: {} }
     'household.invitations.index': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
@@ -199,8 +200,9 @@ export type ScannedRoutes = {
     'auth.email.verifyCode': { paramsTuple?: []; params?: {} }
     'households.store': { paramsTuple?: []; params?: {} }
     'household.restore': { paramsTuple?: []; params?: {} }
-    'household.delete': { paramsTuple?: []; params?: {} }
     'household.leave': { paramsTuple?: []; params?: {} }
+    'household.delete': { paramsTuple?: []; params?: {} }
+    'household.onboarding.complete': { paramsTuple?: []; params?: {} }
     'household.transferOwnership': { paramsTuple?: []; params?: {} }
     'household.invitations.store': { paramsTuple?: []; params?: {} }
     'household.invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

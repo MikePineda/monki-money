@@ -105,12 +105,16 @@ router
           .use([...authenticated(), middleware.verified()])
 
         /*
-         * Restore is the only household route open while the household is
-         * scheduled for deletion.
+         * The only household routes open while the household is scheduled
+         * for deletion: the owner restores it, a member leaves it.
          */
         router
-          .post('household/restore', [controllers.Household, 'restore'])
-          .as('household.restore')
+          .group(() => {
+            router.post('restore', [controllers.Household, 'restore']).as('restore')
+            router.post('leave', [controllers.Household, 'leave']).as('leave')
+          })
+          .prefix('household')
+          .as('household')
           .use([
             ...authenticated(),
             middleware.verified(),
@@ -129,7 +133,9 @@ router
                 router.get('members', [controllers.Household, 'members']).as('members')
                 router.get('export', [controllers.Household, 'export']).as('export')
                 router.post('delete', [controllers.Household, 'destroy']).as('delete')
-                router.post('leave', [controllers.Household, 'leave']).as('leave')
+                router
+                  .post('onboarding/complete', [controllers.Household, 'completeOnboarding'])
+                  .as('onboarding.complete')
                 router
                   .post('transfer-ownership', [controllers.Household, 'transferOwnership'])
                   .as('transferOwnership')

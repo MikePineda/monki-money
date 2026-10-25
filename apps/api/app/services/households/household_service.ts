@@ -79,6 +79,18 @@ export default class HouseholdService {
     return household
   }
 
+  /**
+   * The owner finished the onboarding wizard: stamped once, so a second
+   * device finishing it later (or a retry) keeps the first moment.
+   */
+  async completeOnboarding(household: Household) {
+    if (!household.onboardedAt) {
+      household.onboardedAt = DateTime.now()
+      await household.save()
+    }
+    return household
+  }
+
   async members(household: Household) {
     return HouseholdMember.query()
       .withScopes((scopes) => scopes.forHousehold(household))

@@ -49,6 +49,19 @@ export default class HouseholdController {
     return ctx.serialize(HouseholdTransformer.transform(household))
   }
 
+  /**
+   * POST /household/onboarding/complete (owner): the wizard ended (finished
+   * or "Later" on its last step). Stamps `onboardedAt` once; every device
+   * then opens the app instead of the wizard.
+   */
+  async completeOnboarding(ctx: HttpContext) {
+    await ctx.bouncer.with(HouseholdPolicy).authorize('update', ctx.membership)
+
+    const household = await this.households.completeOnboarding(ctx.household)
+
+    return ctx.serialize(HouseholdTransformer.transform(household))
+  }
+
   /** GET /household/members */
   async members(ctx: HttpContext) {
     const members = await this.households.members(ctx.household)
