@@ -2,7 +2,9 @@ import { Injectable, computed, inject, signal } from '@angular/core'
 import type { CategoryKind, TreeCategory, TreeGroup } from '../../domain/category-tree'
 import type { Person } from '../../shared/ui/person-dot/person-dot.component'
 import type { Account } from '../api/api-types'
+import { isClientErrorAnswer } from '../api/tuyau-error'
 import { SessionStore } from '../auth/session.store'
+import { OfflineCache } from '../platform/offline-cache'
 import { AccountsApi } from './accounts.api'
 import { CategoriesStore } from './categories.store'
 import { MembersStore } from './members.store'
@@ -22,6 +24,11 @@ export interface CategoryEntry {
  * (`load()` is idempotent and shares an in-flight request) and dropped on
  * logout. People are words in the UI ("You" and the partner's own name);
  * only `personOf` maps them to the person marks.
+ *
+ * Every load is kept on the device for this person and household
+ * (OfflineCache), so a cold start without network still opens quick add:
+ * with no answer (offline, a 5xx) the kept copy stands in, and the next
+ * `load()` asks the server again. A refusal (4xx) is never answered from it.
  */
 @Injectable({ providedIn: 'root' })
 export class HouseholdDirectory {
@@ -29,12 +36,15 @@ export class HouseholdDirectory {
   private readonly categories = inject(CategoriesStore)
   private readonly members = inject(MembersStore)
   private readonly session = inject(SessionStore)
+  private readonly cache = inject(OfflineCache)
 
   private readonly _accounts = signal<Account[]>([])
   private readonly _status = signal<DirectoryStatus>('idle')
   private pending: Promise<void> | null = null
   /** Bumped on logout: an answer for an earlier session is dropped, never shown to the next person. */
   private generation = 0
+  /** Showing the copy this device kept: the next `load()` asks the server again. */
+  private fromKeptCopy = false
 
   readonly accounts = this._accounts.asReadonly()
   readonly status = this._status.asReadonly()
@@ -73,7 +83,7 @@ export class HouseholdDirectory {
     if (this.pending) {
       return this.pending
     }
-    if (this._status() === 'ready' && !force) {
+    if (this._status() === 'ready' && !force && !this.fromKeptCopy) {
       return Promise.resolve()
     }
     this._status.set('loading')
@@ -86,10 +96,12 @@ export class HouseholdDirectory {
         if (generation === this.generation) {
           this._accounts.set(accounts)
           this._status.set('ready')
+          this.fromKeptCopy = false
+          this.keep(accounts)
         }
       })
       .catch((error: unknown) => {
-        if (generation === this.generation) {
+        if (generation === this.generation && !this.openKeptCopy(error)) {
           this._status.set('error')
           throw error
         }
@@ -102,6 +114,41 @@ export class HouseholdDirectory {
       })
     this.pending = pending
     return pending
+  }
+
+  private owner(): { userId: number; householdId: number } | null {
+    const userId = this.session.user()?.id
+    const householdId = this.session.household()?.id
+    return userId === undefined || householdId === undefined ? null : { userId, householdId }
+  }
+
+  private keep(accounts: Account[]): void {
+    const owner = this.owner()
+    if (owner) {
+      this.cache.writeDirectory(owner.userId, owner.householdId, {
+        accounts,
+        tree: this.categories.tree(),
+      })
+    }
+  }
+
+  /** No answer (offline, a 5xx): the copy kept for this person and household, if any. */
+  private openKeptCopy(error: unknown): boolean {
+    const owner = this.owner()
+    const kept =
+      owner && !isClientErrorAnswer(error)
+        ? this.cache.readDirectory(owner.userId, owner.householdId)
+        : null
+    if (!kept) {
+      return false
+    }
+    this._accounts.set(kept.accounts)
+    if (!this.categories.isLoaded()) {
+      this.categories.set(kept.tree)
+    }
+    this._status.set('ready')
+    this.fromKeptCopy = true
+    return true
   }
 
   /**
@@ -148,5 +195,6 @@ export class HouseholdDirectory {
     this._accounts.set([])
     this._status.set('idle')
     this.pending = null
+    this.fromKeptCopy = false
   }
 }
