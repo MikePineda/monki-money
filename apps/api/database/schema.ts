@@ -6,7 +6,7 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, ImportSource, ImportBatchStatus, ImportRowDecision, ImportResolution, SuggestionSource, LlmPurpose, LlmUsageStatus, RuleMatchType, RuleOrigin, RecurringCadence, RecurringSource, RecurringStatus, GoalStatus, TransactionKind, TransactionSource, TransactionStatus, Theme } from '@monkimoney/shared'
+import type { AccountKind, CategoryGroupKind, MemberRole, Locale, HouseholdPlan, HouseholdSettings, HouseholdStatus, ImportSource, ImportBatchStatus, ImportRowDecision, ImportResolution, SuggestionSource, LlmPurpose, LlmUsageStatus, RuleMatchType, RuleOrigin, RecurringCadence, RecurringSource, RecurringStatus, GoalStatus, TransactionKind, TransactionSource, TransactionStatus, Weekday, Theme } from '@monkimoney/shared'
 import { jsonColumn } from '#database/json_column'
 import type { InsightHighlight, InsightInput } from '#llm/types'
 
@@ -531,7 +531,7 @@ export class PushSubscriptionSchema extends BaseModel {
   @column()
   declare failures: number
   @column()
-  declare householdId: number
+  declare householdId: number | null
   @column({ isPrimary: true })
   declare id: number
   @column.dateTime()
@@ -734,7 +734,7 @@ export class TransferSchema extends BaseModel {
 }
 
 export class UserNotificationSettingSchema extends BaseModel {
-  static $columns = ['createdAt', 'dailyReminder', 'id', 'reminderTime', 'summaryReady', 'updatedAt', 'userId'] as const
+  static $columns = ['createdAt', 'dailyReminder', 'id', 'reminderTime', 'reminderWeekdays', 'summaryReady', 'updatedAt', 'userId'] as const
   $columns = UserNotificationSettingSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -744,6 +744,8 @@ export class UserNotificationSettingSchema extends BaseModel {
   declare id: number
   @column()
   declare reminderTime: string
+  @jsonColumn()
+  declare reminderWeekdays: Weekday[]
   @column()
   declare summaryReady: boolean
   @column.dateTime({ autoCreate: true, autoUpdate: true })
