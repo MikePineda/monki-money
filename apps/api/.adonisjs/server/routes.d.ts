@@ -107,8 +107,10 @@ export type ScannedRoutes = {
     'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'uploads.presign': { paramsTuple?: []; params?: {} }
     'receipts.scan': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.index': { paramsTuple?: []; params?: {} }
     'push.subscriptions.store': { paramsTuple?: []; params?: {} }
     'push.subscriptions.destroy': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.remove': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   GET: {
@@ -147,6 +149,7 @@ export type ScannedRoutes = {
     'rules.index': { paramsTuple?: []; params?: {} }
     'recurring.index': { paramsTuple?: []; params?: {} }
     'recurring.merchants': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.index': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   HEAD: {
@@ -185,6 +188,7 @@ export type ScannedRoutes = {
     'rules.index': { paramsTuple?: []; params?: {} }
     'recurring.index': { paramsTuple?: []; params?: {} }
     'recurring.merchants': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.index': { paramsTuple?: []; params?: {} }
     'spa.fallback': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
@@ -257,6 +261,7 @@ export type ScannedRoutes = {
     'rules.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'recurring.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'push.subscriptions.destroy': { paramsTuple?: []; params?: {} }
+    'push.subscriptions.remove': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'accounts.reorder': { paramsTuple?: []; params?: {} }
