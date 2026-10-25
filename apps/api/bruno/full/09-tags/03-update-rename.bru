@@ -1,0 +1,30 @@
+meta {
+  name: Rename a tag
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/tags/bruno-{{runId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "bruno-{{runId}}-renamed"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.tag: eq bruno-{{runId}}-renamed
+  res.body.data.updated: eq 2
+}
+
+docs {
+  `tags.update`: `PATCH /tags/:tag { name }` → `{ tag, updated }`. Rewrites
+  the tag on every visible row of the household (both legs of a transfer);
+  when `name` already exists the two tags merge. 404 when no visible row
+  carries `:tag`, another household's tag included.
+}

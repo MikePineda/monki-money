@@ -1,0 +1,27 @@
+meta {
+  name: Rename the tag back
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/tags/bruno-{{runId}}-renamed
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "bruno-{{runId}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.tag: eq bruno-{{runId}}
+  res.body.data.updated: eq 2
+}
+
+docs {
+  Restores the tag the later folders (transfers, teardown) expect.
+}
