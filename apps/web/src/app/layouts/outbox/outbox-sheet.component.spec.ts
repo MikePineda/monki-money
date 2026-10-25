@@ -56,6 +56,7 @@ const TRANSFER: OutboxItem = {
     date: '2026-10-14',
     amountCents: 50000,
     memo: null,
+    tags: [],
   },
 }
 

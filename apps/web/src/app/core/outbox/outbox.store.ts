@@ -28,6 +28,7 @@ import {
   type OutboxItem,
   type OutboxKind,
 } from '../../domain/outbox'
+import type { Transfer } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
 import { TransactionsApi } from '../ledger/transactions.api'
 import { MonthStore } from '../month/month.store'
@@ -48,6 +49,18 @@ const CREATED_KEPT = 50
 
 /** What "Undo" came to: the entry (or the row it became) is gone, or this tab never knew it. */
 export type UndoOutcome = 'removed' | 'missing'
+
+/**
+ * An entry that reached the API and the ledger rows it became (a transfer's
+ * two legs); none when the API already had it (a 409).
+ */
+export interface SyncedEntry {
+  entry: OutboxEntry
+  rows: readonly SyncedRow[]
+}
+
+/** A ledger row as both creates answer it (a quick entry, or a leg of a transfer). */
+export type SyncedRow = Transfer['legs'][number]
 
 /** The row a synced entry created on the API, so "Undo" can delete it. */
 interface CreatedRow {
@@ -79,8 +92,9 @@ interface CreatedRow {
  *   app returns to the foreground, after every quick-add save, and on a
  *   backoff timer (1 s, 2 s, 4 s… 60 s) while entries wait. Never while
  *   signed out, and the automatic triggers skip while the device is offline.
- * - A synced entry refreshes its month (MonthStore) and a batch that synced
- *   anything says so in a toast ("Synced 2 entries").
+ * - A synced entry refreshes its month (MonthStore), is handed with its rows
+ *   to whoever listens (`onSynced`: quick add ranks them at once) and a
+ *   batch that synced anything says so in a toast ("Synced 2 entries").
  * - "Undo" drops a queued entry, or deletes the row it became once synced.
  * - An entry being edited in quick add is held: it does not sync until it
  *   is replaced or released.
@@ -122,6 +136,7 @@ export class OutboxStore {
   private owner: number | null = null
   private readonly held = new Set<string>()
   private readonly created = new Map<string, CreatedRow>()
+  private readonly syncedListeners = new Set<(synced: SyncedEntry) => void>()
   private timer: ReturnType<typeof setTimeout> | undefined
   private running: Promise<void> | null = null
   private rerun = false
@@ -175,6 +190,12 @@ export class OutboxStore {
       this.window.removeEventListener('storage', onStorage)
       this.document.removeEventListener('visibilitychange', onVisibility)
     })
+  }
+
+  /** Called for every entry that syncs, with the rows it became; the answer stops listening. */
+  onSynced(listener: (synced: SyncedEntry) => void): () => void {
+    this.syncedListeners.add(listener)
+    return () => this.syncedListeners.delete(listener)
   }
 
   entry(id: string): OutboxEntry | null {
@@ -309,7 +330,7 @@ export class OutboxStore {
           break
         }
         this.update((entries) => markSyncing(entries, entry.id))
-        const { result, rowId } = await this.send(entry)
+        const { result, rowId, rows } = await this.send(entry)
         if (owner !== this.owner) {
           // The session changed while the request was out: not this outbox any more.
           break
@@ -318,6 +339,9 @@ export class OutboxStore {
           this.update((entries) => markSynced(entries, entry.id))
           this.remember(entry, rowId)
           this.injector.get(MonthStore).invalidate(entry.month)
+          for (const listener of this.syncedListeners) {
+            listener({ entry, rows })
+          }
           synced += 1
           continue
         }
@@ -335,17 +359,23 @@ export class OutboxStore {
     }
   }
 
-  /** One create on the API; resolves with what it came to and the id of the row it made. */
-  private async send(entry: OutboxEntry): Promise<{ result: SyncResult; rowId: number | null }> {
+  /**
+   * One create on the API; resolves with what it came to, the id of what it
+   * made (a transfer's, for "Undo") and its ledger rows.
+   */
+  private async send(
+    entry: OutboxEntry
+  ): Promise<{ result: SyncResult; rowId: number | null; rows: SyncedRow[] }> {
     try {
-      const row =
-        entry.kind === 'transfer'
-          ? await this.api.transfer(entry.payload)
-          : await this.api.quick(entry.payload)
-      return { result: { outcome: 'synced' }, rowId: row?.id ?? null }
+      if (entry.kind === 'transfer') {
+        const transfer = await this.api.transfer(entry.payload)
+        return { result: { outcome: 'synced' }, rowId: transfer.id, rows: transfer.legs }
+      }
+      const row = await this.api.quick(entry.payload)
+      return { result: { outcome: 'synced' }, rowId: row.id, rows: [row] }
     } catch (error) {
       // A 409 counts as synced, without a row to undo.
-      return { result: syncResult(error), rowId: null }
+      return { result: syncResult(error), rowId: null, rows: [] }
     }
   }
 

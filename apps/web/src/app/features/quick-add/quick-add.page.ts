@@ -174,6 +174,8 @@ const KINDS: readonly QuickKind[] = ['expense', 'income', 'transfer']
                     [presets]="presets()"
                     [accounts]="accountOptions()"
                     [errors]="store.fieldErrors()"
+                    [tagSuggestions]="tags.names()"
+                    withTags
                     [(draft)]="store.transfer"
                     [(detailsOpen)]="detailsOpen"
                   />

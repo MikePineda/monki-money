@@ -46,14 +46,33 @@ class FakeOutbox {
   readonly retry = vi.fn(async () => this.entries.set([]))
 }
 
+/** The session's logout as far as the guard goes: asks every confirm hook, then ends. */
+class FakeSession {
+  readonly hooks: (() => Promise<boolean>)[] = []
+  /** The session really ended (every hook agreed). */
+  readonly ended = vi.fn()
+  confirmLogout(hook: () => Promise<boolean>): void {
+    this.hooks.push(hook)
+  }
+  async logout(): Promise<boolean> {
+    for (const hook of this.hooks) {
+      if (!(await hook())) {
+        return false
+      }
+    }
+    this.ended()
+    return true
+  }
+}
+
 describe('SafeLogout', () => {
   let outbox: FakeOutbox
-  let session: { logout: ReturnType<typeof vi.fn> }
+  let session: FakeSession
 
   function setup(entries: OutboxEntry[], lang: 'en' | 'es' = 'en'): SafeLogout {
     outbox = new FakeOutbox()
     outbox.entries.set(entries)
-    session = { logout: vi.fn(async () => undefined) }
+    session = new FakeSession()
     TestBed.configureTestingModule({
       imports: [i18nTesting({ lang })],
       providers: [
@@ -89,7 +108,7 @@ describe('SafeLogout', () => {
 
     await logout.logout()
 
-    expect(session.logout).toHaveBeenCalledTimes(1)
+    expect(session.ended).toHaveBeenCalledTimes(1)
     expect(warning()).toBeNull()
   })
 
@@ -106,7 +125,7 @@ describe('SafeLogout', () => {
     expect(text('outbox.logout.sync')).toBe('Sync now')
     expect(text('outbox.logout.confirm')).toBe('Log out anyway')
     expect(text('outbox.logout.cancel')).toBe('Cancel')
-    expect(session.logout).not.toHaveBeenCalled()
+    expect(session.ended).not.toHaveBeenCalled()
   })
 
   it('test_log_out_anyway_logs_out_and_drops_the_entries_with_the_session', async () => {
@@ -117,7 +136,7 @@ describe('SafeLogout', () => {
     press('outbox.logout.confirm')
     await done
 
-    expect(session.logout).toHaveBeenCalledTimes(1)
+    expect(session.ended).toHaveBeenCalledTimes(1)
     expect(outbox.retry).not.toHaveBeenCalled()
   })
 
@@ -129,7 +148,7 @@ describe('SafeLogout', () => {
     press('outbox.logout.cancel')
     await done
 
-    expect(session.logout).not.toHaveBeenCalled()
+    expect(session.ended).not.toHaveBeenCalled()
     expect(outbox.entries()).toHaveLength(1)
     await vi.waitFor(() => expect(warning()).toBeNull())
   })
@@ -143,7 +162,7 @@ describe('SafeLogout', () => {
     await done
 
     expect(outbox.retry).toHaveBeenCalledTimes(1)
-    expect(session.logout).toHaveBeenCalledTimes(1)
+    expect(session.ended).toHaveBeenCalledTimes(1)
   })
 
   it('test_sync_now_that_leaves_entries_keeps_the_warning_and_says_so', async () => {
@@ -162,7 +181,44 @@ describe('SafeLogout', () => {
     expect(text('outbox.logout.body')).toBe(
       '1 movement is waiting to sync and will be lost if you log out.'
     )
-    expect(session.logout).not.toHaveBeenCalled()
+    expect(session.ended).not.toHaveBeenCalled()
+  })
+
+  it('test_once_guarded_every_logout_of_the_app_warns_first', async () => {
+    const guard = setup(queued(1))
+    guard.guardLogouts()
+    guard.guardLogouts()
+    expect(session.hooks).toHaveLength(1)
+
+    // The invitation's "wrong account", the deleted-household and the
+    // create-household screens call the session's logout directly.
+    const done = session.logout()
+    await vi.waitFor(() => expect(warning()).not.toBeNull())
+    press('outbox.logout.cancel')
+
+    expect(await done).toBe(false)
+    expect(session.ended).not.toHaveBeenCalled()
+  })
+
+  it('test_once_guarded_the_mores_logout_warns_only_once', async () => {
+    const guard = setup(queued(1))
+    guard.guardLogouts()
+    const done = guard.logout()
+    await vi.waitFor(() => expect(warning()).not.toBeNull())
+
+    press('outbox.logout.confirm')
+
+    expect(await done).toBe(true)
+    expect(session.ended).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('[data-testid="outbox.logout"]')).toHaveLength(0)
+  })
+
+  it('test_a_guarded_logout_with_nothing_queued_ends_at_once', async () => {
+    const guard = setup([])
+    guard.guardLogouts()
+
+    expect(await session.logout()).toBe(true)
+    expect(warning()).toBeNull()
   })
 
   it('test_the_warning_follows_the_language', async () => {

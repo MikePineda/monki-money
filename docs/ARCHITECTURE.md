@@ -169,7 +169,8 @@ and clears the form ("Saved offline · will sync"); a 422 stays under the
 fields and queues nothing. The rules are pure (`domain/outbox.ts`: FIFO,
 `pending | syncing | failed`, retryable failures count attempts with a
 1 s → 60 s backoff, a 4xx becomes `failed` with the API's message, a
-versioned serialization that drops corrupt entries instead of throwing);
+versioned serialization that drops corrupt entries instead of throwing;
+version 2 adds `tags` to transfers and version 1 outboxes still read);
 `core/outbox/outbox.store.ts` owns the state. It is persisted per person
 in localStorage (`outbox:<userId>`, written synchronously before the toast)
 and synced one entry at a time on sign-in, on the `online` event, when the
@@ -181,15 +182,33 @@ tab drops the other's newest entry; both may send the same entry, which the
 client id makes harmless. When localStorage refuses the write (quota,
 private mode) the outbox works from memory until the app closes, the pill
 says "not persisted" and quick add's toast says to keep the app open. A
-synced entry invalidates its month (`MonthStore`); a 409 counts as synced.
+synced entry invalidates its month (`MonthStore`) and is handed with the
+rows it became to `onSynced` listeners (quick add ranks them at once); a
+409 counts as synced.
 "Undo" on the "Saved offline" toast drops the queued entry, or deletes the
 row it became once synced (the store remembers the created ids for the
 session). An explicit logout deletes the outbox from the device
-(`SessionStore.onLogout`), so the More tab's "Log out" goes through
-`layouts/outbox/safe-logout.ts`: while entries wait it asks first ("N
-movements are waiting to sync and will be lost": Sync now, which logs out
-once nothing is left, Log out anyway, Cancel). An expired session keeps the
-outbox for the next login of the same person. The sync pill above the tab
+(`SessionStore.onLogout`), so every logout of the app (More, the
+invitation's "wrong account", the deleted-household and create-household
+screens) asks first while entries wait: `layouts/outbox/safe-logout.ts`
+registers a `SessionStore.confirmLogout` hook at start
+(`outbox-startup.ts`, loaded beside the first route) that opens the
+warning ("N movements are waiting to sync and will be lost": Sync now,
+which logs out once nothing is left, Log out anyway, Cancel). An expired
+session keeps the outbox for the next login of the same person.
+
+**Offline cold start.** The last `GET /auth/me` body and the household
+directory (accounts and category tree) are kept in localStorage
+(`core/platform/offline-cache.ts`, keys `mm:offline:session` and
+`mm:offline:directory`), written on every fresh answer. When `/auth/me`
+gets no answer at boot (no network, a 5xx), `SessionStore.boot` restores
+the kept session (`restored`): the shell opens, quick add opens on the kept
+directory and queues to the outbox. When the connection comes back (or
+the app returns to the foreground) the session asks the server again: a
+fresh answer replaces it, a 4xx ends it like an expiry. A 4xx at boot,
+an expiry and an explicit logout forget both keys. Only one person's copy
+exists: the directory is tied to the person and household it was read
+for, and saving another person's session drops it. The sync pill above the tab
 bar is the only place that shows what is not on the server yet (lists and
 the Month view never merge queued entries): it opens a sheet to retry, edit
 (quick add with `?outbox=<id>`, which holds the entry and replaces it

@@ -60,6 +60,7 @@ function aTransferItem(overrides: Partial<TransferPayload> = {}): OutboxItem {
       date: '2026-09-30',
       amountCents: 50000,
       memo: null,
+      tags: [],
       ...overrides,
     },
   }
@@ -278,6 +279,35 @@ describe('outbox', () => {
 
       expect(JSON.parse(raw)).toMatchObject({ version: OUTBOX_VERSION })
       expect(deserialize(raw)).toEqual(entries)
+    })
+
+    it('test_a_queued_transfer_keeps_its_tags_on_the_device', () => {
+      const entries = enqueue([], aTransferItem({ tags: ['Bali 2027', 'savings'] }), NOW)
+
+      const [entry] = deserialize(serialize(entries))
+
+      expect(entry?.kind === 'transfer' && entry.payload.tags).toEqual(['Bali 2027', 'savings'])
+    })
+
+    it('test_an_outbox_stored_before_transfers_had_tags_still_reads_back', () => {
+      const transfer = enqueue([], aTransferItem(), NOW)[0]!
+      const expense = enqueue([], anEntryItem({ tags: ['trip'] }), NOW)[0]!
+      const untagged: Partial<TransferPayload> = { ...transfer.payload }
+      delete untagged.tags
+      const raw = JSON.stringify({
+        version: 1,
+        entries: [{ ...transfer, payload: untagged }, expense],
+      })
+
+      const entries = deserialize(raw)
+
+      expect(entries).toEqual([transfer, expense])
+      expect(entries[0]?.kind === 'transfer' && entries[0].payload.tags).toEqual([])
+    })
+
+    it('test_the_outbox_is_written_with_the_schema_that_carries_transfer_tags', () => {
+      expect(OUTBOX_VERSION).toBe(2)
+      expect(JSON.parse(serialize([]))).toEqual({ version: 2, entries: [] })
     })
 
     it('test_deserialize_of_nothing_or_garbage_is_an_empty_outbox', () => {

@@ -33,13 +33,14 @@ export const appConfig: ApplicationConfig = {
       inject(ThemeStore)
       inject(UpdateService).start()
       inject(InstallService).start()
-      // The offline outbox (it syncs once the session is known) is not
-      // needed to paint the first screen: its chunk, with the month store
-      // and the ledger API it drags along, loads beside the first route
-      // instead of inside the initial bundle. Bootstrap does not wait for it.
+      // The offline outbox (it syncs once the session is known, and every
+      // logout warns while entries wait) is not needed to paint the first
+      // screen: its chunk, with the month store and the ledger API it drags
+      // along, loads beside the first route instead of inside the initial
+      // bundle. Bootstrap does not wait for it.
       const injector = inject(Injector)
-      void import('./core/outbox/outbox.store').then(({ OutboxStore }) =>
-        injector.get(OutboxStore).start()
+      void import('./layouts/outbox/outbox-startup').then(({ startOutbox }) =>
+        startOutbox(injector)
       )
       // Push the same way: a tapped notification routes the running app to
       // its page, and an explicit logout unsubscribes this browser first.

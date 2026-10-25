@@ -5,6 +5,7 @@ import { COUPLE, aMe, httpError, networkError } from '../../../testing/session-f
 import { SessionExpiry } from '../api/session-expiry'
 import { LangStore } from '../i18n/lang.store'
 import { ThemeStore } from '../theme/theme.store'
+import { OfflineCache, SESSION_CACHE_KEY } from '../platform/offline-cache'
 import { ToastStore } from '../ui/toast.store'
 import { AuthApi, type Me } from './auth.api'
 import { BEFORE_LOGOUT_MS, SessionStore } from './session.store'
@@ -118,6 +119,154 @@ describe('SessionStore', () => {
     expect(store.unreachable()).toBe(true)
   })
 
+  describe('offline cold start', () => {
+    function cache(): OfflineCache {
+      return TestBed.inject(OfflineCache)
+    }
+
+    /** A device that knew this session last time the app could reach the API. */
+    function knownSession(me: Me = aMe('member')): Me {
+      localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ version: 1, me }))
+      return me
+    }
+
+    it('test_every_fresh_session_is_kept_on_the_device', async () => {
+      const store = setup(async () => aMe('member'))
+
+      await store.load()
+
+      expect(cache().readSession()).toEqual(aMe('member'))
+    })
+
+    it('test_profile_and_household_changes_reach_the_kept_session', async () => {
+      const store = setup(async () => aMe())
+      await store.load()
+
+      store.patchUser({ ...aMe().user, fullName: 'Sam R.' })
+      store.patchHousehold({ ...aMe().household!, name: 'Our place' })
+
+      expect(cache().readSession()?.user.fullName).toBe('Sam R.')
+      expect(cache().readSession()?.household?.name).toBe('Our place')
+    })
+
+    it('test_starting_without_network_restores_the_last_session_this_device_knew', async () => {
+      const known = knownSession()
+      const store = setup(() => Promise.reject(networkError()))
+
+      await store.boot()
+
+      expect(store.isAuthenticated()).toBe(true)
+      expect(store.restored()).toBe(true)
+      expect(store.unreachable()).toBe(true)
+      expect(store.user()?.id).toBe(known.user.id)
+      expect(store.partner()?.displayName).toBe('Sam Rivera')
+      expect(store.homePath()).toBe('/month')
+      expect(theme.hydrate).toHaveBeenCalledWith(known.user.theme)
+    })
+
+    it('test_starting_while_the_server_fails_restores_the_session_too', async () => {
+      knownSession()
+      const store = setup(() => Promise.reject(httpError(502)))
+
+      await store.boot()
+
+      expect(store.restored()).toBe(true)
+    })
+
+    it('test_starting_without_network_or_a_kept_session_is_anonymous', async () => {
+      const store = setup(() => Promise.reject(networkError()))
+
+      await store.boot()
+
+      expect(store.isAuthenticated()).toBe(false)
+      expect(store.unreachable()).toBe(true)
+      expect(store.restored()).toBe(false)
+    })
+
+    it('test_a_401_at_start_forgets_the_kept_session_but_not_a_pending_invitation', async () => {
+      knownSession()
+      sessionStorage.setItem('mm:invite', 'token')
+      const store = setup(() => Promise.reject(httpError(401)))
+
+      await store.boot()
+
+      expect(store.isAuthenticated()).toBe(false)
+      expect(cache().readSession()).toBeNull()
+      expect(sessionStorage.getItem('mm:invite')).toBe('token')
+    })
+
+    it('test_a_session_that_answers_at_start_is_not_a_restored_one', async () => {
+      knownSession(aMe('owner'))
+      const store = setup(async () => aMe('member'))
+
+      await store.boot()
+
+      expect(store.restored()).toBe(false)
+      expect(store.role()).toBe('member')
+      expect(cache().readSession()?.membership?.role).toBe('member')
+    })
+
+    it('test_a_restored_session_checks_with_the_server_once_the_connection_is_back', async () => {
+      knownSession()
+      const store = setup(() => Promise.reject(networkError()))
+      await store.boot()
+
+      window.dispatchEvent(new Event('online'))
+      await vi.waitFor(() => expect(store.restored()).toBe(true))
+      expect(store.isAuthenticated()).toBe(true)
+
+      const fresh = aMe('member')
+      fresh.user.fullName = 'Alex C.'
+      api.me.mockResolvedValueOnce(fresh)
+      window.dispatchEvent(new Event('online'))
+
+      await vi.waitFor(() => expect(store.restored()).toBe(false))
+      expect(store.unreachable()).toBe(false)
+      expect(store.user()?.fullName).toBe('Alex C.')
+    })
+
+    it('test_a_restored_session_the_server_ended_goes_to_login_keeping_the_outbox', async () => {
+      knownSession()
+      const store = setup(() => Promise.reject(networkError()))
+      await store.boot()
+      const loggedOut = vi.fn()
+      store.onLogout(loggedOut)
+      api.me.mockRejectedValueOnce(httpError(401))
+
+      window.dispatchEvent(new Event('online'))
+
+      await vi.waitFor(() => expect(store.isAuthenticated()).toBe(false))
+      expect(store.restored()).toBe(false)
+      expect(cache().readSession()).toBeNull()
+      expect(loggedOut).not.toHaveBeenCalled()
+      await vi.waitFor(() => expect(TestBed.inject(Router).url).toMatch(/^\/login/))
+    })
+
+    it('test_a_reload_that_still_gets_no_answer_keeps_the_restored_session', async () => {
+      knownSession()
+      const store = setup(() => Promise.reject(networkError()))
+      await store.boot()
+
+      await store.load()
+
+      expect(store.isAuthenticated()).toBe(true)
+      expect(store.restored()).toBe(true)
+    })
+
+    it('test_logout_and_expiry_forget_the_kept_session', async () => {
+      const store = setup(async () => aMe())
+      await store.load()
+
+      await store.logout()
+      expect(cache().readSession()).toBeNull()
+
+      await store.load()
+      expect(cache().readSession()).not.toBeNull()
+      TestBed.inject(SessionExpiry).notify()
+      expect(cache().readSession()).toBeNull()
+    })
+  })
+
   it('test_logout_ends_the_session_and_forgets_app_storage_but_keeps_device_preferences', async () => {
     const store = setup(async () => aMe())
     await store.load()
@@ -203,6 +352,53 @@ describe('SessionStore', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('test_logout_asks_the_confirm_hooks_first_and_stays_signed_in_when_one_declines', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const before = vi.fn(async () => undefined)
+    store.beforeLogout(before)
+    store.confirmLogout(async () => true)
+    store.confirmLogout(async () => false)
+
+    const ended = await store.logout()
+
+    expect(ended).toBe(false)
+    expect(before).not.toHaveBeenCalled()
+    expect(api.logout).not.toHaveBeenCalled()
+    expect(store.isAuthenticated()).toBe(true)
+  })
+
+  it('test_logout_goes_on_once_every_confirm_hook_agrees', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    const seen: string[] = []
+    store.confirmLogout(async () => {
+      seen.push(`confirm:${store.isAuthenticated()}`)
+      return true
+    })
+    store.beforeLogout(async () => {
+      seen.push('before')
+    })
+
+    const ended = await store.logout()
+
+    expect(ended).toBe(true)
+    expect(seen).toEqual(['confirm:true', 'before'])
+    expect(store.isAuthenticated()).toBe(false)
+    expect(TestBed.inject(Router).url).toBe('/login')
+  })
+
+  it('test_a_confirm_hook_that_fails_never_locks_the_person_in', async () => {
+    const store = setup(async () => aMe())
+    await store.load()
+    store.confirmLogout(async () => {
+      throw new Error('chunk failed to load')
+    })
+
+    expect(await store.logout()).toBe(true)
+    expect(store.isAuthenticated()).toBe(false)
   })
 
   it('test_an_expired_session_clears_without_running_the_logout_hooks', async () => {
