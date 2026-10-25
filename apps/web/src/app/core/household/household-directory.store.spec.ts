@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core'
+import { signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { aCategoryTree } from '../../../testing/ledger-fixtures'
 import {
@@ -42,7 +42,6 @@ describe('HouseholdDirectory', () => {
           provide: SessionStore,
           useValue: {
             ...sessionStubOf(me),
-            household: computed(() => me()?.household ?? null),
             onClear: (hook: () => void) => clearHooks.push(hook),
           },
         },
