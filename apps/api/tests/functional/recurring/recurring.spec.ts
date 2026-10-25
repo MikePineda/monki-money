@@ -33,6 +33,7 @@ const ITEM_FIELDS = [
   'pausedByDetection',
   'source',
   'occurrences',
+  'confidence',
   'createdAt',
   'updatedAt',
 ]
@@ -796,5 +797,205 @@ test.group('Recurring payments: after an import', (group) => {
     assert.include(confirm.body().data, { status: 'completed', created: 1 })
     assert.lengthOf(await Transaction.query().where('household_id', home.household.id), 1)
     assert.lengthOf(await RecurringItem.query().where('household_id', home.household.id), 0)
+  })
+})
+
+/** One payment of `amountCents` to `payee` on each of `dates`. */
+async function paidOn(home: TestHousehold, payee: string, amountCents: number, dates: string[]) {
+  for (const date of dates) {
+    await payments(home, { payee, last: date, everyDays: 1, count: 1, amountCents })
+  }
+}
+
+test.group('Recurring payments: several per merchant, yearly, typed names', (group) => {
+  group.each.setup(() => freezeClock(NOW))
+
+  test('test_two_phone_lines_at_one_merchant_are_detected_as_two_items', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await paidOn(home, 'Telco One', 6_500, ['2026-07-12', '2026-08-12', '2026-09-12', '2026-10-12'])
+    await paidOn(home, 'Telco One', 4_500, ['2026-07-20', '2026-08-20', '2026-09-20'])
+
+    const first = await detect(client, home.owner)
+
+    assert.deepEqual(first.body().data, { created: 2, updated: 0 })
+    const items = await RecurringItem.query()
+      .where('household_id', home.household.id)
+      .orderBy('amount_cents')
+    assert.deepEqual(
+      items.map((item) => [item.merchantKey, item.amountCents, item.nextExpectedDate]),
+      [
+        ['telco one', 4_500, '2026-10-20'],
+        ['telco one', 6_500, '2026-11-12'],
+      ]
+    )
+
+    // Again on the same ledger: no duplicate, nothing moves.
+    const again = await detect(client, home.owner)
+    assert.deepEqual(again.body().data, { created: 0, updated: 0 })
+
+    // Each payment pays its own line.
+    const month = await client.get('/api/v1/reports/month?month=2026-10').actingAs(home.owner)
+    assert.deepEqual(
+      month.body().data.committed.items.map((line: any) => [line.amountCents, line.paid]),
+      [
+        [6_500, true],
+        [4_500, false],
+      ]
+    )
+  })
+
+  test('test_a_dismissed_line_stays_dismissed_when_the_merchant_is_detected_again', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await paidOn(home, 'Telco One', 4_500, ['2026-07-20', '2026-08-20', '2026-09-20'])
+    await detect(client, home.owner)
+    const small = await RecurringItem.query().where('household_id', home.household.id).firstOrFail()
+    await client
+      .patch(`/api/v1/recurring/${small.id}`)
+      .json({ status: 'dismissed' })
+      .actingAs(home.owner)
+    await paidOn(home, 'Telco One', 6_500, ['2026-07-12', '2026-08-12', '2026-09-12', '2026-10-12'])
+
+    const again = await detect(client, home.owner)
+
+    assert.deepEqual(again.body().data, { created: 1, updated: 0 })
+    await small.refresh()
+    assert.equal(small.status, 'dismissed')
+  })
+
+  test('test_a_yearly_bill_paid_twice_is_found_with_low_confidence', async ({ client, assert }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await paidOn(home, 'Shield Car Insurance', 120_000, ['2025-10-01'])
+    await paidOn(home, 'Shield Car Insurance', 124_000, ['2026-10-02'])
+
+    const detected = await detect(client, home.owner)
+
+    assert.deepEqual(detected.body().data, { created: 1, updated: 0 })
+    const list = await client.get('/api/v1/recurring').actingAs(home.owner)
+    assert.include(list.body().data[0], {
+      merchantKey: 'shield car insurance',
+      cadence: 'yearly',
+      amountCents: 122_000,
+      occurrences: 2,
+      nextExpectedDate: '2027-10-02',
+      confidence: 'low',
+    })
+  })
+
+  test('test_a_second_item_at_a_tracked_merchant_can_be_added_at_another_amount', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold()
+    const add = (amountCents: number) =>
+      client
+        .post('/api/v1/recurring')
+        .json({
+          payee: 'Telco One',
+          cadence: 'monthly',
+          amountCents,
+          nextExpectedDate: '2026-11-01',
+        })
+        .actingAs(home.owner)
+
+    const first = await add(6_500)
+    first.assertStatus(201)
+    const second = await add(4_500)
+    second.assertStatus(201)
+    assert.include(second.body().data, { merchantKey: 'telco one', confidence: 'high' })
+
+    // About the amount of one already there: the same bill twice.
+    const same = await add(6_700)
+    same.assertStatus(422)
+    same.assertBodyContains({ errors: [{ field: 'payee', rule: 'taken' }] })
+  })
+
+  test('test_an_item_typed_by_hand_is_paid_by_the_rows_its_name_names', async ({
+    client,
+    assert,
+  }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'StreamFlix',
+        cadence: 'monthly',
+        amountCents: 1_899,
+        nextExpectedDate: '2026-10-05',
+      })
+      .actingAs(home.owner)
+    await client
+      .post('/api/v1/recurring')
+      .json({
+        payee: 'Rent',
+        cadence: 'monthly',
+        amountCents: 50_000,
+        nextExpectedDate: '2026-10-07',
+      })
+      .actingAs(home.owner)
+    // The bank's names: STREAMFLIX.COM is the typed StreamFlix; Rentokil and a car rental are not rent.
+    await paidOn(home, 'STREAMFLIX.COM AU', 1_899, ['2026-10-05'])
+    await paidOn(home, 'Rentokil Pest', 50_000, ['2026-10-07'])
+    await paidOn(home, 'Car Rental', 50_000, ['2026-10-08'])
+
+    const month = await client.get('/api/v1/reports/month?month=2026-10').actingAs(home.owner)
+
+    const lines = month.body().data.committed.items
+    assert.deepEqual(
+      lines.map((line: any) => [line.payee, line.dueDate, line.paid]),
+      [
+        ['StreamFlix', '2026-10-05', true],
+        ['Rent', '2026-10-07', false],
+      ]
+    )
+    // Tracked now: the bank's StreamFlix rows are not offered as a new merchant.
+    const offered = await client.get('/api/v1/recurring/merchants').actingAs(home.owner)
+    assert.notInclude(
+      offered.body().data.map((merchant: any) => merchant.merchantKey),
+      'streamflix com au'
+    )
+  })
+
+  test('test_a_past_month_shows_what_the_recurring_payments_took', async ({ client, assert }) => {
+    const home = await createHousehold({ accounts: [{}] })
+    await payments(home, { payee: 'Harbour Lettings', last: '2026-10-13', everyDays: 7, count: 8 })
+    await paidOn(home, 'Pulse Gym', 2_990, ['2026-07-03', '2026-08-03', '2026-09-03'])
+    await paidOn(home, 'Wine Club', 9_000, ['2026-07-10', '2026-08-10', '2026-09-10'])
+    await detect(client, home.owner)
+    // The gym was paused and the wine club dismissed in October.
+    const gym = await RecurringItem.findByOrFail('merchant_key', 'pulse gym')
+    const club = await RecurringItem.findByOrFail('merchant_key', 'wine club')
+    await client
+      .patch(`/api/v1/recurring/${gym.id}`)
+      .json({ status: 'paused' })
+      .actingAs(home.owner)
+    await client
+      .patch(`/api/v1/recurring/${club.id}`)
+      .json({ status: 'dismissed' })
+      .actingAs(home.owner)
+
+    const september = await client.get('/api/v1/reports/month?month=2026-09').actingAs(home.owner)
+
+    const { committed } = september.body().data
+    // Rent on 1, 8, 15, 22 and 29 September, and the gym it paid back then.
+    assert.equal(committed.paidCents, 5 * 50_000 + 2_990)
+    assert.equal(committed.upcomingCents, 0)
+    assert.isTrue(committed.items.every((line: any) => line.paid))
+    assert.deepEqual(
+      committed.items.map((line: any) => [line.payee, line.dueDate]),
+      [
+        ['Harbour Lettings', '2026-09-01'],
+        ['Pulse Gym', '2026-09-03'],
+        ['Harbour Lettings', '2026-09-08'],
+        ['Harbour Lettings', '2026-09-15'],
+        ['Harbour Lettings', '2026-09-22'],
+        ['Harbour Lettings', '2026-09-29'],
+      ]
+    )
   })
 })
