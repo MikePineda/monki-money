@@ -1,7 +1,7 @@
 import type { RecurringCadence } from '@monkimoney/shared'
 import { addDays, daysBetween } from '#domain/importing/iso_days'
 import { monthRange, type Month } from '#domain/calendar/month'
-import { withinTolerance } from '#domain/recurring/detection'
+import { itemOfPayment } from '#domain/recurring/matching'
 import { PAYMENT_WINDOW_DAYS, dueDatesBetween, stepsByDays } from '#domain/recurring/cadence'
 
 /**
@@ -13,7 +13,9 @@ import { PAYMENT_WINDOW_DAYS, dueDatesBetween, stepsByDays } from '#domain/recur
  *   month for month-based cadences, and never before an item typed by hand
  *   starts (no payment yet: nothing is due before its first date).
  * - A payment counts as the item's when its merchant key or its payee key
- *   is the item's key and its amount is within the item's tolerance.
+ *   names the item's key and its amount is within the item's tolerance;
+ *   between several items of one merchant, the closest amount
+ *   (app/domain/recurring/matching.ts).
  * - A due date is paid when one of those payments lands within the
  *   cadence's payment window of it (PAYMENT_WINDOW_DAYS), closest pairs
  *   first; a payment left over then pays the latest unpaid due date before
@@ -133,16 +135,11 @@ export function committedInMonth(
   const committed: Committed = { paidCents: 0, upcomingCents: 0, items: [] }
   const past = today > to
 
-  // Each payment belongs to one item: the one keyed by its merchant key, else by its payee key.
-  const byKey = new Map(items.map((item) => [item.merchantKey, item]))
+  // Each payment belongs to one item at most (app/domain/recurring/matching.ts).
   const owned = new Map<number, MerchantPayment[]>()
   for (const payment of payments) {
-    const item =
-      byKey.get(payment.merchantKey) ?? (payment.payeeKey ? byKey.get(payment.payeeKey) : undefined)
-    if (!item || !withinTolerance(payment.amountCents, item.amountCents, item.amountTolerancePct)) {
-      continue
-    }
-    owned.set(item.id, [...(owned.get(item.id) ?? []), payment])
+    const item = itemOfPayment(payment, items)
+    if (item) owned.set(item.id, [...(owned.get(item.id) ?? []), payment])
   }
 
   for (const item of items) {
