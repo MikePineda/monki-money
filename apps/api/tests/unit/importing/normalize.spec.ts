@@ -249,4 +249,51 @@ test.group('Importing / linked account holder', () => {
       'ONE TWO THREE FOUR FIVE SIX'
     )
   })
+
+  test('test_upper_case_memo_still_finds_the_holder', ({ assert }) => {
+    // A memo typed in capitals joins the run of capitals; a known holder ends it.
+    const known = ['SMITH JO', 'SMITH JO & DOE AL']
+    assert.equal(linkedAccountHolder('ONLINE A3000000001 BALI SMITH JO', known), 'SMITH JO')
+    assert.equal(
+      linkedAccountHolder('ONLINE A3000000002 BALI TRIP SMITH JO & DOE AL', known),
+      'SMITH JO & DOE AL'
+    )
+    // Known holders compare like merchant keys: case and accents aside.
+    assert.equal(
+      linkedAccountHolder('ONLINE A3000000003 RENT MÜLLER JO', ['muller jo']),
+      'MÜLLER JO'
+    )
+    // A long memo in capitals plus the holder is longer than a name: the known holder still ends it.
+    assert.equal(
+      linkedAccountHolder('ONLINE A3000000004 BALI TRIP DEPOSIT FOR JULY SMITH JO', known),
+      'SMITH JO'
+    )
+  })
+
+  test('test_the_longest_known_holder_ending_the_details_wins', ({ assert }) => {
+    assert.equal(
+      linkedAccountHolder('ONLINE A3000000005 BALI SMITH JO', ['JO', 'SMITH JO']),
+      'SMITH JO'
+    )
+  })
+
+  test('test_a_known_holder_must_end_the_details_word_by_word', ({ assert }) => {
+    const known = ['SMITH JO']
+    // Another holder whose name merely ends in the same letters.
+    assert.equal(linkedAccountHolder('ONLINE A3000000006 BALI SMITH JOE', known), 'BALI SMITH JOE')
+    // The known holder inside the memo, not at its end.
+    assert.equal(linkedAccountHolder('ONLINE A3000000007 SMITH JO BALI', known), 'SMITH JO BALI')
+    // A lower-case memo already ends the run: nothing changes.
+    assert.equal(linkedAccountHolder('ONLINE A3000000008 Bali trip SMITH JO', known), 'SMITH JO')
+    // Without a known holder, a memo in capitals still joins the holder.
+    assert.equal(linkedAccountHolder('ONLINE A3000000009 BALI SMITH JO'), 'BALI SMITH JO')
+    assert.equal(linkedAccountHolder('ONLINE A3000000009 BALI SMITH JO', []), 'BALI SMITH JO')
+  })
+
+  test('test_a_known_holder_never_turns_a_row_without_a_name_into_one', ({ assert }) => {
+    const known = ['SMITH JO', 'X']
+    assert.isNull(linkedAccountHolder('ONLINE C3000000010 Monthly saving', known))
+    assert.isNull(linkedAccountHolder('ONLINE A3000000011 rent X', known))
+    assert.isNull(linkedAccountHolder('', known))
+  })
 })
