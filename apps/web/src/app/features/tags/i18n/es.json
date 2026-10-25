@@ -12,7 +12,10 @@
   "empty": {
     "title": "Aún no hay etiquetas",
     "body": "Abre un movimiento o una transferencia al ahorro y agrégale una etiqueta, como \"Bali 2027\". Todo lo que la lleve se suma aquí.",
-    "action": "Ir a movimientos"
+    "action": "Ir a movimientos",
+    "periodTitle": "No hay etiquetas en este periodo",
+    "periodBody": "Ningún movimiento con etiqueta cae en estas fechas. Prueba un periodo más largo.",
+    "periodAction": "Ver todo el tiempo"
   },
   "error": {
     "title": "No se pudieron cargar tus etiquetas",
@@ -47,6 +50,27 @@
       "you": "Tú",
       "joint": "Compartido"
     },
-    "movements": "Ver estos movimientos"
+    "movements": "Ver estos movimientos",
+    "rename": {
+      "action": "Renombrar etiqueta",
+      "title": "Renombrar etiqueta",
+      "name": "Nombre",
+      "body": "Todos los movimientos con la etiqueta \"{tag}\" toman el nuevo nombre. Los movimientos privados de tu pareja conservan el suyo.",
+      "mergeBody": "Ya existe una etiqueta llamada \"{name}\". Las dos se vuelven una: todos los movimientos con \"{tag}\" llevarán \"{name}\" en su lugar.",
+      "save": "Renombrar",
+      "merge": "Unir etiquetas",
+      "tooLong": "Usa {max} caracteres o menos."
+    }
+  },
+  "period": {
+    "title": "Mostrar etiquetas de",
+    "all": "Todo el tiempo",
+    "last12": "Últimos 12 meses",
+    "thisYear": "Este año",
+    "lastYear": "El año pasado"
+  },
+  "toast": {
+    "renamed": "Renombrada a \"{name}\" en {count, plural, one {# movimiento} other {# movimientos}}",
+    "merged": "Unida a \"{name}\" en {count, plural, one {# movimiento} other {# movimientos}}"
   }
 }

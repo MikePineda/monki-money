@@ -2,6 +2,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
   afterNextRender,
   computed,
   effect,
@@ -16,6 +17,7 @@ import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/trans
 import { distinctUntilChanged, filter, map } from 'rxjs'
 import type { Transaction } from '../../../core/api/api-types'
 import { TagsStore } from '../../../core/ledger/tags.store'
+import { BulkBarComponent } from '../../../shared/review/bulk-bar.component'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { formatWeekdayDate } from '../../../domain/dates'
 import {
@@ -48,7 +50,8 @@ import {
   type FilterChipView,
   type FilterId,
 } from '../ui/filters-bar.component'
-import { TransactionRowComponent } from '../ui/transaction-row.component'
+import { TransactionRowComponent, type RowSelection } from '../ui/transaction-row.component'
+import { BulkTagsSheetComponent, type BulkTagChanges, type BulkTagsData } from './bulk-tags.sheet'
 import { rowView, type RowContext, type TransactionRowView } from '../ui/transaction-row.view'
 
 /** Search waits this long after the last keystroke. */
@@ -56,7 +59,7 @@ const SEARCH_DEBOUNCE_MS = 300
 /** Months offered by the month filter, counting back from this one. */
 const MONTHS_BACK = 24
 
-type RowAction = 'edit' | 'duplicate' | 'delete'
+type RowAction = 'edit' | 'duplicate' | 'delete' | 'select'
 
 /**
  * Keys read from TypeScript. translateSignal() takes them relative to this
@@ -73,6 +76,7 @@ type RowAction = 'edit' | 'duplicate' | 'delete'
  * t(transactions.filters.personTitle, transactions.filters.categoryTitle, transactions.actions.title)
  * t(transactions.actions.edit, transactions.actions.duplicate, transactions.actions.delete)
  * t(transactions.filters.tagTitle, transactions.filters.tagCount, transactions.filters.noTags)
+ * t(transactions.actions.select, transactions.select.count, transactions.select.categoryTitle)
  */
 const WORD_KEYS = [
   'row.private',
@@ -107,6 +111,9 @@ const KEYS = {
   tagTitle: 'transactions.filters.tagTitle',
   tagCount: 'transactions.filters.tagCount',
   noTags: 'transactions.filters.noTags',
+  select: 'transactions.actions.select',
+  selectedCount: 'transactions.select.count',
+  bulkCategoryTitle: 'transactions.select.categoryTitle',
 }
 
 /** The month sheet's extra option while a tag spans every month. */
@@ -132,10 +139,14 @@ function capitalize(text: string): string {
  * duplicate and delete (with "Undo"). Honest empty states: nothing this
  * month, or nothing that matches the filters. A tag filter (the chip, or
  * `?tag=` from the tags screen) spans every month until one is picked.
+ * "Select" (the header, or a row's long-press) turns taps into picks and
+ * shows the bulk bar: a category or tags for every picked row at once
+ * (the partner's private rows cannot be picked).
  */
 @Component({
   selector: 'app-transactions-page',
   imports: [
+    BulkBarComponent,
     ButtonComponent,
     DayHeaderComponent,
     EmptyStateComponent,
@@ -156,7 +167,20 @@ function capitalize(text: string): string {
       data-testid="transactions.header"
     >
       <header class="flex h-14 items-center justify-between gap-2 pr-1 pl-4">
-        <h1 class="truncate text-title text-ink-1">{{ 'transactions.title' | transloco }}</h1>
+        <h1 class="min-w-0 flex-1 truncate text-title text-ink-1">
+          {{ 'transactions.title' | transloco }}
+        </h1>
+        @if (!selecting()) {
+          <button
+            appIconButton
+            type="button"
+            icon="circle-check"
+            data-testid="transactions.select.start"
+            [label]="'transactions.select.start' | transloco"
+            [disabled]="store.rows().length === 0"
+            (click)="startSelecting()"
+          ></button>
+        }
         <button
           appIconButton
           type="button"
@@ -238,8 +262,9 @@ function capitalize(text: string): string {
       }
     } @else {
       <div
-        class="pb-6 transition-opacity"
+        class="transition-opacity"
         data-testid="transactions.list"
+        [class]="selecting() ? 'pb-40' : 'pb-6'"
         [class.opacity-60]="store.refreshing()"
         [attr.aria-busy]="store.refreshing() || null"
       >
@@ -254,8 +279,9 @@ function capitalize(text: string): string {
               @for (item of day.rows; track item.view.key) {
                 <app-transaction-row
                   [view]="item.view"
-                  (opened)="open(item.view.id)"
-                  (held)="actions(item.row)"
+                  [selection]="selectionOf(item.row)"
+                  (opened)="tap(item.row)"
+                  (held)="hold(item.row)"
                 />
               }
             </div>
@@ -278,6 +304,40 @@ function capitalize(text: string): string {
       </div>
     }
 
+    @if (selecting()) {
+      <app-bulk-bar
+        style="z-index: 30"
+        data-testid="transactions.bulk"
+        [countLabel]="selectedLabel()"
+        [clearLabel]="'transactions.select.clear' | transloco"
+        [label]="'transactions.select.label' | transloco"
+        (cleared)="stopSelecting()"
+      >
+        <button
+          appButton
+          type="button"
+          variant="secondary"
+          icon="circle-dashed"
+          data-testid="transactions.bulk.category"
+          [disabled]="selectedRows().length === 0 || bulkBusy()"
+          (click)="bulkCategory()"
+        >
+          {{ 'transactions.select.category' | transloco }}
+        </button>
+        <button
+          appButton
+          type="button"
+          icon="tag"
+          data-testid="transactions.bulk.tag"
+          [disabled]="selectedRows().length === 0"
+          [loading]="bulkBusy()"
+          (click)="bulkTag()"
+        >
+          {{ 'transactions.select.tag' | transloco }}
+        </button>
+      </app-bulk-bar>
+    }
+
     <router-outlet />
   `,
   host: { 'class': 'block', '[style.--day-header-top]': 'stickyTop()' },
@@ -292,6 +352,7 @@ export default class TransactionsPage {
   private readonly locale = inject(APP_LOCALE)
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
   private readonly destroyRef = inject(DestroyRef)
+  private readonly injector = inject(Injector)
 
   private readonly top = viewChild.required<ElementRef<HTMLElement>>('top')
 
@@ -299,6 +360,19 @@ export default class TransactionsPage {
   protected readonly searchText = signal('')
   /** Day headers stick right under the (sticky) top bar, whatever its height. */
   protected readonly stickyTop = signal('0px')
+
+  /** Multi-select: a tap picks a row instead of opening it; the bulk bar acts on the picks. */
+  protected readonly selecting = signal(false)
+  private readonly selectedIds = signal<ReadonlySet<number>>(new Set())
+  /** The picked rows still in the list (a filter change may drop some). */
+  protected readonly selectedRows = computed(() => {
+    const ids = this.selectedIds()
+    return this.store.rows().filter((row) => ids.has(row.id))
+  })
+  protected readonly selectedLabel = computed(() =>
+    this.t(KEYS.selectedCount, { count: this.selectedRows().length })
+  )
+  protected readonly bulkBusy = signal(false)
 
   private readonly words = translateSignal(WORD_KEYS)
 
@@ -454,6 +528,112 @@ export default class TransactionsPage {
     }
   }
 
+  protected selectionOf(row: Transaction): RowSelection {
+    if (!this.selecting()) {
+      return 'none'
+    }
+    if (row.isMasked) {
+      return 'unavailable'
+    }
+    return this.selectedIds().has(row.id) ? 'selected' : 'unselected'
+  }
+
+  /** A tap opens the row, or picks it while selecting. */
+  protected tap(row: Transaction): void {
+    if (this.selecting()) {
+      this.toggle(row)
+    } else {
+      this.open(row.id)
+    }
+  }
+
+  protected hold(row: Transaction): void {
+    if (this.selecting()) {
+      this.toggle(row)
+    } else {
+      this.actions(row)
+    }
+  }
+
+  protected startSelecting(row?: Transaction): void {
+    this.selectedIds.set(new Set(row && !row.isMasked ? [row.id] : []))
+    this.selecting.set(true)
+  }
+
+  protected stopSelecting(): void {
+    this.selecting.set(false)
+    this.selectedIds.set(new Set())
+  }
+
+  private toggle(row: Transaction): void {
+    if (row.isMasked) {
+      return
+    }
+    this.selectedIds.update((ids) => {
+      const next = new Set(ids)
+      if (!next.delete(row.id)) {
+        next.add(row.id)
+      }
+      return next
+    })
+  }
+
+  /** One category (or none) for every picked row; transfers and splits keep theirs. */
+  protected bulkCategory(): void {
+    const rows = this.selectedRows()
+    if (rows.length === 0) {
+      return
+    }
+    const options: SelectOption<number | null>[] = [
+      { value: null, label: this.words()[10] ?? '', icon: 'circle-dashed' },
+      ...this.store.categories.options().map((option) => ({
+        value: option.id as number | null,
+        label: option.name,
+        meta: option.groupName,
+        icon: categoryIcon(option),
+      })),
+    ]
+    openSelectSheet(this.sheets, {
+      title: this.t(KEYS.bulkCategoryTitle, { count: rows.length }),
+      options,
+    }).subscribe((categoryId) => {
+      if (categoryId !== undefined) {
+        void this.runBulk(() => this.store.bulkCategorize(rows, categoryId))
+      }
+    })
+  }
+
+  /** Tags to add to, or take off, every picked row. */
+  protected async bulkTag(): Promise<void> {
+    const rows = this.selectedRows()
+    if (rows.length === 0) {
+      return
+    }
+    await this.tags.load()
+    const current = [...new Set(rows.flatMap((row) => row.tags))]
+    this.sheets
+      .open<BulkTagChanges, BulkTagsData>(BulkTagsSheetComponent, {
+        data: { count: rows.length, current, known: this.tags.names() },
+        injector: this.injector,
+      })
+      .closed.subscribe((changes) => {
+        if (changes) {
+          void this.runBulk(() => this.store.bulkTags(rows, changes))
+        }
+      })
+  }
+
+  private async runBulk(change: () => Promise<unknown>): Promise<void> {
+    this.bulkBusy.set(true)
+    try {
+      if (await change()) {
+        this.stopSelecting()
+      }
+    } finally {
+      this.bulkBusy.set(false)
+    }
+  }
+
   protected actions(row: Transaction): void {
     if (row.isMasked) {
       this.open(row.id)
@@ -462,7 +642,11 @@ export default class TransactionsPage {
     const options: SelectOption<RowAction>[] = [
       { value: 'edit', label: this.t(KEYS.edit), icon: 'pencil' },
       { value: 'duplicate', label: this.t(KEYS.duplicate), icon: 'copy' },
-      { value: 'delete', label: this.t(KEYS.delete), icon: 'trash-2' },
+      // A payslip's rows go with the payslip, never one by one.
+      ...(row.payslipId === null
+        ? [{ value: 'delete' as const, label: this.t(KEYS.delete), icon: 'trash-2' as const }]
+        : []),
+      { value: 'select', label: this.t(KEYS.select), icon: 'circle-check' },
     ]
     openSelectSheet(this.sheets, {
       title: this.t(KEYS.actionsTitle),
@@ -474,6 +658,8 @@ export default class TransactionsPage {
         void this.store.duplicate(row)
       } else if (action === 'delete') {
         void this.store.remove(row)
+      } else if (action === 'select') {
+        this.startSelecting(row)
       }
     })
   }

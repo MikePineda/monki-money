@@ -28,7 +28,8 @@
     "moreCategories": "More",
     "details": "Add payee, note, date",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "payslipLocked": "The payslip owns this amount."
   },
   "transfer": {
     "from": "From",
