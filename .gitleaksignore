@@ -16,3 +16,5 @@ b684efdc829f2831da03f282e891ca81c75b9ba9:apps/api/tests/unit/llm/anthropic_compa
 3f0fec2c2524fbcfa286967dfa58c424a22d96de:apps/api/tests/functional/push/push_subscriptions.spec.ts:generic-api-key:51
 3f0fec2c2524fbcfa286967dfa58c424a22d96de:apps/api/tests/functional/push/push_subscriptions.spec.ts:generic-api-key:60
 3f0fec2c2524fbcfa286967dfa58c424a22d96de:apps/api/tests/unit/push/web_push_sender.spec.ts:generic-api-key:14
+a433b0f75f5f4abb26591e6a2633d75509f1c984:apps/api/bruno/full/15-devices/03-push-store.bru:generic-api-key:19
+a433b0f75f5f4abb26591e6a2633d75509f1c984:apps/api/bruno/full/15-devices/04-push-store-again.bru:generic-api-key:19
