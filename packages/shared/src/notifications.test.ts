@@ -2,17 +2,35 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
+  EVERY_WEEKDAY,
   LATEST_REMINDER_TIME,
   isReminderTime,
+  isReminderWeekdays,
   reminderMinutes,
+  sortedWeekdays,
 } from './notifications.ts'
 
-test('the summary is on and the daily reminder off at 20:00 by default', () => {
+test('the summary is on and the daily reminder off at 20:00 every day by default', () => {
   assert.deepEqual(DEFAULT_NOTIFICATION_SETTINGS, {
     summaryReady: true,
     dailyReminder: false,
     reminderTime: '20:00',
+    reminderWeekdays: [1, 2, 3, 4, 5, 6, 7],
   })
+  assert.deepEqual(EVERY_WEEKDAY, [1, 2, 3, 4, 5, 6, 7])
+})
+
+test('reminder weekdays are one to seven distinct ISO weekdays, Monday 1 to Sunday 7', () => {
+  for (const days of [[1], [7], [1, 2, 3, 4, 5], [6, 7], [7, 1], [1, 2, 3, 4, 5, 6, 7]]) {
+    assert.equal(isReminderWeekdays(days), true, JSON.stringify(days))
+  }
+  for (const days of [[], [0], [8], [1, 1], [1.5], ['1'], null, undefined, '1,2', 3]) {
+    assert.equal(isReminderWeekdays(days), false, JSON.stringify(days))
+  }
+})
+
+test('reminder weekdays are kept Monday first', () => {
+  assert.deepEqual(sortedWeekdays([7, 3, 1]), [1, 3, 7])
 })
 
 test('a reminder time is a 24-hour HH:mm up to 23:30', () => {
