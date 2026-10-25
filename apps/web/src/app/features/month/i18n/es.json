@@ -36,7 +36,11 @@
     "detect": "Detectar pagos recurrentes",
     "detecting": "Buscando pagos recurrentes…",
     "found": "{count, plural, one {Encontramos # pago recurrente} other {Encontramos # pagos recurrentes}}",
-    "noneFound": "Aún no hay pagos recurrentes: hacen falta unos tres pagos al mismo comercio."
+    "noneFound": "Aún no hay pagos recurrentes: hacen falta unos tres pagos al mismo comercio.",
+    "pastTitle": "Pagos recurrentes de {month}",
+    "pastPaid": "Pagado",
+    "share": "Del gasto",
+    "pastNothing": "Ningún pago recurrente se pagó en {month}."
   },
   "spend": {
     "title": "Gasto por categoría",

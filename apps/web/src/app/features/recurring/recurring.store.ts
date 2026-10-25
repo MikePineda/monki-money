@@ -20,7 +20,7 @@ import {
  * Toasts after a status change, by action. Declared for transloco-keys-manager:
  * t(recurring.toast.paused, recurring.toast.resumed, recurring.toast.dismissed, recurring.toast.restored)
  */
-const STATUS_TOASTS: Record<Exclude<RecurringAction, 'edit'>, string> = {
+const STATUS_TOASTS: Record<Exclude<RecurringAction, 'edit' | 'delete'>, string> = {
   pause: 'recurring.toast.paused',
   resume: 'recurring.toast.resumed',
   dismiss: 'recurring.toast.dismissed',
@@ -30,8 +30,8 @@ const STATUS_TOASTS: Record<Exclude<RecurringAction, 'edit'>, string> = {
 /**
  * State of `/recurring`: the household's recurring payments by status,
  * detection on demand, adding and editing one (the sheet gets the API's
- * field messages back) and pausing, resuming, dismissing or restoring one,
- * shown at once and rolled back if the API refuses. Every change reloads
+ * field messages back) and pausing, resuming, dismissing, restoring or
+ * deleting one, shown at once and rolled back if the API refuses. Every change reloads
  * the current month, whose "Committed this month" card counts them.
  * Provided by the page.
  */
@@ -131,7 +131,10 @@ export class RecurringStore {
   }
 
   /** Pause, resume, dismiss or restore: on screen at once, rolled back if refused. */
-  async act(item: RecurringItem, action: Exclude<RecurringAction, 'edit'>): Promise<void> {
+  async act(
+    item: RecurringItem,
+    action: Exclude<RecurringAction, 'edit' | 'delete'>
+  ): Promise<void> {
     const status = statusAfter(action)
     if (status === null) {
       return
@@ -142,6 +145,23 @@ export class RecurringStore {
       const saved = await this.api.update(item.id, { status })
       this.replace(saved)
       this.toasts.show({ messageKey: STATUS_TOASTS[action], params: { payee: item.payee } })
+      this.monthChanged()
+    } catch (error) {
+      if (before) {
+        this.list.value.set(before)
+      }
+      this.fail(error)
+    }
+  }
+
+  /** Forgets an item (the page asked first): gone at once, put back if the API refuses. */
+  async remove(item: RecurringItem): Promise<void> {
+    const before = this.list.value()
+    this.list.value.update((items) => (items ?? []).filter((entry) => entry.id !== item.id))
+    try {
+      await this.api.remove(item.id)
+      /** t(recurring.toast.deleted) */
+      this.toasts.show({ messageKey: 'recurring.toast.deleted', params: { payee: item.payee } })
       this.monthChanged()
     } catch (error) {
       if (before) {

@@ -36,7 +36,11 @@
     "detect": "Detect recurring payments",
     "detecting": "Looking for recurring payments…",
     "found": "{count, plural, one {Found # recurring payment} other {Found # recurring payments}}",
-    "noneFound": "No recurring payments yet: it takes about three payments to the same merchant."
+    "noneFound": "No recurring payments yet: it takes about three payments to the same merchant.",
+    "pastTitle": "Bills in {month}",
+    "pastPaid": "Paid",
+    "share": "Of spending",
+    "pastNothing": "No recurring payment was paid in {month}."
   },
   "spend": {
     "title": "Spending by category",

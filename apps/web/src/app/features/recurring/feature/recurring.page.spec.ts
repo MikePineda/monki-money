@@ -171,11 +171,71 @@ describe('RecurringPage', () => {
     await vi.waitFor(() => expect(document.querySelector('[role="option"]')).not.toBeNull())
     expect(
       [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent?.trim())
-    ).toEqual(['Restore'])
+    ).toEqual(['Restore', 'Delete'])
     await choose('Restore')
     await settle()
 
     expect(api.update).toHaveBeenCalledWith(4, { status: 'active' })
+  })
+
+  it('test_deleting_asks_first_then_removes_the_row', async () => {
+    const { root, settle } = await open()
+
+    ;(rows(root)[1] as HTMLElement).click()
+    await choose('Delete')
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="confirm.yes"]')).not.toBeNull()
+    )
+    await vi.waitFor(() => expect(text(document, 'app-confirm-sheet h2')).toBe('Delete Telco One?'))
+    // Detected: it may be found again, "Not a bill" keeps it away.
+    expect(text(document, '[data-testid="confirm.body"]')).toContain('Not a bill')
+    document.querySelector<HTMLButtonElement>('[data-testid="confirm.yes"]')?.click()
+    await settle()
+
+    await vi.waitFor(() => expect(api.remove).toHaveBeenCalledWith(2))
+    await vi.waitFor(() =>
+      expect(rows(root).map((row) => row.getAttribute('data-id'))).toEqual(['1'])
+    )
+  })
+
+  it('test_declining_the_delete_keeps_the_item', async () => {
+    const manual = aRecurringItem({ id: 7, payee: 'Pulse Gym', source: 'manual', occurrences: 0 })
+    const { root, settle } = await open([aRecurringItem(), manual])
+
+    ;(rows(root)[1] as HTMLElement).click()
+    await choose('Delete')
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="confirm.no"]')).not.toBeNull()
+    )
+    // Typed by hand: nothing brings it back.
+    await vi.waitFor(() =>
+      expect(text(document, '[data-testid="confirm.body"]')).toContain('Its payments stay')
+    )
+    expect(text(document, '[data-testid="confirm.body"]')).not.toContain('Not a bill')
+    document.querySelector<HTMLButtonElement>('[data-testid="confirm.no"]')?.click()
+    await settle()
+
+    expect(api.remove).not.toHaveBeenCalled()
+    expect(rows(root)).toHaveLength(2)
+  })
+
+  it('test_a_yearly_bill_seen_twice_asks_to_be_checked', async () => {
+    const insurance = aRecurringItem({
+      id: 8,
+      payee: 'Shield Insurance',
+      cadence: 'yearly',
+      occurrences: 2,
+      confidence: 'low',
+      nextExpectedDate: '2027-10-02',
+      categoryId: null,
+    })
+    const { root } = await open([insurance])
+
+    await vi.waitFor(() =>
+      expect(text(rows(root)[0], '[data-testid="recurring.meta"]')).toBe(
+        'Yearly · Next 2 Oct · No category · Seen twice: check it'
+      )
+    )
   })
 
   it('test_editing_sends_only_the_amount_cadence_and_person_that_changed', async () => {
@@ -279,6 +339,48 @@ describe('RecurringPage', () => {
         paidByUserId: null,
       })
     )
+  })
+
+  it('test_a_typed_item_is_linked_to_a_merchant_paid_lately_from_its_edit_sheet', async () => {
+    const typed = aRecurringItem({
+      id: 6,
+      payee: 'Rent',
+      merchantKey: 'rent',
+      source: 'manual',
+      occurrences: 0,
+      lastPaidDate: null,
+    })
+    const { root, settle } = await open([typed])
+
+    ;(rows(root)[0] as HTMLElement).click()
+    await choose('Edit')
+    // Its name is in the bank's merchant: offered to link, never linked without asking.
+    await vi.waitFor(() =>
+      expect(sheet().querySelectorAll('[data-testid="recurring.sheet.suggestion"]')).toHaveLength(1)
+    )
+    expect(text(sheet(), '[data-testid="recurring.sheet.suggestions"]')).toContain(
+      'Is it one of these?'
+    )
+    sheet().querySelector<HTMLButtonElement>('[data-testid="recurring.sheet.suggestion"]')?.click()
+    await settle()
+    expect(text(sheet(), '[data-testid="recurring.sheet.linked"]')).toContain('Linked to Rent')
+    sheet().querySelector<HTMLButtonElement>('[data-testid="recurring.sheet.save"]')?.click()
+
+    await vi.waitFor(() =>
+      expect(api.update).toHaveBeenCalledWith(6, { merchantKey: 'rent harbour lettings' })
+    )
+  })
+
+  it('test_a_detected_item_offers_no_merchant_to_link', async () => {
+    const { root, settle } = await open()
+
+    ;(rows(root)[0] as HTMLElement).click()
+    await choose('Edit')
+    await vi.waitFor(() => expect(sheet().textContent).toContain('Edit Harbour Lettings'))
+    await settle()
+
+    expect(api.merchants).not.toHaveBeenCalled()
+    expect(sheet().querySelector('[data-testid="recurring.sheet.suggestions"]')).toBeNull()
   })
 
   it('test_an_item_paused_by_detection_says_since_when_nothing_was_paid', async () => {
