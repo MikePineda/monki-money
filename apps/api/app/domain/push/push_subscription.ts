@@ -73,3 +73,15 @@ export function isAuthSecret(value: string): boolean {
   const bytes = base64UrlBytes(value)
   return bytes !== null && bytes.length === AUTH_SECRET_BYTES
 }
+
+/**
+ * Failed sends in a row (anything but a 404/410, which deletes at once)
+ * after which a subscription is dropped: a device that refuses this many
+ * pushes is gone in all but name (an uninstalled app, a reset browser).
+ */
+export const MAX_CONSECUTIVE_FAILURES = 10
+
+/** Whether a subscription with this many failed sends in a row should go. */
+export function isDeadDevice(failures: number): boolean {
+  return failures >= MAX_CONSECUTIVE_FAILURES
+}

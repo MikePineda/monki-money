@@ -261,6 +261,30 @@ test.group('Daily reminder push', () => {
     assert.deepEqual(await runColumn(fixture.owner.id, (run) => run.outcome), ['skipped:no-device'])
   })
 
+  test('test_a_subscription_is_dropped_after_ten_failures', async ({ assert, cleanup }) => {
+    const push = fakePush(cleanup)
+    const fixture = await reminded()
+    await fixture.phone.merge({ failures: 8 }).save()
+    const tablet = await subscribeDevice(fixture.owner, fixture.household, { failures: 2 })
+    const rejected: PushDelivery = {
+      status: 'failed',
+      error: 'E_PUSH_REJECTED: 403',
+      statusCode: 403,
+    }
+    push.answer(fixture.phone.endpoint, rejected).answer(tablet.endpoint, rejected)
+    const job = await app.container.make(DailyReminderJob)
+
+    await tickAt(job, EVENING)
+    await fixture.phone.refresh()
+    assert.equal(fixture.phone.failures, 9, 'nine in a row: kept')
+
+    await tickAt(job, EVENING.plus({ minutes: 75 }))
+
+    assert.isNull(await PushSubscription.find(fixture.phone.id), 'the tenth in a row drops it')
+    await tablet.refresh()
+    assert.equal(tablet.failures, 4)
+  })
+
   test('test_a_failed_push_is_retried_an_hour_later_unless_something_was_logged', async ({
     assert,
     cleanup,
