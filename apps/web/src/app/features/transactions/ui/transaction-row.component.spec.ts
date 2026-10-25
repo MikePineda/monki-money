@@ -5,7 +5,7 @@ import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-test
 import { aCategoryTree, aTransaction, aTransferPair } from '../../../../testing/ledger-fixtures'
 import type { Transaction } from '../../../core/api/api-types'
 import { groupByDay } from '../../../domain/transaction-list'
-import { TransactionRowComponent } from './transaction-row.component'
+import { TransactionRowComponent, type RowSelection } from './transaction-row.component'
 import { TransactionRowHarness } from './transaction-row.harness'
 import { rowView, type RowContext, type TransactionRowView } from './transaction-row.view'
 
@@ -38,13 +38,14 @@ function views(rows: Transaction[]): TransactionRowView[] {
   imports: [TransactionRowComponent],
   template: `<div role="list">
     @for (view of views(); track view.key) {
-      <app-transaction-row [view]="view" (opened)="opened.set(view.id)" />
+      <app-transaction-row [view]="view" [selection]="selection()" (opened)="opened.set(view.id)" />
     }
   </div>`,
 })
 class Host {
   readonly views = signal<TransactionRowView[]>([])
   readonly opened = signal<number | null>(null)
+  readonly selection = signal<RowSelection>('none')
 }
 
 describe('TransactionRowComponent', () => {
@@ -135,5 +136,27 @@ describe('TransactionRowComponent', () => {
     await rows[0]?.click()
 
     expect(fixture.componentInstance.opened()).toBe(42)
+  })
+
+  it('test_while_selecting_the_square_becomes_a_checkbox', async () => {
+    const { fixture } = await render([aTransaction({ payee: 'Corner Grocer', categoryId: 20 })])
+    const element = fixture.nativeElement as HTMLElement
+    const button = () => element.querySelector('[data-testid="transactions.row"]') as HTMLElement
+
+    expect(button().getAttribute('aria-pressed')).toBeNull()
+
+    fixture.componentInstance.selection.set('unselected')
+    await fixture.whenStable()
+    expect(button().getAttribute('aria-pressed')).toBe('false')
+    expect(button().querySelector('svg[data-icon]')?.getAttribute('data-icon')).toBe('check')
+
+    fixture.componentInstance.selection.set('selected')
+    await fixture.whenStable()
+    expect(button().getAttribute('aria-pressed')).toBe('true')
+
+    fixture.componentInstance.selection.set('unavailable')
+    await fixture.whenStable()
+    expect(button().getAttribute('aria-pressed')).toBeNull()
+    expect(button().getAttribute('aria-disabled')).toBe('true')
   })
 })

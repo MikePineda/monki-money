@@ -306,7 +306,7 @@ function capitalize(text: string): string {
 
     @if (selecting()) {
       <app-bulk-bar
-        style="z-index: 30"
+        class="z-30!"
         data-testid="transactions.bulk"
         [countLabel]="selectedLabel()"
         [clearLabel]="'transactions.select.clear' | transloco"
