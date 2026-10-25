@@ -114,6 +114,22 @@ describe('HouseholdDirectory', () => {
     expect(directory.activeAccounts().map((account) => account.id)).toEqual([1])
   })
 
+  it('test_a_load_in_flight_at_logout_never_refills_the_previous_households_accounts', async () => {
+    const directory = setup([you, partner])
+    let answer: (rows: unknown) => void = () => undefined
+    accounts.list.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
+    const inFlight = directory.load()
+
+    for (const hook of clearHooks) hook()
+    answer([anAccount({ id: 9, name: 'Previous household' })])
+    await inFlight
+
+    expect(directory.accounts()).toEqual([])
+    expect(directory.status()).toBe('idle')
+    await directory.load()
+    expect(directory.activeAccounts().map((account) => account.id)).toEqual([1])
+  })
+
   it('test_logout_forgets_the_household', async () => {
     const directory = setup([you, partner])
     await directory.load()
