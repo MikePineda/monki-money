@@ -30,6 +30,7 @@ export interface TransferInput {
   date: string
   amountCents: number
   memo?: string | null
+  tags?: string[]
 }
 
 /**
