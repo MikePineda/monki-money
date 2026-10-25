@@ -15,7 +15,12 @@ test.group('Notification preferences', () => {
 
     response.assertStatus(200)
     response.assertBody({
-      data: { summaryReady: true, dailyReminder: false, reminderTime: '20:00', reminderWeekdays: EVERY_DAY },
+      data: {
+        summaryReady: true,
+        dailyReminder: false,
+        reminderTime: '20:00',
+        reminderWeekdays: EVERY_DAY,
+      },
     })
     assert.isNull(
       await UserNotificationSetting.findBy('user_id', owner.id),
@@ -31,13 +36,27 @@ test.group('Notification preferences', () => {
       .json({ dailyReminder: true, reminderTime: '21:30' })
       .actingAs(owner)
     first.assertStatus(200)
-    first.assertBody({ data: { summaryReady: true, dailyReminder: true, reminderTime: '21:30', reminderWeekdays: EVERY_DAY } })
+    first.assertBody({
+      data: {
+        summaryReady: true,
+        dailyReminder: true,
+        reminderTime: '21:30',
+        reminderWeekdays: EVERY_DAY,
+      },
+    })
 
     const second = await client
       .patch('/api/v1/me/notifications')
       .json({ summaryReady: false })
       .actingAs(owner)
-    second.assertBody({ data: { summaryReady: false, dailyReminder: true, reminderTime: '21:30', reminderWeekdays: EVERY_DAY } })
+    second.assertBody({
+      data: {
+        summaryReady: false,
+        dailyReminder: true,
+        reminderTime: '21:30',
+        reminderWeekdays: EVERY_DAY,
+      },
+    })
 
     const shown = await client.get('/api/v1/me/notifications').actingAs(owner)
     shown.assertBody(second.body())
@@ -51,7 +70,12 @@ test.group('Notification preferences', () => {
 
     response.assertStatus(200)
     response.assertBody({
-      data: { summaryReady: true, dailyReminder: false, reminderTime: '20:00', reminderWeekdays: EVERY_DAY },
+      data: {
+        summaryReady: true,
+        dailyReminder: false,
+        reminderTime: '20:00',
+        reminderWeekdays: EVERY_DAY,
+      },
     })
   })
 
@@ -103,7 +127,16 @@ test.group('Notification preferences', () => {
   }) => {
     const { owner } = await createHousehold()
 
-    for (const value of [[], [0], [8], [1, 1], ['1'], [1.5], 'weekdays', [1, 2, 3, 4, 5, 6, 7, 1]]) {
+    for (const value of [
+      [],
+      [0],
+      [8],
+      [1, 1],
+      ['1'],
+      [1.5],
+      'weekdays',
+      [1, 2, 3, 4, 5, 6, 7, 1],
+    ]) {
       const response = await client
         .patch('/api/v1/me/notifications')
         .json({ reminderWeekdays: value })
@@ -151,7 +184,12 @@ test.group('Notification preferences', () => {
 
     const partners = await client.get('/api/v1/me/notifications').actingAs(member)
     partners.assertBody({
-      data: { summaryReady: true, dailyReminder: false, reminderTime: '20:00', reminderWeekdays: EVERY_DAY },
+      data: {
+        summaryReady: true,
+        dailyReminder: false,
+        reminderTime: '20:00',
+        reminderWeekdays: EVERY_DAY,
+      },
     })
   })
 
