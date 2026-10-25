@@ -25,7 +25,7 @@ import {
   type TransferInput,
 } from '../../core/ledger/transactions.api'
 import { MonthStore } from '../../core/month/month.store'
-import { OutboxStore } from '../../core/outbox/outbox.store'
+import { OutboxStore, type SyncedEntry } from '../../core/outbox/outbox.store'
 import { HOUSEHOLD_TIME_ZONE } from '../../core/platform/time-zone.token'
 import { todayIn } from '../../domain/month'
 import { enqueue, type OutboxEntry, type OutboxItem } from '../../domain/outbox'
@@ -62,7 +62,10 @@ describe('QuickAddPage', () => {
     release: ReturnType<typeof vi.fn>
     replace: ReturnType<typeof vi.fn<(id: string, item: OutboxItem) => Promise<void>>>
     undo: ReturnType<typeof vi.fn<(id: string) => Promise<'removed' | 'missing'>>>
+    onSynced: ReturnType<typeof vi.fn<(listener: (synced: SyncedEntry) => void) => () => void>>
   }
+  /** What quick add listens with for entries the outbox syncs (null when nobody listens). */
+  let syncedListener: ((synced: SyncedEntry) => void) | null = null
   /** Entries the fake outbox holds (for editing a queued entry). */
   let queued: OutboxEntry[] = []
 
@@ -127,6 +130,10 @@ describe('QuickAddPage', () => {
       undo: vi.fn(async (id: string) => {
         entries.update((list) => list.filter((entry) => entry.id !== id))
         return 'removed' as const
+      }),
+      onSynced: vi.fn((listener: (synced: SyncedEntry) => void) => {
+        syncedListener = listener
+        return () => (syncedListener = null)
       }),
     }
     TestBed.configureTestingModule({
@@ -200,6 +207,7 @@ describe('QuickAddPage', () => {
   afterEach(() => {
     localStorage.clear()
     queued = []
+    syncedListener = null
     vi.restoreAllMocks()
   })
 
@@ -491,6 +499,92 @@ describe('QuickAddPage', () => {
     ]
     expect(tiles[0]?.getAttribute('data-category')).toBe('20')
     expect(harness.routeDebugElement?.injector.get(QuickAddStore).payees()).toEqual(['Bakery'])
+  })
+
+  it('test_an_entry_that_syncs_while_quick_add_is_open_keeps_its_ranking', async () => {
+    queued = enqueue(
+      [],
+      {
+        kind: 'transaction',
+        payload: {
+          clientId: '00000000-0000-4000-8000-000000000046',
+          kind: 'expense',
+          accountId: 1,
+          date: todayIn(TZ),
+          amountCents: 850,
+          categoryId: 20,
+          payee: 'Bakery',
+          description: null,
+          paidByUserId: 1,
+          isPrivate: false,
+          tags: [],
+        },
+      },
+      NOW
+    )
+    const { harness } = await open('/add', someSuggestions(), { suggestionsFail: true })
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    expect(store?.payees()).toEqual(['Bakery'])
+
+    // The outbox syncs it: it leaves the queue and comes back as the row it became.
+    const [entry] = outbox.entries()
+    outbox.entries.set([])
+    syncedListener?.({
+      entry: entry!,
+      rows: [aTransaction({ id: 900, date: todayIn(TZ), categoryId: 20, payee: 'Bakery' })],
+    })
+    await settle(harness)
+
+    expect(store?.payees()).toEqual(['Bakery'])
+    expect(store?.categoryTiles()[0]?.category.id).toBe(20)
+  })
+
+  it('test_a_synced_transfer_ranks_its_route_and_leaving_stops_listening', async () => {
+    const { harness } = await open()
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    expect(store?.presets().map((pair) => [pair.fromAccountId, pair.toAccountId])).toEqual([])
+
+    syncedListener?.({
+      entry: enqueue(
+        [],
+        {
+          kind: 'transfer',
+          payload: {
+            clientId: '00000000-0000-4000-8000-000000000047',
+            fromAccountId: 2,
+            toAccountId: 1,
+            date: todayIn(TZ),
+            amountCents: 700,
+            memo: null,
+            tags: [],
+          },
+        },
+        NOW
+      )[0]!,
+      rows: [
+        aTransaction({
+          id: 901,
+          kind: 'transfer',
+          transferId: 88,
+          accountId: 2,
+          amountCents: -700,
+          date: todayIn(TZ),
+        }),
+        aTransaction({
+          id: 902,
+          kind: 'transfer',
+          transferId: 88,
+          accountId: 1,
+          amountCents: 700,
+          date: todayIn(TZ),
+        }),
+      ],
+    })
+    await settle(harness)
+    expect(store?.presets().map((pair) => [pair.fromAccountId, pair.toAccountId])).toEqual([[2, 1]])
+
+    harness.fixture.destroy()
+    expect(syncedListener).toBeNull()
   })
 
   it('test_a_queued_entry_adds_to_the_server_ranking', async () => {
