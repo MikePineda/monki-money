@@ -20,6 +20,7 @@ assert {
 
 docs {
   `auth.logout`: 204, ends this session only (other devices stay logged in).
-  Needs `X-XSRF-TOKEN` like every write. Always the last request, so a smoke
-  run never leaves a session behind.
+  Needs `X-XSRF-TOKEN` like every write. Always the last request of the smoke
+  tier, so a smoke run never leaves a session behind (the full tier logs
+  in again and ends with `logout-all`).
 }

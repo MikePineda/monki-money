@@ -1,0 +1,26 @@
+meta {
+  name: Remove the push subscription
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/push/subscriptions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/bruno-{{runId}}"
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `push.subscriptions.destroy`: `{ endpoint }` in the body (a capability URL:
+  never in the path) → 204.
+}

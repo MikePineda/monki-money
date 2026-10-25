@@ -1,0 +1,63 @@
+meta {
+  name: Create a transfer
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transfers
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": "{{transferClientId}}",
+    "fromAccountId": {{accountAId}},
+    "toAccountId": {{accountBId}},
+    "date": "{{today}}",
+    "amountCents": 5000,
+    "memo": "Bruno transfer {{runId}}",
+    "tags": ["bruno-{{runId}}"]
+  }
+}
+
+script:pre-request {
+  const uuid = () =>
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+    })
+  bru.setVar('transferClientId', uuid())
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('transferId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.amountCents: eq 5000
+  res.body.data.legs.length: eq 2
+}
+
+tests {
+  test('writes the outgoing leg negative and tags both legs', () => {
+    const out = res.body.data.legs.find((leg) => leg.accountId === bru.getVar('accountAId'))
+    const into = res.body.data.legs.find((leg) => leg.accountId === bru.getVar('accountBId'))
+    expect(out.amountCents).to.equal(-5000)
+    expect(into.amountCents).to.equal(5000)
+    for (const leg of res.body.data.legs) {
+      expect(leg.kind).to.equal('transfer')
+      expect(leg.tags).to.deep.equal([`bruno-${bru.getVar('runId')}`])
+    }
+  })
+}
+
+docs {
+  `transfers.store`: `{ clientId?, fromAccountId, toAccountId, date,
+  amountCents > 0, memo?, tags? }` → 201 with both legs (`Transaction[2]`).
+  Same account → 422 `toAccountId`/`sameAccount`.
+}

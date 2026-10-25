@@ -1,0 +1,27 @@
+meta {
+  name: Rows to decide
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/imports/{{confirmImportId}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const open = res.body.data.rows.filter((row) => !row.confirmedAt).map((row) => row.id)
+    bru.setVar('confirmRowIds', JSON.stringify(open))
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.status: eq staged
+}
+
+docs {
+  `imports.show` of the second batch: the rows the confirm decides.
+}

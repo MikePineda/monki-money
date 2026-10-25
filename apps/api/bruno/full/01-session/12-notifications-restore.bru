@@ -1,0 +1,26 @@
+meta {
+  name: Restore notification settings
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me/notifications
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reminderTime": "{{reminderTimeBefore}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.reminderTime: eq {{reminderTimeBefore}}
+}
+
+docs {
+  `me.notifications.update` again: puts the reminder time back.
+}

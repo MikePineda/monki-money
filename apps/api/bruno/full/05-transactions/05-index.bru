@@ -1,0 +1,37 @@
+meta {
+  name: Transactions (month and account)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/transactions?month={{month}}&accountId={{accountAId}}&perPage=10
+  body: none
+  auth: none
+}
+
+params:query {
+  month: {{month}}
+  accountId: {{accountAId}}
+  perPage: 10
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+  res.body.metadata.perPage: eq 10
+}
+
+tests {
+  test('finds the expense in its month and account', () => {
+    expect(res.body.data.map((row) => row.id)).to.include(bru.getVar('expenseId'))
+    res.body.data.forEach((row) => expect(row.accountId).to.equal(bru.getVar('accountAId')))
+  })
+}
+
+docs {
+  `transactions.index`: paginated `{ data, metadata }`. Filters: `month`,
+  `from`/`to`, `accountId[]`, `categoryId[]`, `uncategorized`,
+  `paidByUserId`, `paidBy=joint`, `kind`, `status`, `needsReview`, `q`,
+  `tag`, `page`, `perPage` (<= 100), `sort`.
+}

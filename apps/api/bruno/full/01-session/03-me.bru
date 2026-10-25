@@ -1,0 +1,38 @@
+meta {
+  name: Current session
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('userFullName', res.body.data.user.fullName)
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.user.id: eq {{userId}}
+  res.body.data.membership.role: eq owner
+  res.body.data.entitlements.maxAccounts: isNumber
+}
+
+tests {
+  test('lists the members with their display names and colours', () => {
+    const me = res.body.data.members.find((member) => member.id === bru.getVar('userId'))
+    expect(me).to.be.an('object')
+    expect(me.displayName).to.be.a('string')
+    expect(me.role).to.equal('owner')
+  })
+}
+
+docs {
+  `auth.me`: the SPA's boot call. Saves the user's `fullName` so the
+  profile update can write it back unchanged.
+}

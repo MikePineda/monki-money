@@ -1,0 +1,32 @@
+meta {
+  name: Candidates after the deletion
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/payslips/candidates?accountId={{accountBId}}
+  body: none
+  auth: none
+}
+
+params:query {
+  accountId: {{accountBId}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('offers the kept transfer again', () => {
+    const candidate = res.body.data.find((entry) => entry.transferId === bru.getVar('payslipTransferId'))
+    expect(candidate.amountCents).to.equal(160000)
+    expect(candidate.toAccountId).to.equal(bru.getVar('accountAId'))
+  })
+}
+
+docs {
+  `payslips.candidates` again: the transfer of the deleted payslip is a
+  candidate again.
+}

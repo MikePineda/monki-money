@@ -1,0 +1,23 @@
+meta {
+  name: Classify with the model
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/imports/{{importId}}/classify
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 202
+  res.body.data.id: eq {{importId}}
+  res.body.data.classifying: isBoolean
+}
+
+docs {
+  `imports.classify`: 202 `ImportBatch`; the model suggests categories for
+  the open rows (with `QUEUE_DRIVER=sync` the run already ended). A model
+  failure keeps what was answered and is not an error.
+}

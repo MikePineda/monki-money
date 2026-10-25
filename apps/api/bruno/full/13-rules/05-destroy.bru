@@ -1,0 +1,19 @@
+meta {
+  name: Delete the rule
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/rules/{{ruleId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `rules.destroy`: 204.
+}

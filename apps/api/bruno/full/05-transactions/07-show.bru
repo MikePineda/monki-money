@@ -1,0 +1,22 @@
+meta {
+  name: Transaction
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/transactions/{{expenseId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{expenseId}}
+  res.body.data.payee: eq Bruno Market {{runId}}
+  res.body.data.isMasked: eq false
+}
+
+docs {
+  `transactions.show`: one `Transaction` (masked for the partner when private).
+}

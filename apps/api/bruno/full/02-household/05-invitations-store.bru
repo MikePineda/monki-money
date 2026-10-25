@@ -1,0 +1,43 @@
+meta {
+  name: Invite a member
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/invitations
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "bruno-invitee-{{runId}}@example.test",
+    "role": "member"
+  }
+}
+
+script:post-response {
+  // A full household (the E2E one has its two members) answers 402: the next
+  // requests then aim at an id that does not exist and expect 404.
+  bru.setVar('invitationId', res.status === 201 ? res.body.data.id : 2147483647)
+}
+
+tests {
+  test('invites, or answers 402 while the household is full', () => {
+    if (res.status === 402) {
+      expect(res.body.code).to.equal('E_MEMBER_LIMIT_REACHED')
+      return
+    }
+    expect(res.status).to.equal(201)
+    expect(res.body.data.email).to.equal(`bruno-invitee-${bru.getVar('runId')}@example.test`)
+    expect(res.body.data.expiresAt).to.be.a('string')
+    expect(res.body.data).to.not.have.property('token')
+  })
+}
+
+docs {
+  `household.invitations.store` (owner): `{ email, role? }` → 201 (never the
+  link: it is only emailed), 7 days. 402 `E_MEMBER_LIMIT_REACHED` when the
+  household is full; 10 mails an hour per household.
+}

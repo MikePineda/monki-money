@@ -1,0 +1,36 @@
+meta {
+  name: Transfer ownership (to self, refused)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/transfer-ownership
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "userId": {{userId}},
+    "password": "not-checked-for-self"
+  }
+}
+
+assert {
+  res.status: eq 422
+}
+
+tests {
+  test('refuses the owner as the new owner before checking the password', () => {
+    expect(res.body.errors[0].field).to.equal('userId')
+    expect(res.body.errors[0].rule).to.equal('self')
+  })
+}
+
+docs {
+  `household.transferOwnership` (owner): `{ userId, password }` →
+  `Member[]` with the new roles. Aimed at the caller: 422 `userId`/`self`,
+  checked before the password (so it never counts toward the password
+  re-check limit).
+}

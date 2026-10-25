@@ -1,0 +1,55 @@
+meta {
+  name: Record a payslip
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/payslips
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "accountId": {{accountBId}},
+    "date": "{{today}}",
+    "userId": {{userId}},
+    "grossCents": 200000,
+    "deductions": [
+      { "categoryId": {{taxesId}}, "amountCents": 40000, "memo": "PAYG" }
+    ],
+    "toAccountId": {{accountAId}},
+    "memo": "Bruno payslip {{runId}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('payslipId', res.body.data.id)
+    bru.setVar('payslipTransferId', res.body.data.transferId)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.grossCents: eq 200000
+  res.body.data.deductionsCents: eq 40000
+  res.body.data.netCents: eq 160000
+  res.body.data.transfer.amountCents: eq 160000
+  res.body.data.transfer.toAccountId: eq {{accountAId}}
+}
+
+tests {
+  test('writes the gross positive first, then the deductions negative', () => {
+    const amounts = res.body.data.lines.map((line) => line.amountCents)
+    expect(amounts).to.deep.equal([200000, -40000])
+  })
+}
+
+docs {
+  `payslips.store`: `{ clientId?, accountId, date, userId?, grossCents,
+  deductions[{ categoryId, amountCents, memo? }] (0 to 3), transferId? |
+  toAccountId?, memo? }` → 201 `Payslip`. `toAccountId` creates the transfer
+  of the net; gross - deductions = net = transfer amount.
+}

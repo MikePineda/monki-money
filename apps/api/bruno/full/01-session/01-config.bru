@@ -1,0 +1,40 @@
+meta {
+  name: Public config (run setup)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/config
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Run-wide values: every name the run creates carries runId, so runs never
+  // collide and leftovers of an aborted run are easy to spot ("Bruno ...").
+  const now = new Date()
+  const runId = now.getTime().toString(36)
+  bru.setVar('runId', runId)
+  // Letters only (merchant keys are lowercase words): digits become a-j.
+  bru.setVar('runWord', runId.replace(/[0-9]/g, (digit) => 'abcdefghij'[Number(digit)]))
+  // UTC dates: never ahead of the household's Australian time zone.
+  bru.setVar('today', now.toISOString().slice(0, 10))
+  bru.setVar('month', now.toISOString().slice(0, 7))
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.registrationOpen: isBoolean
+}
+
+tests {
+  test('hands out the XSRF-TOKEN cookie', () => {
+    expect(bru.getVar('xsrfToken')).to.be.a('string').and.not.be.empty
+  })
+}
+
+docs {
+  `config.show` again: the CSRF handshake for the full tier, and the run's
+  variables (`runId`, `runWord`, `today`, `month`).
+}

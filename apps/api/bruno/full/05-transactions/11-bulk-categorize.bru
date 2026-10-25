@@ -1,0 +1,30 @@
+meta {
+  name: Bulk categorize
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions/bulk-categorize
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "ids": [{{quickId}}],
+    "categoryId": {{groceriesId}}
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.updated: eq 1
+  res.body.data.skipped: eq 0
+}
+
+docs {
+  `transactions.bulkCategorize`: `{ ids[], categoryId | null }` →
+  `{ updated, skipped }` (transfer legs, split rows and the partner's private
+  rows are skipped).
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Apply the rule
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/rules/{{ruleId}}/apply
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.updated: eq 0
+}
+
+docs {
+  `rules.apply`: `{ updated }`, the transactions still in triage
+  (`needsReview`) it matches get its category. Nothing of the run is in triage.
+}

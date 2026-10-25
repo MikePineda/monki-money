@@ -1,0 +1,26 @@
+meta {
+  name: Reorder categories
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/api/v1/categories/reorder
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "ids": [{{categoryId}}]
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `categories.reorder`: `{ ids }` → 204 (`sortOrder` = position). Only the
+  run's own category moves.
+}

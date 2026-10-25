@@ -1,0 +1,19 @@
+meta {
+  name: Delete the payslip
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/payslips/{{payslipId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `payslips.destroy`: 204; the gross and deduction rows go, the transfer stays.
+}

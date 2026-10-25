@@ -27,6 +27,8 @@
     "verify:quick": "turbo run lint typecheck test build",
     "smoke:local": "bash scripts/smoke.sh local",
     "smoke:prod": "bash scripts/smoke.sh prod",
+    "smoke:e2e": "bash scripts/smoke.sh e2e",
+    "bruno:coverage": "node scripts/bruno-coverage.mjs",
     "prepare": "node scripts/install-git-hooks.mjs"
   },
   "devDependencies": {

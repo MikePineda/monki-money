@@ -1,0 +1,19 @@
+meta {
+  name: Delete the payslip transfer
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/transfers/{{payslipTransferId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `transfers.destroy`: 204, removes both legs.
+}

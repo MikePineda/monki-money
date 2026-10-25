@@ -1,0 +1,36 @@
+meta {
+  name: Create the expense again (replay)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": "{{expenseClientId}}",
+    "accountId": {{accountAId}},
+    "kind": "expense",
+    "date": "{{today}}",
+    "amountCents": 4250,
+    "categoryId": {{groceriesId}},
+    "payee": "Bruno Market {{runId}}",
+    "description": "Bruno run {{runId}}",
+    "paidByUserId": {{userId}},
+    "tags": ["bruno-{{runId}}"]
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{expenseId}}
+}
+
+docs {
+  `transactions.store` with the same `clientId`: 200 with the row the first
+  request created (an offline retry never duplicates).
+}

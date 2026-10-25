@@ -1,0 +1,40 @@
+meta {
+  name: Register a push subscription
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/push/subscriptions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/bruno-{{runId}}",
+    "expirationTime": null,
+    "keys": {
+      "p256dh": "BAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0A",
+      "auth": "oKGio6SlpqeoqaqrrK2urw"
+    }
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.id: isNumber
+  res.body.data.endpoint: eq https://fcm.googleapis.com/fcm/send/bruno-{{runId}}
+}
+
+tests {
+  test('never returns the keys', () => {
+    expect(res.body.data).to.not.have.property('keys')
+  })
+}
+
+docs {
+  `push.subscriptions.store`: `PushSubscription.toJSON()` of the browser
+  (`endpoint` on an allowed push host, `keys.p256dh` 65 bytes, `keys.auth` 16)
+  → 201 `PushSubscription` (never the keys).
+}

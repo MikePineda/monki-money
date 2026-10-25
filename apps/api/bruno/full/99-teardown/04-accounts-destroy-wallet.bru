@@ -1,0 +1,27 @@
+meta {
+  name: Delete the wallet
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/accounts/{{accountBId}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Nothing to clean up when the request that sets it did not run.
+  if (!bru.getVar('accountBId')) {
+    bru.runner.skipRequest()
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `accounts.destroy`: 204 once no transaction, transfer or goal uses it
+  (409 `E_ACCOUNT_IN_USE` otherwise).
+}

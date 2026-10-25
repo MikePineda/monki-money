@@ -1,0 +1,27 @@
+meta {
+  name: Update the group
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/category-groups/{{groupId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bruno group {{runId}} (renamed)",
+    "isHidden": false
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.name: eq Bruno group {{runId}} (renamed)
+}
+
+docs {
+  `category_groups.update`: `{ name?, isHidden? }`.
+}

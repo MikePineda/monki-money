@@ -1,0 +1,22 @@
+meta {
+  name: Revoke the invitation
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/household/invitations/{{invitationId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test('revokes it, or 404 when none was created', () => {
+    expect(res.status).to.equal(bru.getVar('invitationId') === 2147483647 ? 404 : 204)
+  })
+}
+
+docs {
+  `household.invitations.destroy` (owner): 204. Another household's id (or
+  an unknown one) answers 404, never 403.
+}

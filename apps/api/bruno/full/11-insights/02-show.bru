@@ -1,0 +1,29 @@
+meta {
+  name: Month insight
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/insights/{{month}}
+  body: none
+  auth: none
+}
+
+tests {
+  test('reads the stored insight, or 404 until one is generated', () => {
+    if (!bru.getVar('insightStored')) {
+      expect(res.status).to.equal(404)
+      expect(res.body.code).to.equal('E_ROW_NOT_FOUND')
+      return
+    }
+    expect(res.status).to.equal(200)
+    expect(res.body.data.month).to.equal(bru.getVar('month'))
+    expect(res.body.data.bodyMarkdown).to.be.a('string')
+  })
+}
+
+docs {
+  `insights.show`: the `Insight` in the request's locale; 404
+  `E_ROW_NOT_FOUND` until generated in that language.
+}

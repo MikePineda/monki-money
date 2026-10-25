@@ -1,0 +1,34 @@
+meta {
+  name: Create a category group
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/category-groups
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bruno group {{runId}}",
+    "kind": "expense"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('groupId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.kind: eq expense
+  res.body.data.isSystem: eq false
+}
+
+docs {
+  `category_groups.store`: `{ name, kind? }` → 201.
+}

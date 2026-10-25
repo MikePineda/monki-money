@@ -1,0 +1,19 @@
+meta {
+  name: Remove the card
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/accounts/{{accountAId}}/cards/{{cardId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `accounts.cards.destroy`: 204.
+}

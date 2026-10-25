@@ -1,0 +1,44 @@
+meta {
+  name: Sign up (validation error)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/signup
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "fullName": "",
+    "email": "not-an-email",
+    "password": "short"
+  }
+}
+
+tests {
+  test('answers 422 with one error per field, or 403 while registration is closed', () => {
+    if (res.status === 403) {
+      expect(res.body.code).to.equal('E_REGISTRATION_CLOSED')
+      return
+    }
+    expect(res.status).to.equal(422)
+    const fields = res.body.errors.map((error) => error.field)
+    expect(fields).to.include.members(['fullName', 'email', 'password'])
+    res.body.errors.forEach((error) => {
+      expect(error.rule).to.be.a('string')
+      expect(error.message).to.be.a('string')
+    })
+  })
+}
+
+docs {
+  `auth.signup`: `{ fullName, email, password (10+), locale?, householdName?,
+  turnstileToken? }` → 201 `{ user, household }`. Shown with an invalid body
+  so the run creates no account: 422 `{ errors: [{ field, rule, message }] }`
+  (the validation shape of every endpoint), or 403 `E_REGISTRATION_CLOSED`
+  before any validation when `REGISTRATION_OPEN=false`. Every attempt counts
+  toward 5 per minute per IP.
+}

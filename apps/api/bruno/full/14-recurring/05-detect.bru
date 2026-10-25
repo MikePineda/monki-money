@@ -1,0 +1,22 @@
+meta {
+  name: Detect recurring payments
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/recurring/detect
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.created: isNumber
+  res.body.data.updated: isNumber
+}
+
+docs {
+  `recurring.detect`: `{ created, updated }`. An idempotent upsert over the
+  last twelve months of expenses.
+}

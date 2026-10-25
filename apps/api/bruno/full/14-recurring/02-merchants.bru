@@ -1,0 +1,21 @@
+meta {
+  name: Untracked merchants
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/recurring/merchants
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+docs {
+  `recurring.merchants`: merchants paid in the last 120 days that no item
+  tracks (`merchantKey`, `payee`, `amountCents`, `lastPaidDate`, `count`).
+}

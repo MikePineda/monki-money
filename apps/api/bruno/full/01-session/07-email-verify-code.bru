@@ -1,0 +1,29 @@
+meta {
+  name: Verify email code (already verified)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/email/verify-code
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "000000"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.verified: eq true
+}
+
+docs {
+  `auth.email.verifyCode`: `{ code }` (6 digits from the mail) →
+  `{ verified: true }`. Idempotent once verified, so the verified smoke user
+  gets 200 whatever the code; wrong codes for an unverified user answer 422
+  `code`/`verificationCode.invalid`.
+}

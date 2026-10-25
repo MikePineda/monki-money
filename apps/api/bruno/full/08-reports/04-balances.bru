@@ -1,0 +1,30 @@
+meta {
+  name: Balances
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/balances
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.accounts: isArray
+  res.body.data.totals.AUD.clearedBalanceCents: isNumber
+}
+
+tests {
+  test('nets the expense, the quick add and the transfer out of account A', () => {
+    const a = res.body.data.accounts.find((account) => account.accountId === bru.getVar('accountAId'))
+    // 1000.00 opening - 42.50 - 12.00 - 55.00 transfer = 890.50 available.
+    expect(a.availableBalanceCents).to.equal(100000 - 4250 - 1200 - 5500)
+  })
+}
+
+docs {
+  `reports.balances`: per account and per currency (never added up across
+  currencies).
+}

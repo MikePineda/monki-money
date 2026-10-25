@@ -1,0 +1,26 @@
+meta {
+  name: Update the account
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/accounts/{{accountAId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "institution": "Bruno Credit Union"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.institution: eq Bruno Credit Union
+}
+
+docs {
+  `accounts.update`: the fields of `store`, all optional.
+}

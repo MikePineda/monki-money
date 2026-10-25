@@ -1,0 +1,21 @@
+meta {
+  name: Restore the household (not pending)
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/restore
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 409
+  res.body.code: isString
+}
+
+docs {
+  `household.restore` (owner): the only household route open while the
+  household is pending deletion. An active household answers 409.
+}

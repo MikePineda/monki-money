@@ -1,0 +1,21 @@
+meta {
+  name: Cancel the import
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/imports/{{importId}}/cancel
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.status: eq cancelled
+}
+
+docs {
+  `imports.cancel`: `ImportBatch` (`cancelled`); the waiting rows are deleted
+  so the same file can be staged again. 409 once closed.
+}

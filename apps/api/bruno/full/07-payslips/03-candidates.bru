@@ -1,0 +1,31 @@
+meta {
+  name: Transfers a payslip could link
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/payslips/candidates?accountId={{accountBId}}
+  body: none
+  auth: none
+}
+
+params:query {
+  accountId: {{accountBId}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('leaves out the transfer the payslip already links', () => {
+    expect(res.body.data.map((candidate) => candidate.transferId)).to.not.include(bru.getVar('payslipTransferId'))
+  })
+}
+
+docs {
+  `payslips.candidates`: `?accountId=` (required) → transfers leaving the
+  account that no payslip links yet, newest first (at most 50).
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Pause it
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/recurring/{{recurringId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "paused"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.status: eq paused
+  res.body.data.pausedByDetection: eq false
+}
+
+docs {
+  `recurring.update`: any field of `store` but `merchantKey`, plus `status`
+  (pause, resume, dismiss). Every field sent is a person's edit detection keeps.
+}

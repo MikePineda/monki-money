@@ -1,0 +1,27 @@
+meta {
+  name: Update the category
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/categories/{{categoryId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bruno category {{runId}} (renamed)"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.name: eq Bruno category {{runId}} (renamed)
+}
+
+docs {
+  `categories.update`: renaming a system category makes it custom; the slug
+  never changes.
+}

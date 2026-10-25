@@ -1,0 +1,28 @@
+meta {
+  name: Members
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/household/members
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('lists the logged-in owner', () => {
+    const me = res.body.data.find((member) => member.userId === bru.getVar('userId'))
+    expect(me.role).to.equal('owner')
+    expect(me.email).to.be.a('string')
+  })
+}
+
+docs {
+  `household.members`: `Member[]` (`userId`, `fullName`, `email`, `role`, ...).
+}

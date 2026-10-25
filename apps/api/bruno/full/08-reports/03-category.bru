@@ -1,0 +1,28 @@
+meta {
+  name: Category report
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/category/{{groceriesId}}?months=3&month={{month}}
+  body: none
+  auth: none
+}
+
+params:query {
+  months: 3
+  month: {{month}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.categoryId: eq {{groceriesId}}
+  res.body.data.points.length: eq 3
+  res.body.data.totalCents: gte 4250
+}
+
+docs {
+  `reports.category`: `?months=6&month=` → `{ months[], categoryId, kind,
+  totalCents, averageCents, points[] }`.
+}

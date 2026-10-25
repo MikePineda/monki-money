@@ -1,0 +1,37 @@
+meta {
+  name: Upload a bank CSV
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/imports
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  file: @file(../tests/fixtures/nab/pending-then-posted.csv)
+  accountId: {{accountAId}}
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('importId', res.body.data[0].id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.length: eq 1
+  res.body.data[0].status: eq staged
+  res.body.data[0].accountId: eq {{accountAId}}
+  res.body.data[0].source: eq nab_csv
+  res.body.data[0].counts.rows: gt 0
+}
+
+docs {
+  `imports.store`: multipart `file` (the bank CSV, <= 2 MB) + optional
+  `accountId` (the account the file belongs to; remembers its bank number) →
+  201 `ImportBatch[]`, one per account number, staged without the model.
+}

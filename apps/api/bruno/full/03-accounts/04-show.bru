@@ -1,0 +1,21 @@
+meta {
+  name: Account
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/accounts/{{accountAId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{accountAId}}
+  res.body.data.name: eq Bruno everyday {{runId}}
+}
+
+docs {
+  `accounts.show`: one `Account` (404 for another household's id).
+}

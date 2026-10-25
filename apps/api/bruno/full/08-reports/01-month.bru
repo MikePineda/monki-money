@@ -1,0 +1,39 @@
+meta {
+  name: Month report
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/month?month={{month}}
+  body: none
+  auth: none
+}
+
+params:query {
+  month: {{month}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.month: eq {{month}}
+  res.body.data.expenseCents: gte 4250
+  res.body.data.byCategory: isArray
+  res.body.data.byPerson: isArray
+  res.body.data.topExpenses: isArray
+  res.body.data.committed.items: isArray
+}
+
+tests {
+  test('counts the run groceries under their category', () => {
+    const groceries = res.body.data.byCategory.find((line) => line.categoryId === bru.getVar('groceriesId'))
+    expect(groceries.amountCents).to.be.at.least(4250)
+    expect(res.body.data.previous).to.have.all.keys('incomeCents', 'expenseCents', 'netCents')
+  })
+}
+
+docs {
+  `reports.month`: `?month=YYYY-MM&paidByUserId=` → totals, `byGroup`,
+  `byCategory`, `byPerson`, `previous`, `topExpenses`, `insight` and
+  `committed` (recurring payments). Transfers never count.
+}

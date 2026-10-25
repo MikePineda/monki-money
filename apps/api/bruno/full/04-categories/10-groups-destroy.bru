@@ -1,0 +1,19 @@
+meta {
+  name: Delete the group
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/category-groups/{{groupId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `category_groups.destroy`: 204 once empty; 409 `E_GROUP_NOT_EMPTY` otherwise.
+}

@@ -1,0 +1,38 @@
+meta {
+  name: Accounts
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/accounts
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('accountOrder', JSON.stringify(res.body.data.map((account) => account.id)))
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('lists both new accounts with their balances', () => {
+    const ids = res.body.data.map((account) => account.id)
+    expect(ids).to.include.members([bru.getVar('accountAId'), bru.getVar('accountBId')])
+    res.body.data.forEach((account) => {
+      expect(account.cards).to.be.an('array')
+      expect(account.availableBalanceCents).to.be.a('number')
+    })
+  })
+}
+
+docs {
+  `accounts.index`: `Account[]` by `sortOrder`, with `cards`,
+  `clearedBalanceCents` and `availableBalanceCents`.
+}

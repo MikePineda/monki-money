@@ -1,0 +1,27 @@
+meta {
+  name: Update household (unchanged name)
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/household
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "{{householdName}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.name: eq {{householdName}}
+}
+
+docs {
+  `household.update` (owner): `{ name?, locale?, timezone? }`. Writes the
+  current name back.
+}

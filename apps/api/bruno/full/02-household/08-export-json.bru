@@ -1,0 +1,36 @@
+meta {
+  name: Export (JSON)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/household/export?format=json
+  body: none
+  auth: none
+}
+
+params:query {
+  format: json
+}
+
+assert {
+  res.status: eq 200
+  res.body.version: eq 2
+  res.body.household.id: eq {{householdId}}
+  res.body.transactions: isArray
+  res.body.accounts: isArray
+}
+
+tests {
+  test('is a download that is never cached', () => {
+    expect(res.getHeader('cache-control')).to.equal('no-store')
+    expect(res.getHeader('content-disposition')).to.match(/^attachment; filename="monkimoney-export-\d{4}-\d{2}-\d{2}\.json"$/)
+  })
+}
+
+docs {
+  `household.export` (owner): every table of the household, streamed
+  (`{ format, version: 2, exportedAt, household, <table>: [...] }`). No
+  secrets: password hashes, tokens and storage keys never leave.
+}

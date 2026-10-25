@@ -1,0 +1,31 @@
+meta {
+  name: Delete the household (validation error)
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/delete
+  body: json
+  auth: none
+}
+
+body:json {
+  {}
+}
+
+assert {
+  res.status: eq 422
+}
+
+tests {
+  test('needs the owner password', () => {
+    expect(res.body.errors[0].field).to.equal('password')
+  })
+}
+
+docs {
+  `household.delete` (owner): `{ password }` → `Household` pending deletion
+  (+30 days). Without the password: 422, nothing scheduled and no password
+  attempt counted.
+}

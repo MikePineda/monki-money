@@ -1,0 +1,30 @@
+meta {
+  name: Decide one row
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/imports/{{importId}}/rows/{{importRowId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "resolution": "ignored"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{importRowId}}
+  res.body.data.resolution: eq ignored
+  res.body.data.decidedAt: isString
+}
+
+docs {
+  `imports.rows.update`: `{ reset?, resolution?, categoryId?, splits?,
+  transferAccountId?, matchTransactionId?, paidByUserId?, payee?, learnRule? }`
+  → `ImportRow` (keys left out keep the proposal).
+}

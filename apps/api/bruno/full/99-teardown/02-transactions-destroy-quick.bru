@@ -1,0 +1,26 @@
+meta {
+  name: Delete the quick add
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/transactions/{{quickId}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Nothing to clean up when the request that sets it did not run.
+  if (!bru.getVar('quickId')) {
+    bru.runner.skipRequest()
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `transactions.destroy` of the quick add.
+}

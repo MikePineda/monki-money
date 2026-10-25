@@ -1,0 +1,33 @@
+meta {
+  name: Imports
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/imports?status=staged&perPage=5
+  body: none
+  auth: none
+}
+
+params:query {
+  status: staged
+  perPage: 5
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+  res.body.metadata.perPage: eq 5
+}
+
+tests {
+  test('lists the staged batch', () => {
+    expect(res.body.data.map((batch) => batch.id)).to.include(bru.getVar('importId'))
+  })
+}
+
+docs {
+  `imports.index`: paginated `ImportBatch[]`, newest first; `?status=`,
+  `page`, `perPage` (<= 100).
+}

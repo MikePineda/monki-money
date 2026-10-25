@@ -41,9 +41,12 @@ tests {
     expect(res.body.data.user.email).to.equal(bru.getProcessEnv('SMOKE_EMAIL').trim().toLowerCase())
   })
 
-  test('lands in the Smoke household, never a real one', () => {
-    // With --bail a failure here stops the run before any household read.
-    expect(res.body.data.household && res.body.data.household.name).to.equal('Smoke')
+  test('lands in the smoke household, never a real one', () => {
+    // Production always expects "Smoke"; local runs read `smokeHousehold`
+    // (E2E against the E2E stack). With --bail a failure here stops the run
+    // before any household read.
+    const expected = bru.getEnvName() === 'prod' ? 'Smoke' : bru.getEnvVar('smokeHousehold')
+    expect(res.body.data.household && res.body.data.household.name).to.equal(expected)
   })
 }
 
@@ -52,5 +55,6 @@ docs {
   fresh session cookie (`monkimoney_session`). Needs `X-XSRF-TOKEN` (see
   `03-config`). 5 failures per minute per IP + email, then 20 minutes
   blocked (429): a wrong `SMOKE_PASSWORD` in a retry loop locks the smoke
-  user out.
+  user out. Locally the expected household is the environment's
+  `smokeHousehold` (`--env-var smokeHousehold=E2E` against the E2E stack).
 }
