@@ -548,7 +548,7 @@ export class QuickAddStore {
       isPrivate: false,
       tags: [],
     }))
-    this.transfer.update((transfer) => ({ ...transfer, amountCents: 0, memo: '' }))
+    this.transfer.update((transfer) => ({ ...transfer, amountCents: 0, memo: '', tags: [] }))
   }
 
   /** "Undo" on the toast: deletes what was just saved. */

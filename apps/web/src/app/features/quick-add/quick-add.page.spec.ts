@@ -4,7 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
-import { tagsStoreStub } from '../../../testing/tag-fixtures'
+import { aTagSummary, tagsStoreStub } from '../../../testing/tag-fixtures'
 import { aCategoryTree, aTransaction } from '../../../testing/ledger-fixtures'
 import {
   anAccount,
@@ -15,6 +15,7 @@ import {
 } from '../../../testing/session-fixtures'
 import type { TransactionSuggestions } from '@monkimoney/shared'
 import type { Transaction } from '../../core/api/api-types'
+import type { TagSummary } from '../../core/ledger/tags.api'
 import { SessionStore } from '../../core/auth/session.store'
 import { AccountsApi } from '../../core/household/accounts.api'
 import { CategoriesApi } from '../../core/household/categories.api'
@@ -82,7 +83,7 @@ describe('QuickAddPage', () => {
   async function open(
     url = '/add',
     suggestions: TransactionSuggestions = someSuggestions(),
-    options: { suggestionsFail?: boolean } = {}
+    options: { suggestionsFail?: boolean; tags?: TagSummary[] } = {}
   ) {
     api = {
       list: vi.fn(async () => []),
@@ -141,7 +142,7 @@ describe('QuickAddPage', () => {
         ),
         { provide: TransactionsApi, useValue: api },
         { provide: MonthStore, useValue: months },
-        tagsStoreStub(),
+        tagsStoreStub(options.tags),
         { provide: OutboxStore, useValue: outbox },
         {
           provide: AccountsApi,
@@ -589,6 +590,7 @@ describe('QuickAddPage', () => {
         date: todayIn(TZ),
         amountCents: 200,
         memo: null,
+        tags: [],
       },
     })
   })
@@ -650,6 +652,7 @@ describe('QuickAddPage', () => {
         date: todayIn(TZ),
         amountCents: 700,
         memo: 'Back',
+        tags: ['Bali 2027'],
       },
     }
     queued = enqueue([], item, new Date())
@@ -659,6 +662,10 @@ describe('QuickAddPage', () => {
     expect(text(root, 'transactions.transfer.from')).toBe('Savings')
     expect(text(root, 'transactions.transfer.to')).toBe('Everyday')
     expect(text(root, 'quickAdd.save')).toBe('Save $7.00')
+    byTestId(root, 'transactions.transfer.detailsToggle').click()
+    await vi.waitFor(() =>
+      expect(root.querySelector('app-tags-field')?.textContent).toContain('Bali 2027')
+    )
   })
 
   it('test_leaving_an_edit_without_saving_releases_the_entry', async () => {
@@ -671,6 +678,7 @@ describe('QuickAddPage', () => {
         date: todayIn(TZ),
         amountCents: 700,
         memo: null,
+        tags: [],
       },
     }
     queued = enqueue([], item, new Date())
@@ -756,6 +764,55 @@ describe('QuickAddPage', () => {
       date: todayIn(TZ),
       amountCents: 200,
       memo: null,
+      tags: [],
+    })
+  })
+
+  /** Opens the transfer's details and taps the suggested tag. */
+  async function tagTransfer(root: HTMLElement, harness: RouterTestingHarness, tag: string) {
+    byTestId(root, 'transactions.transfer.detailsToggle').click()
+    await settle(harness)
+    const chip = [
+      ...byTestId(root, 'transactions.transfer.tagSuggestions').querySelectorAll('button'),
+    ].find((button) => button.textContent?.trim() === tag)
+    if (!chip) {
+      throw new Error(`No suggested tag ${tag}`)
+    }
+    chip.click()
+    await settle(harness)
+  }
+
+  it('test_a_transfer_takes_tags_and_saves_them_on_the_transfer', async () => {
+    const { root, loader, harness } = await open('/add', someSuggestions(), {
+      tags: [aTagSummary({ tag: 'Bali 2027' })],
+    })
+    await (await loader.getHarness(SegmentedControlHarness)).select('Transfer')
+    await tagTransfer(root, harness, 'Bali 2027')
+    await (await loader.getHarness(AmountKeypadHarness)).press('5', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.transfer.mock.calls[0]?.[0]).toMatchObject({ amountCents: 500, tags: ['Bali 2027'] })
+    // The next transfer starts untagged, like the next expense.
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    expect(store?.transfer().tags).toEqual([])
+  })
+
+  it('test_a_tagged_transfer_saved_offline_queues_its_tags', async () => {
+    const { root, loader, harness } = await open('/add', someSuggestions(), {
+      tags: [aTagSummary({ tag: 'Bali 2027' })],
+    })
+    goOffline()
+    await (await loader.getHarness(SegmentedControlHarness)).select('Transfer')
+    await tagTransfer(root, harness, 'Bali 2027')
+    await (await loader.getHarness(AmountKeypadHarness)).press('5', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.transfer).not.toHaveBeenCalled()
+    expect(outbox.enqueue.mock.calls[0]?.[0]).toMatchObject({
+      kind: 'transfer',
+      payload: { amountCents: 500, tags: ['Bali 2027'] },
     })
   })
 

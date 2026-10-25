@@ -125,6 +125,7 @@ export function transferToCreate(draft: TransferDraft, clientId: string): Transf
     date: draft.date,
     amountCents: draft.amountCents,
     memo: blankToNull(draft.memo),
+    tags: [...draft.tags],
   }
 }
 
@@ -136,7 +137,6 @@ export function transferFromCreate(body: TransferPayload): TransferDraft {
     amountCents: body.amountCents,
     date: body.date,
     memo: body.memo ?? '',
-    // Quick add (and so the outbox) never tags a transfer; the edit sheet does.
-    tags: [],
+    tags: [...body.tags],
   }
 }

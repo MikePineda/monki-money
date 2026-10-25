@@ -16,6 +16,7 @@ import {
   markFailed,
   type OutboxEntry,
   type OutboxItem,
+  type TransferPayload,
 } from '../../domain/outbox'
 import { OUTBOX_KEY, OutboxStore } from './outbox.store'
 
@@ -57,6 +58,7 @@ function aTransfer(date = '2026-09-30'): OutboxItem {
       date,
       amountCents: 50000,
       memo: null,
+      tags: ['Bali 2027'],
     },
   }
 }
@@ -202,6 +204,23 @@ describe('OutboxStore', () => {
 
       const store = setup()
 
+      expect(store.entries()).toEqual([])
+    })
+
+    it('test_a_transfer_queued_by_the_previous_app_version_still_syncs_untagged', async () => {
+      const transfer = aTransfer()
+      const untagged: Partial<TransferPayload> = { ...transfer.payload }
+      delete untagged.tags
+      const [entry] = enqueueEntry([], transfer, NOW)
+      localStorage.setItem(
+        `${OUTBOX_KEY}1`,
+        JSON.stringify({ version: 1, entries: [{ ...entry, payload: untagged }] })
+      )
+
+      const store = setup()
+      await settle(store)
+
+      expect(api.transfer).toHaveBeenCalledWith({ ...untagged, tags: [] })
       expect(store.entries()).toEqual([])
     })
 
