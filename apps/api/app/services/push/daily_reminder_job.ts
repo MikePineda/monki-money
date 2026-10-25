@@ -7,6 +7,7 @@ import SchedulerRuns from '#services/scheduler/scheduler_runs'
 import { dailyReminderPayload } from '#services/push/push_messages'
 import { describeReport, pushRunResult } from '#services/push/push_outcome'
 import type { ScheduledJob, TickContext } from '#services/scheduler/scheduler'
+import type { Weekday } from '@monkimoney/shared'
 import {
   isDailyReminderDue,
   loggedSomethingToday,
@@ -27,13 +28,15 @@ interface Candidate {
   householdId: number
   timezone: string
   reminderTime: string
+  /** jsonb, parsed by the driver. */
+  reminderWeekdays: Weekday[]
 }
 
 /**
  * The opt-in "did you log anything today?" push. Every tick, for each
  * person with the reminder on and a device registered in their (active)
- * current household: once the household's local time passes their reminder
- * time, the local day is claimed in `scheduler_runs` (job, 'YYYY-MM-DD',
+ * current household: on the weekdays they chose, once the household's local
+ * time passes their reminder time, the local day is claimed in `scheduler_runs` (job, 'YYYY-MM-DD',
  * household, person), so a day gets one decision whatever the number of
  * ticks, containers or restarts. The reminder is sent only when the person
  * created nothing that day (any source: quick add, receipt, import,
@@ -55,7 +58,8 @@ export default class DailyReminderJob implements ScheduledJob {
     for (const candidate of await this.candidates()) {
       if (signal.aborted) return
       const startedAt = now()
-      if (!isDailyReminderDue(startedAt, candidate.timezone, candidate.reminderTime)) continue
+      const { timezone, reminderTime, reminderWeekdays } = candidate
+      if (!isDailyReminderDue(startedAt, timezone, reminderTime, reminderWeekdays)) continue
       const day = reminderDay(startedAt, candidate.timezone)
 
       try {
@@ -142,7 +146,8 @@ export default class DailyReminderJob implements ScheduledJob {
         'users.locale as locale',
         'households.id as householdId',
         'households.timezone as timezone',
-        'settings.reminder_time as reminderTime'
+        'settings.reminder_time as reminderTime',
+        'settings.reminder_weekdays as reminderWeekdays'
       )
   }
 }

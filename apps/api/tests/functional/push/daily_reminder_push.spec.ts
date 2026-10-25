@@ -17,12 +17,15 @@ import {
 import DailyReminderJob, { DAILY_REMINDER_JOB } from '#services/push/daily_reminder_job'
 import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 import { fakePush, preferNotifications, subscribeDevice } from '#tests/helpers/push'
+import type { Weekday } from '@monkimoney/shared'
 
 /** Friday 16 October 2026 in Brisbane (UTC+10, no daylight saving). */
 const EVENING = DateTime.fromISO('2026-10-16T20:05:00+10:00', { setZone: true })
 
 /** A person (Brisbane) who asked for the 20:00 reminder, with a phone. */
-async function reminded(options: { reminderTime?: string; locale?: 'en' | 'es' } = {}) {
+async function reminded(
+  options: { reminderTime?: string; locale?: 'en' | 'es'; reminderWeekdays?: Weekday[] } = {}
+) {
   const fixture = await createHousehold({
     users: 2,
     locale: options.locale,
@@ -31,6 +34,7 @@ async function reminded(options: { reminderTime?: string; locale?: 'en' | 'es' }
   await preferNotifications(fixture.owner, {
     dailyReminder: true,
     reminderTime: options.reminderTime ?? '20:00',
+    ...(options.reminderWeekdays ? { reminderWeekdays: options.reminderWeekdays } : {}),
   })
   const phone = await subscribeDevice(fixture.owner, fixture.household)
   return { ...fixture, phone }
@@ -187,6 +191,24 @@ test.group('Daily reminder push', () => {
     await tickAt(job, DateTime.fromISO('2026-10-17T02:00:00Z'))
     assert.lengthOf(push.to(mexico.phone.endpoint), 1)
     assert.deepEqual(await runColumn(mexico.owner.id, (run) => run.period_key), ['2026-10-16'])
+  })
+
+  test('test_the_reminder_skips_the_weekdays_the_person_did_not_choose', async ({
+    assert,
+    cleanup,
+  }) => {
+    const push = fakePush(cleanup)
+    // Weekdays only: Friday yes, Saturday and Sunday no, Monday yes.
+    const fixture = await reminded({ reminderWeekdays: [1, 2, 3, 4, 5] })
+    const job = await app.container.make(DailyReminderJob)
+
+    for (const days of [0, 1, 2, 3]) await tickAt(job, EVENING.plus({ days }))
+
+    assert.lengthOf(push.to(fixture.phone.endpoint), 2)
+    assert.deepEqual(await runColumn(fixture.owner.id, (run) => run.period_key), [
+      '2026-10-16',
+      '2026-10-19',
+    ])
   })
 
   test('test_each_day_gets_its_own_reminder', async ({ assert, cleanup }) => {
