@@ -28,15 +28,17 @@ const reminderTimeRule = vine.createRule((value: unknown, _: undefined, field: F
   }
 })
 
-const reminderWeekdaysRule = vine.createRule((value: unknown, _: undefined, field: FieldContext) => {
-  if (!isReminderWeekdays(value)) {
-    field.report(
-      'The {{ field }} must be one to seven distinct weekdays from 1 (Monday) to 7 (Sunday)',
-      'reminderWeekdays',
-      field
-    )
+const reminderWeekdaysRule = vine.createRule(
+  (value: unknown, _: undefined, field: FieldContext) => {
+    if (!isReminderWeekdays(value)) {
+      field.report(
+        'The {{ field }} must be one to seven distinct weekdays from 1 (Monday) to 7 (Sunday)',
+        'reminderWeekdays',
+        field
+      )
+    }
   }
-})
+)
 
 /** ISO weekdays, Monday 1 to Sunday 7, each at most once (checked whole: one error for the field). */
 const weekdays = () => vine.any().use(reminderWeekdaysRule())
