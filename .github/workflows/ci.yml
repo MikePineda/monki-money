@@ -164,3 +164,85 @@ jobs:
           name: playwright-report
           path: e2e/playwright-report
           retention-days: 7
+
+  # The Bruno collection (apps/api/bruno) as living API docs: every route has
+  # a request (bruno:coverage) and the full tier passes against the same
+  # stack the e2e job boots (docker-compose.test.yml, slot 0: API 3334,
+  # Postgres 5433, MinIO 9100), seeded by `seed:e2e`. Not a required check
+  # yet: add `bruno` to the ruleset once it proves stable.
+  bruno:
+    name: bruno
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_API_PORT: 3334
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Every route has a Bruno request
+        run: npm run bruno:coverage
+
+      # `node ace codegen` boots the app, so start/env.ts must validate. CI has
+      # no .env: create it exactly like a fresh clone does.
+      - name: Prepare apps/api/.env
+        run: cp apps/api/.env.example apps/api/.env && (cd apps/api && node ace generate:key)
+
+      # Only the API: the collection never loads the SPA.
+      - name: Build the API
+        run: npx turbo run build --filter=@monkimoney/api
+
+      # The steps of scripts/e2e.sh for slot 0, without Playwright.
+      - name: Start Postgres and MinIO (docker-compose.test.yml)
+        run: |
+          docker compose -f docker-compose.test.yml up -d --wait db minio
+          docker compose -f docker-compose.test.yml run --rm minio-init
+
+      - name: Copy the fake LLM fixtures into the API build
+        run: |
+          mkdir -p apps/api/build/tests/fixtures
+          cp -R apps/api/tests/fixtures/llm apps/api/build/tests/fixtures/llm
+
+      - name: Migrate, seed and start the API
+        run: |
+          set -a
+          source e2e/e2e.env
+          set +a
+          export PORT="$E2E_API_PORT" APP_URL="http://127.0.0.1:$E2E_API_PORT"
+          export DB_PORT=5433 S3_ENDPOINT=http://127.0.0.1:9100
+          cd apps/api/build
+          node ace migration:run --force
+          node ace seed:e2e
+          nohup node bin/server.js >"$RUNNER_TEMP/api.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fsS "http://127.0.0.1:$E2E_API_PORT/api/health/live" && exit 0
+            sleep 1
+          done
+          echo "the API did not answer in 60 s" >&2
+          cat "$RUNNER_TEMP/api.log" >&2
+          exit 1
+
+      # Both tiers with `bru run --env local` against the E2E API, as the E2E
+      # seed's synthetic owner (scripts/smoke.sh e2e).
+      - name: Bruno full tier
+        run: bash scripts/smoke.sh e2e --reporter-html "$RUNNER_TEMP/bruno-report.html"
+
+      - name: Upload the Bruno report and API log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bruno-report
+          path: |
+            ${{ runner.temp }}/bruno-report.html
+            ${{ runner.temp }}/api.log
+          retention-days: 7
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v --remove-orphans
