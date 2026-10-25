@@ -64,8 +64,8 @@ rows only (partial unique index `WHERE resolution <> 'duplicate'`).
    savings) yields to an opposite leg in another account at the same bank.
    Otherwise NAB `Internal transfers` or the `Linked Acc Trns` memo. The
    linked holder (`linkedHolderKey`: the key NAB's own memo gives the holder,
-   `linked acc trns smith jo`, so a typed memo such as `ONLINE <ref>
-Honeymoon SMITH JO` names it too) maps to the set of accounts its
+   `linked acc trns smith jo`, so a typed memo such as
+   `ONLINE <ref> Honeymoon SMITH JO` names it too) maps to the set of accounts its
    transfers were confirmed to (`linked_holder_accounts`, plus the account of
    a `merchant` rule on that key learned by earlier releases). On NAB's own
    memo a known holder decides before the bank's generic rules. In order:

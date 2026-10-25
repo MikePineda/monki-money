@@ -271,7 +271,7 @@ test.group('Imports: transfers to linked accounts', (group) => {
       signal: 'bank_category',
       ruleId: null,
     })
-    assert.deepEqual(later.row('ONLINE A2000000011 Bali trip').transfer.candidateAccountIds, [])
+    assert.notProperty(later.row('ONLINE A2000000011 Bali trip').transfer, 'candidateAccountIds')
     assert.include(later.row('MORROW AJ C2000000012'), { resolution: 'new', transfer: null })
   })
 

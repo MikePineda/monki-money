@@ -86,8 +86,8 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
               accountId: row.suggestedTransferAccountId,
               legTransactionId: row.transferLegTransactionId,
               ruleId: row.transferRuleId,
-              // Several accounts the linked holder is known in; `accountId` is null then.
-              candidateAccountIds: row.transferCandidateAccountIds ?? [],
+              // Only when the linked holder is known in several accounts (`accountId` null).
+              ...candidatesOf(row),
             },
       suggestedPaidByUserId: row.suggestedPaidByUserId,
       decision: text(row.decision),
@@ -96,4 +96,10 @@ export default class ImportRowTransformer extends BaseTransformer<ImportRow> {
       confirmedAt: isoTimestamp(row.confirmedAt),
     }
   }
+}
+
+/** The accounts a row's linked holder is known in, when there are several (else nothing). */
+function candidatesOf(row: ImportRow): { candidateAccountIds?: number[] } {
+  const ids = row.transferCandidateAccountIds ?? []
+  return ids.length > 0 ? { candidateAccountIds: ids } : {}
 }

@@ -436,9 +436,9 @@ transaction: { date, amountCents, payee, source, status } } | null,
 suggestion: { source (rule|nab_map|llm|none), categoryId, confidence,
 needsReview, ruleId, payee } | null, transfer: { signal
 (rule|bank_category|linked_account_memo), accountId, legTransactionId, ruleId,
-candidateAccountIds[] (the accounts the linked holder is known to move money
-to, ascending, when there are several and no opposite leg says which:
-`accountId`is null, the row is`needs_confirmation`with`transfer_destination_unknown`; empty otherwise) }
+candidateAccountIds? (only when the linked holder is known to move money to
+several accounts and no opposite leg says which: ascending ids, accountId null,
+resolution needs_confirmation, reason transfer_destination_unknown) }
 | null, suggestedPaidByUserId, decision, decidedAt, transactionId, confirmedAt,
 isMasked }`. A row linked to the partner's private transaction comes with
 `isMasked: true` and no bank text, merchant keys, NAB category/merchant,
