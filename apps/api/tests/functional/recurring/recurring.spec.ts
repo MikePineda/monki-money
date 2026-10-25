@@ -994,10 +994,7 @@ test.group('Recurring payments: several per merchant, yearly, typed names', (gro
     assert.equal(await paid(), 50_000)
   })
 
-  test('test_only_a_typed_item_is_relinked_and_never_onto_the_same_bill', async ({
-    client,
-    assert,
-  }) => {
+  test('test_only_a_typed_item_is_relinked_and_never_onto_the_same_bill', async ({ client }) => {
     const home = await createHousehold({ accounts: [{}] })
     await payments(home, { payee: 'Harbour Lettings', last: '2026-10-13', everyDays: 7, count: 4 })
     await detect(client, home.owner)
