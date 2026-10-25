@@ -2,6 +2,7 @@ import webpush from 'web-push'
 import type { Secret } from '@adonisjs/core/helpers'
 import encryption from '@adonisjs/core/services/encryption'
 import type AppSettings from '#services/settings/app_settings'
+import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 
 /** config/push.ts */
 export interface VapidSettings {
@@ -77,6 +78,28 @@ export default class VapidKeys {
     }
   }
 
+  /** VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are set: they win, the stored pair is never used. */
+  get pinnedByEnv(): boolean {
+    return Boolean(this.settings.publicKey && this.settings.privateKey)
+  }
+
+  /**
+   * `node ace push:rotate-keys`: a fresh pair replaces the stored one (in
+   * `client`'s transaction when given). Call `forget()` once it is
+   * committed. Returns the new public key.
+   */
+  async replaceStored(client?: QueryClientContract): Promise<string> {
+    const fresh = this.generate()
+    await this.store.putAll(this.storedEntries(fresh), this.now(), client)
+    this.logger.info({}, 'push: replaced the stored VAPID key pair')
+    return fresh.publicKey
+  }
+
+  /** Drops the cached pair: the next use reads the stored one again. */
+  forget(): void {
+    this.#resolved = null
+  }
+
   /** What the browser subscribes with (`GET /config`), null while push is unavailable. */
   async publicKey(): Promise<string | null> {
     const details = await this.details()
@@ -91,15 +114,7 @@ export default class VapidKeys {
     if (stored) return { subject, ...stored }
 
     const fresh = this.generate()
-    const written = await this.store.putAllIfAbsent(
-      {
-        [VAPID_PUBLIC_KEY_SETTING]: fresh.publicKey,
-        [VAPID_PRIVATE_KEY_SETTING]: encryption.encrypt(fresh.privateKey, {
-          purpose: PRIVATE_KEY_PURPOSE,
-        }),
-      },
-      this.now()
-    )
+    const written = await this.store.putAllIfAbsent(this.storedEntries(fresh), this.now())
     if (written) {
       this.logger.info({}, 'push: generated a VAPID key pair and stored it in app_settings')
       return { subject, ...fresh }
@@ -108,6 +123,16 @@ export default class VapidKeys {
     const winner = await this.stored()
     if (!winner) throw new Error('The VAPID key pair vanished while it was being stored')
     return { subject, ...winner }
+  }
+
+  /** The `app_settings` rows of a pair: the private key encrypted with APP_KEY. */
+  protected storedEntries(pair: VapidKeyPair): Record<string, string> {
+    return {
+      [VAPID_PUBLIC_KEY_SETTING]: pair.publicKey,
+      [VAPID_PRIVATE_KEY_SETTING]: encryption.encrypt(pair.privateKey, {
+        purpose: PRIVATE_KEY_PURPOSE,
+      }),
+    }
   }
 
   protected async stored(): Promise<VapidKeyPair | null> {
