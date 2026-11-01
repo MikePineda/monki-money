@@ -2,7 +2,7 @@ import { ApplicationInitStatus } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
 import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
-import { aMe, aUser, httpError } from '../../../testing/session-fixtures'
+import { aMe, aUser, httpError, networkError } from '../../../testing/session-fixtures'
 import { LANG_PERSISTENCE } from '../i18n/lang.store'
 import { HOUSEHOLD_TIME_ZONE } from '../platform/time-zone.token'
 import { THEME_PERSISTENCE } from '../theme/theme.store'
@@ -37,6 +37,18 @@ describe('provideAuth', () => {
 
     expect(api.me).toHaveBeenCalledTimes(1)
     expect(TestBed.inject(SessionStore).isAuthenticated()).toBe(true)
+  })
+
+  it('test_without_network_the_app_starts_on_the_session_this_device_kept', async () => {
+    await boot(async () => aMe('member'))
+    TestBed.resetTestingModule()
+
+    await boot(() => Promise.reject(networkError()))
+
+    const session = TestBed.inject(SessionStore)
+    expect(session.isAuthenticated()).toBe(true)
+    expect(session.restored()).toBe(true)
+    expect(session.role()).toBe('member')
   })
 
   it('test_theme_and_language_choices_are_saved_on_the_profile_when_signed_in', async () => {

@@ -64,7 +64,8 @@ export const EMPTY_DRAFT: TransactionDraft = {
  * its host saves. Server field errors (a 422's `{ field: message }`) go
  * under the field they belong to; unknown fields show above the form.
  * It provides its own translation scope (`transactionForm`), so any
- * screen can host it.
+ * screen can host it. A payslip's row (`payslip`) keeps its amount, kind,
+ * account and date as they are.
  *
  * Quick add hosts it with `keypad="external"` (the page docks the keypad),
  * `[showKind]="false"` (the page's segment also offers a transfer),
@@ -94,7 +95,7 @@ export const EMPTY_DRAFT: TransactionDraft = {
       <app-banner class="mx-4" status="critical" [message]="message" />
     }
 
-    @if (showKind()) {
+    @if (showKind() && !payslip()) {
       <app-segmented-control
         class="mx-4"
         data-testid="transactions.form.kind"
@@ -134,6 +135,13 @@ export const EMPTY_DRAFT: TransactionDraft = {
         >
           <app-icon name="circle-alert" [size]="16" />{{ message }}
         </p>
+      } @else if (payslip()) {
+        <p
+          class="text-center text-caption text-ink-3"
+          data-testid="transactions.form.payslipLocked"
+        >
+          {{ 'transactionForm.form.payslipLocked' | transloco }}
+        </p>
       } @else if (locked()) {
         <p class="text-center text-caption text-ink-3">
           {{ 'transactionForm.form.amountLocked' | transloco }}
@@ -155,9 +163,10 @@ export const EMPTY_DRAFT: TransactionDraft = {
       <div class="flex flex-wrap gap-2">
         <button
           appChip
-          trailing="chevron-down"
           icon="wallet"
           data-testid="transactions.form.account"
+          [trailing]="payslip() ? null : 'chevron-down'"
+          [disabled]="payslip()"
           (click)="chooseAccount()"
         >
           {{ accountLabel() }}
@@ -266,7 +275,7 @@ export const EMPTY_DRAFT: TransactionDraft = {
     }
 
     @if (!compact() || detailsOpen()) {
-      @if (today()) {
+      @if (today() && !payslip()) {
         <div class="flex flex-wrap gap-2 px-4" data-testid="transactions.form.dateShortcuts">
           <button
             appChip
@@ -298,6 +307,7 @@ export const EMPTY_DRAFT: TransactionDraft = {
           "
           [value]="draft().date"
           [attr.max]="today() || null"
+          [disabled]="payslip()"
           (change)="onDate($event)"
         />
         @if (errors().date; as message) {
@@ -392,6 +402,11 @@ export class TransactionFormComponent {
   readonly detailsOpen = model(false)
   /** Today in the household time zone: offers "Today" / "Yesterday" and caps the date. */
   readonly today = input('')
+  /**
+   * A row of a payslip: its amount, kind, account and date belong to the
+   * payslip, so they show but cannot change (labels stay editable).
+   */
+  readonly payslip = input(false, { transform: booleanAttribute })
 
   protected readonly fields = form(this.draft, (path) => {
     min(path.amountCents, 1)
@@ -405,7 +420,7 @@ export class TransactionFormComponent {
   readonly valid = computed(() => this.fields().valid())
 
   protected readonly errors = computed(() => draftErrors(this.serverErrors()))
-  protected readonly locked = computed(() => this.splitCount() > 0)
+  protected readonly locked = computed(() => this.splitCount() > 0 || this.payslip())
 
   private readonly words = translateSignal(WORD_KEYS)
 

@@ -118,6 +118,7 @@ export default {
         // jsonb: stringified on write (see database/json_column.ts).
         raw: json('Record<string, string>'),
         reasons: json('string[]'),
+        transfer_candidate_account_ids: json('number[]'),
         decision: {
           tsType: 'ImportRowDecision',
           imports: [
@@ -141,6 +142,19 @@ export default {
         source: shared('RecurringSource'),
         // jsonb: stringified on write (see database/json_column.ts).
         edited_fields: json('string[]'),
+      },
+    },
+    user_notification_settings: {
+      columns: {
+        // jsonb array of ISO weekdays: stringified on write (see database/json_column.ts).
+        reminder_weekdays: {
+          tsType: 'Weekday[]',
+          imports: [
+            { source: '@monkimoney/shared', typeImports: ['Weekday'] },
+            { source: '#database/json_column', namedImports: ['jsonColumn'] },
+          ],
+          decorators: [{ name: '@jsonColumn' }],
+        },
       },
     },
     push_subscriptions: {

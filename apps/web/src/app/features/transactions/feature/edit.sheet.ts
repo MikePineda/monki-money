@@ -1,5 +1,6 @@
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog'
 import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core'
+import { Router } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
 import type { Transaction } from '../../../core/api/api-types'
 import { failureMessage } from '../../../core/api/error-messages'
@@ -39,7 +40,7 @@ import { SplitSheetComponent, type SplitSheetData } from './split.sheet'
  * t(transactions.edit.tags)
  * and full keys for toasts and messages:
  * t(transactions.toast.saved, transactions.toast.splitSaved, transactions.toast.transferSaved)
- * t(transactions.toast.private)
+ * t(transactions.toast.private, transactions.edit.payslip.locked)
  */
 const WORD_KEYS = [
   'edit.title',
@@ -57,6 +58,7 @@ const WORD_KEYS = [
   'edit.tags',
 ]
 const PRIVATE_KEY = 'transactions.toast.private'
+const PAYSLIP_KEY = 'transactions.edit.payslip.locked'
 
 export interface EditSheetData {
   id: number
@@ -70,7 +72,10 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
  * - a transfer leg opens a read-only view of the transfer, and "Edit
  *   transfer" switches to the transfer form (legs never change one by one;
  *   its tags land on both);
- * - a partner's private transaction is read-only ("Private").
+ * - a partner's private transaction is read-only ("Private");
+ * - a payslip's row says so, links to its account's payslips and keeps
+ *   its amount, kind, account and date (the payslip owns them) and its
+ *   existence (no delete: the payslip is deleted as a whole).
  * Field errors from a 422 stay under their fields; the list updates
  * optimistically behind the sheet.
  */
@@ -98,8 +103,19 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
             <app-skeleton class="mx-4" height="48px" />
           }
           @case ('entry') {
+            @if (row()?.payslipId) {
+              <app-banner
+                class="mx-4"
+                data-testid="transactions.edit.payslip"
+                icon="file-text"
+                [message]="'transactions.edit.payslip.body' | transloco"
+                [actionLabel]="'transactions.edit.payslip.link' | transloco"
+                (action)="openPayslips()"
+              />
+            }
             <app-transaction-form
               splittable
+              [payslip]="!!row()?.payslipId"
               [(draft)]="draft"
               [(keypadOpen)]="keypadOpen"
               [accounts]="accountOptions()"
@@ -111,17 +127,19 @@ type Mode = 'loading' | 'failed' | 'entry' | 'masked' | 'transfer' | 'transferEd
               [splitCount]="row()?.isSplit ? (row()?.splits?.length ?? 0) : 0"
               (splitRequested)="openSplit()"
             />
-            <button
-              appButton
-              type="button"
-              variant="destructive"
-              class="mx-4"
-              data-testid="transactions.edit.delete"
-              [disabled]="saving()"
-              (click)="remove()"
-            >
-              {{ 'transactions.edit.delete' | transloco }}
-            </button>
+            @if (!row()?.payslipId) {
+              <button
+                appButton
+                type="button"
+                variant="destructive"
+                class="mx-4"
+                data-testid="transactions.edit.delete"
+                [disabled]="saving()"
+                (click)="remove()"
+              >
+                {{ 'transactions.edit.delete' | transloco }}
+              </button>
+            }
           }
           @case ('masked') {
             <div class="flex flex-col items-center gap-2 px-4 text-center">
@@ -233,6 +251,7 @@ export class EditSheetComponent implements OnInit {
   private readonly transloco = inject(TranslocoService)
   private readonly injector = inject(Injector)
   private readonly locale = inject(APP_LOCALE)
+  private readonly router = inject(Router)
 
   private readonly form = viewChild(TransactionFormComponent)
 
@@ -392,6 +411,16 @@ export class EditSheetComponent implements OnInit {
       })
   }
 
+  /** The payslips of the row's account, where the payslip itself can be deleted and recorded again. */
+  protected openPayslips(): void {
+    const row = this.row()
+    if (!row) {
+      return
+    }
+    this.dialogRef.close()
+    void this.router.navigate(['/settings/accounts', row.accountId, 'payslips'])
+  }
+
   protected editTransfer(): void {
     const transfer = this.transfer()
     if (!transfer) {
@@ -441,6 +470,8 @@ export class EditSheetComponent implements OnInit {
         this.errors.set(failure.fields)
       } else if (failure.kind === 'forbidden' && failure.code === 'E_TRANSACTION_PRIVATE') {
         this.failure.set(this.transloco.translate(PRIVATE_KEY))
+      } else if (failure.kind === 'http' && failure.code === 'E_PAYSLIP_LINE') {
+        this.failure.set(this.transloco.translate(PAYSLIP_KEY))
       } else if (failure.kind !== 'unauthorized') {
         const message = failureMessage(failure)
         this.failure.set(this.transloco.translate(message.key, message.params))

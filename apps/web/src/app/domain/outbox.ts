@@ -20,7 +20,10 @@ import type { RecentEntry } from './quick-add-defaults'
  * - `queuedAsRecent` lets quick add rank what is queued like ledger rows.
  */
 
-export const OUTBOX_VERSION = 1
+/** 2: transfers carry `tags`. Version 1 outboxes (transfers without them) still read. */
+export const OUTBOX_VERSION = 2
+/** Every schema `deserialize` still reads (entries queued before an app update must sync). */
+const READABLE_VERSIONS: readonly unknown[] = [1, OUTBOX_VERSION]
 export const BACKOFF_BASE_MS = 1_000
 export const BACKOFF_MAX_MS = 60_000
 
@@ -48,7 +51,7 @@ export interface TransactionPayload {
   tags: string[]
 }
 
-/** The body of `POST /transfers` (amount positive, two different accounts). */
+/** The body of `POST /transfers` (amount positive, two different accounts; tags on both legs). */
 export interface TransferPayload {
   clientId: string
   fromAccountId: number
@@ -56,6 +59,7 @@ export interface TransferPayload {
   date: IsoDate
   amountCents: number
   memo: string | null
+  tags: string[]
 }
 
 /** What gets queued: the kind of create and its API body. */
@@ -285,7 +289,7 @@ export function deserialize(raw: string | null): OutboxEntry[] {
   } catch {
     return []
   }
-  if (!isRecord(parsed) || parsed['version'] !== OUTBOX_VERSION) {
+  if (!isRecord(parsed) || !READABLE_VERSIONS.includes(parsed['version'])) {
     return []
   }
   const list = parsed['entries']
@@ -324,6 +328,10 @@ function textOrNull(value: unknown): string | null {
 
 function idOrNull(value: unknown): number | null {
   return isId(value) ? value : null
+}
+
+function readTags(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((tag): tag is string => typeof tag === 'string') : []
 }
 
 function readEntry(value: unknown): OutboxEntry | null {
@@ -376,7 +384,6 @@ function readItem(kind: unknown, payload: unknown, id: string): OutboxItem | nul
     if ((entryKind !== 'expense' && entryKind !== 'income') || !isId(accountId)) {
       return null
     }
-    const tags = payload['tags']
     return {
       kind,
       payload: {
@@ -390,7 +397,7 @@ function readItem(kind: unknown, payload: unknown, id: string): OutboxItem | nul
         description: textOrNull(payload['description']),
         paidByUserId: idOrNull(payload['paidByUserId']),
         isPrivate: payload['isPrivate'] === true,
-        tags: Array.isArray(tags) ? tags.filter((tag) => typeof tag === 'string') : [],
+        tags: readTags(payload['tags']),
       },
     }
   }
@@ -409,6 +416,8 @@ function readItem(kind: unknown, payload: unknown, id: string): OutboxItem | nul
         date,
         amountCents,
         memo: textOrNull(payload['memo']),
+        // Version 1 transfers had none.
+        tags: readTags(payload['tags']),
       },
     }
   }

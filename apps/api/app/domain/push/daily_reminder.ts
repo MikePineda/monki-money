@@ -1,10 +1,11 @@
 import type { DateTime } from 'luxon'
-import { isReminderTime, reminderMinutes } from '@monkimoney/shared'
+import { EVERY_WEEKDAY, isReminderTime, reminderMinutes, type Weekday } from '@monkimoney/shared'
 
 /**
  * When the opt-in daily reminder ("did you log anything today?") goes out:
- * once per local day (household time zone), from the person's reminder
- * time until midnight, and only when they created nothing that day. Pure:
+ * once per local day (household time zone) on the weekdays the person
+ * chose, from their reminder time until midnight, and only when they
+ * created nothing that day. Pure:
  * `now` is always passed in.
  */
 
@@ -19,12 +20,19 @@ export function startOfLocalDay(now: DateTime, zone: string): DateTime {
 }
 
 /**
- * From `reminderTime` ('HH:mm', local) to midnight. An unknown zone or a
- * malformed time is never due.
+ * From `reminderTime` ('HH:mm', local) to midnight, on the chosen weekdays
+ * of the local calendar (ISO, Monday 1; every day when not given). An
+ * unknown zone or a malformed time is never due.
  */
-export function isDailyReminderDue(now: DateTime, zone: string, reminderTime: string): boolean {
+export function isDailyReminderDue(
+  now: DateTime,
+  zone: string,
+  reminderTime: string,
+  weekdays: readonly Weekday[] = EVERY_WEEKDAY
+): boolean {
   const local = now.setZone(zone)
   if (!local.isValid || !isReminderTime(reminderTime)) return false
+  if (!weekdays.includes(local.weekday as Weekday)) return false
   return local.hour * 60 + local.minute >= reminderMinutes(reminderTime)
 }
 

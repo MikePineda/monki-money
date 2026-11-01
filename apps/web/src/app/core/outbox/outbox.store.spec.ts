@@ -16,6 +16,7 @@ import {
   markFailed,
   type OutboxEntry,
   type OutboxItem,
+  type TransferPayload,
 } from '../../domain/outbox'
 import { OUTBOX_KEY, OutboxStore } from './outbox.store'
 
@@ -57,6 +58,7 @@ function aTransfer(date = '2026-09-30'): OutboxItem {
       date,
       amountCents: 50000,
       memo: null,
+      tags: ['Bali 2027'],
     },
   }
 }
@@ -205,6 +207,23 @@ describe('OutboxStore', () => {
       expect(store.entries()).toEqual([])
     })
 
+    it('test_a_transfer_queued_by_the_previous_app_version_still_syncs_untagged', async () => {
+      const transfer = aTransfer()
+      const untagged: Partial<TransferPayload> = { ...transfer.payload }
+      delete untagged.tags
+      const [entry] = enqueueEntry([], transfer, NOW)
+      localStorage.setItem(
+        `${OUTBOX_KEY}1`,
+        JSON.stringify({ version: 1, entries: [{ ...entry, payload: untagged }] })
+      )
+
+      const store = setup()
+      await settle(store)
+
+      expect(api.transfer).toHaveBeenCalledWith({ ...untagged, tags: [] })
+      expect(store.entries()).toEqual([])
+    })
+
     it('test_a_corrupt_stored_outbox_loads_empty', () => {
       localStorage.setItem(`${OUTBOX_KEY}1`, '{oops')
 
@@ -264,6 +283,48 @@ describe('OutboxStore', () => {
 
       expect(months.invalidate).toHaveBeenCalledWith('2026-10')
       expect(months.invalidate).toHaveBeenCalledWith('2026-09')
+    })
+
+    it('test_a_synced_entry_hands_the_rows_it_created_to_whoever_listens', async () => {
+      const store = setup({ online: false })
+      const expense = anExpense()
+      const transfer = aTransfer()
+      store.enqueue(expense)
+      store.enqueue(transfer)
+      const row = aTransaction({ id: 41, payee: 'Corner Shop' })
+      const legs = [
+        aTransaction({ id: 42, kind: 'transfer', transferId: 7 }),
+        aTransaction({ id: 43, kind: 'transfer', transferId: 7 }),
+      ]
+      api.quick.mockResolvedValueOnce(row)
+      api.transfer.mockResolvedValueOnce({ id: 7, legs })
+      const seen: { id: string; rows: number[] }[] = []
+      const stop = store.onSynced(({ entry, rows }) =>
+        seen.push({ id: entry.id, rows: rows.map((item) => item.id) })
+      )
+
+      await store.flush()
+
+      expect(seen).toEqual([
+        { id: expense.payload.clientId, rows: [41] },
+        { id: transfer.payload.clientId, rows: [42, 43] },
+      ])
+      stop()
+      store.enqueue(anExpense())
+      await store.flush()
+      expect(seen).toHaveLength(2)
+    })
+
+    it('test_a_conflict_syncs_without_rows_to_hand_over', async () => {
+      const store = setup({ online: false })
+      store.enqueue(anExpense())
+      api.quick.mockRejectedValueOnce(httpError(409, { code: 'E_ALREADY_EXISTS' }))
+      const listener = vi.fn()
+      store.onSynced(listener)
+
+      await store.flush()
+
+      expect(listener).toHaveBeenCalledWith(expect.objectContaining({ rows: [] }))
     })
 
     it('test_a_batch_that_synced_says_how_many_entries', async () => {

@@ -34,7 +34,8 @@
     "pause": "Pause",
     "resume": "Resume",
     "dismiss": "Not a bill",
-    "restore": "Restore"
+    "restore": "Restore",
+    "delete": "Delete"
   },
   "sheet": {
     "addTitle": "Add a recurring payment",
@@ -48,7 +49,9 @@
     "nextDate": "Next due date",
     "category": "Category",
     "person": "Who pays",
-    "save": "Save"
+    "save": "Save",
+    "linkSuggestions": "Is it one of these? Link it so its payments count",
+    "linked": "Linked to {payee}: its payments count as paid"
   },
   "people": {
     "you": "You",
@@ -60,6 +63,15 @@
     "paused": "{payee} paused: it no longer counts as committed",
     "resumed": "{payee} counts as committed again",
     "dismissed": "{payee} dismissed: detection will not bring it back",
-    "restored": "{payee} restored"
+    "restored": "{payee} restored",
+    "deleted": "{payee} deleted"
+  },
+  "lowConfidence": "Seen twice: check it",
+  "deleteSheet": {
+    "title": "Delete {payee}?",
+    "body": "It stops counting as committed. Its payments stay in your spending.",
+    "bodyDetected": "It stops counting as committed. Detection may find it again; to keep it away, choose Not a bill instead.",
+    "confirm": "Delete",
+    "keep": "Keep it"
   }
 }

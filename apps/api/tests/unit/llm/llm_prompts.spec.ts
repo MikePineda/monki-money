@@ -119,6 +119,28 @@ test.group('LLM prompts', () => {
     assert.include(aroundData(buildInsightPrompt(insightInput, 'en').user).outside, 'English')
   })
 
+  test('test_insight_prompt_says_the_month_is_in_progress_with_days_elapsed_of_the_month', ({
+    assert,
+  }) => {
+    const running: InsightInput = {
+      ...insightInput,
+      inProgress: { daysElapsed: 12, daysInMonth: 30, previousThroughDay: 12 },
+    }
+    const prompt = buildInsightPrompt(running, 'en')
+    assertConfined(assert, prompt)
+    const outside = aroundData(prompt.user).outside
+    assert.include(outside, 'in progress')
+    assert.include(outside, '12 days elapsed of 30')
+    assert.include(outside, 'first 12 days')
+    // The system prompt stays the same (cacheable) and explains the field.
+    assert.equal(prompt.system, buildInsightPrompt(insightInput, 'en').system)
+    assert.include(prompt.system, 'inProgress')
+  })
+
+  test('test_insight_prompt_of_a_finished_month_has_no_progress_note', ({ assert }) => {
+    assert.notInclude(aroundData(buildInsightPrompt(insightInput, 'en').user).outside, 'progress')
+  })
+
   test('test_retry_feedback_lists_the_issues', ({ assert }) => {
     const feedback = buildRetryFeedback(['results.0.confidence: must be <= 1'])
     assert.include(feedback, 'results.0.confidence: must be <= 1')

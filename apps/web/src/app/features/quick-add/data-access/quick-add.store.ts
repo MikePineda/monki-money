@@ -140,8 +140,8 @@ function toRecentEntry(row: LedgerRow): RecentEntry {
  * - The rankings (category tiles, payees, routes, the latest account) are
  *   the server's (`GET /transactions/suggestions`, over this person's and
  *   the household's latest rows) plus what waits in the outbox and what was
- *   saved since the screen opened, so an entry saved offline counts before
- *   it syncs.
+ *   saved or synced since the screen opened, so an entry saved offline
+ *   counts before it syncs and goes on counting after.
  * - Offline it still opens with the accounts and categories already loaded
  *   this session and the last rankings it got (SuggestionsStore), or none.
  * - `/add?outbox=<id>` edits a queued entry: the drafts open with its
@@ -179,7 +179,7 @@ export class QuickAddStore {
 
   /** The server's rankings, as of when the screen opened. */
   private readonly suggestions = signal<TransactionSuggestions | null>(null)
-  /** Rows saved since the screen opened (the server's rankings predate them). */
+  /** Rows saved or synced since the screen opened (the server's rankings predate them). */
   private readonly recent = signal<RecentEntry[]>([])
   /** The "Saved · Undo" toast of the last save, while it may still be on screen. */
   private savedToast: number | null = null
@@ -273,8 +273,16 @@ export class QuickAddStore {
   })
 
   constructor() {
+    // An entry that syncs while the screen is open leaves the outbox's
+    // rankings: the row it became takes its place at once.
+    const stopListening = this.outbox.onSynced(({ rows }) => {
+      if (rows.length > 0) {
+        this.recent.update((recent) => [...rows.map(toRecentEntry), ...recent])
+      }
+    })
     // Leaving an edit without saving lets the entry sync as it was.
     inject(DestroyRef).onDestroy(() => {
+      stopListening()
       const id = this.editing()
       if (id !== null) {
         void this.outbox.release(id)
@@ -548,7 +556,7 @@ export class QuickAddStore {
       isPrivate: false,
       tags: [],
     }))
-    this.transfer.update((transfer) => ({ ...transfer, amountCents: 0, memo: '' }))
+    this.transfer.update((transfer) => ({ ...transfer, amountCents: 0, memo: '', tags: [] }))
   }
 
   /** "Undo" on the toast: deletes what was just saved. */

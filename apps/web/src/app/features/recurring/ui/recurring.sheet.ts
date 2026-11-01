@@ -11,6 +11,7 @@ import {
   RECURRING_CADENCES,
   draftFrom,
   draftProblems,
+  linkSuggestion,
   pickSuggestion,
   suggestionsFor,
   type MerchantSuggestion,
@@ -47,7 +48,10 @@ export interface RecurringSheetData {
 
 /**
  * Add or edit a recurring payment: merchant, usual amount (keypad, never
- * typed as text), how often, next due date, category and who pays. Saving
+ * typed as text), how often, next due date, category and who pays. Adding
+ * one, or editing one typed by hand, offers the merchants paid lately whose
+ * name holds what is typed: picking one keys the item like the bank's rows
+ * (a person confirms the match; nothing links on its own). Saving
  * goes through the RecurringStore (the opener passes its injector); the
  * API's field messages show under their fields and the sheet stays open.
  * Closes with true once saved.
@@ -88,10 +92,22 @@ export interface RecurringSheetData {
           (valueChange)="typePayee($event)"
         />
 
+        @if (linkedTo(); as merchant) {
+          <p
+            class="flex items-center gap-1.5 text-label text-ink-2"
+            data-testid="recurring.sheet.linked"
+          >
+            <app-icon name="circle-check" [size]="16" class="text-status-good" />{{
+              'recurring.sheet.linked' | transloco: { payee: merchant.payee }
+            }}
+          </p>
+        }
+
         @if (suggestions().length > 0) {
           <div class="flex flex-col gap-1" data-testid="recurring.sheet.suggestions">
             <span class="text-label text-ink-2">{{
-              'recurring.sheet.suggestions' | transloco
+              (linking ? 'recurring.sheet.linkSuggestions' : 'recurring.sheet.suggestions')
+                | transloco
             }}</span>
             <ul class="-mx-4 flex flex-col">
               @for (merchant of suggestions(); track merchant.merchantKey) {
@@ -254,15 +270,30 @@ export class RecurringSheetComponent {
   protected readonly amountText = computed(() =>
     formatMoney(this.draft().amountCents, this.locale())
   )
-  /** Adding by hand: the merchants paid lately that match what is typed, until one is picked. */
+  /**
+   * Editing an item typed by hand: the merchants paid lately are offered to
+   * link it to (its payments then count), never linked without a tap.
+   */
+  protected readonly linking = this.data.item?.source === 'manual'
+  /**
+   * Adding by hand, or linking a typed item: the merchants paid lately that
+   * match what is typed, until one is picked.
+   */
   protected readonly suggestions = computed(() =>
-    this.data.item || this.draft().merchantKey
+    (this.data.item && !this.linking) || this.draft().merchantKey
       ? []
       : suggestionsFor(this.store.merchants(), this.draft().payee)
   )
+  /** The merchant a typed item was just linked to (not saved yet). */
+  protected readonly linkedTo = computed(() => {
+    const key = this.draft().merchantKey
+    return this.linking && key
+      ? (this.store.merchants().find((merchant) => merchant.merchantKey === key) ?? null)
+      : null
+  })
 
   constructor() {
-    if (!this.data.item) {
+    if (!this.data.item || this.linking) {
       void this.store.loadMerchants()
     }
   }
@@ -301,7 +332,9 @@ export class RecurringSheetComponent {
   }
 
   protected pick(merchant: MerchantSuggestion): void {
-    this.draft.set(pickSuggestion(this.draft(), merchant))
+    this.draft.set(
+      this.linking ? linkSuggestion(this.draft(), merchant) : pickSuggestion(this.draft(), merchant)
+    )
     this.errors.set({})
   }
 

@@ -4,7 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import { i18nTesting, i18nTestingProviders } from '../../../testing/i18n-testing'
-import { tagsStoreStub } from '../../../testing/tag-fixtures'
+import { aTagSummary, tagsStoreStub } from '../../../testing/tag-fixtures'
 import { aCategoryTree, aTransaction } from '../../../testing/ledger-fixtures'
 import {
   anAccount,
@@ -15,6 +15,7 @@ import {
 } from '../../../testing/session-fixtures'
 import type { TransactionSuggestions } from '@monkimoney/shared'
 import type { Transaction } from '../../core/api/api-types'
+import type { TagSummary } from '../../core/ledger/tags.api'
 import { SessionStore } from '../../core/auth/session.store'
 import { AccountsApi } from '../../core/household/accounts.api'
 import { CategoriesApi } from '../../core/household/categories.api'
@@ -24,7 +25,7 @@ import {
   type TransferInput,
 } from '../../core/ledger/transactions.api'
 import { MonthStore } from '../../core/month/month.store'
-import { OutboxStore } from '../../core/outbox/outbox.store'
+import { OutboxStore, type SyncedEntry } from '../../core/outbox/outbox.store'
 import { HOUSEHOLD_TIME_ZONE } from '../../core/platform/time-zone.token'
 import { todayIn } from '../../domain/month'
 import { enqueue, type OutboxEntry, type OutboxItem } from '../../domain/outbox'
@@ -61,7 +62,10 @@ describe('QuickAddPage', () => {
     release: ReturnType<typeof vi.fn>
     replace: ReturnType<typeof vi.fn<(id: string, item: OutboxItem) => Promise<void>>>
     undo: ReturnType<typeof vi.fn<(id: string) => Promise<'removed' | 'missing'>>>
+    onSynced: ReturnType<typeof vi.fn<(listener: (synced: SyncedEntry) => void) => () => void>>
   }
+  /** What quick add listens with for entries the outbox syncs (null when nobody listens). */
+  let syncedListener: ((synced: SyncedEntry) => void) | null = null
   /** Entries the fake outbox holds (for editing a queued entry). */
   let queued: OutboxEntry[] = []
 
@@ -82,7 +86,7 @@ describe('QuickAddPage', () => {
   async function open(
     url = '/add',
     suggestions: TransactionSuggestions = someSuggestions(),
-    options: { suggestionsFail?: boolean } = {}
+    options: { suggestionsFail?: boolean; tags?: TagSummary[] } = {}
   ) {
     api = {
       list: vi.fn(async () => []),
@@ -127,6 +131,10 @@ describe('QuickAddPage', () => {
         entries.update((list) => list.filter((entry) => entry.id !== id))
         return 'removed' as const
       }),
+      onSynced: vi.fn((listener: (synced: SyncedEntry) => void) => {
+        syncedListener = listener
+        return () => (syncedListener = null)
+      }),
     }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -141,7 +149,7 @@ describe('QuickAddPage', () => {
         ),
         { provide: TransactionsApi, useValue: api },
         { provide: MonthStore, useValue: months },
-        tagsStoreStub(),
+        tagsStoreStub(options.tags),
         { provide: OutboxStore, useValue: outbox },
         {
           provide: AccountsApi,
@@ -199,6 +207,7 @@ describe('QuickAddPage', () => {
   afterEach(() => {
     localStorage.clear()
     queued = []
+    syncedListener = null
     vi.restoreAllMocks()
   })
 
@@ -492,6 +501,92 @@ describe('QuickAddPage', () => {
     expect(harness.routeDebugElement?.injector.get(QuickAddStore).payees()).toEqual(['Bakery'])
   })
 
+  it('test_an_entry_that_syncs_while_quick_add_is_open_keeps_its_ranking', async () => {
+    queued = enqueue(
+      [],
+      {
+        kind: 'transaction',
+        payload: {
+          clientId: '00000000-0000-4000-8000-000000000046',
+          kind: 'expense',
+          accountId: 1,
+          date: todayIn(TZ),
+          amountCents: 850,
+          categoryId: 20,
+          payee: 'Bakery',
+          description: null,
+          paidByUserId: 1,
+          isPrivate: false,
+          tags: [],
+        },
+      },
+      NOW
+    )
+    const { harness } = await open('/add', someSuggestions(), { suggestionsFail: true })
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    expect(store?.payees()).toEqual(['Bakery'])
+
+    // The outbox syncs it: it leaves the queue and comes back as the row it became.
+    const [entry] = outbox.entries()
+    outbox.entries.set([])
+    syncedListener?.({
+      entry: entry!,
+      rows: [aTransaction({ id: 900, date: todayIn(TZ), categoryId: 20, payee: 'Bakery' })],
+    })
+    await settle(harness)
+
+    expect(store?.payees()).toEqual(['Bakery'])
+    expect(store?.categoryTiles()[0]?.category.id).toBe(20)
+  })
+
+  it('test_a_synced_transfer_ranks_its_route_and_leaving_stops_listening', async () => {
+    const { harness } = await open()
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    expect(store?.presets().map((pair) => [pair.fromAccountId, pair.toAccountId])).toEqual([])
+
+    syncedListener?.({
+      entry: enqueue(
+        [],
+        {
+          kind: 'transfer',
+          payload: {
+            clientId: '00000000-0000-4000-8000-000000000047',
+            fromAccountId: 2,
+            toAccountId: 1,
+            date: todayIn(TZ),
+            amountCents: 700,
+            memo: null,
+            tags: [],
+          },
+        },
+        NOW
+      )[0]!,
+      rows: [
+        aTransaction({
+          id: 901,
+          kind: 'transfer',
+          transferId: 88,
+          accountId: 2,
+          amountCents: -700,
+          date: todayIn(TZ),
+        }),
+        aTransaction({
+          id: 902,
+          kind: 'transfer',
+          transferId: 88,
+          accountId: 1,
+          amountCents: 700,
+          date: todayIn(TZ),
+        }),
+      ],
+    })
+    await settle(harness)
+    expect(store?.presets().map((pair) => [pair.fromAccountId, pair.toAccountId])).toEqual([[2, 1]])
+
+    harness.fixture.destroy()
+    expect(syncedListener).toBeNull()
+  })
+
   it('test_a_queued_entry_adds_to_the_server_ranking', async () => {
     queued = enqueue(
       [],
@@ -589,6 +684,7 @@ describe('QuickAddPage', () => {
         date: todayIn(TZ),
         amountCents: 200,
         memo: null,
+        tags: [],
       },
     })
   })
@@ -650,6 +746,7 @@ describe('QuickAddPage', () => {
         date: todayIn(TZ),
         amountCents: 700,
         memo: 'Back',
+        tags: ['Bali 2027'],
       },
     }
     queued = enqueue([], item, new Date())
@@ -659,6 +756,10 @@ describe('QuickAddPage', () => {
     expect(text(root, 'transactions.transfer.from')).toBe('Savings')
     expect(text(root, 'transactions.transfer.to')).toBe('Everyday')
     expect(text(root, 'quickAdd.save')).toBe('Save $7.00')
+    byTestId(root, 'transactions.transfer.detailsToggle').click()
+    await vi.waitFor(() =>
+      expect(root.querySelector('app-tags-field')?.textContent).toContain('Bali 2027')
+    )
   })
 
   it('test_leaving_an_edit_without_saving_releases_the_entry', async () => {
@@ -671,6 +772,7 @@ describe('QuickAddPage', () => {
         date: todayIn(TZ),
         amountCents: 700,
         memo: null,
+        tags: [],
       },
     }
     queued = enqueue([], item, new Date())
@@ -756,6 +858,55 @@ describe('QuickAddPage', () => {
       date: todayIn(TZ),
       amountCents: 200,
       memo: null,
+      tags: [],
+    })
+  })
+
+  /** Opens the transfer's details and taps the suggested tag. */
+  async function tagTransfer(root: HTMLElement, harness: RouterTestingHarness, tag: string) {
+    byTestId(root, 'transactions.transfer.detailsToggle').click()
+    await settle(harness)
+    const chip = [
+      ...byTestId(root, 'transactions.transfer.tagSuggestions').querySelectorAll('button'),
+    ].find((button) => button.textContent?.trim() === tag)
+    if (!chip) {
+      throw new Error(`No suggested tag ${tag}`)
+    }
+    chip.click()
+    await settle(harness)
+  }
+
+  it('test_a_transfer_takes_tags_and_saves_them_on_the_transfer', async () => {
+    const { root, loader, harness } = await open('/add', someSuggestions(), {
+      tags: [aTagSummary({ tag: 'Bali 2027' })],
+    })
+    await (await loader.getHarness(SegmentedControlHarness)).select('Transfer')
+    await tagTransfer(root, harness, 'Bali 2027')
+    await (await loader.getHarness(AmountKeypadHarness)).press('5', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.transfer.mock.calls[0]?.[0]).toMatchObject({ amountCents: 500, tags: ['Bali 2027'] })
+    // The next transfer starts untagged, like the next expense.
+    const store = harness.routeDebugElement?.injector.get(QuickAddStore)
+    expect(store?.transfer().tags).toEqual([])
+  })
+
+  it('test_a_tagged_transfer_saved_offline_queues_its_tags', async () => {
+    const { root, loader, harness } = await open('/add', someSuggestions(), {
+      tags: [aTagSummary({ tag: 'Bali 2027' })],
+    })
+    goOffline()
+    await (await loader.getHarness(SegmentedControlHarness)).select('Transfer')
+    await tagTransfer(root, harness, 'Bali 2027')
+    await (await loader.getHarness(AmountKeypadHarness)).press('5', '00')
+    byTestId(root, 'quickAdd.save').click()
+    await settle(harness)
+
+    expect(api.transfer).not.toHaveBeenCalled()
+    expect(outbox.enqueue.mock.calls[0]?.[0]).toMatchObject({
+      kind: 'transfer',
+      payload: { amountCents: 500, tags: ['Bali 2027'] },
     })
   })
 

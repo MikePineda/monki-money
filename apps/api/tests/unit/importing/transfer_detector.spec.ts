@@ -3,7 +3,7 @@ import { TAXONOMY } from '@monkimoney/shared'
 import { stageRows } from '#domain/importing/staging'
 import { linkedHolderKey } from '#domain/importing/linked_accounts'
 import { detectTransfer, type TransferContext } from '#domain/importing/transfer_detector'
-import type { MerchantRule, StagedRow } from '#domain/importing/types'
+import type { LinkedHolderAccount, MerchantRule, StagedRow } from '#domain/importing/types'
 import { NAB_SYSTEM_RULES, resolveSystemRules } from '#importers/nab/system_rules'
 import { parseBankCsv } from '#importers/registry'
 import {
@@ -98,6 +98,11 @@ function holderRule(id: number, pattern: string, accountId: number): MerchantRul
 
 function noLegs(rules: readonly MerchantRule[], accounts = ACCOUNTS): TransferContext {
   return { rules, legs: [], accounts }
+}
+
+/** The household knows the holder `SMITH JO` moves money to each of `accountIds`. */
+function knownIn(...accountIds: number[]): LinkedHolderAccount[] {
+  return accountIds.map((accountId) => ({ holderKey: 'linked acc trns smith jo', accountId }))
 }
 
 /** What the detector says about a free-memo transfer it cannot place. */
@@ -451,5 +456,207 @@ test.group('Importing / transfer detector', () => {
     const longest = freeMemo('xd', 'ABCDEFGHI '.repeat(25).trim())
     assert.isNull(linkedHolderKey(longest))
     assert.isNull(detectTransfer(longest, noLegs([], TWO_SAVINGS))?.ruleId)
+  })
+
+  test('test_a_holder_known_in_one_other_account_is_sent_there', ({ assert }) => {
+    for (const memo of ['Honeymoon', 'Linked Acc Trns']) {
+      assert.deepEqual(
+        detectTransfer(freeMemo(memo), {
+          ...noLegs(seededRules(), TWO_SAVINGS),
+          linkedHolders: knownIn(SECOND_SAVINGS),
+        }),
+        { ...UNKNOWN, counterpartAccountId: SECOND_SAVINGS },
+        memo
+      )
+    }
+    // The importing account itself and inactive accounts are never one of them.
+    const closed = householdAccount({ id: 9, institution: 'NAB', isActive: false })
+    assert.equal(
+      detectTransfer(freeMemo('Rent'), {
+        ...noLegs([], [...TWO_SAVINGS, closed]),
+        linkedHolders: knownIn(EVERYDAY, SAVINGS, 9),
+      })?.counterpartAccountId,
+      SAVINGS
+    )
+  })
+
+  test('test_a_holder_known_in_several_accounts_is_staged_for_review_with_the_candidates', ({
+    assert,
+  }) => {
+    const ambiguous = { ...UNKNOWN, candidateAccountIds: [SAVINGS, SECOND_SAVINGS] }
+    for (const memo of ['Honeymoon', 'xd']) {
+      assert.deepEqual(
+        detectTransfer(freeMemo(memo), {
+          ...noLegs(seededRules(), TWO_SAVINGS),
+          linkedHolders: knownIn(SECOND_SAVINGS, SAVINGS),
+        }),
+        ambiguous,
+        memo
+      )
+    }
+    // NAB's own memo too: the bank's generic rule does not pick one of them either.
+    assert.deepEqual(
+      detectTransfer(freeMemo('Linked Acc Trns'), {
+        ...noLegs(seededRules(), TWO_SAVINGS),
+        linkedHolders: knownIn(SAVINGS, SECOND_SAVINGS),
+      }),
+      ambiguous
+    )
+    // A rule learned before holders were kept per account counts as one of them.
+    const legacy = holderRule(42, 'linked acc trns smith jo', SECOND_SAVINGS)
+    for (const memo of ['Honeymoon', 'Linked Acc Trns']) {
+      assert.deepEqual(
+        detectTransfer(freeMemo(memo), {
+          ...noLegs([legacy], TWO_SAVINGS),
+          linkedHolders: knownIn(SAVINGS),
+        }),
+        ambiguous,
+        memo
+      )
+    }
+    // Another holder's accounts say nothing about this one.
+    const other = [{ holderKey: 'linked acc trns nguyen', accountId: SAVINGS }]
+    assert.deepEqual(
+      detectTransfer(freeMemo('Rent'), { ...noLegs([], TWO_SAVINGS), linkedHolders: other }),
+      UNKNOWN
+    )
+  })
+
+  test('test_an_opposite_leg_settles_a_holder_known_in_several_accounts', ({ assert }) => {
+    const leg = transferLeg({ accountId: SECOND_SAVINGS, amountCents: 25000, date: '2026-10-05' })
+    // A closer leg in an account the holder never used loses to the holder's own account.
+    const elsewhere = transferLeg({ accountId: HNRY, amountCents: 25000, date: '2026-10-04' })
+
+    for (const memo of ['Honeymoon', 'Linked Acc Trns']) {
+      assert.deepEqual(
+        detectTransfer(freeMemo(memo), {
+          rules: seededRules(),
+          legs: [elsewhere, leg],
+          accounts: TWO_SAVINGS,
+          linkedHolders: knownIn(SAVINGS, SECOND_SAVINGS),
+        }),
+        { ...UNKNOWN, counterpartAccountId: SECOND_SAVINGS, oppositeLeg: leg },
+        memo
+      )
+    }
+  })
+
+  test('test_an_opposite_leg_in_another_account_wins_over_the_holder_rule_on_the_bank_memo', ({
+    assert,
+  }) => {
+    // NAB's own memo matches the learned holder rule as a merchant rule: the leg still decides.
+    const rules = [holderRule(42, 'linked acc trns smith jo', SAVINGS)]
+    const leg = transferLeg({ accountId: SECOND_SAVINGS, amountCents: 25000, date: '2026-10-04' })
+
+    const detection = detectTransfer(freeMemo('Linked Acc Trns'), {
+      rules,
+      legs: [leg],
+      accounts: TWO_SAVINGS,
+    })
+
+    assert.equal(detection?.counterpartAccountId, SECOND_SAVINGS)
+    assert.equal(detection?.oppositeLeg, leg)
+  })
+
+  test('test_an_opposite_leg_in_another_account_wins_over_a_bank_default_but_not_a_typed_rule', ({
+    assert,
+  }) => {
+    const leg = transferLeg({ accountId: SECOND_SAVINGS, amountCents: 25000, date: '2026-10-04' })
+    const bankMemo = freeMemo('Linked Acc Trns')
+
+    // The seeded `Linked Acc Trns` rule names the savings account; the leg is elsewhere.
+    const byDefault = detectTransfer(bankMemo, {
+      rules: seededRules(),
+      legs: [leg],
+      accounts: TWO_SAVINGS,
+    })
+    assert.deepEqual(byDefault, {
+      ...UNKNOWN,
+      signal: 'bank_category',
+      counterpartAccountId: SECOND_SAVINGS,
+      oppositeLeg: leg,
+    })
+
+    // A rule a person typed says where the money goes, whatever amount sits elsewhere.
+    const typed = merchantRule({
+      id: 60,
+      matchType: 'contains',
+      pattern: 'Linked Acc Trns',
+      categoryId: null,
+      transferAccountId: SAVINGS,
+      createdBy: 'user',
+    })
+    const byPerson = detectTransfer(bankMemo, {
+      rules: [typed],
+      legs: [leg],
+      accounts: TWO_SAVINGS,
+    })
+    assert.include(byPerson, { signal: 'rule', counterpartAccountId: SAVINGS, ruleId: 60 })
+    assert.isNull(byPerson?.oppositeLeg)
+
+    // Without the bank's transfer signal no leg ever overrides a rule (Hnry invoices).
+    const hnry = detectTransfer(bankRow('Hnry - INV-0001 Payment', 'Transfers in', 25000), {
+      rules: seededRules(),
+      legs: [transferLeg({ accountId: SAVINGS, amountCents: -25000, date: '2026-10-04' })],
+      accounts: ACCOUNTS,
+    })
+    assert.include(hnry, { counterpartAccountId: HNRY, oppositeLeg: null })
+  })
+
+  test('test_upper_case_memo_still_finds_the_holder', ({ assert }) => {
+    const bali = freeMemo('BALI')
+    assert.equal(linkedHolderKey(bali, ['linked acc trns smith jo']), 'linked acc trns smith jo')
+    assert.deepEqual(
+      detectTransfer(bali, { ...noLegs([], TWO_SAVINGS), linkedHolders: knownIn(SAVINGS) }),
+      { ...UNKNOWN, counterpartAccountId: SAVINGS }
+    )
+    // A rule learned before holders were kept per account is a known holder too.
+    const legacy = holderRule(42, 'linked acc trns smith jo', SECOND_SAVINGS)
+    assert.equal(
+      detectTransfer(bali, noLegs([legacy], TWO_SAVINGS))?.counterpartAccountId,
+      SECOND_SAVINGS
+    )
+  })
+
+  test('test_an_upper_case_memo_never_lends_its_holder_to_a_different_name', ({ assert }) => {
+    // `SMITH JOE` is another holder, not `SMITH JO` with a memo in front.
+    const joe = freeMemo('BALI', 'SMITH JOE')
+    assert.equal(
+      linkedHolderKey(joe, ['linked acc trns smith jo']),
+      'linked acc trns bali smith joe'
+    )
+    assert.deepEqual(
+      detectTransfer(joe, { ...noLegs([], TWO_SAVINGS), linkedHolders: knownIn(SAVINGS) }),
+      UNKNOWN
+    )
+    // A payment to a person named like the holder is not a transfer, memo in capitals or not.
+    const payment = bankRow('ONLINE C1000000005 BALI SMITH JO', 'Transfers out')
+    assert.isNull(linkedHolderKey(payment, ['linked acc trns smith jo']))
+    assert.isNull(
+      detectTransfer(payment, { ...noLegs([], TWO_SAVINGS), linkedHolders: knownIn(SAVINGS) })
+    )
+  })
+
+  test('test_a_holder_rule_naming_a_category_still_wins_over_the_known_accounts', ({ assert }) => {
+    const spending = merchantRule({
+      id: 50,
+      pattern: 'linked acc trns smith jo',
+      categoryId: 77,
+      transferAccountId: null,
+    })
+    assert.deepEqual(
+      detectTransfer(freeMemo('Pocket money'), {
+        ...noLegs([spending], TWO_SAVINGS),
+        linkedHolders: knownIn(SAVINGS),
+      }),
+      UNKNOWN
+    )
+    // NAB's own memo follows the category rule: spending, not a transfer.
+    assert.isNull(
+      detectTransfer(freeMemo('Linked Acc Trns'), {
+        ...noLegs([spending], TWO_SAVINGS),
+        linkedHolders: knownIn(SAVINGS),
+      })
+    )
   })
 })

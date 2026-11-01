@@ -90,6 +90,7 @@ export interface ApiDefinition {
     quick: typeof routes['transactions.quick']
     suggestions: typeof routes['transactions.suggestions']
     bulkCategorize: typeof routes['transactions.bulkCategorize']
+    bulkTags: typeof routes['transactions.bulkTags']
     show: typeof routes['transactions.show']
     update: typeof routes['transactions.update']
     destroy: typeof routes['transactions.destroy']
@@ -118,6 +119,7 @@ export interface ApiDefinition {
   tags: {
     index: typeof routes['tags.index']
     show: typeof routes['tags.show']
+    update: typeof routes['tags.update']
   }
   goals: {
     index: typeof routes['goals.index']
@@ -167,8 +169,10 @@ export interface ApiDefinition {
   }
   push: {
     subscriptions: {
+      index: typeof routes['push.subscriptions.index']
       store: typeof routes['push.subscriptions.store']
       destroy: typeof routes['push.subscriptions.destroy']
+      remove: typeof routes['push.subscriptions.remove']
     }
   }
 }

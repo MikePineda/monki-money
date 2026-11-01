@@ -30,6 +30,18 @@ export class TagsApi {
     ).request('tags.show', { params: { tag }, query: range })
     return data
   }
+
+  /**
+   * `PATCH /tags/:tag`: renames the tag on every transaction you can see;
+   * a name already in use merges the two. Answers the new name and how many
+   * transactions changed.
+   */
+  async rename(tag: string, name: string) {
+    const { data } = await (
+      await this.api()
+    ).request('tags.update', { params: { tag }, body: { name } })
+    return data
+  }
 }
 
 /** One tag of `GET /tags`. */

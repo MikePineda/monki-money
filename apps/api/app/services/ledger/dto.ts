@@ -85,6 +85,12 @@ export interface BulkCategorizeInput {
   categoryId: number | null
 }
 
+export interface BulkTagsInput {
+  ids: number[]
+  add?: string[]
+  remove?: string[]
+}
+
 export type TransactionSort = 'date' | '-date' | 'amount' | '-amount'
 
 export interface TransactionFilters {
@@ -101,6 +107,7 @@ export interface TransactionFilters {
   paidBy?: 'joint'
   kind?: TransactionKind
   status?: TransactionStatus
+  source?: TransactionSource
   needsReview?: boolean
   /** Text search over payee, notes and the bank description. */
   q?: string

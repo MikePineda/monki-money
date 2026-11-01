@@ -63,7 +63,8 @@
     "title": "Movimiento",
     "edit": "Editar",
     "duplicate": "Duplicar con fecha de hoy",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "select": "Seleccionar"
   },
   "toast": {
     "saved": "Cambios guardados.",
@@ -73,7 +74,10 @@
     "transferDeleted": "Transferencia eliminada.",
     "undo": "Deshacer",
     "duplicated": "Copia agregada con fecha de hoy.",
-    "private": "Solo quien pagó puede cambiar un movimiento privado."
+    "private": "Solo quien pagó puede cambiar un movimiento privado.",
+    "bulkTagged": "{updated, plural, one {Etiquetas cambiadas en # movimiento} other {Etiquetas cambiadas en # movimientos}}{skipped, plural, =0 {.} one {; # quedó igual.} other {; # quedaron igual.}}",
+    "bulkCategorized": "{updated, plural, one {# movimiento categorizado} other {# movimientos categorizados}}{skipped, plural, =0 {.} one {; # quedó igual.} other {; # quedaron igual.}}",
+    "payslipLine": "Esto es parte de un recibo de pago: borra el recibo para quitarlo."
   },
   "edit": {
     "title": "Editar movimiento",
@@ -93,7 +97,12 @@
     "memo": "Nota",
     "account": "Cuenta",
     "paidBy": "Pagó",
-    "tags": "Etiquetas"
+    "tags": "Etiquetas",
+    "payslip": {
+      "body": "Parte de un recibo de pago. Su monto, fecha y cuenta pertenecen al recibo; la categoría, el beneficiario, la nota, las etiquetas y la privacidad los puedes cambiar.",
+      "link": "Ver recibos",
+      "locked": "El recibo de pago define este monto, fecha y cuenta. Borra el recibo y regístralo de nuevo para cambiarlos."
+    }
   },
   "split": {
     "title": "Dividir {amount}",
@@ -109,5 +118,22 @@
     "balanced": "Las líneas suman {amount}.",
     "save": "Guardar división",
     "unsplit": "Quitar división"
+  },
+  "select": {
+    "start": "Seleccionar movimientos",
+    "label": "Movimientos seleccionados",
+    "count": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "clear": "Quitar selección",
+    "category": "Categoría",
+    "tag": "Etiquetar",
+    "categoryTitle": "{count, plural, one {Categoría para # movimiento} other {Categoría para # movimientos}}"
+  },
+  "bulkTags": {
+    "title": "{count, plural, one {Etiquetar # movimiento} other {Etiquetar # movimientos}}",
+    "addHint": "Se agrega a todos los movimientos seleccionados.",
+    "remove": "Quitar",
+    "removeHint": "Toca una etiqueta para quitarla de todos los movimientos seleccionados.",
+    "removeTag": "Quitar {tag}",
+    "apply": "Aplicar"
   }
 }

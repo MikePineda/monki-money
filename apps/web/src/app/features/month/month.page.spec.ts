@@ -417,12 +417,22 @@ describe('MonthPage', () => {
     expect(root.querySelectorAll('[data-testid="month.committed.item"]')).toHaveLength(2)
   })
 
-  it('test_a_past_month_has_no_committed_card', async () => {
+  it('test_a_past_month_shows_what_its_recurring_payments_took', async () => {
     const { root } = await open(`/month/${PREVIOUS}`, {
-      report: (month) => ({ ...busyMonth(month), committed: COMMITTED }),
+      report: (month) => ({
+        ...busyMonth(month),
+        committed: { ...COMMITTED, upcomingCents: 0, items: COMMITTED.items.slice(0, 1) },
+      }),
     })
 
-    expect(root.querySelector('[data-testid="month.committed"]')).toBeNull()
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="month.committed"]')).not.toBeNull()
+    )
+    expect(root.querySelector('[data-testid="month.committed"]')?.getAttribute('data-past')).toBe(
+      'true'
+    )
+    expect(text(root, '[data-testid="month.committed.paid"]')).toBe('Paid $1,000.00')
+    expect(root.querySelector('[data-testid="month.committed.due"]')).toBeNull()
     expect(root.querySelector('[data-testid="month.committed.hint"]')).toBeNull()
   })
 

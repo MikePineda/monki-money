@@ -33,13 +33,14 @@ async function savePreference(
 }
 
 /**
- * The session: `GET /auth/me` before the first route resolves, theme and
+ * The session: `GET /auth/me` before the first route resolves (or, without
+ * an answer, the session this device kept: SessionStore.boot), theme and
  * language persisted on the profile, and "today" in the household's time
  * zone (the device's until a household is known).
  */
 export function provideAuth(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    provideAppInitializer(() => inject(SessionStore).load()),
+    provideAppInitializer(() => inject(SessionStore).boot()),
     {
       provide: THEME_PERSISTENCE,
       useFactory: (): ThemePersistence => {

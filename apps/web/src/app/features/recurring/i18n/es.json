@@ -34,7 +34,8 @@
     "pause": "Pausar",
     "resume": "Reanudar",
     "dismiss": "No es un pago fijo",
-    "restore": "Restaurar"
+    "restore": "Restaurar",
+    "delete": "Eliminar"
   },
   "sheet": {
     "addTitle": "Agregar un pago recurrente",
@@ -48,7 +49,9 @@
     "nextDate": "Próxima fecha de pago",
     "category": "Categoría",
     "person": "Quién paga",
-    "save": "Guardar"
+    "save": "Guardar",
+    "linkSuggestions": "¿Es alguno de estos? Vincúlalo para que sus pagos cuenten",
+    "linked": "Vinculado a {payee}: sus pagos cuentan como pagados"
   },
   "people": {
     "you": "Tú",
@@ -60,6 +63,15 @@
     "paused": "{payee} en pausa: ya no cuenta como comprometido",
     "resumed": "{payee} vuelve a contar como comprometido",
     "dismissed": "{payee} descartado: la detección no lo volverá a traer",
-    "restored": "{payee} restaurado"
+    "restored": "{payee} restaurado",
+    "deleted": "{payee} eliminado"
+  },
+  "lowConfidence": "Visto dos veces: revísalo",
+  "deleteSheet": {
+    "title": "¿Eliminar {payee}?",
+    "body": "Deja de contar como comprometido. Sus pagos siguen en tus gastos.",
+    "bodyDetected": "Deja de contar como comprometido. La detección podría encontrarlo otra vez; para que no vuelva, elige No es un pago fijo.",
+    "confirm": "Eliminar",
+    "keep": "Conservarlo"
   }
 }

@@ -1,0 +1,28 @@
+meta {
+  name: Bulk tag (remove)
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions/bulk-tags
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "ids": [{{quickId}}],
+    "remove": ["bruno-bulk-{{runId}}"]
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.updated: eq 1
+}
+
+docs {
+  `transactions.bulkTags` with `remove` takes the tag off again, so the run
+  leaves the quick-add row as it found it.
+}

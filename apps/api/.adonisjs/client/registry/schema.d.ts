@@ -667,6 +667,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkCategorize']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'transactions.bulkTags': {
+    methods: ["POST"]
+    pattern: '/api/v1/transactions/bulk-tags'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/transactions').bulkTagsValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/transactions').bulkTagsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkTags']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transactions_controller').default['bulkTags']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'transactions.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/transactions/:id'
@@ -881,6 +893,18 @@ export interface Registry {
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/tags').tagShowValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'tags.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/tags/:tag'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/tags').renameTagValidator)>>
+      paramsTuple: [ParamValue]
+      params: { tag: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/tags').renameTagValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/tags_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'goals.index': {
@@ -1243,6 +1267,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/receipts_controller').default['scan']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'push.subscriptions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/push/subscriptions'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['index']>>>
+    }
+  }
   'push.subscriptions.store': {
     methods: ["POST"]
     pattern: '/api/v1/push/subscriptions'
@@ -1265,6 +1301,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/push').destroyPushSubscriptionValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'push.subscriptions.remove': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/push/subscriptions/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/push').pushDeviceParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/push').pushDeviceParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['remove']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/push_subscriptions_controller').default['remove']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
 }

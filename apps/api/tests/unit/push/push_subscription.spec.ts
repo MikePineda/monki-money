@@ -1,5 +1,11 @@
 import { test } from '@japa/runner'
-import { isAuthSecret, isP256dhKey, isPushServiceEndpoint } from '#domain/push/push_subscription'
+import {
+  MAX_CONSECUTIVE_FAILURES,
+  isAuthSecret,
+  isDeadDevice,
+  isP256dhKey,
+  isPushServiceEndpoint,
+} from '#domain/push/push_subscription'
 
 const P256DH =
   'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
@@ -54,5 +60,15 @@ test.group('Push subscription: keys', () => {
     assert.isTrue(isAuthSecret('tBHItJI5svbpez7KI4CCXg=='))
     assert.isFalse(isAuthSecret('A'))
     assert.isFalse(isAuthSecret('bmV3LWF1dGgtc2VjcmV0'), '15 bytes')
+  })
+})
+
+test.group('Push subscription: dead devices', () => {
+  test('test_a_device_is_dead_after_ten_failed_sends_in_a_row', ({ assert }) => {
+    assert.equal(MAX_CONSECUTIVE_FAILURES, 10)
+    assert.isFalse(isDeadDevice(0))
+    assert.isFalse(isDeadDevice(9))
+    assert.isTrue(isDeadDevice(10))
+    assert.isTrue(isDeadDevice(11))
   })
 })

@@ -184,6 +184,12 @@ const cases: IsolationCase[] = [
     method: 'get',
     url: (v) => `/api/v1/tags/${encodeURIComponent(v.transaction.tags[0])}`,
   },
+  {
+    route: 'tags.update',
+    method: 'patch',
+    url: (v) => `/api/v1/tags/${encodeURIComponent(v.transaction.tags[0])}`,
+    body: { name: 'Hijacked' },
+  },
   { route: 'goals.show', method: 'get', url: (v) => `/api/v1/goals/${v.goal.id}` },
   {
     route: 'goals.update',
@@ -294,6 +300,11 @@ const cases: IsolationCase[] = [
     method: 'delete',
     url: () => '/api/v1/push/subscriptions',
     body: (v) => ({ endpoint: v.pushDevice.endpoint }),
+  },
+  {
+    route: 'push.subscriptions.remove',
+    method: 'delete',
+    url: (v) => `/api/v1/push/subscriptions/${v.pushDevice.id}`,
   },
   {
     // Another household's owner as the new owner: not a member here.
@@ -521,6 +532,7 @@ test.group('Tenant isolation', () => {
       await victim.transaction.refresh()
       assert.equal(victim.transaction.payee, 'Victim payee')
       assert.equal(victim.transaction.categoryId, victim.category.id)
+      assert.deepEqual(victim.transaction.tags, ['Victim trip'])
       await victim.transfer.refresh()
       assert.equal(victim.transfer.memo, 'Victim memo')
       assert.lengthOf(await Transaction.query().where('transfer_id', victim.transfer.id), 2)
@@ -707,6 +719,9 @@ test.group('Tenant isolation', () => {
     const projected = await client.get('/api/v1/goals?include=projection').actingAs(attacker.owner)
     assert.deepEqual(projected.body().data, [])
 
+    const devices = await client.get('/api/v1/push/subscriptions').actingAs(attacker.owner)
+    assert.deepEqual(devices.body().data, [])
+
     const recurring = await client.get('/api/v1/recurring').actingAs(attacker.owner)
     assert.deepEqual(recurring.body().data, [])
     assert.deepInclude(month.body().data.committed, { recurringCount: 0, items: [] })
@@ -812,6 +827,13 @@ test.group('Tenant isolation', () => {
       ],
       [
         () =>
+          client
+            .post('/api/v1/transactions/bulk-tags')
+            .json({ ids: [own.id, victim.transaction.id], add: ['Hijacked'] }),
+        'ids',
+      ],
+      [
+        () =>
           client.post('/api/v1/transfers').json({
             fromAccountId: attacker.accounts[0].id,
             toAccountId: victim.account.id,
@@ -892,6 +914,7 @@ test.group('Tenant isolation', () => {
 
     await victim.transaction.refresh()
     assert.equal(victim.transaction.categoryId, victim.category.id)
+    assert.deepEqual(victim.transaction.tags, ['Victim trip'])
     // The victim's movement, its transfer leg and its payslip's gross row.
     assert.lengthOf(await Transaction.query().where('account_id', victim.account.id), 3)
     assert.lengthOf(await Payslip.query().where('household_id', attacker.household.id), 0)

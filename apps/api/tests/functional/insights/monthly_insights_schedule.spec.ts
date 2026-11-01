@@ -658,4 +658,62 @@ test.group('Monthly insights: scheduled run', (group) => {
       assert.lengthOf(await insightsOf(fixture.household.id), 0)
     }
   })
+
+  test('test_a_first_missed_entirely_is_caught_up_once_by_the_fourth', async ({ assert }) => {
+    const fixtures = await insightFixtures()
+    const { household } = await householdWith('activity')
+    const job = await app.container.make(MonthlyInsightsJob)
+    const llm = await containerLlm()
+    const calls = llm.requests.length
+    // The app was down all of the 1st: the first tick lands at 00:15 on the 2nd.
+    const secondOfOctober = DateTime.fromISO('2026-10-02T00:15:00+10:00', { setZone: true })
+
+    await tickAt(job, secondOfOctober)
+    await tickAt(job, secondOfOctober.plus({ days: 1 }))
+    await tickAt(job, DateTime.fromISO('2026-10-04T23:45:00+10:00', { setZone: true }))
+
+    assert.equal(llm.requests.length, calls + 1, 'one call for the whole window')
+    const rows = await insightsOf(household.id)
+    assert.deepEqual(
+      rows.map((row) => [row.month, row.headline]),
+      [['2026-09', fixtures.en.headline]]
+    )
+    const runs = await runsOf(household.id)
+    assert.deepEqual(
+      runs.map((run) => [run.period_key, run.attempts, run.outcome]),
+      [['2026-09', 1, 'generated']]
+    )
+  })
+
+  test('test_nothing_runs_after_the_fourth', async ({ assert }) => {
+    const { household } = await householdWith('activity')
+    const job = await app.container.make(MonthlyInsightsJob)
+
+    await tickAt(job, DateTime.fromISO('2026-10-05T00:15:00+10:00', { setZone: true }))
+
+    assert.lengthOf(await insightsOf(household.id), 0)
+    assert.lengthOf(await runsOf(household.id), 0)
+  })
+
+  test('test_a_household_created_inside_the_window_gets_no_summary_of_a_month_it_has_no_data_for', async ({
+    assert,
+  }) => {
+    // Signed up on the 3rd: September is empty, only October has movements.
+    const { household } = await householdWith('nothing')
+    const job = await app.container.make(MonthlyInsightsJob)
+    const llm = await containerLlm()
+    const calls = llm.requests.length
+    const thirdOfOctober = DateTime.fromISO('2026-10-03T10:00:00+10:00', { setZone: true })
+
+    await tickAt(job, thirdOfOctober)
+    await tickAt(job, thirdOfOctober.plus({ hours: 12 }))
+
+    assert.equal(llm.requests.length, calls)
+    assert.lengthOf(await insightsOf(household.id), 0)
+    const runs = await runsOf(household.id)
+    assert.deepEqual(
+      runs.map((run) => [run.outcome, run.attempts]),
+      [['skipped:no-activity', 1]]
+    )
+  })
 })

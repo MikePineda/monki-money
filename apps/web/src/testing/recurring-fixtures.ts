@@ -18,6 +18,7 @@ export function aRecurringItem(overrides: Partial<RecurringItem> = {}): Recurrin
     pausedByDetection: false,
     source: 'detected',
     occurrences: 4,
+    confidence: 'high',
     createdAt: '2026-10-16T00:00:00.000Z',
     updatedAt: '2026-10-16T00:00:00.000Z',
     ...overrides,

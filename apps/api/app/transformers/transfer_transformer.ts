@@ -1,5 +1,5 @@
 import type Transfer from '#models/transfer'
-import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
+import { isHiddenFrom, unlessHiddenPayslipMemo, type LedgerViewer } from '#domain/ledger/privacy'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import TransactionTransformer from '#transformers/transaction_transformer'
@@ -9,12 +9,13 @@ import TransactionTransformer from '#transformers/transaction_transformer'
  * `amountCents` is positive; the outgoing leg carries it negative on
  * `fromAccountId`, the incoming one positive on `toAccountId`. Each leg is
  * masked like any transaction, and the memo (the legs' note) is withheld
- * while either leg is a private row the reader may not see.
+ * while either leg is a private row the reader may not see, or while it is
+ * the memo of a payslip whose gross line is (`viewer.hiddenPayslipMemos`).
  */
 export default class TransferTransformer extends BaseTransformer<Transfer> {
   constructor(
     resource: Transfer,
-    protected viewer: PrivacyViewer
+    protected viewer: LedgerViewer
   ) {
     super(resource)
   }
@@ -29,7 +30,7 @@ export default class TransferTransformer extends BaseTransformer<Transfer> {
       amountCents: transfer.amountCents,
       fromAccountId: transfer.fromAccountId,
       toAccountId: transfer.toAccountId,
-      memo: masked ? null : transfer.memo,
+      memo: masked ? null : unlessHiddenPayslipMemo(transfer.memo, transfer.id, this.viewer),
       clientId: transfer.clientId,
       legs: TransactionTransformer.transform(legs, this.viewer),
       createdByUserId: transfer.createdByUserId,

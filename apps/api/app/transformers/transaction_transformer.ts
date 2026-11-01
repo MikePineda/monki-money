@@ -1,5 +1,5 @@
 import type Transaction from '#models/transaction'
-import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
+import { isHiddenFrom, unlessHiddenPayslipMemo, type LedgerViewer } from '#domain/ledger/privacy'
 import { BaseTransformer } from '@adonisjs/core/transformers'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import TransactionSplitTransformer from '#transformers/transaction_split_transformer'
@@ -11,12 +11,14 @@ import TransactionSplitTransformer from '#transformers/transaction_split_transfo
  * Privacy: a partner's private transaction keeps its amount, date,
  * account, payer and kind, but its payee, notes, bank description, tags,
  * category and split lines are withheld and it never shows as "needs
- * review" (`isMasked: true`), so the app shows it as "Private".
+ * review" (`isMasked: true`), so the app shows it as "Private". A
+ * transfer leg whose note is the memo of a payslip with a private gross
+ * line (`viewer.hiddenPayslipMemos`) keeps everything but that note.
  */
 export default class TransactionTransformer extends BaseTransformer<Transaction> {
   constructor(
     resource: Transaction,
-    protected viewer: PrivacyViewer
+    protected viewer: LedgerViewer
   ) {
     super(resource)
   }
@@ -34,7 +36,9 @@ export default class TransactionTransformer extends BaseTransformer<Transaction>
       amountCents: transaction.amountCents,
       currencyCode: transaction.currencyCode,
       payee: masked ? null : transaction.payee,
-      description: masked ? null : transaction.description,
+      description: masked
+        ? null
+        : unlessHiddenPayslipMemo(transaction.description, transaction.transferId, this.viewer),
       rawDescription: masked ? null : transaction.rawDescription,
       categoryId: masked ? null : transaction.categoryId,
       isSplit: masked ? false : transaction.isSplit,

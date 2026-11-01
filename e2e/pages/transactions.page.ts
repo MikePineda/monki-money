@@ -62,6 +62,26 @@ export class TransactionsPage {
     await expect(this.page.getByTestId('transactions.form.tags')).toContainText(tag)
   }
 
+  /** "Select" in the header: taps pick rows; the bulk bar acts on them. */
+  async select(...texts: string[]): Promise<void> {
+    await this.page.getByTestId('transactions.select.start').click()
+    for (const text of texts) {
+      await this.row(text).click()
+    }
+    await expect(this.page.getByTestId('transactions.bulk')).toContainText(
+      `${texts.length} selected`
+    )
+  }
+
+  /** The bulk bar's "Tag": adds `tag` to every picked row. */
+  async bulkTag(tag: string): Promise<void> {
+    await this.page.getByTestId('transactions.bulk.tag').click()
+    const field = this.page.getByTestId('transactions.bulkTags.add').locator('input')
+    await field.fill(tag)
+    await field.press('Enter')
+    await this.page.getByTestId('transactions.bulkTags.apply').click()
+  }
+
   filterChip(id: 'month' | 'account' | 'person' | 'category' | 'tag'): Locator {
     return this.page.getByTestId(`transactions.filter.${id}`)
   }

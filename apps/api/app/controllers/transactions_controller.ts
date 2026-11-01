@@ -1,11 +1,13 @@
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import { privacyViewer } from '#services/ledger/privacy_viewer'
+import TagEditor from '#services/ledger/tag_editor'
+import { ledgerViewer, privacyViewer } from '#services/ledger/privacy_viewer'
 import TransactionService from '#services/ledger/transaction_service'
 import TransactionSuggestions from '#services/ledger/transaction_suggestions'
 import TransactionTransformer from '#transformers/transaction_transformer'
 import {
   bulkCategorizeValidator,
+  bulkTagsValidator,
   createTransactionValidator,
   listTransactionsValidator,
   quickTransactionValidator,
@@ -18,7 +20,8 @@ import {
 export default class TransactionsController {
   constructor(
     protected transactions: TransactionService,
-    protected suggestionsFor: TransactionSuggestions
+    protected suggestionsFor: TransactionSuggestions,
+    protected tags: TagEditor
   ) {}
 
   /**
@@ -32,11 +35,21 @@ export default class TransactionsController {
   /** GET /transactions: filtered, paginated (`{ data, metadata }`, perPage <= 100). */
   async index(ctx: HttpContext) {
     const filters = await ctx.request.validateUsing(listTransactionsValidator)
-    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
+    const user = ctx.auth.getUserOrFail()
 
-    const page = await this.transactions.list(ctx.household, viewer, filters)
+    const page = await this.transactions.list(
+      ctx.household,
+      await privacyViewer(ctx.household, user),
+      filters
+    )
+    const rows = page.all()
+    const viewer = await ledgerViewer(
+      ctx.household,
+      user,
+      rows.map((row) => row.transferId)
+    )
 
-    return ctx.serialize(TransactionTransformer.paginate(page.all(), page.getMeta(), viewer))
+    return ctx.serialize(TransactionTransformer.paginate(rows, page.getMeta(), viewer))
   }
 
   /** POST /transactions: 201, or 200 with the existing row for a repeated `clientId`. */
@@ -68,10 +81,12 @@ export default class TransactionsController {
   /** GET /transactions/:id */
   async show(ctx: HttpContext) {
     const { params } = await ctx.request.validateUsing(transactionParamsValidator)
-    const viewer = await privacyViewer(ctx.household, ctx.auth.getUserOrFail())
 
     const transaction = await this.transactions.find(ctx.household, params.id)
 
+    const viewer = await ledgerViewer(ctx.household, ctx.auth.getUserOrFail(), [
+      transaction.transferId,
+    ])
     return ctx.serialize(TransactionTransformer.transform(transaction, viewer))
   }
 
@@ -105,6 +120,18 @@ export default class TransactionsController {
       ctx.auth.getUserOrFail(),
       payload
     )
+
+    return { data: result }
+  }
+
+  /**
+   * POST /transactions/bulk-tags { ids, add, remove }: `{ updated, skipped }`
+   * (a transfer leg changes both legs; the partner's private rows are skipped).
+   */
+  async bulkTags(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(bulkTagsValidator)
+
+    const result = await this.tags.bulk(ctx.household, ctx.auth.getUserOrFail(), payload)
 
     return { data: result }
   }

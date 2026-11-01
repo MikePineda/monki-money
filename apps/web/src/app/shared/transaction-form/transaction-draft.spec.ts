@@ -29,7 +29,7 @@ const TRANSFER: TransferDraft = {
   amountCents: 50000,
   date: '2026-10-01',
   memo: 'Rent',
-  tags: [],
+  tags: ['Bali 2027'],
 }
 
 describe('draftErrors', () => {
@@ -110,6 +110,7 @@ describe('transferToCreate', () => {
       date: '2026-10-01',
       amountCents: 50000,
       memo: null,
+      tags: ['Bali 2027'],
     })
   })
 

@@ -1,16 +1,31 @@
 import type { RecurringCadence, RecurringSource, RecurringStatus } from '@monkimoney/shared'
 import { addDays } from '#domain/importing/iso_days'
-import { STALE_GRACE_DAYS, type DetectedItem } from '#domain/recurring/detection'
+import { keysNameTheSameMerchant } from '#domain/recurring/merchant_key'
+import {
+  STALE_GRACE_DAYS,
+  withinTolerance,
+  type DetectedItem,
+  type Payment,
+} from '#domain/recurring/detection'
 import { addCadence, nextDueOnOrAfter } from '#domain/recurring/cadence'
 
 /**
  * How a new detection run lands on the items a household already tracks.
  * Pure and idempotent: running it again on the same ledger plans nothing.
  *
- * - A found pattern lands on the item with its merchant key, else on an
+ * - A found pattern lands on an item with its merchant key, else on an
  *   item typed by hand under one of its payee keys (a "Rent" item and the
- *   imported transfers the person named "Rent"); otherwise it becomes a
- *   new item.
+ *   imported transfers the person named "Rent") or under a name that is
+ *   its merchant once noise words drop (`keysNameTheSameMerchant`: a typed
+ *   "StreamFlix" and the bank's STREAMFLIX.COM); otherwise it becomes a
+ *   new item. Several items may share a merchant key (two phone lines), so
+ *   the amount decides: a pattern lands on the item whose amount it is
+ *   within the tolerance of (closest first, the merchant key before a
+ *   payee key). A pattern within no item's tolerance still lands on the
+ *   only item it could be when that item could be no other pattern (the
+ *   same bill at a new price); when it could be several items it changes
+ *   nothing (guessing would move one line onto another), and when every
+ *   item it could be is taken it is a new item (a second line).
  * - A `dismissed` item is left alone: detection never brings it back.
  * - Otherwise the observations always refresh (`occurrences`,
  *   `lastPaidDate`); the fields a person may edit refresh only on detected
@@ -22,7 +37,8 @@ import { addCadence, nextDueOnOrAfter } from '#domain/recurring/cadence'
  *   its merchant has not been paid for two steps plus STALE_GRACE_DAYS (a
  *   cancelled subscription stops counting as committed, even after a person
  *   set its category), and resumed when its payments come back. A status a
- *   person chose is never changed.
+ *   person chose is never changed. When other items share its merchant key,
+ *   only payments within its tolerance count as its own.
  */
 
 /** Fields a person can change on an item (PATCH); detection never overwrites them afterwards. */
@@ -56,6 +72,7 @@ export type TrackedItem = {
   payee: string
   cadence: RecurringCadence
   amountCents: number
+  amountTolerancePct: number
   categoryId: number | null
   accountId: number | null
   paidByUserId: number | null
@@ -118,6 +135,9 @@ function changesFor(item: TrackedItem, found: DetectedItem, today: string): Item
   return changes
 }
 
+/** A payment of the ledger, as the pause check needs it. */
+export type SeenPayment = Pick<Payment, 'date' | 'amountCents' | 'merchantKey' | 'payeeKey'>
+
 /** No payment for two steps plus the grace: a detected subscription that ended. */
 function lapsed(item: TrackedItem, lastSeen: string | undefined, today: string): boolean {
   const last = [item.lastPaidDate, lastSeen]
@@ -128,42 +148,117 @@ function lapsed(item: TrackedItem, lastSeen: string | undefined, today: string):
 }
 
 /**
- * @param lastSeen The latest payment date of each merchant or payee key in
- *   the ledger, so an item whose pattern broke (a new price) but is still
- *   being paid is not taken for a cancelled one.
+ * The latest payment under the item's key: any amount when the item is
+ * the merchant's only one (a new price is still the same bill), else only
+ * within its tolerance (the other line's payments are not its own).
+ */
+function lastSeenOf(item: TrackedItem, tracked: TrackedItem[], seen: readonly SeenPayment[]) {
+  const shared = tracked.some(
+    (other) =>
+      other.id !== item.id && other.status !== 'dismissed' && other.merchantKey === item.merchantKey
+  )
+  let last: string | undefined
+  for (const payment of seen) {
+    if (payment.merchantKey !== item.merchantKey && payment.payeeKey !== item.merchantKey) continue
+    if (
+      shared &&
+      !withinTolerance(payment.amountCents, item.amountCents, item.amountTolerancePct)
+    ) {
+      continue
+    }
+    if (last === undefined || payment.date > last) last = payment.date
+  }
+  return last
+}
+
+/**
+ * How well a found pattern names an item (0 best), or null when it cannot
+ * land on it: its merchant key, else (items typed by hand only) one of its
+ * payee keys, else the same merchant once noise words drop.
+ */
+function landingLevel(item: TrackedItem, found: DetectedItem): 0 | 1 | 2 | null {
+  if (item.merchantKey === found.merchantKey) return 0
+  if (item.source !== 'manual') return null
+  if (found.payeeKeys.includes(item.merchantKey)) return 1
+  const keys = [found.merchantKey, ...found.payeeKeys]
+  return keys.some((key) => keysNameTheSameMerchant(item.merchantKey, key)) ? 2 : null
+}
+
+/**
+ * Which item each found pattern lands on (by index of `detected`): first
+ * the pairs within the item's tolerance, best key then closest amount;
+ * then a pattern and an item left over that could only be each other.
+ * `undefined` = a new item; null = changes nothing (ambiguous).
+ */
+function landings(tracked: TrackedItem[], detected: DetectedItem[]) {
+  const pairs = detected.flatMap((found, index) =>
+    tracked.flatMap((item) => {
+      const level = landingLevel(item, found)
+      return level === null ? [] : [{ index, item, level }]
+    })
+  )
+  const landed = new Map<number, TrackedItem | null>()
+  const taken = new Set<number>()
+
+  const close = pairs
+    .filter(({ index, item }) =>
+      withinTolerance(detected[index].amountCents, item.amountCents, item.amountTolerancePct)
+    )
+    .map((pair) => ({
+      ...pair,
+      distance: Math.abs(detected[pair.index].amountCents - pair.item.amountCents),
+    }))
+    .sort((a, b) => a.level - b.level || a.distance - b.distance || a.item.id - b.item.id)
+  for (const { index, item } of close) {
+    if (landed.has(index) || taken.has(item.id)) continue
+    landed.set(index, item)
+    taken.add(item.id)
+  }
+
+  const open = pairs.filter(({ index, item }) => !landed.has(index) && !taken.has(item.id))
+  detected.forEach((_, index) => {
+    if (landed.has(index)) return
+    const mine = open.filter((pair) => pair.index === index)
+    if (mine.length === 0) return
+    const [only] = mine
+    const rivals = open.filter((pair) => pair.item.id === only.item.id && pair.index !== index)
+    landed.set(index, mine.length === 1 && rivals.length === 0 ? only.item : null)
+  })
+  return landed
+}
+
+/**
+ * @param seen The household's payments in the detection window, so an
+ *   item whose pattern broke (a new price) but is still being paid is not
+ *   taken for a cancelled one.
  */
 export function planRedetection(
   tracked: TrackedItem[],
   detected: DetectedItem[],
   today: string,
-  lastSeen: ReadonlyMap<string, string> = new Map()
+  seen: readonly SeenPayment[] = []
 ): RedetectionPlan {
-  const byKey = new Map(tracked.map((item) => [item.merchantKey, item]))
   const plan: RedetectionPlan = { create: [], update: [] }
   const matched = new Set<number>()
+  const landed = landings(tracked, detected)
 
-  const landing = (found: DetectedItem) =>
-    byKey.get(found.merchantKey) ??
-    found.payeeKeys
-      .map((key) => byKey.get(key))
-      .find((item) => item !== undefined && item.source === 'manual' && !matched.has(item.id))
-
-  for (const found of detected) {
-    const item = landing(found)
-    if (!item) {
+  detected.forEach((found, index) => {
+    const item = landed.get(index)
+    if (item === undefined) {
       plan.create.push(found)
-      continue
+      return
     }
+    if (item === null) return
     matched.add(item.id)
-    if (item.status === 'dismissed') continue
+    if (item.status === 'dismissed') return
 
     const changes = changesFor(item, found, today)
     if (Object.keys(changes).length > 0) plan.update.push({ id: item.id, changes })
-  }
+  })
 
   for (const item of tracked) {
     if (matched.has(item.id) || item.status !== 'active' || !statusIsDetections(item)) continue
-    if (lapsed(item, lastSeen.get(item.merchantKey), today)) {
+    if (lapsed(item, lastSeenOf(item, tracked, seen), today)) {
       plan.update.push({ id: item.id, changes: { status: 'paused' } })
     }
   }

@@ -9,10 +9,12 @@ import type { PayerContext } from '#domain/importing/paid_by'
 import { TRANSFER_LEG_WINDOW_DAYS } from '#domain/importing/transfer_detector'
 import { DAYS_AFTER_POSTING, DAYS_BEFORE_PURCHASE } from '#domain/importing/matcher'
 import CandidatesRepository, { type MatchCandidate } from '#repositories/candidates_repository'
+import LinkedHolders from '#services/imports/linked_holders'
 import { householdIdOf, type HouseholdRef } from '#models/mixins/household_scoped'
 import type {
   CandidateTx,
   HouseholdAccount,
+  LinkedHolderAccount,
   MerchantRule as RuleValue,
   ResolverContext,
   StagedRow,
@@ -26,7 +28,10 @@ import type {
  */
 @inject()
 export default class ImportContextLoader {
-  constructor(protected candidates: CandidatesRepository) {}
+  constructor(
+    protected candidates: CandidatesRepository,
+    protected holders: LinkedHolders
+  ) {}
 
   async rules(household: HouseholdRef): Promise<RuleValue[]> {
     const rules = await MerchantRule.query().withScopes((scopes) => scopes.forHousehold(household))
@@ -46,6 +51,11 @@ export default class ImportContextLoader {
       isActive: account.isActive,
       ownerUserId: account.ownerUserId,
     }))
+  }
+
+  /** The accounts each linked holder's internal transfers were confirmed to. */
+  linkedHolders(household: HouseholdRef): Promise<LinkedHolderAccount[]> {
+    return this.holders.of(household)
   }
 
   async categoryIdBySlug(household: HouseholdRef): Promise<Map<string, number>> {
@@ -110,6 +120,7 @@ export default class ImportContextLoader {
       existingHashes: ReadonlySet<string>
       rules: readonly RuleValue[]
       accounts: readonly HouseholdAccount[]
+      linkedHolders: readonly LinkedHolderAccount[]
       otherStaged: readonly StagedRow[]
       /** The person uploading: only their own private rows may be a transfer leg. */
       actorId: number
@@ -122,6 +133,7 @@ export default class ImportContextLoader {
         transferLegs: [],
         rules: options.rules,
         accounts: options.accounts,
+        linkedHolders: options.linkedHolders,
       }
     }
     const dates = rows.map((row) => row.date).sort()
@@ -155,6 +167,7 @@ export default class ImportContextLoader {
       transferLegs: [...ledgerLegs, ...stagedLegs],
       rules: options.rules,
       accounts: options.accounts,
+      linkedHolders: options.linkedHolders,
     }
   }
 

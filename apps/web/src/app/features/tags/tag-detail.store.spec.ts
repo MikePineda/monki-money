@@ -36,7 +36,7 @@ describe('TagDetailStore', () => {
 
     await settle()
 
-    expect(api.show).toHaveBeenCalledWith('Bali / Lombok')
+    expect(api.show).toHaveBeenCalledWith('Bali / Lombok', {})
     expect(store.status()).toBe('ready')
     expect(store.detail()?.tag).toBe('Bali / Lombok')
   })
@@ -77,5 +77,21 @@ describe('TagDetailStore', () => {
 
     expect(api.show).toHaveBeenCalledTimes(2)
     expect(store.detail()?.expenseCents).toBe(20_000)
+  })
+
+  it('test_a_date_range_reads_the_tag_for_those_dates_keeping_it_on_screen', async () => {
+    const store = setup()
+    await settle()
+    // On screen.
+    expect(store.detail()?.expenseCents).toBe(13_000)
+    api.show.mockResolvedValueOnce(aTagDetail({ expenseCents: 5_000 }))
+
+    store.setRange({ from: '2026-01-01', to: '2026-12-31' })
+    TestBed.tick()
+    expect(store.detail()?.expenseCents).toBe(13_000)
+    await settle()
+
+    expect(api.show).toHaveBeenLastCalledWith('Bali 2027', { from: '2026-01-01', to: '2026-12-31' })
+    expect(store.detail()?.expenseCents).toBe(5_000)
   })
 })

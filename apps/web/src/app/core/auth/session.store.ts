@@ -1,9 +1,10 @@
-import { Injectable, computed, inject, signal } from '@angular/core'
+import { DOCUMENT, DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import type { Household, User } from '../api/api-types'
 import { SessionExpiry } from '../api/session-expiry'
 import { isClientErrorAnswer } from '../api/tuyau-error'
 import { LangStore } from '../i18n/lang.store'
+import { OfflineCache } from '../platform/offline-cache'
 import { WINDOW } from '../platform/window.token'
 import { ThemeStore } from '../theme/theme.store'
 import { clearAppStorage } from './app-storage'
@@ -16,12 +17,19 @@ export const BEFORE_LOGOUT_MS = 3_000
 /**
  * Who is signed in, read from `GET /api/v1/auth/me` at boot and after every
  * login, sign-up or invitation acceptance. Screens and guards read the
- * computed signals; nothing personal is ever stored outside memory (the
- * session itself is an httpOnly cookie).
+ * computed signals. The session itself is an httpOnly cookie; the last
+ * `/auth/me` body is also kept on the device (OfflineCache) so the
+ * installed app can start offline.
  *
- * A 401 from any call while signed in means the session expired or was
- * revoked: the store clears itself and sends the user to /login, quietly
- * (no error toast: logging in again is the whole message).
+ * - Boot without an answer (no network, a 5xx) restores that kept session
+ *   (`restored`): the shell opens and quick add queues to the outbox. Once
+ *   the connection is back (or the app returns to the foreground) it asks
+ *   the server again: a fresh session replaces it, a 4xx ends it like an
+ *   expiry. A 4xx at boot forgets the kept copy.
+ * - A 401 from any call while signed in means the session expired or was
+ *   revoked: the store clears itself (the kept copy too) and sends the user
+ *   to /login, quietly (no error toast: logging in again is the whole
+ *   message). An explicit logout forgets it as well.
  */
 @Injectable({ providedIn: 'root' })
 export class SessionStore {
@@ -30,16 +38,22 @@ export class SessionStore {
   private readonly window = inject(WINDOW)
   private readonly theme = inject(ThemeStore)
   private readonly lang = inject(LangStore)
+  private readonly cache = inject(OfflineCache)
+  private readonly document = inject(DOCUMENT)
 
   private readonly _me = signal<Me | null>(null)
   private readonly _unreachable = signal(false)
+  private readonly _restored = signal(false)
   private readonly clearHooks = new Set<() => void>()
   private readonly logoutHooks = new Set<() => void>()
   private readonly beforeLogoutHooks = new Set<() => Promise<unknown>>()
+  private readonly confirmLogoutHooks = new Set<() => Promise<boolean>>()
 
   readonly me = this._me.asReadonly()
   /** The boot call could not reach the API (offline or server error). */
   readonly unreachable = this._unreachable.asReadonly()
+  /** The session on screen is the one this device kept, not yet confirmed by the server. */
+  readonly restored = this._restored.asReadonly()
 
   readonly user = computed(() => this._me()?.user ?? null)
   readonly household = computed(() => this._me()?.household ?? null)
@@ -69,8 +83,12 @@ export class SessionStore {
   /** Where this person belongs right now (login, verify, household states or the month). */
   readonly homePath = computed(() => homePath(this.snapshot()))
 
+  /** Removes the listeners of a restored session (connection back, app in front). */
+  private stopRechecks: (() => void) | null = null
+
   constructor() {
     inject(SessionExpiry).listen(() => this.expire())
+    inject(DestroyRef).onDestroy(() => this.setRestored(false))
   }
 
   hasFlag(flag: string): boolean {
@@ -83,9 +101,76 @@ export class SessionStore {
       this.set(await this.api.me())
       this._unreachable.set(false)
     } catch (error) {
-      this._me.set(null)
       // A 4xx (401 above all) is an answer; no network or a 5xx is not.
-      this._unreachable.set(!isClientErrorAnswer(error))
+      const answered = isClientErrorAnswer(error)
+      if (this._restored() && !answered) {
+        // Still offline: the restored session stays until the server can tell.
+        return
+      }
+      this._me.set(null)
+      this.setRestored(false)
+      this._unreachable.set(!answered)
+    }
+  }
+
+  /**
+   * App start: like {@link load}, except that without an answer (offline,
+   * a 5xx) the session this device kept is restored, so the app opens
+   * offline. A 4xx forgets the kept copy (only that: a pending invitation
+   * or a draft stays).
+   */
+  async boot(): Promise<void> {
+    try {
+      this.set(await this.api.me())
+      this._unreachable.set(false)
+    } catch (error) {
+      const answered = isClientErrorAnswer(error)
+      this._unreachable.set(!answered)
+      const kept = answered ? null : this.cache.readSession()
+      if (answered) {
+        this.cache.clear()
+      }
+      this._me.set(kept)
+      if (kept) {
+        this.setRestored(true)
+        this.theme.hydrate(kept.user.theme)
+        this.lang.hydrate(kept.user.locale)
+      }
+    }
+  }
+
+  private setRestored(restored: boolean): void {
+    this._restored.set(restored)
+    this.stopRechecks?.()
+    this.stopRechecks = null
+    if (!restored) {
+      return
+    }
+    const recheck = (): void => {
+      if (this.document.visibilityState !== 'hidden') {
+        void this.recheck()
+      }
+    }
+    this.window.addEventListener('online', recheck)
+    this.document.addEventListener('visibilitychange', recheck)
+    this.stopRechecks = () => {
+      this.window.removeEventListener('online', recheck)
+      this.document.removeEventListener('visibilitychange', recheck)
+    }
+  }
+
+  /** A restored session meets the server again: confirmed, replaced, or ended (4xx). */
+  private async recheck(): Promise<void> {
+    try {
+      const me = await this.api.me()
+      if (this._restored()) {
+        this._unreachable.set(false)
+        this.set(me)
+      }
+    } catch (error) {
+      if (this._restored() && isClientErrorAnswer(error)) {
+        this.expire()
+      }
     }
   }
 
@@ -104,7 +189,9 @@ export class SessionStore {
   /** Applies a fresh `/auth/me` body, including the user's theme and language. */
   set(me: Me): void {
     const before = this._me()
+    this.setRestored(false)
     this._me.set(me)
+    this.cache.writeSession(me)
     // Left, created or joined a household: what other stores cached was the old one's.
     if (before && before.household?.id !== me.household?.id) {
       this.dropCachedData()
@@ -117,7 +204,7 @@ export class SessionStore {
   patchUser(user: User): void {
     const current = this._me()
     if (current) {
-      this._me.set({ ...current, user })
+      this.keep({ ...current, user })
     }
   }
 
@@ -125,7 +212,7 @@ export class SessionStore {
   patchHousehold(household: Household): void {
     const current = this._me()
     if (current) {
-      this._me.set({ ...current, household })
+      this.keep({ ...current, household })
     }
   }
 
@@ -152,8 +239,30 @@ export class SessionStore {
     this.beforeLogoutHooks.add(hook)
   }
 
-  /** Ends this session on the server (best effort) and everywhere in the app. */
-  async logout(): Promise<void> {
+  /**
+   * Asked before every explicit logout, wherever it is tapped (the offline
+   * outbox warns while entries wait, `layouts/outbox/safe-logout.ts`): false
+   * keeps the session. A hook that fails counts as yes, so a broken check
+   * never locks anyone in.
+   */
+  confirmLogout(hook: () => Promise<boolean>): void {
+    this.confirmLogoutHooks.add(hook)
+  }
+
+  /**
+   * Ends this session on the server (best effort) and everywhere in the
+   * app, once every {@link confirmLogout} hook agreed; resolves with
+   * whether it did.
+   */
+  async logout(): Promise<boolean> {
+    for (const confirm of this.confirmLogoutHooks) {
+      const agreed = await Promise.resolve()
+        .then(confirm)
+        .catch(() => true)
+      if (!agreed) {
+        return false
+      }
+    }
     let timer: ReturnType<typeof setTimeout> | undefined
     await Promise.race([
       Promise.allSettled([...this.beforeLogoutHooks].map((hook) => Promise.resolve().then(hook))),
@@ -170,13 +279,21 @@ export class SessionStore {
     }
     this.clear()
     await this.router.navigateByUrl('/login')
+    return true
   }
 
-  /** Forgets the session, every store's data and the app's storage keys. */
+  /** Forgets the session, every store's data and the app's storage keys (the kept session too). */
   clear(): void {
     this._me.set(null)
+    this.setRestored(false)
     this.dropCachedData()
+    this.cache.clear()
     clearAppStorage(this.window)
+  }
+
+  private keep(me: Me): void {
+    this._me.set(me)
+    this.cache.writeSession(me)
   }
 
   private dropCachedData(): void {

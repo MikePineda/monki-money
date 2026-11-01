@@ -1,7 +1,8 @@
-import { Component, computed, inject } from '@angular/core'
-import { RouterLink } from '@angular/router'
+import { Component, computed, effect, inject, untracked } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
+import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
-import { TagsStore } from '../../../core/ledger/tags.store'
+import { map } from 'rxjs'
 import { formatMoney } from '../../../domain/money'
 import { label as monthLabel } from '../../../domain/month'
 import { tagPeriod } from '../../../domain/tags'
@@ -12,7 +13,10 @@ import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component'
 import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component'
 import { SkeletonComponent } from '../../../shared/ui/skeleton/skeleton.component'
+import { tagPeriodOf, type TagPeriod } from '../tag-period'
+import { TagsListStore } from '../tags-list.store'
 import { provideTagsScope } from '../tags.scope'
+import { TagPeriodComponent } from '../ui/tag-period.component'
 
 /**
  * Keys read from TypeScript, relative to the `tags` scope:
@@ -31,8 +35,9 @@ interface TagRow {
 }
 
 /**
- * Tags `/tags` (reached from More): every tag the household uses, most
- * recently used first, each with how many transactions carry it, the months
+ * Tags `/tags` (reached from More): every tag the household uses in the
+ * period on screen (`?period=`, every date by default), most recently used
+ * first, each with how many transactions carry it, the months
  * it spans and its totals (spent, income, set aside). A row opens the tag.
  * Without tags yet, the empty state says how to add one.
  */
@@ -46,9 +51,10 @@ interface TagRow {
     IconComponent,
     RouterLink,
     SkeletonComponent,
+    TagPeriodComponent,
     TranslocoPipe,
   ],
-  providers: [provideTagsScope()],
+  providers: [TagsListStore, provideTagsScope()],
   template: `
     <header class="flex h-14 items-center gap-1 pr-1 pl-1">
       <a
@@ -61,6 +67,7 @@ interface TagRow {
         {{ 'tags.title' | transloco }}
       </h1>
     </header>
+    <app-tag-period class="px-4 pb-2" [period]="tags.period()" (changed)="choosePeriod($event)" />
 
     @switch (tags.status()) {
       @case ('loading') {
@@ -83,14 +90,25 @@ interface TagRow {
             type="button"
             variant="secondary"
             icon="refresh-cw"
-            (click)="tags.refresh()"
+            (click)="tags.retry()"
           >
             {{ 'tags.error.retry' | transloco }}
           </button>
         </app-empty-state>
       }
       @default {
-        @if (rows().length === 0) {
+        @if (rows().length === 0 && tags.period() !== 'all') {
+          <app-empty-state
+            data-testid="tags.emptyPeriod"
+            icon="calendar"
+            [title]="'tags.empty.periodTitle' | transloco"
+            [body]="'tags.empty.periodBody' | transloco"
+          >
+            <button appButton type="button" variant="secondary" (click)="choosePeriod('all')">
+              {{ 'tags.empty.periodAction' | transloco }}
+            </button>
+          </app-empty-state>
+        } @else if (rows().length === 0) {
           <app-empty-state
             data-testid="tags.empty"
             icon="tag"
@@ -108,6 +126,7 @@ interface TagRow {
                 <a
                   class="flex items-center gap-3 border-b border-line px-4 py-3 active:bg-surface-2"
                   data-testid="tags.row"
+                  queryParamsHandling="preserve"
                   [routerLink]="['/tags', row.tag]"
                 >
                   <span
@@ -140,8 +159,16 @@ interface TagRow {
   `,
 })
 export default class TagsListPage {
-  protected readonly tags = inject(TagsStore)
+  protected readonly tags = inject(TagsListStore)
   private readonly locale = inject(APP_LOCALE)
+  private readonly router = inject(Router)
+  private readonly route = inject(ActivatedRoute)
+
+  /** `?period=` (every date when absent), so the detail and back keep it. */
+  private readonly periodInUrl = toSignal(
+    this.route.queryParamMap.pipe(map((params) => tagPeriodOf(params.get('period')))),
+    { initialValue: tagPeriodOf(this.route.snapshot.queryParamMap.get('period')) }
+  )
 
   private readonly totalLabels = translateSignal(TOTAL_KEYS)
 
@@ -169,6 +196,19 @@ export default class TagsListPage {
   })
 
   constructor() {
-    void this.tags.load()
+    this.tags.load()
+    effect(() => {
+      const period = this.periodInUrl()
+      untracked(() => this.tags.setPeriod(period))
+    })
+  }
+
+  protected choosePeriod(period: TagPeriod): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { period: period === 'all' ? null : period },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    })
   }
 }

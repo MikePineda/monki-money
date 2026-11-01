@@ -272,6 +272,71 @@ test.group('Push subscriptions', () => {
     )
   })
 
+  test('test_the_device_list_shows_my_devices_by_browser_and_last_use_never_the_endpoint', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    const phone = await subscribeDevice(owner, household, { userAgent: IPHONE })
+    const lastUse = DateTime.fromISO('2026-10-20T20:00:00Z')
+    await phone.merge({ lastUsedAt: lastUse }).save()
+    const laptop = await subscribeDevice(owner, household, { userAgent: null })
+    await subscribeDevice(member, household)
+
+    const response = await client.get('/api/v1/push/subscriptions').actingAs(owner)
+
+    response.assertStatus(200)
+    const devices = response.body().data
+    assert.deepEqual(
+      devices.map((device: Record<string, unknown>) => [
+        device.id,
+        device.browser,
+        device.platform,
+        device.lastUsedAt,
+      ]),
+      [
+        [phone.id, 'Safari', 'iPhone', '2026-10-20T20:00:00.000Z'],
+        [laptop.id, null, null, null],
+      ]
+    )
+    assert.deepEqual(Object.keys(devices[0]).sort(), [
+      'browser',
+      'createdAt',
+      'id',
+      'lastUsedAt',
+      'platform',
+    ])
+    assert.notInclude(JSON.stringify(response.body()), phone.endpoint)
+  })
+
+  test('test_removing_a_device_by_id_forgets_it_and_only_my_own', async ({ client, assert }) => {
+    const { household, owner, member } = await createHousehold({ users: 2 })
+    const oldPhone = await subscribeDevice(owner, household)
+    const laptop = await subscribeDevice(owner, household)
+    const partners = await subscribeDevice(member, household)
+
+    const response = await client
+      .delete(`/api/v1/push/subscriptions/${oldPhone.id}`)
+      .actingAs(owner)
+
+    response.assertStatus(204)
+    const left = await devicesOf(owner.id)
+    assert.deepEqual(
+      left.map((device) => device.id),
+      [laptop.id]
+    )
+
+    const partnersDevice = await client
+      .delete(`/api/v1/push/subscriptions/${partners.id}`)
+      .actingAs(owner)
+    partnersDevice.assertStatus(404)
+    partnersDevice.assertBodyContains({ code: 'E_ROW_NOT_FOUND' })
+    assert.isNotNull(await PushSubscription.find(partners.id))
+
+    const again = await client.delete(`/api/v1/push/subscriptions/${oldPhone.id}`).actingAs(owner)
+    again.assertStatus(404)
+  })
+
   test('test_subscribing_needs_a_signed_in_person', async ({ client }) => {
     const response = await client
       .post('/api/v1/push/subscriptions')
