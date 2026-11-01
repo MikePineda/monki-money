@@ -50,6 +50,8 @@ function isIncoming(row: { amountCents: number }): boolean {
  * t(import.reason.duplicate_hash, import.reason.transfer_destination_guessed, import.triage.accept)
  * t(import.triage.acceptTransfer, import.triage.acceptTransferFrom, import.triage.transferFromTitle)
  * t(import.row.transferUnknown, import.row.transferFromUnknown)
+ * t(import.triage.candidatesTo, import.triage.candidatesFrom)
+ * t(import.triage.pickTransfer, import.triage.pickTransferFrom)
  */
 const KEYS = {
   categoryTitle: 'import.triage.categoryTitle',
@@ -68,7 +70,8 @@ const CATALOGUE_PROBE = 'triage.title'
  * The triage sheet of one bank row (shared `RowTriage` frame): the bank
  * text and why the row needs a look, then every decision the row allows:
  * accept the suggestion, link the transaction found, pick a category or
- * split it, make it a transfer, change who paid, create it new, remember
+ * split it, make it a transfer (the accounts the linked holder is known in
+ * come first, as quick picks), change who paid, create it new, remember
  * the merchant, ignore or restore. Each choice is saved at once through
  * the review store (optimistic, rolled back on refusal); the sheet follows
  * the row as it changes and "Done" closes it.
@@ -163,6 +166,32 @@ const CATALOGUE_PROBE = 'triage.title'
             }
             <app-icon name="chevron-right" class="text-ink-2" />
           </button>
+        }
+        @if (candidates().length > 0) {
+          <div
+            role="group"
+            data-testid="import.triage.candidates"
+            [attr.aria-labelledby]="candidatesHintId"
+          >
+            <p [id]="candidatesHintId" class="px-4 pt-2 text-caption text-ink-3">
+              {{ candidatesHint() }}
+            </p>
+            @for (pick of candidates(); track pick.accountId) {
+              <button
+                type="button"
+                [class]="rowClass"
+                data-testid="import.triage.candidate"
+                [attr.aria-pressed]="pick.picked"
+                (click)="decide({ resolution: 'transfer_leg', transferAccountId: pick.accountId })"
+              >
+                <app-icon name="landmark" class="text-ink-2" />
+                <span class="min-w-0 flex-1 truncate text-body text-ink-1">{{ pick.label }}</span>
+                @if (pick.picked) {
+                  <app-icon name="check" class="text-accent" />
+                }
+              </button>
+            }
+          </div>
         }
         @if (actions().has('transfer')) {
           <button
@@ -281,6 +310,8 @@ export class ImportRowSheetComponent {
   private readonly catalogue = translateSignal(CATALOGUE_PROBE)
   private readonly t = (key: string, params?: Record<string, string | number>): string =>
     this.transloco.translate(key, params)
+
+  protected readonly candidatesHintId = `import-triage-candidates-${this.data.rowId}`
 
   protected readonly rowClass =
     'flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left active:bg-surface-2'
@@ -403,6 +434,45 @@ export class ImportRowSheetComponent {
     return (
       account?.name ??
       this.t(isIncoming(row) ? 'import.row.transferFromUnknown' : 'import.row.transferUnknown')
+    )
+  })
+
+  /**
+   * The accounts the linked holder is known in, when the importer could not
+   * tell which one (`transfer.candidateAccountIds`): one tap makes the row a
+   * transfer to (or from) it. Never the batch's own account, an archived or
+   * an unknown one; the full list stays behind the Transfer row.
+   */
+  protected readonly candidates = computed(() => {
+    this.catalogue()
+    const row = this.row()
+    const batch = this.store.batch()
+    const ids = row?.transfer?.candidateAccountIds ?? []
+    if (!row || !batch || ids.length === 0 || !this.actions().has('transfer')) {
+      return []
+    }
+    const active = new Map(this.directory.activeAccounts().map((account) => [account.id, account]))
+    const picked = row.resolution === 'transfer_leg' ? this.state()?.transferAccountId : null
+    const key = isIncoming(row) ? 'import.triage.pickTransferFrom' : 'import.triage.pickTransfer'
+    return ids.flatMap((accountId) => {
+      const account = active.get(accountId)
+      return account && accountId !== batch.accountId
+        ? [
+            {
+              accountId,
+              label: this.t(key, { account: account.name }),
+              picked: picked === accountId,
+            },
+          ]
+        : []
+    })
+  })
+
+  protected readonly candidatesHint = computed(() => {
+    this.catalogue()
+    const row = this.row()
+    return this.t(
+      row && isIncoming(row) ? 'import.triage.candidatesFrom' : 'import.triage.candidatesTo'
     )
   })
 
