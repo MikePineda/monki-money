@@ -20,6 +20,9 @@ import db from '@adonisjs/lucid/services/db'
  * MAX_ATTEMPTS counts the takeovers; a release gives its attempt back. Every
  * write names the attempt it owns, so the old owner of a run taken over can
  * no longer finish or release it. Timestamps are the caller's `now`.
+ *
+ * Rows go after RUNS_RETENTION_MONTHS (retention.ts), pruned once a day by
+ * the scheduler's own job (scheduler_runs_retention_job.ts).
  */
 
 /** A run still unfinished after this is assumed dead (container stopped mid-run). */
@@ -62,6 +65,34 @@ export interface RunResult {
   outcome: string
   /** What went wrong (no personal data). */
   error?: string | null
+}
+
+/** One run as operators read it (timestamps ISO-8601 UTC). */
+export interface RunRecord {
+  id: number
+  job: string
+  periodKey: string
+  householdId: number | null
+  userId: number | null
+  attempts: number
+  startedAt: string
+  finishedAt: string | null
+  /** Null while running. */
+  outcome: string | null
+  error: string | null
+}
+
+type RecordRow = {
+  id: number
+  job: string
+  period_key: string
+  household_id: number | null
+  user_id: number | null
+  attempts: number
+  started_at: Date
+  finished_at: Date | null
+  outcome: string | null
+  error: string | null
 }
 
 type ClaimRow = { id: number; attempts: number }
@@ -153,6 +184,53 @@ export default class SchedulerRuns {
     if (!row) return false
     if (row.finished_at === null || row.outcome === RELEASED) return true
     return row.outcome === RETRYABLE_FAILURE && row.attempts < MAX_ATTEMPTS
+  }
+
+  /**
+   * Deletes the runs that started before `before` (the retention, see
+   * retention.ts) and answers how many went. Such a run is long finished or
+   * long dead, and no job asks about its period any more.
+   */
+  async prune(before: DateTime): Promise<number> {
+    const deleted = await db
+      .from(SCHEDULER_RUNS_TABLE)
+      .where('started_at', '<', before.toJSDate())
+      .delete()
+    return countOf(deleted)
+  }
+
+  /** The latest runs, newest first (operators: `node ace scheduler:runs`). */
+  async recent(options: { limit: number; job?: string }): Promise<RunRecord[]> {
+    const query = db
+      .from(SCHEDULER_RUNS_TABLE)
+      .orderBy('started_at', 'desc')
+      .orderBy('id', 'desc')
+      .limit(options.limit)
+    if (options.job !== undefined) query.where('job', options.job)
+    const rows: RecordRow[] = await query.select(
+      'id',
+      'job',
+      'period_key',
+      'household_id',
+      'user_id',
+      'attempts',
+      'started_at',
+      'finished_at',
+      'outcome',
+      'error'
+    )
+    return rows.map((row) => ({
+      id: row.id,
+      job: row.job,
+      periodKey: row.period_key,
+      householdId: row.household_id,
+      userId: row.user_id,
+      attempts: row.attempts,
+      startedAt: row.started_at.toISOString(),
+      finishedAt: row.finished_at?.toISOString() ?? null,
+      outcome: row.outcome,
+      error: row.error,
+    }))
   }
 
   protected owned(claim: RunClaim) {

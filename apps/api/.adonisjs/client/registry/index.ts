@@ -126,6 +126,12 @@ const routes = {
     tokens: [{"old":"/api/v1/household/restore","type":0,"val":"api","end":""},{"old":"/api/v1/household/restore","type":0,"val":"v1","end":""},{"old":"/api/v1/household/restore","type":0,"val":"household","end":""},{"old":"/api/v1/household/restore","type":0,"val":"restore","end":""}],
     types: placeholder as Registry['household.restore']['types'],
   },
+  'household.leave': {
+    methods: ["POST"],
+    pattern: '/api/v1/household/leave',
+    tokens: [{"old":"/api/v1/household/leave","type":0,"val":"api","end":""},{"old":"/api/v1/household/leave","type":0,"val":"v1","end":""},{"old":"/api/v1/household/leave","type":0,"val":"household","end":""},{"old":"/api/v1/household/leave","type":0,"val":"leave","end":""}],
+    types: placeholder as Registry['household.leave']['types'],
+  },
   'household.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/household',
@@ -156,11 +162,11 @@ const routes = {
     tokens: [{"old":"/api/v1/household/delete","type":0,"val":"api","end":""},{"old":"/api/v1/household/delete","type":0,"val":"v1","end":""},{"old":"/api/v1/household/delete","type":0,"val":"household","end":""},{"old":"/api/v1/household/delete","type":0,"val":"delete","end":""}],
     types: placeholder as Registry['household.delete']['types'],
   },
-  'household.leave': {
+  'household.onboarding.complete': {
     methods: ["POST"],
-    pattern: '/api/v1/household/leave',
-    tokens: [{"old":"/api/v1/household/leave","type":0,"val":"api","end":""},{"old":"/api/v1/household/leave","type":0,"val":"v1","end":""},{"old":"/api/v1/household/leave","type":0,"val":"household","end":""},{"old":"/api/v1/household/leave","type":0,"val":"leave","end":""}],
-    types: placeholder as Registry['household.leave']['types'],
+    pattern: '/api/v1/household/onboarding/complete',
+    tokens: [{"old":"/api/v1/household/onboarding/complete","type":0,"val":"api","end":""},{"old":"/api/v1/household/onboarding/complete","type":0,"val":"v1","end":""},{"old":"/api/v1/household/onboarding/complete","type":0,"val":"household","end":""},{"old":"/api/v1/household/onboarding/complete","type":0,"val":"onboarding","end":""},{"old":"/api/v1/household/onboarding/complete","type":0,"val":"complete","end":""}],
+    types: placeholder as Registry['household.onboarding.complete']['types'],
   },
   'household.transferOwnership': {
     methods: ["POST"],

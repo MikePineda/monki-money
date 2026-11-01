@@ -1,0 +1,23 @@
+meta {
+  name: Complete onboarding (idempotent)
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/v1/household/onboarding/complete
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.id: eq {{householdId}}
+  res.body.data.onboardedAt: isString
+}
+
+docs {
+  `household.onboarding.complete` (owner): stamps `onboardedAt` once the
+  wizard finishes and keeps the first stamp on later calls, so the seeded
+  household answers 200 with the stamp it already carries. A member gets 403.
+}

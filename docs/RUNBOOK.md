@@ -345,14 +345,23 @@ ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | 
 ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace insights:generate --month 2026-09 --household 12 --force'
 ```
 
-**Last runs** (outcome `generated`, `skipped:<reason>`, `failed` (retried),
-`failed:final` or `released`, with the error):
+**Last runs** of every scheduled job, newest first (outcome `generated`,
+`skipped:<reason>`, `failed` (retried), `failed:final`, `released` or
+`running`, with the error; ids only). `--limit` (default 20, at most 500),
+`--job <name>` for one job, `--json` for a script:
 
 ```bash
-ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney -c "
-  SELECT job, period_key, household_id, attempts, outcome, error, started_at, finished_at
-  FROM scheduler_runs ORDER BY started_at DESC LIMIT 20;"'
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace scheduler:runs'
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace scheduler:runs --job monthly-insights --limit 50'
 ```
+
+**Retention.** `scheduler_runs` keeps 13 months (last year's run of the
+same month stays). The last job of the tick (`scheduler-runs-retention`)
+claims each UTC day once, whatever the containers, and deletes the runs that
+started earlier; its own run records how many went (`pruned:<n>`), and a
+failed delete is retried an hour later like any run. No job looks back that
+far, so a pruned period is never run again (`insights:generate --month` for
+a month that old would no longer find the lock: it regenerates).
 
 ## Push notifications
 

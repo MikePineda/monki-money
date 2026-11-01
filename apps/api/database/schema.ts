@@ -172,7 +172,7 @@ export class HouseholdOwnershipTransferSchema extends BaseModel {
 }
 
 export class HouseholdSchema extends BaseModel {
-  static $columns = ['createdAt', 'currencyCode', 'deletionScheduledAt', 'id', 'locale', 'name', 'plan', 'settings', 'status', 'stripeCustomerId', 'timezone', 'updatedAt'] as const
+  static $columns = ['createdAt', 'currencyCode', 'deletionScheduledAt', 'id', 'locale', 'name', 'onboardedAt', 'plan', 'settings', 'status', 'stripeCustomerId', 'timezone', 'updatedAt'] as const
   $columns = HouseholdSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -186,6 +186,8 @@ export class HouseholdSchema extends BaseModel {
   declare locale: Locale
   @column()
   declare name: string
+  @column.dateTime()
+  declare onboardedAt: DateTime | null
   @column()
   declare plan: HouseholdPlan
   @column()

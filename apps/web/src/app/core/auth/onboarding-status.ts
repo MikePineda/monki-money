@@ -9,10 +9,13 @@ import {
 import { SessionStore } from './session.store'
 
 /**
- * Whether the owner still has the onboarding wizard ahead. Sign-up creates
- * the household, so "onboarded" is derived: a household without accounts
- * needs the wizard, and a wizard left halfway (its saved position) resumes.
- * Members never see it: the owner set the household up.
+ * Whether the owner still has the onboarding wizard ahead. The household
+ * says so (`onboardedAt`, stamped when the wizard ends on any device);
+ * this device only remembers which step to resume. While nothing is on
+ * record (a null, or an older API without the field) a wizard left halfway
+ * here resumes, else the accounts decide as before the field existed: a
+ * household without accounts needs the wizard. Members never see it: the
+ * owner set the household up.
  */
 @Injectable({ providedIn: 'root' })
 export class OnboardingStatus {
@@ -32,7 +35,15 @@ export class OnboardingStatus {
     if (!household || this.session.role() !== 'owner') {
       return false
     }
-    if (readOnboardingProgress(this.window)?.householdId === household.id) {
+    const progress = readOnboardingProgress(this.window)
+    if (household.onboardedAt) {
+      // Finished (maybe on another device): a position left here is stale.
+      if (progress?.householdId === household.id) {
+        clearOnboardingProgress(this.window)
+      }
+      return false
+    }
+    if (progress?.householdId === household.id) {
       return true
     }
     if (this.settled.has(household.id)) {

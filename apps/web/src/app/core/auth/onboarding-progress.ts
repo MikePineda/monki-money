@@ -2,7 +2,8 @@ import { readPreference, writePreference } from '../platform/local-preference'
 
 /**
  * Where the onboarding wizard was left, so it resumes on the same step. Each
- * step saves to the API as it goes; this only remembers the position. Keyed
+ * step saves to the API as it goes and the household records the end
+ * (`onboardedAt`); this only remembers the position on this device. Keyed
  * by household so another account on the device never inherits it.
  */
 export const ONBOARDING_KEY = 'mm:onboarding'

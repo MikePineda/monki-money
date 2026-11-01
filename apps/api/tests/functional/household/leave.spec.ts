@@ -7,6 +7,7 @@ import MerchantRule from '#models/merchant_rule'
 import RecurringItem from '#models/recurring_item'
 import { categoryBySlug } from '#tests/helpers/ledger'
 import Transaction from '#models/transaction'
+import type Household from '#models/household'
 import HouseholdMember from '#models/household_member'
 import limiter from '@adonisjs/limiter/services/main'
 import { createHousehold } from '#tests/helpers/household'
@@ -353,4 +354,71 @@ test.group('Household / leave', (group) => {
     // ...while a confirmed row is history.
     assert.equal(confirmed.suggestedPaidByUserId, member.id)
   })
+
+  test('test_a_member_can_leave_while_the_household_is_pending_deletion', async ({
+    client,
+    assert,
+  }) => {
+    const { household, member, accounts } = await createHousehold({
+      users: 2,
+      accounts: [{ name: 'Joint everyday' }, { name: 'Member wallet', owner: 1 }],
+    })
+    const [, memberWallet] = accounts
+    await scheduleDeletion(household)
+
+    const response = await client.post('/api/v1/household/leave').actingAs(member)
+
+    response.assertStatus(204)
+    assert.isNull(
+      await HouseholdMember.query()
+        .where('household_id', household.id)
+        .where('user_id', member.id)
+        .first()
+    )
+    await member.refresh()
+    assert.isNull(member.currentHouseholdId)
+    // The leaving rule still applies: the personal account stays, joint.
+    await memberWallet.refresh()
+    assert.isNull(memberWallet.ownerUserId)
+    // The owner's deletion is untouched.
+    await household.refresh()
+    assert.equal(household.status, 'pending_deletion')
+  })
+
+  test('test_the_owner_still_cannot_leave_while_the_household_is_pending_deletion', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner } = await createHousehold({ users: 2 })
+    await scheduleDeletion(household)
+
+    const response = await client.post('/api/v1/household/leave').actingAs(owner)
+
+    response.assertStatus(422)
+    response.assertBodyContains({ code: 'E_OWNER_CANNOT_LEAVE' })
+    await owner.refresh()
+    assert.equal(owner.currentHouseholdId, household.id)
+  })
+
+  test('test_a_member_cannot_leave_a_suspended_household', async ({ client, assert }) => {
+    const { household, member } = await createHousehold({ users: 2 })
+    household.status = 'suspended'
+    await household.save()
+
+    const response = await client.post('/api/v1/household/leave').actingAs(member)
+
+    response.assertStatus(403)
+    response.assertBodyContains({ code: 'E_HOUSEHOLD_SUSPENDED' })
+    await member.refresh()
+    assert.equal(member.currentHouseholdId, household.id)
+  })
 })
+
+/** The owner asked to delete the household: inside the 30-day window. */
+async function scheduleDeletion(household: Household) {
+  household.merge({
+    status: 'pending_deletion',
+    deletionScheduledAt: DateTime.now().plus({ days: 30 }),
+  })
+  await household.save()
+}

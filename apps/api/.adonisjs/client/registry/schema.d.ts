@@ -247,6 +247,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['restore']>>>
     }
   }
+  'household.leave': {
+    methods: ["POST"]
+    pattern: '/api/v1/household/leave'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
+    }
+  }
   'household.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/household'
@@ -307,16 +319,16 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'household.leave': {
+  'household.onboarding.complete': {
     methods: ["POST"]
-    pattern: '/api/v1/household/leave'
+    pattern: '/api/v1/household/onboarding/complete'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['leave']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/household_controller').default['completeOnboarding']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_controller').default['completeOnboarding']>>>
     }
   }
   'household.transferOwnership': {
