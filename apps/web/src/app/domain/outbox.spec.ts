@@ -3,6 +3,7 @@ import {
   OUTBOX_VERSION,
   backoffMs,
   deserialize,
+  readStored,
   discard,
   enqueue,
   markFailed,
@@ -14,6 +15,7 @@ import {
   replace,
   retry,
   serialize,
+  usesFullCreate,
   type OutboxEntry,
   type OutboxItem,
   type TransactionPayload,
@@ -64,6 +66,21 @@ function aTransferItem(overrides: Partial<TransferPayload> = {}): OutboxItem {
       ...overrides,
     },
   }
+}
+
+/** A reviewed receipt split by its lines, as the scanner queues it. */
+function aReceiptItem(overrides: Partial<TransactionPayload> = {}): OutboxItem {
+  return anEntryItem({
+    payee: 'Freshco',
+    amountCents: 2345,
+    categoryId: null,
+    splits: [
+      { categoryId: 10, amountCents: 2000, memo: 'Groceries' },
+      { categoryId: 12, amountCents: 345, memo: null },
+    ],
+    source: 'receipt',
+    ...overrides,
+  })
 }
 
 const OFFLINE = { code: 'E_OFFLINE', message: '' }
@@ -254,6 +271,35 @@ describe('outbox', () => {
       expect(entry).toMatchObject({ id, kind: 'transfer', payload: { clientId: id } })
     })
 
+    it('test_editing_a_queued_receipt_keeps_its_source_and_its_lines_while_the_amount_stays', () => {
+      const entries = enqueue([], aReceiptItem(), NOW)
+      const id = entries[0]?.id ?? ''
+
+      // Quick add edits the fields it knows (here the payee) and sends no lines.
+      const [entry] = replace(entries, id, anEntryItem({ amountCents: 2345, categoryId: null }))
+
+      expect(entry?.kind === 'transaction' && entry.payload).toMatchObject({
+        source: 'receipt',
+        splits: [
+          { categoryId: 10, amountCents: 2000 },
+          { categoryId: 12, amountCents: 345 },
+        ],
+      })
+    })
+
+    it('test_a_new_amount_or_a_category_on_a_queued_receipt_drops_its_lines', () => {
+      const entries = enqueue([], aReceiptItem(), NOW)
+      const id = entries[0]?.id ?? ''
+
+      const [amount] = replace(entries, id, anEntryItem({ amountCents: 3000, categoryId: null }))
+      const [category] = replace(entries, id, anEntryItem({ amountCents: 2345, categoryId: 10 }))
+
+      for (const entry of [amount, category]) {
+        expect(entry?.kind === 'transaction' && entry.payload.splits).toBeUndefined()
+        expect(entry?.kind === 'transaction' && entry.payload.source).toBe('receipt')
+      }
+    })
+
     it('test_discard_removes_the_entry', () => {
       const entries = enqueue([], anEntryItem(), NOW)
 
@@ -277,7 +323,7 @@ describe('outbox', () => {
 
       const raw = serialize(entries)
 
-      expect(JSON.parse(raw)).toMatchObject({ version: OUTBOX_VERSION })
+      expect(JSON.parse(raw)).toMatchObject({ version: 2 })
       expect(deserialize(raw)).toEqual(entries)
     })
 
@@ -305,9 +351,94 @@ describe('outbox', () => {
       expect(entries[0]?.kind === 'transfer' && entries[0].payload.tags).toEqual([])
     })
 
-    it('test_the_outbox_is_written_with_the_schema_that_carries_transfer_tags', () => {
-      expect(OUTBOX_VERSION).toBe(2)
+    it('test_a_queued_receipt_keeps_its_lines_and_source_on_the_device', () => {
+      const entries = enqueue([], aReceiptItem(), NOW)
+
+      const raw = serialize(entries)
+
+      expect(JSON.parse(raw)).toMatchObject({ version: 3 })
+      expect(deserialize(raw)).toEqual(entries)
+    })
+
+    it('test_this_build_reads_version_3_and_writes_the_lowest_version_that_describes_its_entries', () => {
+      expect(OUTBOX_VERSION).toBe(3)
       expect(JSON.parse(serialize([]))).toEqual({ version: 2, entries: [] })
+      // v3 -> v2: without a receipt the outbox is a version 2 one, which the
+      // previous build (it reads 1 and 2 only) still syncs.
+      const plain = enqueue(enqueue([], anEntryItem(), NOW), aTransferItem({ tags: ['x'] }), NOW)
+      expect(JSON.parse(serialize(plain))).toMatchObject({ version: 2 })
+      expect(JSON.parse(serialize(enqueue(plain, aReceiptItem(), NOW)))).toMatchObject({
+        version: 3,
+      })
+    })
+
+    it('test_a_version_2_outbox_reads_back_in_this_build', () => {
+      const entries = enqueue(enqueue([], anEntryItem(), NOW), aTransferItem({ tags: ['x'] }), NOW)
+      const raw = JSON.stringify({ version: 2, entries })
+
+      expect(readStored(raw)).toEqual({ entries, kept: { version: 2, entries: [] } })
+    })
+
+    it('test_a_version_2_reader_keeps_a_version_3_receipt_untouched_and_syncs_the_rest', () => {
+      const plain = enqueue([], anEntryItem(), NOW)
+      const receipt = enqueue([], aReceiptItem(), NOW)
+      const raw = serialize([...plain, ...receipt])
+
+      // The rule every reader follows from now on, as a build that knows only version 2 applies it.
+      const stored = readStored(raw, 2)
+
+      expect(stored.entries).toEqual(plain)
+      expect(stored.kept).toEqual({ version: 3, entries: JSON.parse(JSON.stringify(receipt)) })
+      // Its next write (here: the plain entry synced) gives the receipt back as it was.
+      const written = serialize(markSynced(stored.entries, plain[0]?.id ?? ''), stored.kept)
+      expect(JSON.parse(written)).toEqual(JSON.parse(serialize(receipt)))
+      expect(deserialize(written)).toEqual(receipt)
+    })
+
+    it('test_a_newer_outbox_keeps_what_this_build_cannot_read_and_acts_on_the_rest', () => {
+      const [plain] = enqueue([], anEntryItem(), NOW)
+      const [other] = enqueue([], anEntryItem(), NOW)
+      const [third] = enqueue([], anEntryItem(), NOW)
+      const newField = { ...other, payload: { ...other?.payload, currencyCode: 'NZD' } }
+      const newKind = { ...third, kind: 'payslip' }
+      const [fourth] = enqueue([], anEntryItem(), NOW)
+      const newSource = { ...fourth, payload: { ...fourth?.payload, source: 'telegram' } }
+      const raw = JSON.stringify({ version: 99, entries: [plain, newField, newKind, newSource] })
+
+      const stored = readStored(raw)
+
+      expect(stored.entries).toEqual([plain])
+      expect(stored.kept).toEqual({ version: 99, entries: [newField, newKind, newSource] })
+      expect(deserialize(raw)).toEqual([plain])
+      const written = JSON.parse(serialize([], stored.kept))
+      expect(written).toEqual({ version: 99, entries: [newField, newKind, newSource] })
+    })
+
+    it('test_an_entry_with_a_field_this_build_does_not_know_is_kept_untouched', () => {
+      const [entry] = enqueue([], anEntryItem(), NOW)
+      const unknownTop = { ...entry, priority: 'high' }
+      const unknownLine = {
+        ...enqueue([], aReceiptItem(), NOW)[0],
+      } as unknown as { payload: { splits: Record<string, unknown>[] } }
+      unknownLine.payload.splits = unknownLine.payload.splits.map((line) => ({ ...line, qty: 2 }))
+      const raw = JSON.stringify({ version: 3, entries: [unknownTop, unknownLine] })
+
+      expect(readStored(raw)).toEqual({
+        entries: [],
+        kept: { version: 3, entries: [unknownTop, unknownLine] },
+      })
+    })
+
+    it('test_a_queued_receipt_is_created_with_the_full_create_and_a_quick_entry_is_not', () => {
+      const [receipt] = enqueue([], aReceiptItem(), NOW)
+      const [quick] = enqueue([], anEntryItem(), NOW)
+      const [transfer] = enqueue([], aTransferItem(), NOW)
+
+      expect([receipt, quick, transfer].map((entry) => entry && usesFullCreate(entry))).toEqual([
+        true,
+        false,
+        false,
+      ])
     })
 
     it('test_deserialize_of_nothing_or_garbage_is_an_empty_outbox', () => {
@@ -318,13 +449,15 @@ describe('outbox', () => {
       expect(deserialize('{"version":1,"entries":"nope"}')).toEqual([])
     })
 
-    it('test_deserialize_ignores_an_unknown_schema_version', () => {
-      const raw = serialize(enqueue([], anEntryItem(), NOW)).replace(
-        `"version":${OUTBOX_VERSION}`,
-        '"version":99'
-      )
+    it('test_an_outbox_without_a_readable_version_is_empty', () => {
+      const entries = enqueue([], anEntryItem(), NOW)
 
-      expect(deserialize(raw)).toEqual([])
+      for (const version of [undefined, '3', 0, 2.5]) {
+        expect(readStored(JSON.stringify({ version, entries }))).toEqual({
+          entries: [],
+          kept: { version: 0, entries: [] },
+        })
+      }
     })
 
     it('test_deserialize_drops_corrupt_entries_and_keeps_the_rest', () => {
@@ -334,12 +467,13 @@ describe('outbox', () => {
         null,
         'text',
         { ...entry, id: '' },
-        { ...entry, kind: 'refund' },
         { ...entry, payload: { ...entry?.payload, amountCents: -5 } },
         { ...entry, payload: { ...entry?.payload, date: '2026-02-30' } },
         { ...entry, payload: { ...entry?.payload, clientId: 'another-id' } },
         { ...entry, payload: { ...entry?.payload, kind: 'transfer' } },
         { ...transfer, payload: { ...transfer?.payload, toAccountId: '2' } },
+        { ...entry, payload: { ...entry?.payload, splits: [{ categoryId: 10, amountCents: 1 }] } },
+        { ...entry, payload: { ...entry?.payload, source: 42 } },
       ]
       const raw = JSON.stringify({
         version: OUTBOX_VERSION,
@@ -357,7 +491,7 @@ describe('outbox', () => {
       expect(entry?.status).toBe('pending')
     })
 
-    it('test_deserialize_repairs_bookkeeping_and_drops_unknown_payload_fields', () => {
+    it('test_deserialize_repairs_bookkeeping', () => {
       const [entry] = enqueue([], anEntryItem(), NOW)
       const raw = JSON.stringify({
         version: OUTBOX_VERSION,
@@ -368,7 +502,6 @@ describe('outbox', () => {
             status: 'weird',
             error: { code: 42 },
             month: '1999-01',
-            payload: { ...entry?.payload, injected: true },
           },
         ],
       })

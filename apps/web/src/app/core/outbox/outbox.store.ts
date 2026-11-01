@@ -12,25 +12,30 @@ import {
 import { marker } from '@jsverse/transloco-keys-manager/marker'
 import type { YearMonth } from '../../domain/month'
 import {
+  NOTHING_KEPT,
   backoffMs,
-  deserialize,
   discard,
   enqueue,
   markFailed,
   markSynced,
   markSyncing,
   nextToSync,
+  readStored,
   reconcile,
   replace,
   retry,
   serialize,
+  usesFullCreate,
+  type KeptEntries,
   type OutboxEntry,
   type OutboxItem,
   type OutboxKind,
+  type StoredOutbox,
+  type TransactionPayload,
 } from '../../domain/outbox'
 import type { Transfer } from '../api/api-types'
 import { SessionStore } from '../auth/session.store'
-import { TransactionsApi } from '../ledger/transactions.api'
+import { TransactionsApi, type CreateTransactionInput } from '../ledger/transactions.api'
 import { MonthStore } from '../month/month.store'
 import { CLOCK } from '../platform/clock.token'
 import { writePreference } from '../platform/local-preference'
@@ -71,7 +76,7 @@ interface CreatedRow {
 
 /**
  * The offline outbox (domain/outbox.ts) of the person signed in: creates
- * quick add could not send, kept in localStorage under `outbox:<userId>`
+ * quick add (or the receipt scanner) could not send, kept in localStorage under `outbox:<userId>`
  * (written synchronously on every change, so an entry is on disk before
  * the screen says "saved") and synced to the API one at a time with the
  * client id they were created with (idempotent: a replay never makes a
@@ -81,6 +86,9 @@ interface CreatedRow {
  *   known); an expired session keeps the stored outbox for the next login,
  *   an explicit logout deletes it from the device (the shell warns first
  *   while entries wait, `layouts/outbox/safe-logout.ts`).
+ * - Entries a newer build queued (domain/outbox.ts `readStored`) stay on
+ *   the device untouched: never synced, shown or counted here, and written
+ *   back with every change, so a tab on an older build drops nothing.
  * - Two open tabs share the device copy: every change starts from it
  *   (another tab may have written since) and a `storage` event reloads it,
  *   so neither tab drops the other's newest entry. Both may sync the same
@@ -134,6 +142,8 @@ export class OutboxStore {
 
   /** The person whose outbox is loaded (null while signed out). */
   private owner: number | null = null
+  /** What the device copy holds that this build does not understand (written back as it was). */
+  private kept: KeptEntries = NOTHING_KEPT
   private readonly held = new Set<string>()
   private readonly created = new Map<string, CreatedRow>()
   private readonly syncedListeners = new Set<(synced: SyncedEntry) => void>()
@@ -371,7 +381,9 @@ export class OutboxStore {
         const transfer = await this.api.transfer(entry.payload)
         return { result: { outcome: 'synced' }, rowId: transfer.id, rows: transfer.legs }
       }
-      const row = await this.api.quick(entry.payload)
+      const row = usesFullCreate(entry)
+        ? await this.api.create(fullCreateBody(entry.payload))
+        : await this.api.quick(entry.payload)
       return { result: { outcome: 'synced' }, rowId: row.id, rows: [row] }
     } catch (error) {
       // A 409 counts as synced, without a row to undo.
@@ -419,16 +431,22 @@ export class OutboxStore {
     return `${OUTBOX_KEY}${userId}`
   }
 
-  /** The device copy of the owner's outbox; null when there is no owner or it cannot be read. */
+  /**
+   * The device copy of the owner's outbox (what a newer build wrote is
+   * remembered in `kept`); null when there is no owner or it cannot be read.
+   */
   private readDevice(): OutboxEntry[] | null {
     if (this.owner === null) {
       return null
     }
+    let stored: StoredOutbox
     try {
-      return deserialize(this.window.localStorage.getItem(this.key(this.owner)))
+      stored = readStored(this.window.localStorage.getItem(this.key(this.owner)))
     } catch {
       return null
     }
+    this.kept = stored.kept
+    return stored.entries
   }
 
   /**
@@ -470,6 +488,7 @@ export class OutboxStore {
     this.held.clear()
     this.created.clear()
     this.owner = userId
+    this.kept = NOTHING_KEPT
     this._persisted.set(true)
     this._entries.set(userId === null ? [] : (this.readDevice() ?? []))
     if (userId !== null) {
@@ -483,6 +502,7 @@ export class OutboxStore {
     this.held.clear()
     this.created.clear()
     this.owner = null
+    this.kept = NOTHING_KEPT
     this._persisted.set(true)
     this._entries.set([])
     this.generation.update((value) => value + 1)
@@ -499,8 +519,22 @@ export class OutboxStore {
   private persist(entries: OutboxEntry[]): void {
     this._entries.set(entries)
     if (this.owner !== null) {
-      const raw = entries.length > 0 ? serialize(entries) : null
+      const empty = entries.length === 0 && this.kept.entries.length === 0
+      const raw = empty ? null : serialize(entries, this.kept)
       this._persisted.set(writePreference(this.window, this.key(this.owner), raw))
     }
   }
+}
+
+/**
+ * `POST /transactions` for a queued receipt: one category or its lines,
+ * never both (the API refuses a `categoryId` next to `splits`).
+ */
+function fullCreateBody(payload: TransactionPayload): CreateTransactionInput {
+  if (payload.splits === undefined) {
+    return payload
+  }
+  const body: CreateTransactionInput = { ...payload }
+  delete body.categoryId
+  return body
 }

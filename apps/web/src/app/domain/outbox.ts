@@ -13,17 +13,27 @@ import type { RecentEntry } from './quick-add-defaults'
  *   `pending` and counts the attempt (the next try waits `backoffMs`); a
  *   failure the server would repeat (a 4xx such as a 422) makes it `failed`
  *   with the server's message until the person retries, edits or discards it.
- * - `serialize`/`deserialize` carry a schema version; reading is tolerant: a
- *   corrupt entry is dropped and the rest survive, nothing ever throws.
+ * - `serialize`/`readStored` carry a schema version; reading is tolerant: a
+ *   corrupt entry is dropped and the rest survive, nothing ever throws, and
+ *   an entry a newer build wrote (a kind, a field or a source this build
+ *   does not know) is kept untouched and written back as it was, so a tab
+ *   still running an older build never drops what a newer one queued.
  * - The device copy is shared by every open tab: `reconcile` merges it with
  *   what one tab holds, so neither tab drops the other's entries.
  * - `queuedAsRecent` lets quick add rank what is queued like ledger rows.
  */
 
-/** 2: transfers carry `tags`. Version 1 outboxes (transfers without them) still read. */
-export const OUTBOX_VERSION = 2
-/** Every schema `deserialize` still reads (entries queued before an app update must sync). */
-const READABLE_VERSIONS: readonly unknown[] = [1, OUTBOX_VERSION]
+/**
+ * The newest schema this build understands. 2: transfers carry `tags`.
+ * 3: expenses and incomes may carry `splits` and `source` (a scanned
+ * receipt). Older outboxes still read. A newer one reads too: its entries
+ * made only of fields this build knows are acted on, the rest are kept
+ * untouched. So a later version must never change what an existing field
+ * means: it adds a field, a kind or a source instead.
+ */
+export const OUTBOX_VERSION = 3
+/** The schema an outbox without receipts is written in (the build before receipts reads it). */
+const BASE_VERSION = 2
 export const BACKOFF_BASE_MS = 1_000
 export const BACKOFF_MAX_MS = 60_000
 
@@ -36,7 +46,18 @@ export interface OutboxError {
   message: string
 }
 
-/** The body of `POST /transactions/quick` for an expense or income (amount positive). */
+/** One line of a split expense or income (`POST /transactions` `splits`). */
+export interface OutboxSplit {
+  categoryId: number
+  amountCents: number
+  memo: string | null
+}
+
+/**
+ * The body of `POST /transactions/quick` for an expense or income (amount
+ * positive); with `splits` or `source` (a scanned receipt), the body of
+ * `POST /transactions` instead (see {@link usesFullCreate}).
+ */
 export interface TransactionPayload {
   clientId: string
   kind: 'expense' | 'income'
@@ -49,6 +70,10 @@ export interface TransactionPayload {
   paidByUserId: number | null
   isPrivate: boolean
   tags: string[]
+  /** The receipt's lines (at least two, adding up to the amount); `categoryId` is null then. */
+  splits?: OutboxSplit[]
+  /** `receipt`: a scanned receipt. Absent: an entry typed in quick add. */
+  source?: 'receipt'
 }
 
 /** The body of `POST /transfers` (amount positive, two different accounts; tags on both legs). */
@@ -164,7 +189,7 @@ export function replace(
     (entry) =>
       ({
         ...item,
-        payload: { ...item.payload, clientId: id },
+        payload: { ...receiptDetails(entry, item), ...item.payload, clientId: id },
         id,
         createdAt: entry.createdAt,
         attempts: 0,
@@ -175,9 +200,43 @@ export function replace(
   )
 }
 
+/**
+ * What an edit in quick add (which knows neither lines nor sources) keeps
+ * of a queued receipt: it stays a receipt, and keeps its lines while the
+ * amount is the same and no single category was picked instead.
+ */
+function receiptDetails(
+  entry: OutboxEntry,
+  item: OutboxItem
+): Pick<TransactionPayload, 'splits' | 'source'> {
+  if (entry.kind !== 'transaction' || item.kind !== 'transaction') {
+    return {}
+  }
+  const { splits, source } = entry.payload
+  const keepLines =
+    splits !== undefined &&
+    item.payload.amountCents === entry.payload.amountCents &&
+    item.payload.categoryId === null
+  return {
+    ...(source === undefined ? {} : { source }),
+    ...(keepLines ? { splits: splits.map((line) => ({ ...line })) } : {}),
+  }
+}
+
 /** "Discard": the entry is dropped without ever reaching the API. */
 export function discard(entries: readonly OutboxEntry[], id: string): OutboxEntry[] {
   return entries.filter((entry) => entry.id !== id)
+}
+
+/**
+ * Whether the entry syncs with `POST /transactions` (a receipt: lines or a
+ * source, which quick add's `POST /transactions/quick` does not take).
+ */
+export function usesFullCreate(entry: OutboxEntry): boolean {
+  return (
+    entry.kind === 'transaction' &&
+    (entry.payload.splits !== undefined || entry.payload.source !== undefined)
+  )
 }
 
 /** The oldest `pending` entry, skipping the ones in `skip` (being edited); null when none. */
@@ -274,38 +333,174 @@ export function queuedAsRecent(
 
 /* ----------------------------------------------------------- persistence */
 
-export function serialize(entries: readonly OutboxEntry[]): string {
-  return JSON.stringify({ version: OUTBOX_VERSION, entries })
+/**
+ * Entries of the stored outbox this build does not understand (a newer
+ * build wrote them), exactly as stored, and the schema version the stored
+ * copy had. They are never synced, shown or changed here; every write puts
+ * them back after this build's entries.
+ */
+export interface KeptEntries {
+  version: number
+  entries: readonly unknown[]
 }
 
-/** Reads what `serialize` wrote; anything unreadable is dropped, never thrown. */
+/** What `readStored` found: the entries this build acts on and the ones it keeps untouched. */
+export interface StoredOutbox {
+  entries: OutboxEntry[]
+  kept: KeptEntries
+}
+
+export const NOTHING_KEPT: KeptEntries = { version: 0, entries: [] }
+
+/** The lowest schema version that describes these entries (receipts need 3). */
+function versionFor(entries: readonly OutboxEntry[]): number {
+  return entries.some(usesFullCreate) ? 3 : BASE_VERSION
+}
+
+/** The outbox as stored; entries kept from a newer build go back untouched after this build's. */
+export function serialize(
+  entries: readonly OutboxEntry[],
+  kept: KeptEntries = NOTHING_KEPT
+): string {
+  const version = Math.max(versionFor(entries), kept.entries.length > 0 ? kept.version : 0)
+  return JSON.stringify({ version, entries: [...entries, ...kept.entries] })
+}
+
+/** The entries this build can act on (see {@link readStored}). */
 export function deserialize(raw: string | null): OutboxEntry[] {
+  return readStored(raw).entries
+}
+
+/**
+ * Reads what `serialize` wrote, never throwing: anything unreadable is no
+ * outbox, a corrupt entry is dropped and the rest survive, and an entry
+ * made of something this build does not know (`reader`: the schema it
+ * understands; specs play older builds with it) is kept untouched.
+ */
+export function readStored(raw: string | null, reader: number = OUTBOX_VERSION): StoredOutbox {
+  const nothing: StoredOutbox = { entries: [], kept: NOTHING_KEPT }
   if (!raw) {
-    return []
+    return nothing
   }
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch {
-    return []
+    return nothing
   }
-  if (!isRecord(parsed) || !READABLE_VERSIONS.includes(parsed['version'])) {
-    return []
-  }
-  const list = parsed['entries']
-  if (!Array.isArray(list)) {
-    return []
+  const version = isRecord(parsed) ? parsed['version'] : undefined
+  const list = isRecord(parsed) ? parsed['entries'] : undefined
+  if (!isVersion(version) || !Array.isArray(list)) {
+    return nothing
   }
   const seen = new Set<string>()
   const entries: OutboxEntry[] = []
+  const kept: unknown[] = []
   for (const candidate of list) {
+    if (!isRecord(candidate)) {
+      continue
+    }
+    const id = candidate['id']
+    if (typeof id !== 'string' || id === '' || seen.has(id)) {
+      continue
+    }
+    if (!understands(candidate, reader)) {
+      seen.add(id)
+      kept.push(candidate)
+      continue
+    }
     const entry = readEntry(candidate)
-    if (entry && !seen.has(entry.id)) {
-      seen.add(entry.id)
+    if (entry) {
+      seen.add(id)
       entries.push(entry)
     }
   }
-  return entries
+  return { entries, kept: { version, entries: kept } }
+}
+
+function isVersion(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+
+/* What each schema version added: an entry with anything else came from a newer build. */
+
+type FieldHistory = readonly (readonly [since: number, fields: readonly string[]])[]
+
+const ENTRY_FIELDS = new Set([
+  'id',
+  'kind',
+  'payload',
+  'createdAt',
+  'attempts',
+  'status',
+  'error',
+  'month',
+])
+const TRANSACTION_FIELDS: FieldHistory = [
+  [
+    1,
+    [
+      'clientId',
+      'kind',
+      'accountId',
+      'date',
+      'amountCents',
+      'categoryId',
+      'payee',
+      'description',
+      'paidByUserId',
+      'isPrivate',
+      'tags',
+    ],
+  ],
+  [3, ['splits', 'source']],
+]
+const TRANSFER_FIELDS: FieldHistory = [
+  [1, ['clientId', 'fromAccountId', 'toAccountId', 'date', 'amountCents', 'memo']],
+  [2, ['tags']],
+]
+const SPLIT_FIELDS = new Set(['categoryId', 'amountCents', 'memo'])
+/** The receipt sources a reader of version 3 or later knows. */
+const SOURCES: readonly unknown[] = ['receipt']
+
+function fieldsUpTo(history: FieldHistory, reader: number): ReadonlySet<string> {
+  return new Set(history.flatMap(([since, fields]) => (since <= reader ? fields : [])))
+}
+
+function onlyKnown(value: Json, known: ReadonlySet<string>): boolean {
+  return Object.keys(value).every((key) => known.has(key))
+}
+
+/**
+ * Whether a build that understands schema `reader` knows every part of
+ * this entry (its fields, its kind, its payload's fields and source, its
+ * lines' fields). One it knows may still be corrupt (`readEntry` decides).
+ */
+function understands(value: Json, reader: number): boolean {
+  if (!onlyKnown(value, ENTRY_FIELDS)) {
+    return false
+  }
+  const kind = value['kind']
+  const payload = value['payload']
+  if (!isRecord(payload)) {
+    // No payload is corrupt, not newer.
+    return kind === 'transaction' || kind === 'transfer'
+  }
+  if (kind === 'transfer') {
+    return onlyKnown(payload, fieldsUpTo(TRANSFER_FIELDS, reader))
+  }
+  if (kind !== 'transaction' || !onlyKnown(payload, fieldsUpTo(TRANSACTION_FIELDS, reader))) {
+    return false
+  }
+  const source = payload['source']
+  if (typeof source === 'string' && !SOURCES.includes(source)) {
+    return false
+  }
+  const splits = payload['splits']
+  return (
+    !Array.isArray(splits) ||
+    splits.every((line) => !isRecord(line) || onlyKnown(line, SPLIT_FIELDS))
+  )
 }
 
 type Json = Record<string, unknown>
@@ -361,6 +556,38 @@ function readEntry(value: unknown): OutboxEntry | null {
   }
 }
 
+/** A receipt's `splits` and `source` (both optional); null when either is corrupt. */
+function readReceipt(payload: Json): Pick<TransactionPayload, 'splits' | 'source'> | null {
+  const read: Pick<TransactionPayload, 'splits' | 'source'> = {}
+  const source = payload['source']
+  if (source !== undefined) {
+    if (source !== 'receipt') {
+      return null
+    }
+    read.source = source
+  }
+  const splits = payload['splits']
+  if (splits !== undefined) {
+    const lines = Array.isArray(splits) ? splits.map(readSplit) : []
+    if (lines.length < 2 || lines.includes(null)) {
+      return null
+    }
+    read.splits = lines as OutboxSplit[]
+  }
+  return read
+}
+
+function readSplit(value: unknown): OutboxSplit | null {
+  if (!isRecord(value)) {
+    return null
+  }
+  const { categoryId, amountCents } = value
+  if (!isId(categoryId) || typeof amountCents !== 'number' || !Number.isSafeInteger(amountCents)) {
+    return null
+  }
+  return { categoryId, amountCents, memo: textOrNull(value['memo']) }
+}
+
 function readError(value: unknown): OutboxError | null {
   if (!isRecord(value)) {
     return null
@@ -381,7 +608,8 @@ function readItem(kind: unknown, payload: unknown, id: string): OutboxItem | nul
   if (kind === 'transaction') {
     const entryKind = payload['kind']
     const accountId = payload['accountId']
-    if ((entryKind !== 'expense' && entryKind !== 'income') || !isId(accountId)) {
+    const receipt = readReceipt(payload)
+    if ((entryKind !== 'expense' && entryKind !== 'income') || !isId(accountId) || !receipt) {
       return null
     }
     return {
@@ -398,6 +626,7 @@ function readItem(kind: unknown, payload: unknown, id: string): OutboxItem | nul
         paidByUserId: idOrNull(payload['paidByUserId']),
         isPrivate: payload['isPrivate'] === true,
         tags: readTags(payload['tags']),
+        ...receipt,
       },
     }
   }

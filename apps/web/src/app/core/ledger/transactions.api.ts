@@ -22,6 +22,26 @@ export interface QuickEntryInput {
   tags?: string[]
 }
 
+/**
+ * `POST /transactions`: a full create (a scanned receipt, `source:
+ * 'receipt'`), with one category or its lines (`splits`, never both).
+ */
+export interface CreateTransactionInput {
+  clientId: string
+  kind: EntryKind
+  accountId: number
+  date: string
+  amountCents: number
+  categoryId?: number | null
+  splits?: { categoryId: number; amountCents: number; memo: string | null }[]
+  payee: string | null
+  description: string | null
+  paidByUserId: number | null
+  isPrivate: boolean
+  tags: string[]
+  source?: 'receipt'
+}
+
 /** `POST /transfers`: money moved between two of the household's accounts. */
 export interface TransferInput {
   clientId: string
@@ -34,7 +54,7 @@ export interface TransferInput {
 }
 
 /**
- * Data access for quick add: its server rankings, saving, undo. Thin:
+ * Data access for quick add and the outbox: rankings, saving, undo. Thin:
  * every method is one typed Tuyau call.
  */
 @Injectable({ providedIn: 'root' })
@@ -49,6 +69,11 @@ export class TransactionsApi {
 
   async quick(body: QuickEntryInput): Promise<Transaction> {
     const { data } = await (await this.api()).request('transactions.quick', { body })
+    return data
+  }
+
+  async create(body: CreateTransactionInput): Promise<Transaction> {
+    const { data } = await (await this.api()).request('transactions.store', { body })
     return data
   }
 
