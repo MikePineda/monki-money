@@ -108,6 +108,8 @@ export function importTestingProviders(options: ImportTestingOptions): Provider[
       provide: MonthStore,
       useValue: {
         current: () => '2026-10',
+        // Confirming a batch reloads every month.
+        invalidateAll: vi.fn(),
         ...(options.months ?? { invalidate: vi.fn(), select: vi.fn() }),
       },
     },
