@@ -1,8 +1,8 @@
 import { test } from '@japa/runner'
 import {
   accountHistory,
+  contributionHistory,
   HISTORY_FULL_MONTHS,
-  startingHistory,
   type HistoryEntry,
 } from '#domain/goals/history'
 
@@ -111,11 +111,69 @@ test.group('Goals: history', () => {
     ])
   })
 
-  test('test_history_without_an_account_is_the_starting_amount_this_month', ({ assert }) => {
-    // Contributions to a goal without an account are not recorded, so the
-    // only point the app knows is today's.
-    assert.deepEqual(startingHistory(80_000, '2026-10'), [
-      { month: '2026-10', balanceCents: 80_000 },
+  test('test_history_of_a_goal_created_this_month_without_contributions_is_one_point', ({
+    assert,
+  }) => {
+    assert.deepEqual(
+      contributionHistory({ startingCents: 80_000, since: '2026-10-03' }, [], '2026-10'),
+      [{ month: '2026-10', balanceCents: 80_000 }]
+    )
+  })
+
+  test('test_history_without_an_account_adds_the_contributions_up_to_each_month_end', ({
+    assert,
+  }) => {
+    const contributions = [
+      { date: '2026-08-31', amountCents: 20_000 },
+      { date: '2026-09-01', amountCents: 15_000 },
+      // A withdrawal.
+      { date: '2026-09-20', amountCents: -5_000 },
+      { date: '2026-10-02', amountCents: 10_000 },
+    ]
+
+    const history = contributionHistory(
+      { startingCents: 50_000, since: '2026-08-14' },
+      contributions,
+      '2026-10'
+    )
+
+    assert.deepEqual(history, [
+      { month: '2026-08', balanceCents: 70_000 },
+      { month: '2026-09', balanceCents: 80_000 },
+      { month: '2026-10', balanceCents: 90_000 },
     ])
+  })
+
+  test('test_history_without_an_account_keeps_the_last_full_months_only', ({ assert }) => {
+    const contributions = [
+      { date: '2025-12-10', amountCents: 1_000 },
+      { date: '2026-09-10', amountCents: 2_000 },
+    ]
+
+    const history = contributionHistory(
+      { startingCents: 0, since: '2025-11-01' },
+      contributions,
+      '2026-10',
+      2
+    )
+
+    assert.deepEqual(history, [
+      { month: '2026-08', balanceCents: 1_000 },
+      { month: '2026-09', balanceCents: 3_000 },
+      { month: '2026-10', balanceCents: 3_000 },
+    ])
+  })
+
+  test('test_history_without_an_account_always_ends_with_the_current_month', ({ assert }) => {
+    // A start after the current month (a clock behind the row's stamp) still
+    // gives today's point, the saved amount.
+    assert.deepEqual(
+      contributionHistory(
+        { startingCents: 5_000, since: '2026-11-02' },
+        [{ date: '2026-10-01', amountCents: 1_000 }],
+        '2026-10'
+      ),
+      [{ month: '2026-10', balanceCents: 6_000 }]
+    )
   })
 })

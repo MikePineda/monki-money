@@ -1015,6 +1015,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['projection']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'goals.contributions.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/goals/:id/contributions'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/goals').goalParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['contributions']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['contributions']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.contributions.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/goals/:id/contributions'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/goals').createGoalContributionValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/goals').createGoalContributionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['contribute']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['contribute']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'goals.contributions.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/goals/:id/contributions/:contributionId'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/goals').goalContributionParamsValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; contributionId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/goals').goalContributionParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['removeContribution']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/goals_controller').default['removeContribution']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'insights.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/insights/:month'

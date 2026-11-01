@@ -24,6 +24,15 @@ export interface UpdateGoalInput extends Partial<CreateGoalInput> {
   status?: GoalStatus
 }
 
+/** A contribution to a goal without an account. */
+export interface CreateContributionInput {
+  /** Signed, never 0: a withdrawal is negative. */
+  amountCents: number
+  /** 'YYYY-MM-DD', today or earlier in the household time zone. */
+  date: string
+  memo?: string | null
+}
+
 export interface GoalFilters {
   status?: GoalStatus
 }

@@ -16,6 +16,7 @@
   "E_INVITATION_EXPIRED": "Esta invitación expiró o ya se usó",
   "E_ALREADY_IN_HOUSEHOLD": "Esta cuenta ya pertenece a un hogar",
   "E_ACCOUNT_IN_USE": "Esta cuenta tiene movimientos y no se puede borrar",
+  "E_GOAL_TRACKS_ACCOUNT": "Esta meta sigue el saldo de una cuenta. Agrega el dinero a esa cuenta",
   "E_CATEGORY_IN_USE": "Esta categoría está en uso. Elige una categoría de reemplazo para borrarla",
   "E_GROUP_NOT_EMPTY": "Primero mueve o borra las categorías de este grupo",
   "E_HOUSEHOLD_SUSPENDED": "Este hogar está suspendido",

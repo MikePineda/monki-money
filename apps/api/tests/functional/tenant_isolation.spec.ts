@@ -7,6 +7,7 @@ import type Transfer from '#models/transfer'
 import Invitation from '#models/invitation'
 import Payslip from '#models/payslip'
 import SavingsGoal from '#models/savings_goal'
+import GoalContribution from '#models/goal_contribution'
 import RecurringItem from '#models/recurring_item'
 import MonthlyInsight from '#models/monthly_insight'
 import ImportRow from '#models/import_row'
@@ -49,6 +50,8 @@ interface Victim {
   transfer: Transfer
   payslip: Payslip
   goal: SavingsGoal
+  /** Logged on the victim's goal (straight in the table: it tracks an account). */
+  contribution: GoalContribution
   insight: MonthlyInsight
   batch: ImportBatch
   row: ImportRow
@@ -210,6 +213,22 @@ const cases: IsolationCase[] = [
     route: 'goals.projection',
     method: 'get',
     url: (v) => `/api/v1/goals/${v.goal.id}/projection`,
+  },
+  {
+    route: 'goals.contributions.index',
+    method: 'get',
+    url: (v) => `/api/v1/goals/${v.goal.id}/contributions`,
+  },
+  {
+    route: 'goals.contributions.store',
+    method: 'post',
+    url: (v) => `/api/v1/goals/${v.goal.id}/contributions`,
+    body: { amountCents: 1_000, date: '2026-01-01', memo: 'Hijacked' },
+  },
+  {
+    route: 'goals.contributions.destroy',
+    method: 'delete',
+    url: (v) => `/api/v1/goals/${v.goal.id}/contributions/${v.contribution.id}`,
   },
   // A month is not an id: the attacker only ever reaches its own summaries.
   { route: 'insights.show', method: 'get', url: (v) => `/api/v1/insights/${v.insight.month}` },
@@ -434,6 +453,14 @@ async function victimHousehold(): Promise<Victim> {
     accountId: account.id,
     sortOrder: 0,
   })
+  const contribution = await GoalContribution.create({
+    householdId: household.household.id,
+    goalId: goal.id,
+    userId: household.owner.id,
+    amountCents: 5_000,
+    date: '2026-01-01',
+    memo: 'Victim contribution',
+  })
   const insight = await MonthlyInsight.create({
     householdId: household.household.id,
     month: transaction.date.slice(0, 7),
@@ -484,6 +511,7 @@ async function victimHousehold(): Promise<Victim> {
     transfer,
     payslip,
     goal,
+    contribution,
     insight,
     batch,
     row,
@@ -556,6 +584,9 @@ test.group('Tenant isolation', () => {
       assert.lengthOf(await Transaction.query().where('payslip_id', victim.payslip.id), 1)
       await victim.goal.refresh()
       assert.include(victim.goal.serialize(), { name: 'Victim goal', status: 'active' })
+      await victim.contribution.refresh()
+      assert.equal(victim.contribution.memo, 'Victim contribution')
+      assert.lengthOf(await GoalContribution.query().where('goal_id', victim.goal.id), 1)
       await victim.insight.refresh()
       assert.equal(victim.insight.headline, 'Victim headline')
       assert.lengthOf(

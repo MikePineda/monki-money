@@ -319,6 +319,22 @@ router
                   .get(':id/projection', [controllers.Goals, 'projection'])
                   .where('id', id)
                   .as('projection')
+                router
+                  .get(':id/contributions', [controllers.Goals, 'contributions'])
+                  .where('id', id)
+                  .as('contributions.index')
+                router
+                  .post(':id/contributions', [controllers.Goals, 'contribute'])
+                  .where('id', id)
+                  .as('contributions.store')
+                router
+                  .delete(':id/contributions/:contributionId', [
+                    controllers.Goals,
+                    'removeContribution',
+                  ])
+                  .where('id', id)
+                  .where('contributionId', id)
+                  .as('contributions.destroy')
               })
               .prefix('goals')
               .as('goals')

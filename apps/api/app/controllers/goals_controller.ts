@@ -3,8 +3,11 @@ import type { HttpContext } from '@adonisjs/core/http'
 import GoalService from '#services/goals/goal_service'
 import { reorderValidator } from '#validators/reorder'
 import GoalTransformer from '#transformers/goal_transformer'
+import GoalContributionTransformer from '#transformers/goal_contribution_transformer'
 import {
+  createGoalContributionValidator,
   createGoalValidator,
+  goalContributionParamsValidator,
   goalParamsValidator,
   listGoalsValidator,
   updateGoalValidator,
@@ -81,5 +84,38 @@ export default class GoalsController {
     const projection = await this.goals.projection(ctx.household, params.id)
 
     return { data: projection }
+  }
+
+  /** GET /goals/:id/contributions: newest first (a goal with an account has none of use). */
+  async contributions(ctx: HttpContext) {
+    const { params } = await ctx.request.validateUsing(goalParamsValidator)
+
+    const contributions = await this.goals.contributions(ctx.household, params.id)
+
+    return ctx.serialize(GoalContributionTransformer.transform(contributions))
+  }
+
+  /** POST /goals/:id/contributions { amountCents (signed, not 0), date, memo? } */
+  async contribute(ctx: HttpContext) {
+    const { params, ...payload } = await ctx.request.validateUsing(createGoalContributionValidator)
+
+    const contribution = await this.goals.contribute(
+      ctx.household,
+      ctx.auth.getUserOrFail(),
+      params.id,
+      payload
+    )
+
+    ctx.response.status(201)
+    return ctx.serialize(GoalContributionTransformer.transform(contribution))
+  }
+
+  /** DELETE /goals/:id/contributions/:contributionId */
+  async removeContribution(ctx: HttpContext) {
+    const { params } = await ctx.request.validateUsing(goalContributionParamsValidator)
+
+    await this.goals.removeContribution(ctx.household, params.id, params.contributionId)
+
+    return ctx.response.noContent()
   }
 }

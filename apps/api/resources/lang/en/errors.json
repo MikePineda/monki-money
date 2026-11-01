@@ -16,6 +16,7 @@
   "E_INVITATION_EXPIRED": "This invitation has expired or was already used",
   "E_ALREADY_IN_HOUSEHOLD": "This account already belongs to a household",
   "E_ACCOUNT_IN_USE": "This account has transactions and cannot be deleted",
+  "E_GOAL_TRACKS_ACCOUNT": "This goal follows an account's balance. Add the money to that account instead",
   "E_CATEGORY_IN_USE": "This category is in use. Choose a replacement category to delete it",
   "E_GROUP_NOT_EMPTY": "Move or delete the categories of this group first",
   "E_HOUSEHOLD_SUSPENDED": "This household is suspended",

@@ -141,6 +141,8 @@
       "expenseCategory": "Elige una categoría de gasto para esta deducción",
       "month.future": "Este mes todavía no empieza",
       "month.noActivity": "Todavía no hay ingresos ni gastos en este mes",
+      "date.future": "Elige hoy o un día anterior",
+      "amountCents.notZero": "Escribe un monto distinto de 0.00",
       "file.required": "Elige el archivo CSV que exportaste de tu banco",
       "transferAccountId.sameAccount": "Elige una cuenta distinta a la importada",
       "matchTransactionId.sameAccount": "Elige un movimiento de la cuenta importada",
