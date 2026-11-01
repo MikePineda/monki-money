@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.5.0](https://github.com/MikePineda/monki-money/compare/v0.4.2...v0.5.0) (2026-11-01)
+
+
+### Added
+
+* "you reached your goal" push and a contributions log for goals without an account ([2e14a82](https://github.com/MikePineda/monki-money/commit/2e14a82b0bd8a54c3a1cc59888923cb564f47473))
+* **api:** add node ace push:rotate-keys ([a7cbed9](https://github.com/MikePineda/monki-money/commit/a7cbed9ef0c35d6fa8e8204f7f20abd77cfc52ce))
+* **api:** announce a summary a partner generates once the month ended ([d85f839](https://github.com/MikePineda/monki-money/commit/d85f839a721751cb8e1086b6c8955a2eca5ace99))
+* **api:** detect several recurring items per merchant and yearly bills seen twice ([08b7a18](https://github.com/MikePineda/monki-money/commit/08b7a182887ed610d8ea25596d06a64d41b0a743))
+* **api:** drop a push subscription after ten failed sends in a row ([67d3b2b](https://github.com/MikePineda/monki-money/commit/67d3b2b38dcd1300d5f5a48d40ed8f12bec847f0))
+* **api:** let a push subscription be detached from any household ([7bdc7c1](https://github.com/MikePineda/monki-money/commit/7bdc7c18d31f8104ec58d175c6f1f29c0be76e29))
+* **api:** link an item typed by hand to the bank merchant a person picks ([f884c5a](https://github.com/MikePineda/monki-money/commit/f884c5a4c1780db5ee116220a1fb83ca80682f7f))
+* **api:** list and remove a person's push devices by id ([0ab0c9d](https://github.com/MikePineda/monki-money/commit/0ab0c9d1f32b1730a6d954a1cec523f5298cd007))
+* **api:** match recurring payments by amount and by the merchant a typed name names ([c379c92](https://github.com/MikePineda/monki-money/commit/c379c923322b67793fc4d9981d8cb5a1ef93c188))
+* **api:** move push subscriptions with their person on join and leave ([a6fbb4e](https://github.com/MikePineda/monki-money/commit/a6fbb4e44056643db87bdfcd1ce8596f4719fcb1))
+* **api:** rename, merge and bulk-edit tags, filter by source, mask private payslip memos ([d80c2bc](https://github.com/MikePineda/monki-money/commit/d80c2bc19f499c92755b4663ad06a02a66aca90e))
+* **api:** send the daily reminder only on the weekdays the person chose ([5199fc9](https://github.com/MikePineda/monki-money/commit/5199fc952ecea8124484ea6f4e638de7c877c120))
+* archived CSVs die with their account, push last_seen_at, linked holders read, forget and export ([7447f76](https://github.com/MikePineda/monki-money/commit/7447f76d3a7bddbba80db8367486de18860478e6))
+* **goals:** contributions log for goals without an account ([f543991](https://github.com/MikePineda/monki-money/commit/f54399190e54c9985faced48629eea32940659cd))
+* **goals:** push both members once when a goal reaches its target ([c02c5cf](https://github.com/MikePineda/monki-money/commit/c02c5cf9a7a415f883cf466d6399882ae1a2ac52))
+* **household:** list and forget linked holders, and export them ([832d16a](https://github.com/MikePineda/monki-money/commit/832d16ab8de124d1bfc640749e129f185b288d95))
+* **imports:** delete archived CSVs with their account and sweep orphans ([424eeff](https://github.com/MikePineda/monki-money/commit/424eeff55441d611358e3de155e2d97807c41d1c))
+* **imports:** keep a set of accounts per NAB linked holder ([99cc6fc](https://github.com/MikePineda/monki-money/commit/99cc6fcd232b85fd8185f63c733d2e154e39e3d5))
+* **insights:** catch up a missed scheduled summary through the 4th ([dddd770](https://github.com/MikePineda/monki-money/commit/dddd7700041498a6fcc7ae01beb3aa45450bc3cd))
+* **insights:** compare the month in progress with the same days of the last one ([b440a99](https://github.com/MikePineda/monki-money/commit/b440a99ce8a3aa96fd41a3e7561302a18b7d22e8))
+* **push:** stamp last_seen_at on every device registration ([9505420](https://github.com/MikePineda/monki-money/commit/950542039ee1399e630683bf37782b5c6d52cb53))
+* record household onboarding server-side, prune scheduler runs and let members leave during deletion ([#34](https://github.com/MikePineda/monki-money/issues/34)) ([f5fdd70](https://github.com/MikePineda/monki-money/commit/f5fdd70e3bc3d227ce689df351b43fd4ee0e3063))
+* rename and merge tags, bulk tag in Movements, tag period chip, payslip rows in the sheet, payslip memo masked ([74a1b1d](https://github.com/MikePineda/monki-money/commit/74a1b1df6438c61ec3d026f56086963ba874a006))
+* **shared:** add reminder weekdays to the notification settings ([9d5c5f5](https://github.com/MikePineda/monki-money/commit/9d5c5f5a83bdda4e4fd7f948a545cc88ee33e31a))
+* **web:** a member can leave a household scheduled for deletion ([304a4de](https://github.com/MikePineda/monki-money/commit/304a4de77c83b031f3d493e8c6ccbd33aca08158))
+* **web:** candidate accounts of an unclear transfer as quick picks ([a5e98b8](https://github.com/MikePineda/monki-money/commit/a5e98b816960a6ac7570a19ded60df2aeb6f35ed))
+* **web:** contributions on the detail of a goal without an account ([8e835d0](https://github.com/MikePineda/monki-money/commit/8e835d0fefd9a743041560c37aa9ff516ec2bd13))
+* **web:** delete recurring items and show past months' bills ([720c466](https://github.com/MikePineda/monki-money/commit/720c4668ea484ade4091ecebc3eff1c3a2f61752))
+* **web:** leave a household pending deletion, password reveal toggle, household card from the session, candidate accounts in import review ([61aa384](https://github.com/MikePineda/monki-money/commit/61aa38410080f1076df1e0a50560917286b61669))
+* **web:** list push devices and pick the reminder weekdays in Settings ([32575c1](https://github.com/MikePineda/monki-money/commit/32575c1b7540e1b9f41129c6bd189362ec43aeaf))
+* **web:** outbox schema 3 with receipt lines and a reader that keeps what it cannot read ([de19fa7](https://github.com/MikePineda/monki-money/commit/de19fa7e56f1ef863772c429b1c55f7a4e9b5bb2))
+* **web:** quick add ranks from the last suggestions kept on the device at an offline cold start ([b7b4476](https://github.com/MikePineda/monki-money/commit/b7b44760ecf2dbdc084bf5ca8ca80e3b50fa71c9))
+* **web:** rank outbox entries that sync while quick add is open ([f80d539](https://github.com/MikePineda/monki-money/commit/f80d53909ce10274ac2410617c47a3f3c712c670))
+* **web:** receipts save offline through the outbox, tolerant outbox reader, cached suggestions, MonthStore.invalidateAll and insight re-check ([7ed974b](https://github.com/MikePineda/monki-money/commit/7ed974b1146b025aaf8151889806f4a008321df6))
+* **web:** reload every month after a rule is applied to history or an import is confirmed ([033272f](https://github.com/MikePineda/monki-money/commit/033272f0799081ec09968b9c3382a50297d2c0da))
+* **web:** show/hide toggle on every password field ([7f1baa4](https://github.com/MikePineda/monki-money/commit/7f1baa40df1696a0d1f4cb36f77c0d1f84f2b372))
+* **web:** start offline on the last session and household directory ([9408cac](https://github.com/MikePineda/monki-money/commit/9408cac6278445ac2e7ac738090b4dba3bfb1218))
+* **web:** tag rename and period, bulk tags in Movements, payslip rows in the sheet ([1f5cdd4](https://github.com/MikePineda/monki-money/commit/1f5cdd478bad94870f78e31063f2bc197bb488be))
+* **web:** tag transfers from quick add, also offline ([032db8f](https://github.com/MikePineda/monki-money/commit/032db8fe2fc3f5bfcd7b3004077f87ed28d6d0d0))
+* **web:** the Month view re-checks its AI summary in the foreground and on re-entry ([79ecf05](https://github.com/MikePineda/monki-money/commit/79ecf05960d85797a10d04173d44e654de1c7552))
+* **web:** the receipt scanner saves offline through the outbox ([33f9116](https://github.com/MikePineda/monki-money/commit/33f91166fca0428c4e3a0304b3b1ae302dbfe858))
+* **web:** warn about queued entries on every logout, not just More's ([bad28ac](https://github.com/MikePineda/monki-money/commit/bad28ac2df9143f8939f4607e11d4007c3bc5f9d))
+
+
+### Fixed
+
+* **imports:** end a NAB holder typed after an upper-case memo at a known holder ([c7cc1cd](https://github.com/MikePineda/monki-money/commit/c7cc1cdf230b37ba25cbc80f434d4fe93739ab8e))
+* **imports:** send transfer candidates only when a holder has several accounts ([584d7c0](https://github.com/MikePineda/monki-money/commit/584d7c0a2929671870a037bbe87cf0fae0579545))
+* **web:** drop category and account answers that land after a logout ([42feff0](https://github.com/MikePineda/monki-money/commit/42feff0f959bdf9fbcd04e2363db818fc0c0ad84))
+* **web:** keep More's logout warning single and stub the household in specs ([c65fc1f](https://github.com/MikePineda/monki-money/commit/c65fc1f16ff78b569621627fc4d9e12ac53006bf))
+* **web:** key the kept directory on the session's me signal ([ba5f570](https://github.com/MikePineda/monki-money/commit/ba5f570965b0f1fc97aad40d516cd89032ac7842))
+
+
+### Changed
+
+* **web:** the household card reads its members from the session ([d416c52](https://github.com/MikePineda/monki-money/commit/d416c528276fa4a13cf575b3a37a14916d14ebfe))
+
 ## [0.4.2](https://github.com/MikePineda/monki-money/compare/v0.4.1...v0.4.2) (2026-10-21)
 
 
