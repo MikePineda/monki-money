@@ -52,6 +52,9 @@
     },
     "toast": {
       "dismiss": "Cerrar aviso"
+    },
+    "password": {
+      "show": "Mostrar contraseña"
     }
   },
   "forms": {

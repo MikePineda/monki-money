@@ -182,6 +182,7 @@ type View =
                 <app-text-field
                   data-testid="invite.password"
                   type="password"
+                  revealable
                   [autocomplete]="creating() ? 'new-password' : 'current-password'"
                   [label]="'auth.fields.password' | transloco"
                   [hint]="creating() ? ('auth.fields.passwordHint' | transloco) : ''"

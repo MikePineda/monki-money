@@ -61,6 +61,16 @@ describe('PasswordPage', () => {
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('settings.password.changed')
   })
 
+  it('test_both_passwords_can_be_shown_one_at_a_time', async () => {
+    const { current, next } = await setup()
+
+    await next.toggleReveal()
+
+    expect(await next.getType()).toBe('text')
+    expect(await current.isRevealable()).toBe(true)
+    expect(await current.getType()).toBe('password')
+  })
+
   it('test_a_new_password_shorter_than_10_characters_cannot_be_sent', async () => {
     const { current, next, submit } = await setup()
 

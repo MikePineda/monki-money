@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { FormField, form, required } from '@angular/forms/signals'
+import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { TextFieldComponent } from './text-field.component'
 import { TextFieldHarness } from './text-field.harness'
 
@@ -26,6 +27,18 @@ class SignalFormsHost {
   readonly profile = form(this.model, (path) => {
     required(path.name, { message: 'Enter a name' })
   })
+}
+
+@Component({
+  imports: [TextFieldComponent],
+  template: `
+    <app-text-field label="Password" type="password" revealable [(value)]="secret" />
+    <app-text-field label="PIN" type="password" [(value)]="pin" />
+  `,
+})
+class PasswordHost {
+  readonly secret = signal('')
+  readonly pin = signal('')
 }
 
 describe('TextFieldComponent', () => {
@@ -67,5 +80,69 @@ describe('TextFieldComponent', () => {
     await field.setValue('Sam')
     expect(fixture.componentInstance.model().name).toBe('Sam')
     expect(await field.getMessage()).toBeNull()
+  })
+
+  describe('a revealable password', () => {
+    async function setup(lang: 'en' | 'es' = 'en') {
+      TestBed.configureTestingModule({
+        imports: [i18nTesting({ lang })],
+        providers: [i18nTestingProviders()],
+      })
+      const fixture = TestBed.createComponent(PasswordHost)
+      const loader = TestbedHarnessEnvironment.loader(fixture)
+      const field = await loader.getHarness(TextFieldHarness.with({ label: 'Password' }))
+      await fixture.whenStable()
+      return { fixture, loader, field }
+    }
+
+    it('test_starts_hidden_with_an_unpressed_show_password_toggle', async () => {
+      const { field } = await setup()
+
+      expect(await field.getType()).toBe('password')
+      expect(await field.isRevealable()).toBe(true)
+      expect(await field.isRevealed()).toBe(false)
+      expect(await field.getRevealLabel()).toBe('Show password')
+    })
+
+    it('test_the_toggle_shows_the_password_as_text_and_hides_it_again', async () => {
+      const { fixture, field } = await setup()
+      await field.setValue('secret-password')
+
+      await field.toggleReveal()
+
+      expect(await field.getType()).toBe('text')
+      expect(await field.isRevealed()).toBe(true)
+      expect(await field.getValue()).toBe('secret-password')
+      expect(fixture.componentInstance.secret()).toBe('secret-password')
+
+      await field.toggleReveal()
+
+      expect(await field.getType()).toBe('password')
+      expect(await field.isRevealed()).toBe(false)
+    })
+
+    it('test_the_toggle_is_a_button_that_never_submits_the_form', async () => {
+      const { fixture } = await setup()
+      const toggle = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="textField.reveal"]'
+      )
+
+      expect(toggle?.tagName).toBe('BUTTON')
+      expect(toggle?.getAttribute('type')).toBe('button')
+    })
+
+    it('test_the_toggle_label_is_translated', async () => {
+      const { field } = await setup('es')
+
+      expect(await field.getRevealLabel()).toBe('Mostrar contraseña')
+    })
+
+    it('test_a_password_field_without_the_option_has_no_toggle', async () => {
+      const { loader } = await setup()
+      const pin = await loader.getHarness(TextFieldHarness.with({ label: 'PIN' }))
+
+      expect(await pin.isRevealable()).toBe(false)
+      expect(await pin.getType()).toBe('password')
+    })
   })
 })

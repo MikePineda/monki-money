@@ -52,6 +52,7 @@ import { provideSettingsScope } from '../settings.scope'
       <app-text-field
         data-testid="password.current"
         type="password"
+        revealable
         autocomplete="current-password"
         [label]="'settings.password.current' | transloco"
         [formField]="passwordForm.currentPassword"
@@ -60,6 +61,7 @@ import { provideSettingsScope } from '../settings.scope'
       <app-text-field
         data-testid="password.new"
         type="password"
+        revealable
         autocomplete="new-password"
         [label]="'settings.password.new' | transloco"
         [hint]="'settings.password.hint' | transloco"

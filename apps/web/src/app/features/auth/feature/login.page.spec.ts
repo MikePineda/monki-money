@@ -81,6 +81,17 @@ describe('LoginPage', () => {
     expect(await submit.isDisabled()).toBe(false)
   })
 
+  it('test_the_password_can_be_shown_to_check_what_was_typed', async () => {
+    const { password } = await setup()
+    await password.setValue('secret-password')
+
+    await password.toggleReveal()
+
+    expect(await password.isRevealed()).toBe(true)
+    expect(await password.getType()).toBe('text')
+    expect(await password.getRevealLabel()).toBe('Show password')
+  })
+
   it('test_field_errors_are_translated_global_messages_shown_once_touched', async () => {
     const { email } = await setup()
 

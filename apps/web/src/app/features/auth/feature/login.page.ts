@@ -68,6 +68,7 @@ import { TurnstileWidgetComponent } from '../ui/turnstile-widget.component'
         <app-text-field
           data-testid="login.password"
           type="password"
+          revealable
           autocomplete="current-password"
           [label]="'auth.fields.password' | transloco"
           [formField]="loginForm.password"

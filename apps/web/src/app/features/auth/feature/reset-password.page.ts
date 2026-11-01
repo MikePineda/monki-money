@@ -73,6 +73,7 @@ type State = 'form' | 'done' | 'invalid'
             class="mt-8"
             data-testid="reset.password"
             type="password"
+            revealable
             autocomplete="new-password"
             [label]="'auth.fields.newPassword' | transloco"
             [hint]="'auth.fields.passwordHint' | transloco"

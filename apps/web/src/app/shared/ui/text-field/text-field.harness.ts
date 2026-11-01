@@ -17,6 +17,7 @@ export class TextFieldHarness extends ComponentHarness {
 
   private readonly input = this.locatorFor('input')
   private readonly message = this.locatorForOptional('p')
+  private readonly reveal = this.locatorForOptional('[data-testid="textField.reveal"]')
 
   async getLabel(): Promise<string> {
     return (await this.locatorFor('label')()).text()
@@ -46,5 +47,32 @@ export class TextFieldHarness extends ComponentHarness {
   async getMessage(): Promise<string | null> {
     const message = await this.message()
     return message ? message.text() : null
+  }
+
+  /** The input's current type (`password` turns into `text` while revealed). */
+  async getType(): Promise<string> {
+    return (await this.input()).getProperty<string>('type')
+  }
+
+  /** Whether the field offers the show/hide password toggle. */
+  async isRevealable(): Promise<boolean> {
+    return (await this.reveal()) !== null
+  }
+
+  async isRevealed(): Promise<boolean> {
+    const toggle = await this.reveal()
+    return toggle ? (await toggle.getAttribute('aria-pressed')) === 'true' : false
+  }
+
+  async getRevealLabel(): Promise<string | null> {
+    return (await this.reveal())?.getAttribute('aria-label') ?? null
+  }
+
+  async toggleReveal(): Promise<void> {
+    const toggle = await this.reveal()
+    if (!toggle) {
+      throw new Error('This text field has no show/hide password toggle')
+    }
+    await toggle.click()
   }
 }
