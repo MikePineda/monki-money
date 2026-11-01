@@ -154,6 +154,14 @@ router
                   .post('invitations/:id/resend', [controllers.HouseholdInvitations, 'resend'])
                   .where('id', id)
                   .as('invitations.resend')
+
+                router
+                  .get('linked-holders', [controllers.LinkedHolders, 'index'])
+                  .as('linkedHolders.index')
+                router
+                  .delete('linked-holders/:id', [controllers.LinkedHolders, 'destroy'])
+                  .where('id', id)
+                  .as('linkedHolders.destroy')
               })
               .prefix('household')
               .as('household')

@@ -391,6 +391,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/household_invitations_controller').default['resend']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'household.linkedHolders.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/household/linked-holders'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/linked_holders_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/linked_holders_controller').default['index']>>>
+    }
+  }
+  'household.linkedHolders.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/household/linked-holders/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/household').linkedHolderParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/household').linkedHolderParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/linked_holders_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/linked_holders_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'accounts.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/accounts'

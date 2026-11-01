@@ -13,6 +13,7 @@ import ImportRow from '#models/import_row'
 import ImportBatch from '#models/import_batch'
 import MerchantRule from '#models/merchant_rule'
 import PushSubscription from '#models/push_subscription'
+import LinkedHolderAccount from '#models/linked_holder_account'
 import Transaction from '#models/transaction'
 import AccountCard from '#models/account_card'
 import HouseholdMember from '#models/household_member'
@@ -59,6 +60,8 @@ interface Victim {
   receiptKey: string
   /** The owner's phone, subscribed to Web Push. */
   pushDevice: PushSubscription
+  /** Where the victim's linked holder's transfers go. */
+  linkedHolder: LinkedHolderAccount
 }
 
 interface Attacker {
@@ -133,6 +136,11 @@ const cases: IsolationCase[] = [
     route: 'household.invitations.resend',
     method: 'post',
     url: (v) => `/api/v1/household/invitations/${v.invitation.id}/resend`,
+  },
+  {
+    route: 'household.linkedHolders.destroy',
+    method: 'delete',
+    url: (v) => `/api/v1/household/linked-holders/${v.linkedHolder.id}`,
   },
   {
     route: 'transactions.show',
@@ -484,6 +492,13 @@ async function victimHousehold(): Promise<Victim> {
     systemRule,
     receiptKey: receiptKey(household.household.id, randomUUID(), 'image/jpeg'),
     pushDevice: await subscribeDevice(household.owner, household.household),
+    linkedHolder: await LinkedHolderAccount.create({
+      householdId: household.household.id,
+      holderKey: 'linked acc trns victim jo',
+      accountId: household.accounts[1].id,
+      confirmedCount: 3,
+      lastConfirmedAt: DateTime.now(),
+    }),
   }
 }
 
@@ -576,6 +591,8 @@ test.group('Tenant isolation', () => {
         auth: victim.pushDevice.auth,
       })
       assert.deepEqual(storage.deleted, [])
+      await victim.linkedHolder.refresh()
+      assert.equal(victim.linkedHolder.confirmedCount, 3)
     })
 
   test('test_isolation_dataset_covers_every_route_with_an_id', ({ assert }) => {
@@ -655,6 +672,7 @@ test.group('Tenant isolation', () => {
       'monthlyInsights',
       'llmUsage',
       'ownershipTransfers',
+      'linkedHolders',
     ]) {
       assert.deepEqual(body[table], [], table)
     }

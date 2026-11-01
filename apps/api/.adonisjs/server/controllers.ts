@@ -18,6 +18,7 @@ export const controllers = {
   Imports: () => import('#controllers/imports_controller'),
   Insights: () => import('#controllers/insights_controller'),
   InvitationAcceptance: () => import('#controllers/invitation_acceptance_controller'),
+  LinkedHolders: () => import('#controllers/linked_holders_controller'),
   NotificationSettings: () => import('#controllers/notification_settings_controller'),
   PasswordReset: () => import('#controllers/password_reset_controller'),
   Payslips: () => import('#controllers/payslips_controller'),

@@ -1,0 +1,25 @@
+meta {
+  name: List the linked holders
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/v1/household/linked-holders
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+docs {
+  `household.linkedHolders.index` (any member): where each NAB linked holder's
+  internal transfers were confirmed to, learned when an import is confirmed,
+  holders by key: `{ holderKey, holderName, confirmedCount, lastConfirmedAt,
+  accounts: [{ id, accountId, confirmedCount, lastConfirmedAt }] }[]`, each
+  holder's accounts most confirmed first. Empty here: the run has confirmed
+  no internal transfer yet.
+}
