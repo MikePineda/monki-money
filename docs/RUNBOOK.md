@@ -164,7 +164,9 @@ stdout; secrets, cookies and emails are redacted.
 ## Deleting a household's data
 
 TODO (API base package): `node ace household:delete <id> --confirm` (database,
-S3 prefix, audit line).
+S3 prefix through `ImportArchive.discardHousehold`, audit line). Until then a
+deleted household's CSVs are what `node ace storage:sweep-imports` finds (see
+"Archived bank CSVs").
 
 ## Secret rotation
 
@@ -519,6 +521,32 @@ npx wrangler r2 bucket lifecycle list <bucket>
 Locally, MinIO has no bucket CORS (it allows every origin): the command sets
 only the lifecycle rule and says so. Presigned URLs point at `S3_ENDPOINT`, so
 the browser must reach that host (`http://127.0.0.1:9030` in development).
+
+## Archived bank CSVs
+
+Every bank export the API stages is kept in the bucket as
+`imports/<householdId>/<batchId>.csv` (the batch's `file_path`). Deleting an
+account deletes its import batches (FK cascade) and, once that commits, their
+CSVs; a CSV the bucket refuses to delete (outage) is logged at warn
+(`import: could not delete an archived CSV`) and stays. A household purge
+drops the batches the same way (`ImportArchive.discardHousehold` deletes the
+whole `imports/<householdId>/` prefix). What is left over, a CSV whose batch
+no longer exists, is swept by hand:
+
+```bash
+# List the orphans and the counts (a dry run: the default):
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:sweep-imports'
+# Delete them:
+ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | head -n1) node ace storage:sweep-imports --force'
+```
+
+It prints `scanned N, kept N, orphaned N, deleted N, unrecognised N`: an
+orphan is a key whose batch id is gone (or belongs to another household);
+keys under `imports/` that are not `<householdId>/<batchId>.csv` are listed as
+unrecognised and never touched, nor is anything outside the prefix. A batch
+row exists before its CSV is stored, so a sweep never deletes the file of an
+upload in flight. With `--force` it exits 1 when an orphan could not be
+deleted (run it again later). Needs `DRIVE_DISK`; safe to re-run.
 
 ## Disk
 
