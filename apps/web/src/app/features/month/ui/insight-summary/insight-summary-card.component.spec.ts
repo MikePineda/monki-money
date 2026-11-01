@@ -11,6 +11,11 @@ import type { YearMonth } from '../../../../domain/month'
 import { APP_LOCALE } from '../../../../shared/ui/app-locale.token'
 import { SelectSheetHarness } from '../../../../shared/ui/select-sheet/select-sheet.harness'
 import { InsightsApi } from '../../data-access/insights.api'
+import {
+  INSIGHT_FOREGROUND_RECHECK_MS,
+  INSIGHT_RECHECK_MS,
+  InsightsStore,
+} from '../../data-access/insights.store'
 import { InsightSummaryCardComponent } from './insight-summary-card.component'
 import insightsEn from './i18n/en.json'
 import insightsEs from './i18n/es.json'
@@ -31,7 +36,9 @@ const INSIGHTS_SCOPES = { 'insights/en': insightsEn, 'insights/es': insightsEs }
 describe('InsightSummaryCardComponent', () => {
   let api: { show: ReturnType<typeof vi.fn>; generate: ReturnType<typeof vi.fn> }
 
-  async function render(options: { stored?: boolean; lang?: 'en' | 'es' } = {}) {
+  async function render(
+    options: { stored?: boolean; lang?: 'en' | 'es'; beforeCreate?: () => void } = {}
+  ) {
     const lang = options.lang ?? 'en'
     api = {
       show: vi.fn(async (month: string) =>
@@ -60,6 +67,7 @@ describe('InsightSummaryCardComponent', () => {
         { provide: APP_LOCALE, useValue: signal(lang === 'es' ? 'es-MX' : 'en-AU') },
       ],
     })
+    options.beforeCreate?.()
     const fixture = TestBed.createComponent(InsightSummaryCardComponent)
     fixture.componentRef.setInput('month', OCT)
     const root = fixture.nativeElement as HTMLElement
@@ -223,5 +231,42 @@ describe('InsightSummaryCardComponent', () => {
       'Obtén el resumen de octubre'
     )
     expect(generateButton(root).textContent).toContain('Generar resumen')
+  })
+
+  describe('re-checking a summary written elsewhere', () => {
+    afterEach(() => {
+      Reflect.deleteProperty(document, 'visibilityState')
+    })
+
+    function setVisibility(state: DocumentVisibilityState): void {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+
+    it('test_entering_the_month_view_rechecks_a_summary_read_over_five_minutes_ago', async () => {
+      let recheck: unknown
+      await render({
+        beforeCreate: () => {
+          recheck = vi.spyOn(TestBed.inject(InsightsStore), 'recheck')
+        },
+      })
+
+      expect(recheck).toHaveBeenCalledWith(INSIGHT_RECHECK_MS)
+    })
+
+    it('test_returning_to_the_app_rechecks_the_summary', async () => {
+      const { fixture } = await render({ stored: true })
+      const recheck = vi.spyOn(TestBed.inject(InsightsStore), 'recheck')
+
+      setVisibility('hidden')
+      expect(recheck).not.toHaveBeenCalled()
+      setVisibility('visible')
+
+      expect(recheck).toHaveBeenCalledExactlyOnceWith(INSIGHT_FOREGROUND_RECHECK_MS)
+      fixture.destroy()
+      setVisibility('visible')
+      // Off the Month view nobody listens any more.
+      expect(recheck).toHaveBeenCalledOnce()
+    })
   })
 })

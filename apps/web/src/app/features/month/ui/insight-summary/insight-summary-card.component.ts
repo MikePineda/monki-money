@@ -1,5 +1,6 @@
 import {
   Component,
+  DOCUMENT,
   DestroyRef,
   computed,
   effect,
@@ -23,7 +24,12 @@ import { MarkdownLiteComponent } from '../../../../shared/ui/markdown-lite/markd
 import { openSelectSheet } from '../../../../shared/ui/select-sheet/select-sheet.component'
 import { SkeletonComponent } from '../../../../shared/ui/skeleton/skeleton.component'
 import { STATUS_ICON, STATUS_TEXT_CLASS } from '../../../../shared/ui/status-icon'
-import { InsightsStore, type GenerateFailure } from '../../data-access/insights.store'
+import {
+  INSIGHT_FOREGROUND_RECHECK_MS,
+  INSIGHT_RECHECK_MS,
+  InsightsStore,
+  type GenerateFailure,
+} from '../../data-access/insights.store'
 
 type Tone = 'positive' | 'neutral' | 'warning'
 
@@ -61,7 +67,10 @@ const CLOCK_TICK_MS = 60_000
  *   "Written by AI · Updated {time}" and an overflow menu with Regenerate;
  * - no activity, a future month, the AI quota used up or summaries switched
  *   off: one quiet line; a failed load: a message with Try again.
- * A failed regenerate keeps the summary and says why under it.
+ * A failed regenerate keeps the summary and says why under it. A summary
+ * written elsewhere (the partner, the monthly scheduler) shows without a
+ * ledger change: entering the view re-checks one read over five minutes
+ * ago, and returning to the app re-checks it (once a minute at most).
  */
 @Component({
   selector: 'app-insight-summary-card',
@@ -258,10 +267,23 @@ export class InsightSummaryCardComponent {
   constructor() {
     effect(() => {
       const month = this.month()
-      untracked(() => this.store.show(month))
+      untracked(() => {
+        this.store.show(month)
+        void this.store.recheck(INSIGHT_RECHECK_MS)
+      })
     })
     const clock = setInterval(() => this.now.set(new Date()), CLOCK_TICK_MS)
-    inject(DestroyRef).onDestroy(() => clearInterval(clock))
+    const document = inject(DOCUMENT)
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') {
+        void this.store.recheck(INSIGHT_FOREGROUND_RECHECK_MS)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(clock)
+      document.removeEventListener('visibilitychange', onVisibility)
+    })
   }
 
   protected generate(): void {

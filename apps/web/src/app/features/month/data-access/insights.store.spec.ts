@@ -6,18 +6,26 @@ import { SessionStore } from '../../../core/auth/session.store'
 import { LangStore } from '../../../core/i18n/lang.store'
 import type { MonthReport } from '../../../core/ledger/reports.api'
 import { MonthStore } from '../../../core/month/month.store'
+import { CLOCK } from '../../../core/platform/clock.token'
 import type { YearMonth } from '../../../domain/month'
 import { InsightsApi } from './insights.api'
-import { InsightsStore } from './insights.store'
+import { INSIGHT_FOREGROUND_RECHECK_MS, INSIGHT_RECHECK_MS, InsightsStore } from './insights.store'
 
 const OCT = '2026-10' as YearMonth
 const SEP = '2026-09' as YearMonth
+const MINUTE = 60_000
 
 describe('InsightsStore', () => {
   let api: { show: ReturnType<typeof vi.fn>; generate: ReturnType<typeof vi.fn> }
   let revisions: ReturnType<typeof signal<ReadonlyMap<string, number>>>
   let user: ReturnType<typeof signal<ReturnType<typeof aUser>>>
   let clearHooks: (() => void)[]
+  let now: Date
+
+  /** Moves the store's clock forward. */
+  function wait(ms: number): void {
+    now = new Date(now.getTime() + ms)
+  }
 
   /** `flags`: what the month report (in the MonthStore's memory) says about each month's summary. */
   function setup(
@@ -34,8 +42,10 @@ describe('InsightsStore', () => {
     revisions = signal<ReadonlyMap<string, number>>(new Map())
     user = signal(aUser({ locale: 'en' }))
     clearHooks = []
+    now = new Date('2026-11-01T09:00:00.000Z')
     TestBed.configureTestingModule({
       providers: [
+        { provide: CLOCK, useValue: () => now },
         { provide: InsightsApi, useValue: api },
         {
           provide: MonthStore,
@@ -264,6 +274,117 @@ describe('InsightsStore', () => {
     await settle()
 
     expect(headline(store)).toBe('Summary of 2026-10')
+  })
+
+  describe('re-checking a summary written elsewhere', () => {
+    it('test_the_foreground_waits_a_minute_and_the_month_view_five_between_checks', () => {
+      expect(INSIGHT_FOREGROUND_RECHECK_MS).toBe(MINUTE)
+      expect(INSIGHT_RECHECK_MS).toBe(5 * MINUTE)
+    })
+
+    it('test_a_summary_the_scheduler_wrote_after_the_report_said_none_shows_on_a_recheck', async () => {
+      const store = setup({
+        flags: { [OCT]: { available: false, generatedAt: null, locale: 'en' } },
+      })
+      await settle()
+      expect(store.view()).toEqual({ status: 'missing' })
+      wait(2 * MINUTE)
+
+      await store.recheck(MINUTE)
+
+      // The light call: the summary itself, not the whole month report.
+      expect(api.show).toHaveBeenCalledExactlyOnceWith(OCT)
+      expect(headline(store)).toBe('Summary of 2026-10')
+    })
+
+    it('test_a_summary_the_partner_regenerated_replaces_the_one_on_screen', async () => {
+      const store = setup()
+      await settle()
+      wait(6 * MINUTE)
+      api.show.mockResolvedValueOnce(
+        anInsight({ headline: 'Regenerated', generatedAt: '2026-11-01T09:05:00.000Z' })
+      )
+
+      await store.recheck(INSIGHT_RECHECK_MS)
+
+      expect(headline(store)).toBe('Regenerated')
+    })
+
+    it('test_a_recheck_soon_after_the_last_read_asks_nothing', async () => {
+      const store = setup()
+      await settle()
+      wait(30_000)
+
+      await store.recheck(MINUTE)
+
+      expect(api.show).toHaveBeenCalledOnce()
+    })
+
+    it('test_a_flapping_tab_rechecks_once', async () => {
+      const store = setup({ stored: false })
+      await settle()
+      wait(2 * MINUTE)
+
+      await Promise.all([store.recheck(MINUTE), store.recheck(MINUTE), store.recheck(MINUTE)])
+      wait(10_000)
+      await store.recheck(MINUTE)
+
+      expect(api.show).toHaveBeenCalledTimes(2)
+    })
+
+    it('test_a_failed_recheck_keeps_what_is_on_screen_and_waits_before_trying_again', async () => {
+      const store = setup()
+      await settle()
+      wait(2 * MINUTE)
+      api.show.mockRejectedValueOnce(networkError())
+
+      await store.recheck(MINUTE)
+      await store.recheck(MINUTE)
+
+      expect(headline(store)).toBe('Summary of 2026-10')
+      expect(api.show).toHaveBeenCalledTimes(2)
+    })
+
+    it('test_nothing_is_rechecked_while_the_model_is_writing', async () => {
+      const store = setup({ stored: false })
+      await settle()
+      wait(2 * MINUTE)
+      let finish: () => void = () => undefined
+      api.generate.mockImplementationOnce(
+        (month: string) =>
+          new Promise((resolve) => {
+            finish = () => resolve(aGeneratedInsight({ month, headline: 'Written now' }))
+          })
+      )
+      const running = store.generate()
+
+      await store.recheck(MINUTE)
+      finish()
+      await running
+
+      expect(api.show).toHaveBeenCalledOnce()
+      expect(headline(store)).toBe('Written now')
+    })
+
+    it('test_a_quiet_state_stays_when_there_is_still_no_summary', async () => {
+      const store = setup({ stored: false })
+      await settle()
+      api.generate.mockRejectedValueOnce(httpError(402, { code: 'E_LLM_QUOTA_EXCEEDED' }))
+      await store.generate()
+      wait(2 * MINUTE)
+
+      await store.recheck(MINUTE)
+
+      expect(store.view()).toEqual({ status: 'quota' })
+    })
+
+    it('test_a_month_not_shown_yet_is_not_rechecked', async () => {
+      const store = setup()
+
+      await store.recheck(0)
+
+      expect(api.show).not.toHaveBeenCalled()
+    })
   })
 
   it('test_logout_forgets_every_summary', async () => {
