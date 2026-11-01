@@ -34,7 +34,8 @@ test.group('Export: ZIP', () => {
     assert.isTrue(ledger.endsWith('row 4999,ñandú\r\n'))
     // Deflated: repetitive CSV shrinks a lot.
     assert.isBelow(archive.length, Buffer.byteLength(ledger) / 5)
-  })
+    // Deflating 5,000 rows took over Japa's 2 s default on a loaded CI runner.
+  }).timeout(10_000)
 
   test('test_zip_marks_names_as_utf8_and_dates_entries', async ({ assert }) => {
     const archive = await collect(
