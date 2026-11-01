@@ -1,0 +1,20 @@
+meta {
+  name: Delete the contribution
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/goals/{{manualGoalId}}/contributions/{{contributionId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  `goals.contributions.destroy`: 204; another goal's (or household's)
+  contribution is a 404.
+}

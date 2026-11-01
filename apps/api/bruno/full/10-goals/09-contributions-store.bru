@@ -1,0 +1,39 @@
+meta {
+  name: Log a contribution
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/goals/{{manualGoalId}}/contributions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "amountCents": 2500,
+    "date": "2026-01-15",
+    "memo": "Bruno {{runId}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('contributionId', res.body.data.id)
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.data.goalId: eq {{manualGoalId}}
+  res.body.data.amountCents: eq 2500
+  res.body.data.date: eq 2026-01-15
+}
+
+docs {
+  `goals.contributions.store`: `{ amountCents (signed, not 0: a withdrawal is
+  negative), date (today or earlier, household time zone), memo? (<= 140) }`
+  → 201 `GoalContribution`. 409 `E_GOAL_TRACKS_ACCOUNT` on a goal with an
+  account; 422 `amountCents`/`notZero`, `date`/`future`.
+}
