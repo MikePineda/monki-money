@@ -130,7 +130,9 @@ the bucket with
 token, real progress; a 403 from an expired URL gets one fresh presign)
 and calls `POST /receipts/scan` with the key. Scanning needs the network:
 offline is said, never queued, and "Try again" uploads under a new key
-(each key scans once). The draft opens in the shared `TransactionForm`
+(each key scans once). Saving the reviewed draft does not: offline (or on
+a network failure, a 5xx or a 429) it goes to the offline outbox, lines and
+source included, like a quick-add entry. The draft opens in the shared `TransactionForm`
 (merchant, date, total, offered category, last used account, you as the
 payer) with a confidence hint, and "Split by lines" lists the printed lines
 in `ReviewList` with `BulkBar` (merge, drop, category; the last line takes
@@ -138,7 +140,8 @@ the difference to the total, `domain/receipt-draft.ts`). A receipt whose
 `currencyCode` differs from the household's opens with a warning: saving
 waits for "Continue" (the amounts are saved as typed, in the household's
 currency, never converted) and "Cancel" drops the draft. Saving posts
-`POST /transactions` with `source: 'receipt'` and one client id per review.
+`POST /transactions` with `source: 'receipt'` and one client id per review
+(queued in the outbox with that id when there is no connection).
 The photo is never persisted: the original's preview is a `blob:` URL
 revoked once the draft is back, and the reduced copy stays in memory as
 another one ("Show photo", folded above the fields) only while the review
@@ -160,17 +163,30 @@ current month.
 
 ## Offline outbox (web)
 
-Quick add never loses an entry. Every create carries a `clientId` (uuid)
-that makes `POST /transactions/quick` and `POST /transfers` idempotent, so
-the web can resend freely. When the device is offline (`navigator.onLine`
-false) or the save fails for lack of network, a 5xx or a 429, quick add
-puts the API body in the **outbox** with the client id it already tried
-and clears the form ("Saved offline · will sync"); a 422 stays under the
-fields and queues nothing. The rules are pure (`domain/outbox.ts`: FIFO,
+Quick add and the receipt scanner never lose an entry. Every create
+carries a `clientId` (uuid) that makes `POST /transactions[/quick]` and
+`POST /transfers` idempotent, so the web can resend freely. When the
+device is offline (`navigator.onLine` false) or the save fails for lack of
+network, a 5xx or a 429, quick add (or the scanner's review) puts the API
+body in the **outbox** with the client id it already tried and clears the
+form ("Saved offline · will sync"); a 422 stays under the fields and
+queues nothing. The rules are pure (`domain/outbox.ts`: FIFO,
 `pending | syncing | failed`, retryable failures count attempts with a
 1 s → 60 s backoff, a 4xx becomes `failed` with the API's message, a
-versioned serialization that drops corrupt entries instead of throwing;
-version 2 adds `tags` to transfers and version 1 outboxes still read);
+versioned serialization that drops corrupt entries instead of throwing).
+Version 2 adds `tags` to transfers; version 3 lets an expense or income
+carry `splits` and `source: 'receipt'` (a scanned receipt, which syncs
+through `POST /transactions`; the rest through `/transactions/quick` and
+`/transfers`; an edit in quick add keeps the source, and the lines while
+the amount stays and no category is picked). An outbox is written in the
+lowest version that describes it (2 without receipts, so the build before
+receipts still reads it). The reader is tolerant across builds: an entry
+with a kind, a field or a source it does not know, or in an outbox of a
+newer version, is kept untouched (never synced, shown or counted) and
+written back after this build's entries with every change, so a tab on an
+older build never drops what a newer one queued; the entries it does
+understand it acts on. A later version must therefore add fields, kinds or
+sources and never change what an existing one means;
 `core/outbox/outbox.store.ts` owns the state. It is persisted per person
 in localStorage (`outbox:<userId>`, written synchronously before the toast)
 and synced one entry at a time on sign-in, on the `online` event, when the
@@ -200,22 +216,25 @@ session keeps the outbox for the next login of the same person.
 **Offline cold start.** The last `GET /auth/me` body and the household
 directory (accounts and category tree) are kept in localStorage
 (`core/platform/offline-cache.ts`, keys `mm:offline:session` and
-`mm:offline:directory`), written on every fresh answer. When `/auth/me`
+`mm:offline:directory`), written on every fresh answer, and so are quick
+add's last server rankings (`mm:offline:suggestions`, see below). When `/auth/me`
 gets no answer at boot (no network, a 5xx), `SessionStore.boot` restores
 the kept session (`restored`): the shell opens, quick add opens on the kept
 directory and queues to the outbox. When the connection comes back (or
 the app returns to the foreground) the session asks the server again: a
 fresh answer replaces it, a 4xx ends it like an expiry. A 4xx at boot,
 an expiry and an explicit logout forget both keys. Only one person's copy
-exists: the directory is tied to the person and household it was read
-for, and saving another person's session drops it. The sync pill above the tab
+exists: the directory and the rankings are tied to the person and
+household they were read for, and saving another person's session drops
+them. The sync pill above the tab
 bar is the only place that shows what is not on the server yet (lists and
 the Month view never merge queued entries): it opens a sheet to retry, edit
 (quick add with `?outbox=<id>`, which holds the entry and replaces it
 keeping its client id) or discard. Quick add's own rankings (category
 tiles, payees, routes, the default account) come from the server
 (`GET /transactions/suggestions`, over the person's and the household's
-latest rows, cached for the session so offline opens with the last answer)
+latest rows; offline quick add opens with the last answer of the session,
+else the one kept on the device, so a cold start offline ranks as before)
 and do count queued entries (`queuedAsRecent`), added in the same units
 (`recencyWeight` in `@monkimoney/shared`). The
 service worker never caches `/api`; the outbox, not the SW, is what makes

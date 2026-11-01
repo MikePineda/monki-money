@@ -48,6 +48,31 @@ function anExpense(overrides: { date?: string; amountCents?: number } = {}): Out
   }
 }
 
+/** A reviewed receipt the scanner queued: split by its lines unless `lines` is false. */
+function aReceipt(lines = true): OutboxItem {
+  const item = anExpense({ amountCents: 2345 })
+  if (item.kind !== 'transaction') {
+    throw new Error('unreachable')
+  }
+  return {
+    kind: 'transaction',
+    payload: {
+      ...item.payload,
+      payee: 'Freshco',
+      categoryId: lines ? null : 10,
+      source: 'receipt',
+      ...(lines
+        ? {
+            splits: [
+              { categoryId: 10, amountCents: 2000, memo: 'Groceries' },
+              { categoryId: 12, amountCents: 345, memo: null },
+            ],
+          }
+        : {}),
+    },
+  }
+}
+
 function aTransfer(date = '2026-09-30'): OutboxItem {
   return {
     kind: 'transfer',
@@ -100,6 +125,7 @@ function refusingWrites(): Storage {
 describe('OutboxStore', () => {
   let api: {
     quick: ReturnType<typeof vi.fn>
+    create: ReturnType<typeof vi.fn>
     transfer: ReturnType<typeof vi.fn>
     remove: ReturnType<typeof vi.fn>
     removeTransfer: ReturnType<typeof vi.fn>
@@ -113,6 +139,7 @@ describe('OutboxStore', () => {
   function setup(options: { online?: boolean; signedIn?: boolean } = {}): OutboxStore {
     api = {
       quick: vi.fn(async () => aTransaction()),
+      create: vi.fn(async () => aTransaction({ id: 88, date: '2026-10-16' })),
       transfer: vi.fn(async () => ({ id: 7, legs: [] })),
       remove: vi.fn(async () => undefined),
       removeTransfer: vi.fn(async () => undefined),
@@ -224,6 +251,27 @@ describe('OutboxStore', () => {
       expect(store.entries()).toEqual([])
     })
 
+    it('test_entries_a_newer_build_queued_stay_on_the_device_untouched_and_never_sync', async () => {
+      const [plain] = enqueueEntry([], anExpense(), NOW)
+      const [other] = enqueueEntry([], anExpense(), NOW)
+      const newer = { ...other, payload: { ...other?.payload, currencyCode: 'NZD' } }
+      localStorage.setItem(
+        `${OUTBOX_KEY}1`,
+        JSON.stringify({ version: 99, entries: [plain, newer] })
+      )
+
+      const store = setup()
+      await settle(store)
+
+      // The entry this build understands synced; the other one waits for the newer build.
+      expect(api.quick).toHaveBeenCalledExactlyOnceWith(plain?.payload)
+      expect(store.entries()).toEqual([])
+      expect(JSON.parse(localStorage.getItem(`${OUTBOX_KEY}1`) ?? 'null')).toEqual({
+        version: 99,
+        entries: [newer],
+      })
+    })
+
     it('test_a_corrupt_stored_outbox_loads_empty', () => {
       localStorage.setItem(`${OUTBOX_KEY}1`, '{oops')
 
@@ -272,6 +320,49 @@ describe('OutboxStore', () => {
       expect(api.transfer).toHaveBeenCalledWith(transfer.payload)
       expect(store.entries()).toEqual([])
       expect(localStorage.getItem(`${OUTBOX_KEY}1`)).toBeNull()
+    })
+
+    it('test_a_queued_receipt_syncs_with_the_full_create_and_its_lines', async () => {
+      const store = setup({ online: false })
+      const receipt = aReceipt()
+      store.enqueue(receipt)
+      const synced = vi.fn()
+      store.onSynced(synced)
+
+      await store.flush()
+
+      const body: Record<string, unknown> = { ...receipt.payload }
+      delete body['categoryId']
+      expect(api.create).toHaveBeenCalledExactlyOnceWith(body)
+      expect(api.create.mock.calls[0]?.[0]).not.toHaveProperty('categoryId')
+      expect(api.quick).not.toHaveBeenCalled()
+      expect(store.entries()).toEqual([])
+      expect(months.invalidate).toHaveBeenCalledWith('2026-10')
+      expect(synced).toHaveBeenCalledWith(
+        expect.objectContaining({ rows: [expect.objectContaining({ id: 88 })] })
+      )
+    })
+
+    it('test_a_queued_receipt_without_lines_syncs_with_its_category_and_source', async () => {
+      const store = setup({ online: false })
+      const receipt = aReceipt(false)
+      store.enqueue(receipt)
+
+      await store.flush()
+
+      expect(api.create).toHaveBeenCalledExactlyOnceWith(receipt.payload)
+      expect(api.create.mock.calls[0]?.[0]).toMatchObject({ categoryId: 10, source: 'receipt' })
+    })
+
+    it('test_undo_after_a_queued_receipt_synced_deletes_its_row', async () => {
+      const store = setup({ online: false })
+      const receipt = aReceipt()
+      store.enqueue(receipt)
+      await store.flush()
+
+      await expect(store.undo(receipt.payload.clientId)).resolves.toBe('removed')
+
+      expect(api.remove).toHaveBeenCalledWith(88)
     })
 
     it('test_a_synced_entry_refreshes_its_month', async () => {
@@ -656,6 +747,31 @@ describe('OutboxStore', () => {
       answer.resolve(aTransaction())
       await flushing
       expect(ids(stored())).not.toContain(sending.payload.clientId)
+    })
+
+    it('test_a_tab_on_this_build_keeps_what_a_newer_tab_queued_when_it_writes', () => {
+      const store = setup({ online: false })
+      const mine = anExpense()
+      store.enqueue(mine)
+      const [other] = enqueueEntry([], anExpense(), NOW)
+      const newer = { ...other, kind: 'payslip' }
+      const key = `${OUTBOX_KEY}1`
+      const raw = JSON.stringify({ version: 4, entries: [...stored(), newer] })
+      localStorage.setItem(key, raw)
+      view.dispatchEvent(new StorageEvent('storage', { key, newValue: raw }))
+
+      const next = anExpense()
+      store.enqueue(next)
+      store.discard(mine.payload.clientId)
+
+      expect(ids(store.entries())).toEqual([next.payload.clientId])
+      const device = JSON.parse(localStorage.getItem(key) ?? 'null')
+      expect(device.version).toBe(4)
+      expect(device.entries.map((entry: { id: string }) => entry.id)).toEqual([
+        next.payload.clientId,
+        other?.id,
+      ])
+      expect(device.entries[1]).toEqual(newer)
     })
 
     it('test_storage_events_for_other_keys_are_ignored', () => {

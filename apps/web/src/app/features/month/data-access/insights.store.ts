@@ -5,6 +5,7 @@ import { validationRules } from '../../../core/api/validation-rules'
 import { SessionStore } from '../../../core/auth/session.store'
 import { LangStore } from '../../../core/i18n/lang.store'
 import { MonthStore } from '../../../core/month/month.store'
+import { CLOCK } from '../../../core/platform/clock.token'
 import type { YearMonth } from '../../../domain/month'
 import { InsightsApi } from './insights.api'
 
@@ -32,6 +33,8 @@ interface CacheEntry {
   /** The month's ledger revision the view was read at. */
   revision: number
   view: InsightView
+  /** When the API was last asked about it (ms), a re-check that failed included. */
+  checkedAt: number
 }
 
 interface LoadParams {
@@ -43,6 +46,10 @@ interface LoadParams {
 
 /** Summaries kept in memory (month and language pairs). */
 export const INSIGHT_CACHE_SIZE = 12
+/** Entering the Month view re-checks a summary last read longer ago than this. */
+export const INSIGHT_RECHECK_MS = 5 * 60_000
+/** Back in the foreground: at most one re-check a minute, so a flapping tab does not spam. */
+export const INSIGHT_FOREGROUND_RECHECK_MS = 60_000
 
 function keyOf(month: YearMonth, locale: string): string {
   return `${locale}:${month}`
@@ -69,7 +76,11 @@ function failureOf(error: unknown): GenerateFailure {
  * so the next read asks the API again, and a language change (the user's
  * saved locale, which the API answers in) reads the other language's
  * entry. Nothing is generated without a tap: `generate()` writes a new one
- * (`force` replaces the stored one). Forgotten on logout.
+ * (`force` replaces the stored one). A summary the partner or the monthly
+ * scheduler writes meanwhile changes nothing in the ledger, so `recheck()`
+ * asks `GET /insights/:month` again (the light call) when the app returns
+ * to the foreground or the Month view is entered (the card decides), at
+ * most once per `minAgeMs` per month. Forgotten on logout.
  */
 @Injectable({ providedIn: 'root' })
 export class InsightsStore {
@@ -77,12 +88,14 @@ export class InsightsStore {
   private readonly months = inject(MonthStore)
   private readonly session = inject(SessionStore)
   private readonly lang = inject(LangStore)
+  private readonly clock = inject(CLOCK)
 
   private readonly cache = new Map<string, CacheEntry>()
   private readonly month = signal<YearMonth | null>(null)
   private readonly attempt = signal(0)
   private readonly generatingKey = signal<string | null>(null)
   private lastForce = false
+  private rechecking: Promise<void> | null = null
 
   /** The language the API answers in: the user's saved locale. */
   readonly locale = computed(() => this.session.user()?.locale ?? this.lang.lang())
@@ -170,6 +183,57 @@ export class InsightsStore {
     }
   }
 
+  /**
+   * Asks again whether the month on screen has a summary (written by the
+   * partner or the scheduler since it was read) when the last answer is
+   * older than `minAgeMs`; a newer one replaces what is shown. Quiet on
+   * failure; never while the model writes or nothing was read yet.
+   */
+  recheck(minAgeMs: number): Promise<void> {
+    if (this.rechecking) {
+      return this.rechecking
+    }
+    const month = this.month()
+    const key = this.key()
+    const cached = key === null ? undefined : this.cache.get(key)
+    const now = this.clock().getTime()
+    if (
+      month === null ||
+      key === null ||
+      !cached ||
+      this.generatingKey() !== null ||
+      now - cached.checkedAt < minAgeMs
+    ) {
+      return Promise.resolve()
+    }
+    cached.checkedAt = now
+    this.rechecking = this.ask(month, key, cached).finally(() => (this.rechecking = null))
+    return this.rechecking
+  }
+
+  private async ask(month: YearMonth, key: string, cached: CacheEntry): Promise<void> {
+    let insight: MonthlyInsight | null
+    try {
+      insight = await this.api.show(month)
+    } catch {
+      return
+    }
+    const unchanged =
+      this.key() !== key ||
+      this.generatingKey() !== null ||
+      this.months.revisionOf(month) !== cached.revision ||
+      this.cache.get(key) !== cached
+    if (unchanged) {
+      // The month, the language or the ledger moved meanwhile: its own load answers.
+      return
+    }
+    const view = recheckedView(cached.view, insight)
+    if (view !== cached.view) {
+      this.remember(key, cached.revision, view)
+      this.summary.set(view)
+    }
+  }
+
   /** "Try again" after an error: the same request that failed. */
   retry(): Promise<void> {
     const view = this.view()
@@ -207,7 +271,7 @@ export class InsightsStore {
 
   private remember(key: string, revision: number, view: InsightView): void {
     this.cache.delete(key)
-    this.cache.set(key, { revision, view })
+    this.cache.set(key, { revision, view, checkedAt: this.clock().getTime() })
     while (this.cache.size > INSIGHT_CACHE_SIZE) {
       const oldest = this.cache.keys().next().value
       if (oldest === undefined) {
@@ -216,4 +280,19 @@ export class InsightsStore {
       this.cache.delete(oldest)
     }
   }
+}
+
+/**
+ * What a re-check's answer changes on screen (the same object when
+ * nothing): a summary that is new or newer replaces the view; none left
+ * turns a shown summary into "Generate", and keeps a quiet state as it is.
+ */
+function recheckedView(view: InsightView, insight: MonthlyInsight | null): InsightView {
+  if (insight === null) {
+    return view.status === 'ready' ? { status: 'missing' } : view
+  }
+  if (view.status === 'ready' && view.insight.generatedAt === insight.generatedAt) {
+    return view
+  }
+  return { status: 'ready', insight, notice: null }
 }

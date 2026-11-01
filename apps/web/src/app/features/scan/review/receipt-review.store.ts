@@ -4,12 +4,14 @@ import { toApiError } from '../../../core/api/http-errors'
 import { SessionStore } from '../../../core/auth/session.store'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { MonthStore } from '../../../core/month/month.store'
+import { OutboxStore } from '../../../core/outbox/outbox.store'
 import { newClientId } from '../../../core/platform/client-id'
 import { readLastAccount, rememberLastAccount } from '../../../core/platform/last-account'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { WINDOW } from '../../../core/platform/window.token'
 import { ToastStore } from '../../../core/ui/toast.store'
 import { DEFAULT_CURRENCY } from '../../../domain/money'
+import type { TransactionPayload } from '../../../domain/outbox'
 import { monthOf, todayIn } from '../../../domain/month'
 import { defaultAccountFor } from '../../../domain/quick-add-defaults'
 import {
@@ -41,9 +43,17 @@ const PAYEE_MAX = 120
 
 /**
  * Toasts are translated where they render. Declared for
- * transloco-keys-manager: t(scan.toast.saved, scan.review.offline)
+ * transloco-keys-manager: t(scan.toast.saved, scan.toast.queued, scan.toast.queuedMemory)
+ * t(scan.toast.undo, scan.toast.undone, scan.toast.undoSynced)
  */
-const TOAST_KEYS = { saved: 'scan.toast.saved', offline: 'scan.review.offline' } as const
+const TOAST_KEYS = {
+  saved: 'scan.toast.saved',
+  queued: 'scan.toast.queued',
+  queuedMemory: 'scan.toast.queuedMemory',
+  undo: 'scan.toast.undo',
+  undone: 'scan.toast.undone',
+  undoSynced: 'scan.toast.undoSynced',
+} as const
 
 export type ReviewLoadState = 'loading' | 'ready' | 'error'
 
@@ -65,13 +75,17 @@ export type ReviewLoadState = 'loading' | 'ready' | 'error'
  *   household's currency (nothing is converted); cancelling drops the draft.
  * - Saving posts `POST /transactions` with `source: 'receipt'` and a client
  *   id kept for the whole review, so a retry after a lost answer never
- *   creates it twice. It needs the network: offline it says so and keeps
- *   the draft (receipts never go to the outbox, which has no splits).
+ *   creates it twice. The photo was read online already, so saving does
+ *   not need the network: offline (or when the save fails for lack of
+ *   network, a 5xx or a 429, like quick add) the reviewed receipt, lines
+ *   and all, goes to the offline outbox with that client id ("Saved
+ *   offline · will sync", with Undo) and syncs by itself later.
  */
 @Injectable()
 export class ReceiptReviewStore {
   private readonly api = inject(ReceiptsApi)
   private readonly months = inject(MonthStore)
+  private readonly outbox = inject(OutboxStore)
   private readonly toasts = inject(ToastStore)
   private readonly window = inject(WINDOW)
   private readonly timeZone = inject(HOUSEHOLD_TIME_ZONE)
@@ -229,6 +243,10 @@ export class ReceiptReviewStore {
       return false
     }
     const body = this.createBody()
+    if (this.window.navigator.onLine === false) {
+      this.queue(body)
+      return true
+    }
     this.saving.set(true)
     this.fieldErrors.set({})
     try {
@@ -242,10 +260,40 @@ export class ReceiptReviewStore {
       this.toasts.show({ messageKey: TOAST_KEYS.saved })
       return true
     } catch (error) {
-      this.afterFailure(error)
-      return false
+      return this.afterFailure(error, body)
     } finally {
       this.saving.set(false)
+    }
+  }
+
+  /**
+   * Into the outbox: on disk before the toast (or only in memory, which the
+   * toast says), with "Undo". The month refreshes once it syncs.
+   */
+  private queue(body: ReceiptTransactionInput): void {
+    const payload: TransactionPayload = { ...body, categoryId: body.categoryId ?? null }
+    this.outbox.enqueue({ kind: 'transaction', payload })
+    const youId = this.youId()
+    if (youId !== null) {
+      rememberLastAccount(this.window, youId, body.accountId)
+    }
+    this.vibrate()
+    this.toasts.show({
+      messageKey: this.outbox.isPersisted() ? TOAST_KEYS.queued : TOAST_KEYS.queuedMemory,
+      action: { labelKey: TOAST_KEYS.undo, run: () => void this.undoQueued(body.clientId) },
+    })
+  }
+
+  /** "Undo" on "Saved offline": drops the queued receipt, or deletes the row it became. */
+  private async undoQueued(id: string): Promise<void> {
+    try {
+      const outcome = await this.outbox.undo(id)
+      this.toasts.show({
+        messageKey: outcome === 'removed' ? TOAST_KEYS.undone : TOAST_KEYS.undoSynced,
+      })
+    } catch (error) {
+      const message = failureMessage(toApiError(error))
+      this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
     }
   }
 
@@ -258,21 +306,26 @@ export class ReceiptReviewStore {
     return { ...base, categoryId, source: 'receipt' }
   }
 
-  private afterFailure(error: unknown): void {
+  /** Resolves true when the receipt is safe anyway (queued in the outbox). */
+  private afterFailure(error: unknown, body: ReceiptTransactionInput): boolean {
     const failure = toApiError(error)
     switch (failure.kind) {
       case 'validation':
         this.fieldErrors.set(failure.fields)
-        return
+        return false
       case 'offline':
-        this.toasts.show({ messageKey: TOAST_KEYS.offline, status: 'critical' })
-        return
+      case 'server':
+      case 'throttled':
+        // It may have landed anyway: the outbox retries with the same client id.
+        this.queue(body)
+        return true
       case 'unauthorized':
         // The session store already sends the person to the login screen.
-        return
+        return false
       default: {
         const message = failureMessage(failure)
         this.toasts.show({ messageKey: message.key, params: message.params, status: 'critical' })
+        return false
       }
     }
   }

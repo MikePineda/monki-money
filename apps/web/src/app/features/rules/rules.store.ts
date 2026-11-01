@@ -15,7 +15,7 @@ import { ruleInput, rulePatch, type RuleDraft } from './rule-draft'
  * the API refuses) and applying one to the transactions still in review,
  * which reports how many it categorized. A saved rule with a category
  * offers that apply as the toast's action. Saving changes no movement, so
- * only applying invalidates the month on screen. Provided by the page.
+ * only applying invalidates the months (all of them). Provided by the page.
  */
 @Injectable()
 export class RulesStore {
@@ -87,8 +87,8 @@ export class RulesStore {
     try {
       const updated = await this.api.apply(rule.id)
       if (updated > 0) {
-        // Categories moved in months this screen cannot know: reload what is on screen.
-        this.months.invalidate(this.months.selectedMonth())
+        // Categories moved in months this screen cannot know: none is trusted any more.
+        this.months.invalidateAll()
       }
       /** t(rules.toast.applied) */
       this.toasts.show({

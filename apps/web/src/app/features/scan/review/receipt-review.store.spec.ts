@@ -5,27 +5,35 @@ import { ToastStore } from '../../../core/ui/toast.store'
 import { todayIn } from '../../../domain/month'
 import {
   aReceipt,
+  outboxMock,
   receiptsApiMock,
   scanTestingProviders,
+  type OutboxMock,
   type ReceiptsApiMock,
 } from '../../../../testing/scan-testing'
-import { networkError, validationError } from '../../../../testing/session-fixtures'
+import { httpError, networkError, validationError } from '../../../../testing/session-fixtures'
 import { ReceiptReviewStore } from './receipt-review.store'
 
 describe('ReceiptReviewStore', () => {
   let api: ReceiptsApiMock
+  let outbox: OutboxMock
   let months: { invalidate: Mock }
   let toasts: { show: ReturnType<typeof vi.fn> }
   let storage: Map<string, string>
   let vibrate: ReturnType<typeof vi.fn>
+  let view: {
+    navigator: { onLine: boolean; vibrate: ReturnType<typeof vi.fn> }
+    localStorage: unknown
+  }
 
   function setup(stored: Record<string, string> = {}) {
     api = receiptsApiMock()
+    outbox = outboxMock()
     months = { invalidate: vi.fn() }
     toasts = { show: vi.fn(() => 1) }
     storage = new Map(Object.entries(stored))
     vibrate = vi.fn()
-    const view = {
+    view = {
       navigator: { onLine: true, vibrate },
       localStorage: {
         getItem: (key: string) => storage.get(key) ?? null,
@@ -36,7 +44,7 @@ describe('ReceiptReviewStore', () => {
     TestBed.configureTestingModule({
       providers: [
         ReceiptReviewStore,
-        ...scanTestingProviders({ api, months }),
+        ...scanTestingProviders({ api, months, outbox }),
         { provide: ToastStore, useValue: toasts },
         { provide: WINDOW, useValue: view },
       ],
@@ -218,22 +226,114 @@ describe('ReceiptReviewStore', () => {
     expect(store.entry().payee).toBe('Corner Grocer')
   })
 
-  it('test_offline_keeps_the_draft_says_so_and_a_retry_reuses_the_client_id', async () => {
+  /** The toast's action, as the person taps it. */
+  function toastAction(): { labelKey: string; run: () => void } {
+    const toast = toasts.show.mock.calls.at(-1)?.[0] as {
+      action?: { labelKey: string; run: () => void }
+    }
+    if (!toast.action) {
+      throw new Error('the last toast has no action')
+    }
+    return toast.action
+  }
+
+  it('test_a_save_that_finds_no_connection_queues_the_receipt_with_the_same_client_id', async () => {
     const store = setup()
     await store.start(aReceipt())
     api.save.mockRejectedValueOnce(networkError())
 
-    await expect(store.save()).resolves.toBe(false)
-    expect(toasts.show).toHaveBeenCalledWith({
-      messageKey: 'scan.review.offline',
-      status: 'critical',
+    await expect(store.save()).resolves.toBe(true)
+
+    const sent = api.save.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(outbox.enqueue).toHaveBeenCalledExactlyOnceWith({
+      kind: 'transaction',
+      payload: { ...sent, categoryId: 20, source: 'receipt' },
     })
+    expect(toasts.show).toHaveBeenCalledWith({
+      messageKey: 'scan.toast.queued',
+      action: { labelKey: 'scan.toast.undo', run: expect.any(Function) },
+    })
+    expect(storage.get('qa:account:1')).toBe('1')
+    expect(vibrate).toHaveBeenCalledWith(10)
+    // Not on the server yet: the outbox refreshes the month once it syncs.
+    expect(months.invalidate).not.toHaveBeenCalled()
+  })
+
+  it('test_offline_a_split_receipt_is_queued_with_its_lines_without_trying_the_network', async () => {
+    const store = setup()
+    await store.start(aReceipt())
+    store.toggleSplit(true)
+    view.navigator.onLine = false
+
+    await expect(store.save()).resolves.toBe(true)
+
+    expect(api.save).not.toHaveBeenCalled()
+    expect(outbox.enqueue).toHaveBeenCalledExactlyOnceWith({
+      kind: 'transaction',
+      payload: expect.objectContaining({
+        categoryId: null,
+        source: 'receipt',
+        amountCents: 2345,
+        splits: [
+          { categoryId: 20, amountCents: 390, memo: 'Bananas 1kg' },
+          { categoryId: 20, amountCents: 1655, memo: 'Coffee beans 500g' },
+          { categoryId: 20, amountCents: 300, memo: 'Sourdough loaf' },
+        ],
+      }),
+    })
+  })
+
+  it('test_a_server_error_or_a_throttle_queues_it_too_since_it_may_have_landed', async () => {
+    const store = setup()
+    await store.start(aReceipt())
+    api.save.mockRejectedValueOnce(httpError(503)).mockRejectedValueOnce(httpError(429))
+
+    await expect(store.save()).resolves.toBe(true)
+    await expect(store.save()).resolves.toBe(true)
+
+    expect(outbox.enqueue).toHaveBeenCalledTimes(2)
+  })
+
+  it('test_a_device_that_cannot_store_the_queue_says_to_keep_the_app_open', async () => {
+    const store = setup()
+    await store.start(aReceipt())
+    outbox.isPersisted.set(false)
+    view.navigator.onLine = false
 
     await store.save()
-    const [first, second] = api.save.mock.calls.map(
-      (call) => (call[0] as { clientId: string }).clientId
+
+    expect(toasts.show).toHaveBeenCalledWith(
+      expect.objectContaining({ messageKey: 'scan.toast.queuedMemory' })
     )
-    expect(second).toBe(first)
+  })
+
+  it('test_undo_on_the_saved_offline_toast_drops_the_queued_receipt', async () => {
+    const store = setup()
+    await store.start(aReceipt())
+    view.navigator.onLine = false
+    await store.save()
+    const { payload } = outbox.enqueue.mock.calls[0]?.[0] as { payload: { clientId: string } }
+
+    toastAction().run()
+
+    await vi.waitFor(() =>
+      expect(toasts.show).toHaveBeenLastCalledWith({ messageKey: 'scan.toast.undone' })
+    )
+    expect(outbox.undo).toHaveBeenCalledWith(payload.clientId)
+  })
+
+  it('test_undo_after_the_receipt_synced_elsewhere_says_where_to_delete_it', async () => {
+    const store = setup()
+    await store.start(aReceipt())
+    view.navigator.onLine = false
+    await store.save()
+    outbox.undo.mockResolvedValueOnce('missing')
+
+    toastAction().run()
+
+    await vi.waitFor(() =>
+      expect(toasts.show).toHaveBeenLastCalledWith({ messageKey: 'scan.toast.undoSynced' })
+    )
   })
 
   it('test_nothing_is_sent_while_the_draft_cannot_be_saved', async () => {

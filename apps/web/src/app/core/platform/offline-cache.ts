@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core'
+import type { TransactionSuggestions } from '@monkimoney/shared'
 import type { CategoryTree } from '../../domain/category-tree'
 import type { Account } from '../api/api-types'
 import type { Me } from '../auth/auth.api'
@@ -11,6 +12,7 @@ import { WINDOW } from './window.token'
  */
 export const SESSION_CACHE_KEY = 'mm:offline:session'
 export const DIRECTORY_CACHE_KEY = 'mm:offline:directory'
+export const SUGGESTIONS_CACHE_KEY = 'mm:offline:suggestions'
 
 const VERSION = 1
 
@@ -31,12 +33,14 @@ function ownerKey(userId: number, householdId: number | null): string {
 }
 
 /**
- * The last session this device knew (the `GET /auth/me` body) and the
- * household directory, so the installed app can start without a network:
- * the shell opens on the cached session and quick add queues to the
- * outbox. Only one person's copy is ever kept: the directory is tied to
- * the person and household it was read for, and saving another person's
- * session drops it. Reads are tolerant (anything unreadable is no cache)
+ * The last session this device knew (the `GET /auth/me` body), the
+ * household directory and quick add's last server rankings
+ * (`GET /transactions/suggestions`), so the installed app can start
+ * without a network: the shell opens on the cached session, quick add
+ * ranks as it last did and queues to the outbox. Only one person's copy is
+ * ever kept: the directory and the rankings are tied to the person and
+ * household they were read for, and saving another person's session drops
+ * them. Reads are tolerant (anything unreadable is no cache)
  * and a device that refuses to store is harmless.
  */
 @Injectable({ providedIn: 'root' })
@@ -52,8 +56,10 @@ export class OfflineCache {
 
   writeSession(me: Me): void {
     const owner = ownerKey(me.user.id, me.household?.id ?? null)
-    if (this.read(DIRECTORY_CACHE_KEY)?.['owner'] !== owner) {
-      writePreference(this.window, DIRECTORY_CACHE_KEY, null)
+    for (const key of [DIRECTORY_CACHE_KEY, SUGGESTIONS_CACHE_KEY]) {
+      if (this.read(key)?.['owner'] !== owner) {
+        writePreference(this.window, key, null)
+      }
     }
     this.write(SESSION_CACHE_KEY, { me })
   }
@@ -74,9 +80,30 @@ export class OfflineCache {
     this.write(DIRECTORY_CACHE_KEY, { owner: ownerKey(userId, householdId), ...directory })
   }
 
+  /** Quick add's last server rankings for this person in this household, or null. */
+  readSuggestions(userId: number, householdId: number): TransactionSuggestions | null {
+    const stored = this.read(SUGGESTIONS_CACHE_KEY)
+    if (stored?.['owner'] !== ownerKey(userId, householdId)) {
+      return null
+    }
+    const suggestions = stored['suggestions']
+    return isRecord(suggestions) &&
+      typeof suggestions['asOf'] === 'string' &&
+      isRecord(suggestions['categories']) &&
+      isRecord(suggestions['payees']) &&
+      Array.isArray(suggestions['routes'])
+      ? (suggestions as unknown as TransactionSuggestions)
+      : null
+  }
+
+  writeSuggestions(userId: number, householdId: number, suggestions: TransactionSuggestions): void {
+    this.write(SUGGESTIONS_CACHE_KEY, { owner: ownerKey(userId, householdId), suggestions })
+  }
+
   clear(): void {
     writePreference(this.window, SESSION_CACHE_KEY, null)
     writePreference(this.window, DIRECTORY_CACHE_KEY, null)
+    writePreference(this.window, SUGGESTIONS_CACHE_KEY, null)
   }
 
   private read(key: string): Json | null {

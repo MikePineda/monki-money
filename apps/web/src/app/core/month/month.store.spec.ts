@@ -122,6 +122,50 @@ describe('MonthStore', () => {
     expect(reports.month.mock.calls.map(([month]) => month)).toEqual([OCT, SEP, AUG, OCT])
   })
 
+  it('test_invalidate_all_drops_every_cached_month_and_reloads_the_one_on_screen', async () => {
+    const store = setup()
+    await settle()
+    store.select(SEP)
+    await settle()
+    store.select(AUG)
+    await settle()
+
+    store.invalidateAll()
+    await settle()
+    store.select(SEP)
+    await settle()
+    store.select(OCT)
+    await settle()
+
+    // August reloads at once (on screen); September and October are fetched again when shown.
+    expect(reports.month.mock.calls.map(([month]) => month)).toEqual([OCT, SEP, AUG, AUG, SEP, OCT])
+    expect(store.status()).toBe('ready')
+  })
+
+  it('test_invalidate_all_moves_the_revision_of_every_month_and_the_ledger', () => {
+    const store = setup()
+    const october = store.revision(OCT)
+    const lastYear = store.revision('2025-01' as YearMonth)
+    const ledger = store.ledgerRevision()
+
+    store.invalidateAll()
+
+    // Lists keyed on any month (or on the whole ledger) reload too.
+    expect(october()).toBeGreaterThan(0)
+    expect(lastYear()).toBeGreaterThan(0)
+    expect(store.ledgerRevision()).toBeGreaterThan(ledger)
+  })
+
+  it('test_logout_resets_the_revisions_moved_by_invalidate_all', () => {
+    const store = setup()
+    store.invalidateAll()
+
+    for (const hook of clearHooks) hook()
+
+    expect(store.revisionOf(OCT)).toBe(0)
+    expect(store.ledgerRevision()).toBe(0)
+  })
+
   it('test_reloading_keeps_the_previous_frame', async () => {
     const store = setup()
     await settle()

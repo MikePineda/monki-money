@@ -67,7 +67,7 @@ function withoutRows(detail: ImportBatchDetail | ImportBatch): ImportBatch {
  * with AI" (or a run already going when the screen opens) polls the batch
  * alone every {@link CLASSIFY_POLL_MS} while it says `classifying`, then
  * reloads the rows once. Confirm sends `decisionsFor(rows)`, remembers the
- * result for the result screen and invalidates the months the file covers.
+ * result for the result screen and invalidates every month (`invalidateAll`).
  * Provided by the page.
  */
 @Injectable()
@@ -380,6 +380,7 @@ export class ImportReviewStore {
         this.results.remember(result, { ...batch, status: 'completed' })
       }
       this.invalidateMonths()
+      this.months.invalidateAll()
       return result
     } catch (error) {
       const code = errorPayload(error)['code']

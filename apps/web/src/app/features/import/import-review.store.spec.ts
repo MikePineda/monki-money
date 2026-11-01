@@ -42,7 +42,11 @@ describe('ImportReviewStore', () => {
     'show' | 'batch' | 'decide' | 'decideMany' | 'classify' | 'confirm' | 'cancel',
     ReturnType<typeof vi.fn>
   >
-  let months: { invalidate: ReturnType<typeof vi.fn>; current: () => string }
+  let months: {
+    invalidate: ReturnType<typeof vi.fn>
+    invalidateAll: ReturnType<typeof vi.fn>
+    current: () => string
+  }
 
   async function setup(initial: ImportRow[] = rows(), batch = anImportBatch()) {
     api = {
@@ -71,7 +75,7 @@ describe('ImportReviewStore', () => {
       })),
       cancel: vi.fn(async () => anImportBatch({ status: 'cancelled' })),
     }
-    months = { invalidate: vi.fn(), current: () => '2026-10' }
+    months = { invalidate: vi.fn(), invalidateAll: vi.fn(), current: () => '2026-10' }
     TestBed.configureTestingModule({
       providers: [
         ImportReviewStore,
@@ -107,7 +111,10 @@ describe('ImportReviewStore', () => {
           provide: ImportsApi,
           useValue: { show: vi.fn(async () => Promise.reject(new TypeError('x'))) },
         },
-        { provide: MonthStore, useValue: { invalidate: vi.fn(), current: () => '2026-10' } },
+        {
+          provide: MonthStore,
+          useValue: { invalidate: vi.fn(), invalidateAll: vi.fn(), current: () => '2026-10' },
+        },
         { provide: HouseholdDirectory, useValue: { load: vi.fn(async () => undefined) } },
         { provide: SessionStore, useValue: { onClear: () => undefined } },
       ],
@@ -459,6 +466,8 @@ describe('ImportReviewStore', () => {
       '2026-09',
       '2026-10',
     ])
+    // Whatever the confirm touched outside the file's months reloads too.
+    expect(months.invalidateAll).toHaveBeenCalledOnce()
   })
 
   it('test_confirming_an_old_file_still_refreshes_the_current_month', async () => {
