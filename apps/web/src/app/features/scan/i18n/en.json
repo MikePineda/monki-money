@@ -85,11 +85,15 @@
       "category": "Category"
     },
     "save": "Save {amount}",
-    "offline": "No connection. The receipt is still here, so save it again when you are back online.",
     "loading": "Loading your accounts",
     "loadError": "Your accounts could not be loaded."
   },
   "toast": {
-    "saved": "Receipt saved"
+    "saved": "Receipt saved",
+    "queued": "Receipt saved offline · will sync",
+    "queuedMemory": "Receipt saved offline · keep the app open until it syncs",
+    "undo": "Undo",
+    "undone": "Removed",
+    "undoSynced": "It already synced. Delete it from Transactions instead."
   }
 }

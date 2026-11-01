@@ -85,11 +85,15 @@
       "category": "Categoría"
     },
     "save": "Guardar {amount}",
-    "offline": "Sin conexión. El ticket sigue aquí, así que guárdalo de nuevo cuando vuelvas a estar en línea.",
     "loading": "Cargando tus cuentas",
     "loadError": "No se pudieron cargar tus cuentas."
   },
   "toast": {
-    "saved": "Ticket guardado"
+    "saved": "Ticket guardado",
+    "queued": "Ticket guardado sin conexión · se sincronizará",
+    "queuedMemory": "Ticket guardado sin conexión · mantén la app abierta hasta que se sincronice",
+    "undo": "Deshacer",
+    "undone": "Eliminado",
+    "undoSynced": "Ya se sincronizó. Bórralo desde Movimientos."
   }
 }

@@ -4,6 +4,7 @@ import { SessionStore } from '../app/core/auth/session.store'
 import { AccountsApi } from '../app/core/household/accounts.api'
 import { CategoriesApi } from '../app/core/household/categories.api'
 import { MonthStore } from '../app/core/month/month.store'
+import { OutboxStore } from '../app/core/outbox/outbox.store'
 import { tagsStoreStub } from './tag-fixtures'
 import { ImageOptimizer } from '../app/core/platform/image-optimizer'
 import { OBJECT_URLS } from '../app/core/platform/object-urls'
@@ -53,21 +54,38 @@ export function receiptsApiMock(receipt: ReceiptDraft = aReceipt()): ReceiptsApi
   }
 }
 
+/** The outbox as the scanner uses it: queue, say whether it is on disk, undo. */
+export interface OutboxMock {
+  enqueue: Mock
+  undo: Mock
+  isPersisted: ReturnType<typeof signal<boolean>>
+}
+
+export function outboxMock(): OutboxMock {
+  return {
+    enqueue: vi.fn(),
+    undo: vi.fn(async () => 'removed'),
+    isPersisted: signal(true),
+  }
+}
+
 export interface ScanTestingOptions {
   api: ReceiptsApiMock
   months?: { invalidate: Mock }
+  outbox?: OutboxMock
 }
 
 /**
  * What the scanner needs around it in a spec: the household (NAB Everyday
  * 1, NAB Savings 2, the category tree, two members, AUD), the session, the time
- * zone and locale, a MonthStore stand-in, an optimiser that answers a small
+ * zone and locale, MonthStore and OutboxStore stand-ins, an optimiser that answers a small
  * WebP and object URLs that are only counted.
  */
 export function scanTestingProviders(options: ScanTestingOptions): Provider[] {
   return [
     { provide: ReceiptsApi, useValue: options.api },
     { provide: MonthStore, useValue: options.months ?? { invalidate: vi.fn() } },
+    { provide: OutboxStore, useValue: options.outbox ?? outboxMock() },
     tagsStoreStub(),
     {
       provide: AccountsApi,
