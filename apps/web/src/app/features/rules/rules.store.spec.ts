@@ -12,7 +12,7 @@ import { RulesStore } from './rules.store'
 
 describe('RulesStore', () => {
   let api: Record<'list' | 'create' | 'update' | 'remove' | 'apply', Mock>
-  let months: { invalidate: Mock; selectedMonth: () => string }
+  let months: { invalidate: Mock; invalidateAll: Mock; selectedMonth: () => string }
 
   async function setup() {
     api = {
@@ -26,7 +26,7 @@ describe('RulesStore', () => {
       remove: vi.fn(async () => undefined),
       apply: vi.fn(async () => 3),
     }
-    months = { invalidate: vi.fn(), selectedMonth: () => '2026-10' }
+    months = { invalidate: vi.fn(), invalidateAll: vi.fn(), selectedMonth: () => '2026-10' }
     TestBed.configureTestingModule({
       providers: [
         RulesStore,
@@ -67,7 +67,7 @@ describe('RulesStore', () => {
     expect(TestBed.inject(ToastStore).current()?.messageKey).toBe('errors.server')
   })
 
-  it('test_applying_a_rule_reports_how_many_movements_it_categorised', async () => {
+  it('test_applying_a_rule_reports_how_many_movements_it_categorised_and_reloads_every_month', async () => {
     const store = await setup()
 
     await expect(store.apply(aRule({ id: 2 }))).resolves.toBe(3)
@@ -77,7 +77,8 @@ describe('RulesStore', () => {
       messageKey: 'rules.toast.applied',
       params: { count: 3 },
     })
-    expect(months.invalidate).toHaveBeenCalledWith('2026-10')
+    // The rule recategorised rows in any month: none of them is trusted any more.
+    expect(months.invalidateAll).toHaveBeenCalledOnce()
     expect(store.applying()).toBeNull()
   })
 
@@ -87,6 +88,7 @@ describe('RulesStore', () => {
 
     await store.apply(aRule({ id: 2 }))
 
+    expect(months.invalidateAll).not.toHaveBeenCalled()
     expect(months.invalidate).not.toHaveBeenCalled()
   })
 
@@ -155,7 +157,7 @@ describe('RulesStore', () => {
     })
     toasts.runAction()
     await vi.waitFor(() => expect(api.apply).toHaveBeenCalledWith(7))
-    await vi.waitFor(() => expect(months.invalidate).toHaveBeenCalledWith('2026-10'))
+    await vi.waitFor(() => expect(months.invalidateAll).toHaveBeenCalledOnce())
   })
 
   it('test_a_transfer_rule_is_saved_without_offering_to_apply_it', async () => {
@@ -179,6 +181,7 @@ describe('RulesStore', () => {
 
     // A rule changes no movement until it is applied or an import uses it.
     expect(months.invalidate).not.toHaveBeenCalled()
+    expect(months.invalidateAll).not.toHaveBeenCalled()
   })
 
   it('test_a_refused_save_leaves_the_list_as_it_was', async () => {

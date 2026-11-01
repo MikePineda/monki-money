@@ -56,6 +56,10 @@ export function coversMonth(month: YearMonth, changed: YearMonth): boolean {
  *   `revision(month)` / `revisionOf(month)` (a list resource) reloads, the
  *   cached snapshots whose numbers include it are dropped, and the Month
  *   view's snapshot reloads when its trend window covers it.
+ * - `invalidateAll()` says "any month may have changed" (a rule applied to
+ *   history, a confirmed import): every cached snapshot is dropped, every
+ *   month's revision moves (lists keyed on any month reload) and the month
+ *   on screen loads again.
  * - `summary` is the selected month's snapshot as a `resource()`, served
  *   from an in-memory cache of the last {@link MONTH_CACHE_SIZE} months;
  *   `frame` keeps the previous snapshot on screen while another loads.
@@ -67,6 +71,8 @@ export class MonthStore {
 
   private readonly cache = new Map<YearMonth, MonthSnapshot>()
   private readonly revisions = signal<ReadonlyMap<YearMonth, number>>(new Map())
+  /** Bumped by `invalidateAll()`: added to every month's revision. */
+  private readonly everything = signal(0)
   /** Bumped by `retry()` to refetch the selected month although nothing changed. */
   private readonly attempt = signal(0)
   /** The last snapshot any load delivered (cache hits included). */
@@ -117,7 +123,7 @@ export class MonthStore {
 
   /** The current revision, read inside a reactive context (a resource's params, a computed). */
   revisionOf(month: YearMonth): number {
-    return this.revisions().get(month) ?? 0
+    return (this.revisions().get(month) ?? 0) + this.everything()
   }
 
   /**
@@ -125,7 +131,7 @@ export class MonthStore {
    * month (a list filtered by tag, a tag's totals) reloads when it moves.
    */
   readonly ledgerRevision = computed(() =>
-    [...this.revisions().values()].reduce((total, revision) => total + revision, 0)
+    [...this.revisions().values()].reduce((total, revision) => total + revision, this.everything())
   )
 
   /** Something dated in this month changed (a create, an edit, a delete, a split). */
@@ -140,6 +146,16 @@ export class MonthStore {
       next.set(month, (current.get(month) ?? 0) + 1)
       return next
     })
+  }
+
+  /**
+   * Any month may have changed (a rule applied to history, a confirmed
+   * import): nothing cached is trusted any more and the month on screen
+   * reloads (its previous frame stays while it does).
+   */
+  invalidateAll(): void {
+    this.cache.clear()
+    this.everything.update((value) => value + 1)
   }
 
   /** Same as {@link invalidate} for the month a 'YYYY-MM-DD' date falls in. */
@@ -162,6 +178,7 @@ export class MonthStore {
   clear(): void {
     this.cache.clear()
     this.revisions.set(new Map())
+    this.everything.set(0)
     this.lastLoaded.set(undefined)
     this.selectedMonth.set(this.current())
   }
