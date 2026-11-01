@@ -47,6 +47,7 @@ export interface DeleteHouseholdSheetData {
         <app-text-field
           data-testid="danger.password"
           type="password"
+          revealable
           autocomplete="current-password"
           [label]="'settings.danger.sheet.password' | transloco"
           [formField]="deleteForm.password"

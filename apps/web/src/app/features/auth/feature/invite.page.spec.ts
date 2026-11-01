@@ -132,6 +132,18 @@ describe('InvitePage', () => {
     )
   })
 
+  it('test_the_password_to_join_can_be_shown', async () => {
+    const { root, loader } = await setup('withoutHousehold')
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="invite.accept"]')).not.toBeNull()
+    )
+    const password = await loader.getHarness(TextFieldHarness.with({ label: 'Password' }))
+
+    await password.toggleReveal()
+
+    expect(await password.getType()).toBe('text')
+  })
+
   it('test_an_invitation_for_another_address_can_be_set_aside', async () => {
     const { root } = await setup('withoutHousehold', async () => ({
       ...preview,

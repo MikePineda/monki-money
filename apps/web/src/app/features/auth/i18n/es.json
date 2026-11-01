@@ -89,7 +89,15 @@
     "restore": "Restaurar hogar",
     "restored": "Hogar restaurado.",
     "expired": "El plazo para restaurarlo ya terminó.",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "leave": "Salir del hogar",
+    "leaveSheet": {
+      "title": "¿Salir de {name}?",
+      "body": "Pierdes el acceso a {name} al momento. Lo que agregaste se queda ahí y se elimina con el hogar, salvo que quien lo administra lo restaure. Después puedes crear tu propio hogar o unirte a otro con una invitación.",
+      "confirm": "Salir del hogar",
+      "cancel": "Quedarme"
+    },
+    "ownerCannot": "Quien administra el hogar no puede salir de él. Restáuralo o deja que se elimine."
   },
   "invite": {
     "loading": "Abriendo la invitación…",

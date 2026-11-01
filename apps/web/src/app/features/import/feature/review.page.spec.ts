@@ -14,7 +14,8 @@ import {
   type ImportsApiMock,
 } from '../../../../testing/import-testing'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
-import type { ImportRow } from '../../../core/api/api-types'
+import { anAccount } from '../../../../testing/session-fixtures'
+import type { Account, ImportRow } from '../../../core/api/api-types'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import ImportReviewPage from './review.page'
 
@@ -50,10 +51,40 @@ const aGuessedTransfer = (): ImportRow =>
     transfer: { signal: 'linked_account_memo', accountId: 2, legTransactionId: null, ruleId: null },
   })
 
+/** The batch's account (1), two savings accounts and an archived one. */
+const fourAccounts = (): Account[] => [
+  anAccount({ id: 1, name: 'NAB Everyday', externalAccountNumber: '123456789' }),
+  anAccount({ id: 2, name: 'NAB Savings', kind: 'savings' }),
+  anAccount({ id: 3, name: 'Honeymoon Fund', kind: 'savings' }),
+  anAccount({ id: 4, name: 'Old Saver', kind: 'savings', isActive: false }),
+]
+
+/**
+ * A transfer whose linked holder is known in several accounts: the importer
+ * cannot tell which one, so it asks (`candidateAccountIds`, no `accountId`).
+ */
+const anAmbiguousTransfer = (overrides: Partial<ImportRow> = {}): ImportRow =>
+  anImportRow({
+    id: 8,
+    nabMerchant: null,
+    description: 'ONLINE Z9Y8X7 SAMPLE HOLDER',
+    amountCents: -20000,
+    resolution: 'needs_confirmation',
+    reasons: ['transfer_destination_unknown'],
+    transfer: {
+      signal: 'linked_account_memo',
+      accountId: null,
+      legTransactionId: null,
+      ruleId: null,
+      candidateAccountIds: [1, 2, 3, 4],
+    },
+    ...overrides,
+  })
+
 describe('ImportReviewPage', () => {
   let api: ImportsApiMock
 
-  async function open(initial: ImportRow[] = rows()) {
+  async function open(initial: ImportRow[] = rows(), accounts?: Account[]) {
     api = importsApiMock(initial)
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -67,7 +98,10 @@ describe('ImportReviewPage', () => {
           ],
           withComponentInputBinding()
         ),
-        ...importTestingProviders({ api }),
+        ...importTestingProviders({
+          api,
+          ...(accounts ? { accounts: { list: vi.fn(async () => accounts) } } : {}),
+        }),
       ],
     })
     const harness = await RouterTestingHarness.create()
@@ -404,6 +438,95 @@ describe('ImportReviewPage', () => {
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="import.triage.accept"]')).toBeNull()
     )
+  })
+
+  async function openTriage(initial: ImportRow[], id: number) {
+    const opened = await open(initial, fourAccounts())
+    row(opened.root, id).click()
+    await opened.settle()
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="import.triage.transfer"]')).not.toBeNull()
+    )
+    return opened
+  }
+
+  function quickPicks(): HTMLButtonElement[] {
+    return [
+      ...document.querySelectorAll<HTMLButtonElement>('[data-testid="import.triage.candidate"]'),
+    ]
+  }
+
+  it('test_a_transfer_known_in_several_accounts_offers_them_as_quick_picks', async () => {
+    await openTriage([...rows(), anAmbiguousTransfer()], 8)
+
+    expect(text(document, '[data-testid="import.triage.candidates"]')).toContain(
+      'This holder is linked to several of your accounts. Pick the one the money went to.'
+    )
+    // Not the batch's own account, not an archived one; the full list stays below.
+    expect(quickPicks().map((pick) => pick.textContent?.trim())).toEqual([
+      'Transfer to NAB Savings',
+      'Transfer to Honeymoon Fund',
+    ])
+    expect(quickPicks().every((pick) => pick.getAttribute('aria-pressed') === 'false')).toBe(true)
+    const sheet = document.querySelector('[data-testid="import.triage"]') as HTMLElement
+    const order = [...sheet.querySelectorAll('[data-testid]')].map((item) =>
+      item.getAttribute('data-testid')
+    )
+    expect(order.indexOf('import.triage.candidates')).toBeLessThan(
+      order.indexOf('import.triage.transfer')
+    )
+  })
+
+  it('test_a_quick_pick_makes_the_row_a_transfer_to_that_account', async () => {
+    const { settle } = await openTriage([...rows(), anAmbiguousTransfer()], 8)
+
+    quickPicks()[1]?.click()
+    await settle()
+
+    expect(api.decide).toHaveBeenCalledWith(7, 8, {
+      resolution: 'transfer_leg',
+      transferAccountId: 3,
+    })
+    await vi.waitFor(() => expect(quickPicks()[1]?.getAttribute('aria-pressed')).toBe('true'))
+    expect(quickPicks()[0]?.getAttribute('aria-pressed')).toBe('false')
+    expect(text(document, '[data-testid="import.triage.transfer"]')).toContain('Honeymoon Fund')
+  })
+
+  it('test_quick_picks_of_an_incoming_transfer_say_where_it_came_from', async () => {
+    await openTriage([...rows(), anAmbiguousTransfer({ amountCents: 20000 })], 8)
+
+    expect(text(document, '[data-testid="import.triage.candidates"]')).toContain(
+      'Pick the one the money came from.'
+    )
+    expect(quickPicks()[0]?.textContent?.trim()).toBe('Transfer from NAB Savings')
+  })
+
+  it('test_a_transfer_with_one_known_account_shows_no_quick_picks', async () => {
+    await openTriage([...rows(), aGuessedTransfer()], 6)
+
+    expect(document.querySelector('[data-testid="import.triage.candidates"]')).toBeNull()
+  })
+
+  it('test_a_single_usable_candidate_still_gets_its_quick_pick', async () => {
+    await openTriage(
+      [
+        ...rows(),
+        anAmbiguousTransfer({
+          transfer: {
+            signal: 'linked_account_memo',
+            accountId: null,
+            legTransactionId: null,
+            ruleId: null,
+            candidateAccountIds: [2, 4],
+          },
+        }),
+      ],
+      8
+    )
+
+    expect(quickPicks().map((pick) => pick.textContent?.trim())).toEqual([
+      'Transfer to NAB Savings',
+    ])
   })
 
   it('test_confirm_waits_while_a_row_needs_a_decision', async () => {

@@ -10,6 +10,7 @@ import {
   signUpOwner,
   test,
   uniqueEmail,
+  xsrfToken,
 } from '../support/fixtures.ts'
 
 test.describe('journey 9: leaving the household and starting another', () => {
@@ -57,5 +58,42 @@ test.describe('journey 9: leaving the household and starting another', () => {
     await page.reload()
     await expect(settings.members).toContainText('Robin Example')
     await expect(settings.members).not.toContainText('Sam Example')
+  })
+
+  test('a member of a household scheduled for deletion can still leave it', async ({
+    page,
+    context,
+    browser,
+    request,
+  }) => {
+    await signUpOwner(context, { fullName: 'Robin Example' })
+    const settings = new SettingsPage(page)
+    const memberEmail = uniqueEmail('member')
+    await settings.goto()
+    await settings.invitePartner(memberEmail)
+    const link = await mailedLink(request, memberEmail, '/invite/')
+    const memberContext = await newDevice(browser, test.info())
+    const memberPage = await memberContext.newPage()
+    await memberPage.goto(link)
+    await new InvitePage(memberPage).createAccountAndJoin('Sam Example', PASSWORD)
+    await expect(memberPage).toHaveURL(/\/month$/)
+
+    // The owner schedules the deletion (the sheet itself is covered by unit specs).
+    const scheduled = await context.request.post('/api/v1/household/delete', {
+      headers: { 'X-XSRF-TOKEN': await xsrfToken(context) },
+      data: { password: PASSWORD },
+    })
+    expect(scheduled.ok(), await scheduled.text()).toBe(true)
+
+    // The member only gets the deleted screen: no restore, but leave and log out.
+    await memberPage.goto('/month')
+    await expect(memberPage).toHaveURL(/\/household-deleted$/)
+    await expect(memberPage.getByTestId('deleted.restore')).toHaveCount(0)
+    await expect(memberPage.getByTestId('deleted.logout')).toBeVisible()
+    await memberPage.getByTestId('deleted.leave').click()
+    await memberPage.getByTestId('confirm.yes').click()
+
+    await expect(memberPage).toHaveURL(/\/household\/new$/)
+    await memberContext.close()
   })
 })

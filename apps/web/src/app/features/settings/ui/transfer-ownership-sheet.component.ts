@@ -41,6 +41,7 @@ export interface TransferOwnershipSheetData {
         <app-text-field
           data-testid="ownership.password"
           type="password"
+          revealable
           autocomplete="current-password"
           [label]="'settings.household.ownerSheet.password' | transloco"
           [formField]="ownershipForm.password"

@@ -89,7 +89,15 @@
     "restore": "Restore household",
     "restored": "Household restored.",
     "expired": "The restore window has ended.",
-    "logout": "Log out"
+    "logout": "Log out",
+    "leave": "Leave household",
+    "leaveSheet": {
+      "title": "Leave {name}?",
+      "body": "You lose access to {name} right away. What you added stays in it and is deleted with it, unless the owner restores it. Afterwards you can start your own household or join one with an invitation.",
+      "confirm": "Leave household",
+      "cancel": "Stay"
+    },
+    "ownerCannot": "The owner cannot leave the household. Restore it, or let it be deleted."
   },
   "invite": {
     "loading": "Opening the invitation…",

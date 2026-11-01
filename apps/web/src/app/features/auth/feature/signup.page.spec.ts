@@ -60,7 +60,7 @@ describe('SignupPage', () => {
       root.querySelector<HTMLInputElement>('[data-testid="signup.terms"] input')?.click()
       await harness.fixture.whenStable()
     }
-    return { harness, root, submit, fillIn }
+    return { harness, root, loader, submit, fillIn }
   }
 
   afterEach(() => {
@@ -84,6 +84,16 @@ describe('SignupPage', () => {
       locale: 'en',
     })
     expect(session.load).toHaveBeenCalled()
+  })
+
+  it('test_the_new_password_can_be_shown_before_creating_the_account', async () => {
+    const { loader } = await setup()
+    const password = await loader.getHarness(TextFieldHarness.with({ label: 'Password' }))
+
+    expect(await password.isRevealable()).toBe(true)
+    await password.toggleReveal()
+
+    expect(await password.getType()).toBe('text')
   })
 
   it('test_the_language_chosen_before_signing_up_becomes_the_accounts_language', async () => {

@@ -68,6 +68,8 @@ export const ICON_NAMES = [
   'credit-card',
   'landmark',
   'lock',
+  'eye',
+  'eye-off',
   'file-text',
   // Transactions and categories screens
   'split',
