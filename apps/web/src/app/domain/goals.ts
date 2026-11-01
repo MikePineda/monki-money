@@ -234,3 +234,54 @@ export function reachedOnText(
   const day = reachedDay(reachedAt, timeZone)
   return day === null ? null : formatShortDay(day, locale, todayIn(timeZone, now))
 }
+
+/** Money put into the goal, or taken out of it. */
+export type ContributionDirection = 'in' | 'out'
+
+/** The "Add contribution" sheet: the amount from the keypad is never negative. */
+export interface ContributionDraft {
+  direction: ContributionDirection
+  amountCents: number
+  /** 'YYYY-MM-DD', the household's day. */
+  date: IsoDate
+  memo: string
+}
+
+/** `POST /goals/:id/contributions`: signed, a withdrawal is negative. */
+export interface ContributionFields {
+  amountCents: number
+  date: IsoDate
+  memo: string | null
+}
+
+export type ContributionProblem = 'amountCents' | 'date'
+
+/** Money in, today, nothing typed yet. */
+export function emptyContributionDraft(today: IsoDate): ContributionDraft {
+  return { direction: 'in', amountCents: 0, date: today, memo: '' }
+}
+
+/** What stops the draft from being sent: no amount, or no day (or a day after today). */
+export function contributionProblems(
+  draft: ContributionDraft,
+  today: IsoDate
+): ContributionProblem[] {
+  const problems: ContributionProblem[] = []
+  if (draft.amountCents <= 0) {
+    problems.push('amountCents')
+  }
+  if (draft.date === '' || draft.date > today) {
+    problems.push('date')
+  }
+  return problems
+}
+
+/** The draft as the API takes it: signed by its direction, an empty memo as null. */
+export function contributionPayload(draft: ContributionDraft): ContributionFields {
+  const magnitude = Math.abs(draft.amountCents)
+  return {
+    amountCents: draft.direction === 'out' ? -magnitude : magnitude,
+    date: draft.date,
+    memo: draft.memo.trim() || null,
+  }
+}

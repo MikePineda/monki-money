@@ -30,7 +30,7 @@ The tiers are the two top-level folders. `bru run <folder>` selects one;
 | `07-payslips`     | 6        | create (with the transfer of the net), list, candidates, delete, the transfer's delete                                                          |
 | `08-reports`      | 4        | month, trend, category, balances                                                                                                                |
 | `09-tags`         | 2        | list, show                                                                                                                                      |
-| `10-goals`        | 7        | goals CRUD, projection, reorder                                                                                                                 |
+| `10-goals`        | 12       | goals CRUD, projection, reorder; a goal without an account: log, list and delete a contribution                     |
 | `11-insights`     | 2        | generate, show (fake LLM in the E2E stack; 503 without an LLM)                                                                                  |
 | `12-imports`      | 10       | upload a synthetic NAB CSV, list, show, decide a row, bulk undo, classify, cancel, upload again, confirm                                        |
 | `13-rules`        | 5        | rules CRUD, apply                                                                                                                               |

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core'
 import { API } from '../../../core/api/api'
-import type { Goal, GoalWithProjection } from '../../../core/api/api-types'
-import type { GoalFields, GoalStatus } from '../../../domain/goals'
+import type { Goal, GoalContribution, GoalWithProjection } from '../../../core/api/api-types'
+import type { ContributionFields, GoalFields, GoalStatus } from '../../../domain/goals'
 
 /** `GET /goals` answers plain goals unless asked for `include=projection`. */
 function hasProjection(goal: Goal | GoalWithProjection): goal is GoalWithProjection {
@@ -68,6 +68,28 @@ export class GoalsApi {
   async projection(id: number) {
     const { data } = await (await this.api()).request('goals.projection', { params: { id } })
     return data
+  }
+
+  /** `GET /goals/:id/contributions`: newest first. */
+  async contributions(id: number): Promise<GoalContribution[]> {
+    const { data } = await (
+      await this.api()
+    ).request('goals.contributions.index', { params: { id } })
+    return data
+  }
+
+  /** `POST /goals/:id/contributions`: a goal without an account (409 when it tracks one). */
+  async addContribution(id: number, body: ContributionFields): Promise<GoalContribution> {
+    const { data } = await (
+      await this.api()
+    ).request('goals.contributions.store', { params: { id }, body })
+    return data
+  }
+
+  async removeContribution(id: number, contributionId: number): Promise<void> {
+    await (
+      await this.api()
+    ).request('goals.contributions.destroy', { params: { id, contributionId } })
   }
 }
 

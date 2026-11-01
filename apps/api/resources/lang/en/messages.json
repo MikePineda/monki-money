@@ -50,6 +50,10 @@
       "title": "Your {month} summary is ready",
       "body": "See how {month} went in a minute."
     },
+    "goalReached": {
+      "title": "You reached {goal}",
+      "body": "Nothing left to save. Open it to mark it as reached."
+    },
     "dailyReminder": {
       "title": "Did you log anything today?",
       "body": "A quick entry now keeps the month accurate."

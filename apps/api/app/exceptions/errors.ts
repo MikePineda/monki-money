@@ -81,6 +81,13 @@ export const OwnerCannotLeave = domainError(
 /** The account still has transactions. */
 export const AccountInUse = domainError('E_ACCOUNT_IN_USE', 409, 'Account has transactions')
 
+/** A goal that tracks an account saves through that account, not through contributions. */
+export const GoalTracksAccount = domainError(
+  'E_GOAL_TRACKS_ACCOUNT',
+  409,
+  'This goal tracks an account'
+)
+
 /** The category is referenced and no replacement was given. */
 export const CategoryInUse = domainError('E_CATEGORY_IN_USE', 409, 'Category is in use')
 

@@ -1,14 +1,16 @@
 import { Injectable, computed, inject, resource, signal } from '@angular/core'
-import type { Goal } from '../../core/api/api-types'
+import type { Goal, GoalContribution } from '../../core/api/api-types'
 import { failureMessage } from '../../core/api/error-messages'
 import { hasStatus, toApiError } from '../../core/api/http-errors'
 import { ToastStore } from '../../core/ui/toast.store'
-import type { GoalFields, GoalStatus } from '../../domain/goals'
+import type { ContributionFields, GoalFields, GoalStatus } from '../../domain/goals'
 import { GoalsApi, type GoalProjection } from './data-access/goals.api'
 
 export interface GoalDetail {
   goal: Goal
   projection: GoalProjection
+  /** Newest first; always empty for a goal that tracks an account (its account is what it saves). */
+  contributions: GoalContribution[]
 }
 
 export type GoalDetailStatus = 'loading' | 'ready' | 'notFound' | 'error'
@@ -23,6 +25,7 @@ export interface SaveResult {
  * Toasts after a status change. Keys read from TypeScript:
  * t(goals.detail.toast.reached, goals.detail.toast.archived, goals.detail.toast.active)
  * t(goals.detail.toast.deleted, goals.detail.toast.saved)
+ * t(goals.contributions.toast.added, goals.contributions.toast.removed)
  */
 const STATUS_TOAST: Record<GoalStatus, string> = {
   reached: 'goals.detail.toast.reached',
@@ -32,8 +35,10 @@ const STATUS_TOAST: Record<GoalStatus, string> = {
 
 /**
  * One goal and its projection (`/goals/:id`): load, edit, change status
- * (reached, archived, back to active) and delete. Every change reloads the
- * projection, which depends on the goal's fields. Provided by the page.
+ * (reached, archived, back to active) and delete; for a goal without an
+ * account, its contributions too (add, delete). Every change reloads the
+ * projection, which depends on the goal's fields and contributions.
+ * Provided by the page.
  */
 @Injectable()
 export class GoalDetailStore {
@@ -50,11 +55,12 @@ export class GoalDetailStore {
       return id === null ? undefined : { id, attempt: this.attempt() }
     },
     loader: async ({ params }): Promise<GoalDetail> => {
-      const [goal, projection] = await Promise.all([
+      const [goal, projection, contributions] = await Promise.all([
         this.api.show(params.id),
         this.api.projection(params.id),
+        this.api.contributions(params.id),
       ])
-      return { goal, projection }
+      return { goal, projection, contributions: goal.accountId === null ? contributions : [] }
     },
   })
 
@@ -97,6 +103,30 @@ export class GoalDetailStore {
     const result = await this.run(async () => {
       await this.api.update(id, { status })
       this.toasts.show({ messageKey: STATUS_TOAST[status], params: { name } })
+    })
+    return result.ok
+  }
+
+  /** Logs money put in or taken out; a 422's field messages come back in `fields`. */
+  async addContribution(body: ContributionFields): Promise<SaveResult> {
+    const id = this.id()
+    if (id === null) {
+      return { ok: false, fields: {} }
+    }
+    return this.run(async () => {
+      await this.api.addContribution(id, body)
+      this.toasts.show({ messageKey: 'goals.contributions.toast.added', status: 'good' })
+    })
+  }
+
+  async removeContribution(contributionId: number): Promise<boolean> {
+    const id = this.id()
+    if (id === null) {
+      return false
+    }
+    const result = await this.run(async () => {
+      await this.api.removeContribution(id, contributionId)
+      this.toasts.show({ messageKey: 'goals.contributions.toast.removed' })
     })
     return result.ok
   }

@@ -133,6 +133,11 @@ export interface ApiDefinition {
     update: typeof routes['goals.update']
     destroy: typeof routes['goals.destroy']
     projection: typeof routes['goals.projection']
+    contributions: {
+      index: typeof routes['goals.contributions.index']
+      store: typeof routes['goals.contributions.store']
+      destroy: typeof routes['goals.contributions.destroy']
+    }
   }
   insights: {
     show: typeof routes['insights.show']

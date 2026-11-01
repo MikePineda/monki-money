@@ -11,8 +11,9 @@ import { monthRange, previousMonths, type Month } from '#domain/calendar/month'
  * end of each of the last HISTORY_FULL_MONTHS full months and of the
  * current month, the same rule as the saved amount (opening balance plus
  * the settled rows; with an opening balance date, only rows after it).
- * A goal without an account records no contributions, so its history is
- * the starting amount this month.
+ * A goal without an account adds what its members logged on it (the
+ * contributions, signed) to its starting amount, month end by month end,
+ * from the month it started.
  */
 
 /** Full months before the current one that the history shows. */
@@ -63,7 +64,38 @@ export function accountHistory(
     }))
 }
 
-/** A goal without an account: only what was saved when it was set up, today. */
-export function startingHistory(startingCents: number, currentMonth: Month): HistoryPoint[] {
-  return [{ month: currentMonth, balanceCents: startingCents }]
+/** One contribution logged on a goal without an account (a withdrawal is negative). */
+export type ContributionEntry = {
+  /** 'YYYY-MM-DD' */
+  date: string
+  amountCents: number
+}
+
+/** What a goal without an account started from. */
+export type ContributionGoal = {
+  /** Saved before the app knew: part of every month end the history shows. */
+  startingCents: number
+  /** 'YYYY-MM-DD': the goal's first day (its creation, or an earlier contribution's date). */
+  since: string
+}
+
+/**
+ * Month-end saved amounts of a goal without an account, oldest first,
+ * `currentMonth` last: the starting amount plus the contributions dated up
+ * to each month end. Months that end before `since` are left out (the goal
+ * did not exist); the current month is always there, today's saved amount.
+ */
+export function contributionHistory(
+  goal: ContributionGoal,
+  contributions: readonly ContributionEntry[],
+  currentMonth: Month,
+  fullMonths = HISTORY_FULL_MONTHS
+): HistoryPoint[] {
+  return previousMonths(currentMonth, fullMonths + 1)
+    .map((month) => ({ month, end: monthRange(month).to }))
+    .filter(({ month, end }) => end >= goal.since || month === currentMonth)
+    .map(({ month, end }) => ({
+      month,
+      balanceCents: balanceAt(goal.startingCents, [...contributions], end),
+    }))
 }

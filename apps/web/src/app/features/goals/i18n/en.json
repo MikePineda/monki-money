@@ -163,5 +163,39 @@
       "active": "{name} is active again",
       "deleted": "{name} deleted"
     }
+  },
+  "contributions": {
+    "title": "Contributions",
+    "add": "Add",
+    "empty": "Nothing logged yet. Add what you put in or take out and the chart fills in month by month.",
+    "in": "Added",
+    "out": "Taken out",
+    "deleteLabel": "Delete {amount} from {date}",
+    "sheet": {
+      "title": "Add contribution",
+      "direction": "Money in or out",
+      "in": "Put in",
+      "out": "Take out",
+      "amount": "Amount",
+      "date": "Date",
+      "memo": "Note",
+      "optional": "Optional",
+      "save": "Add contribution",
+      "cancel": "Cancel"
+    },
+    "problems": {
+      "amountCents": "Enter an amount above $0.00.",
+      "date": "Choose today or an earlier day."
+    },
+    "delete": {
+      "title": "Delete {amount} from {date}?",
+      "body": "The goal's saved amount and chart are worked out again without it.",
+      "confirm": "Delete contribution",
+      "cancel": "Keep it"
+    },
+    "toast": {
+      "added": "Contribution added",
+      "removed": "Contribution deleted"
+    }
   }
 }

@@ -163,5 +163,39 @@
       "active": "{name} está activa otra vez",
       "deleted": "{name} eliminada"
     }
+  },
+  "contributions": {
+    "title": "Aportaciones",
+    "add": "Agregar",
+    "empty": "Aún no hay nada registrado. Agrega lo que pongas o saques y la gráfica se llena mes a mes.",
+    "in": "Aportación",
+    "out": "Retiro",
+    "deleteLabel": "Eliminar {amount} del {date}",
+    "sheet": {
+      "title": "Agregar aportación",
+      "direction": "Entra o sale dinero",
+      "in": "Poner",
+      "out": "Sacar",
+      "amount": "Monto",
+      "date": "Fecha",
+      "memo": "Nota",
+      "optional": "Opcional",
+      "save": "Agregar aportación",
+      "cancel": "Cancelar"
+    },
+    "problems": {
+      "amountCents": "Escribe un monto mayor a $0.00.",
+      "date": "Elige hoy o un día anterior."
+    },
+    "delete": {
+      "title": "¿Eliminar {amount} del {date}?",
+      "body": "Lo ahorrado y la gráfica de la meta se recalculan sin ella.",
+      "confirm": "Eliminar aportación",
+      "cancel": "Conservarla"
+    },
+    "toast": {
+      "added": "Aportación agregada",
+      "removed": "Aportación eliminada"
+    }
   }
 }

@@ -510,6 +510,24 @@ const routes = {
     tokens: [{"old":"/api/v1/goals/:id/projection","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id/projection","type":1,"val":"id","end":""},{"old":"/api/v1/goals/:id/projection","type":0,"val":"projection","end":""}],
     types: placeholder as Registry['goals.projection']['types'],
   },
+  'goals.contributions.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/goals/:id/contributions',
+    tokens: [{"old":"/api/v1/goals/:id/contributions","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id/contributions","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id/contributions","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id/contributions","type":1,"val":"id","end":""},{"old":"/api/v1/goals/:id/contributions","type":0,"val":"contributions","end":""}],
+    types: placeholder as Registry['goals.contributions.index']['types'],
+  },
+  'goals.contributions.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/goals/:id/contributions',
+    tokens: [{"old":"/api/v1/goals/:id/contributions","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id/contributions","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id/contributions","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id/contributions","type":1,"val":"id","end":""},{"old":"/api/v1/goals/:id/contributions","type":0,"val":"contributions","end":""}],
+    types: placeholder as Registry['goals.contributions.store']['types'],
+  },
+  'goals.contributions.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/goals/:id/contributions/:contributionId',
+    tokens: [{"old":"/api/v1/goals/:id/contributions/:contributionId","type":0,"val":"api","end":""},{"old":"/api/v1/goals/:id/contributions/:contributionId","type":0,"val":"v1","end":""},{"old":"/api/v1/goals/:id/contributions/:contributionId","type":0,"val":"goals","end":""},{"old":"/api/v1/goals/:id/contributions/:contributionId","type":1,"val":"id","end":""},{"old":"/api/v1/goals/:id/contributions/:contributionId","type":0,"val":"contributions","end":""},{"old":"/api/v1/goals/:id/contributions/:contributionId","type":1,"val":"contributionId","end":""}],
+    types: placeholder as Registry['goals.contributions.destroy']['types'],
+  },
   'insights.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/insights/:month',

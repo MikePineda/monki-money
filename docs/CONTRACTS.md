@@ -374,7 +374,8 @@ projectedCents }], history[{ month, balanceCents }] }`. Month granularity from t
 household time zone (point 0 = saved today, then one monthly rate per month,
 at most 24 points): `projectedDate` is the first day of the month the target
 is reached, a target date counts as its month, `onTrack` = projectedDate <=
-targetDate. Saved = the account's cleared balance (else `startingCents`);
+targetDate. Saved = the account's cleared balance (else `startingCents` plus
+the goal's contributions);
 rate = `monthlyContributionCents` (an explicit 0 included), else the average
 net (income - expense) of the last three full months (the current month and
 the quiet months before any activity never count), else none. A rate that is
@@ -387,8 +388,30 @@ for a goal with an account, that account's cleared balance at the end of
 each of the last 6 full months and of the current month (opening balance +
 settled rows dated up to the month end, only rows after the opening balance
 date when it is set; months that end before that date are left out); for a
-goal without an account (contributions are not recorded), one point, the
-current month at `startingCents`.
+goal without an account, `startingCents` plus the contributions dated up to
+each month end, for the months that end on or after the goal's start (its
+creation day in the household time zone, or an earlier contribution's date)
+and always the current month (a goal created this month with no
+contributions has one point).
+
+`GoalContribution` = `{ id, goalId, userId (who logged it, null once that
+person is gone), amountCents (signed, never 0: a withdrawal is negative),
+date, memo, createdAt }`: money put into or taken out of a goal without an
+account. A goal that tracks an account saves through that account and takes
+no contributions (409 `E_GOAL_TRACKS_ACCOUNT`); rows logged before it was
+pointed at an account are kept but ignored while it tracks one. Deleting the
+goal deletes them.
+
+**Goal reached push.** The scheduler (`goal-reached-push`, every tick) reads
+every goal that is active or announced with what it has saved today. An
+active goal with `remainingCents` 0 whose reach was not announced gets
+`reached_notified_at` (internal, not in `Goal`) and every member is told
+once (see Push notifications); a goal marked reached or archived is never
+announced. A goal short of its target again (a withdrawal, a higher target,
+the account's balance going down) is rearmed (`reached_notified_at` cleared):
+reaching it again is a new reach and is announced again, while staying at the
+target is never announced twice. The status still changes only when a member
+marks it reached.
 
 `Insight` = `{ month, locale, headline, bodyMarkdown, highlights[{ tone
 (positive|neutral|warning), text }], model, generatedAt }`, one per household,
@@ -405,17 +428,20 @@ month's first `previousThroughDay` days (the Month view's same-day base,
 the prompt says the month is in progress, N days elapsed of M. A month that
 has ended keeps the whole previous month and no `inProgress`.
 
-| Name                | Method and path                  | Notes                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `goals.index`       | `GET /goals`                     | `?status=active\|reached\|archived&include=projection` → `Goal[]` by `sortOrder`; with `include=projection` each goal also carries `projection: GoalProjection` (the same body as `goals.projection`), all of them computed in one pass (the tracked accounts, their balances and postings and the average are read once, whatever the number of goals). Any other `include` → 422 |
-| `goals.store`       | `POST /goals`                    | `{ name, targetCents > 0, targetDate?, startingCents? (>= 0), monthlyContributionCents? (>= 0, null = average), accountId?, userId? }` → 201; a foreign `accountId`/`userId` → 422 `<field>`/`database.exists`                                                                                                                                                                     |
-| `goals.reorder`     | `PUT /goals/reorder`             | `{ ids }` → 204 (`sortOrder` = position)                                                                                                                                                                                                                                                                                                                                           |
-| `goals.show`        | `GET /goals/:id`                 | `Goal`                                                                                                                                                                                                                                                                                                                                                                             |
-| `goals.update`      | `PATCH /goals/:id`               | Any field of `store` plus `status`; `reached` stamps `reachedAt` with the moment it was marked (shown as that day in the household time zone; an earlier stamp is kept when `reached` is sent again or other fields change, and while archived), `active` reopens it and clears `reachedAt`. Reads never change the status, even past the target                                   |
-| `goals.destroy`     | `DELETE /goals/:id`              | 204                                                                                                                                                                                                                                                                                                                                                                                |
-| `goals.projection`  | `GET /goals/:id/projection`      | `GoalProjection`                                                                                                                                                                                                                                                                                                                                                                   |
-| `insights.show`     | `GET /insights/:month`           | `Insight` in the request's locale; 404 `E_ROW_NOT_FOUND` until generated in that language (or for a path that is not a `YYYY-MM` month)                                                                                                                                                                                                                                            |
-| `insights.generate` | `POST /insights/:month/generate` | `{ force? }` → 201 `Insight & { fresh: true }` (written now, replacing the stored one) or 200 `Insight & { fresh: false }` (the stored one, no LLM call). 422 `month`/`future` (not started) or `month`/`noActivity` (no income or spending) before any call; 402 `E_LLM_QUOTA_EXCEEDED`; 422 `E_LLM_OUTPUT_INVALID`; 503 `E_INSIGHTS_UNAVAILABLE` without an LLM key              |
+| Name                          | Method and path                                   | Notes                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `goals.index`                 | `GET /goals`                                      | `?status=active\|reached\|archived&include=projection` → `Goal[]` by `sortOrder`; with `include=projection` each goal also carries `projection: GoalProjection` (the same body as `goals.projection`), all of them computed in one pass (the tracked accounts, their balances and postings and the average are read once, whatever the number of goals). Any other `include` → 422 |
+| `goals.store`                 | `POST /goals`                                     | `{ name, targetCents > 0, targetDate?, startingCents? (>= 0), monthlyContributionCents? (>= 0, null = average), accountId?, userId? }` → 201; a foreign `accountId`/`userId` → 422 `<field>`/`database.exists`                                                                                                                                                                     |
+| `goals.reorder`               | `PUT /goals/reorder`                              | `{ ids }` → 204 (`sortOrder` = position)                                                                                                                                                                                                                                                                                                                                           |
+| `goals.show`                  | `GET /goals/:id`                                  | `Goal`                                                                                                                                                                                                                                                                                                                                                                             |
+| `goals.update`                | `PATCH /goals/:id`                                | Any field of `store` plus `status`; `reached` stamps `reachedAt` with the moment it was marked (shown as that day in the household time zone; an earlier stamp is kept when `reached` is sent again or other fields change, and while archived), `active` reopens it and clears `reachedAt`. Reads never change the status, even past the target                                   |
+| `goals.destroy`               | `DELETE /goals/:id`                               | 204                                                                                                                                                                                                                                                                                                                                                                                |
+| `goals.projection`            | `GET /goals/:id/projection`                       | `GoalProjection`                                                                                                                                                                                                                                                                                                                                                                   |
+| `goals.contributions.index`   | `GET /goals/:id/contributions`                    | `GoalContribution[]`, newest first (by `date`, then as logged)                                                                                                                                                                                                                                                                                                                     |
+| `goals.contributions.store`   | `POST /goals/:id/contributions`                   | `{ amountCents (signed integer, not 0), date ('YYYY-MM-DD', today or earlier in the household time zone), memo? (<= 140, null) }` → 201 `GoalContribution` (`userId` = the requester). 409 `E_GOAL_TRACKS_ACCOUNT` when the goal tracks an account; 422 `amountCents`/`notZero`, `date`/`future`                                                                                   |
+| `goals.contributions.destroy` | `DELETE /goals/:id/contributions/:contributionId` | 204 (any member, any contribution of the goal); another goal's or household's contribution → 404                                                                                                                                                                                                                                                                                   |
+| `insights.show`               | `GET /insights/:month`                            | `Insight` in the request's locale; 404 `E_ROW_NOT_FOUND` until generated in that language (or for a path that is not a `YYYY-MM` month)                                                                                                                                                                                                                                            |
+| `insights.generate`           | `POST /insights/:month/generate`                  | `{ force? }` → 201 `Insight & { fresh: true }` (written now, replacing the stored one) or 200 `Insight & { fresh: false }` (the stored one, no LLM call). 422 `month`/`future` (not started) or `month`/`noActivity` (no income or spending) before any call; 402 `E_LLM_QUOTA_EXCEEDED`; 422 `E_LLM_OUTPUT_INVALID`; 503 `E_INSIGHTS_UNAVAILABLE` without an LLM key              |
 
 ### Bank imports and merchant rules
 
@@ -621,12 +647,14 @@ and `categoryId` is that category's id.
 Web Push to the installed PWA (iOS 16.4+ only in the installed app). The
 browser subscribes with `vapidPublicKey` from `GET /config` (Angular's
 `SwPush.requestSubscription`) and hands the subscription over; the server
-sends two kinds, from its scheduler (see the runbook): "summary ready" (once
+sends three kinds, from its scheduler (see the runbook): "summary ready" (once
 per person and month, when the scheduled summary is written on the 1st, or
 when a member taps Generate for the month that just ended: everyone but that
 member is told) and the opt-in daily reminder (once per local day after
 `reminderTime` on the `reminderWeekdays`, only when the person created
-nothing that day). A subscription's endpoint is a capability URL: it goes in
+nothing that day) and "goal reached" ("You reached {goal}", to every member
+once per reach, see Goals and insights; it shares the `summaryReady` switch
+and opens `/goals/:id`). A subscription's endpoint is a capability URL: it goes in
 the body, never in a path or query, and belongs to the person who registered
 it. Subscriptions follow their person: joining a household (invitation) or
 creating one moves the person's devices there, leaving detaches them (no
@@ -652,7 +680,8 @@ app, which routes to `data.url` (a path of the app) itself, or opens the app
 there. Titles and bodies are in the recipient's language and never carry an
 amount, a merchant or a name; the summary names its month only. Same `tag` =
 the newer notification replaces the older one (`summary-YYYY-MM`,
-`daily-reminder`).
+`daily-reminder`, `goal-reached-<id>`). The reached goal is named by its own
+name, never by what it holds.
 
 | Name                         | Method and path                  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ---------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

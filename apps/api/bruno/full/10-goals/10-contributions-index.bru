@@ -1,0 +1,29 @@
+meta {
+  name: Contributions
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/goals/{{manualGoalId}}/contributions
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isArray
+}
+
+tests {
+  test('lists the contribution just logged', () => {
+    const ids = res.body.data.map((entry) => entry.id)
+    expect(ids).to.include(bru.getVar('contributionId'))
+  })
+}
+
+docs {
+  `goals.contributions.index`: `GoalContribution[]`, newest first (by date,
+  then as logged). They add to the goal's `savedCents`, projection and
+  month-end `history`.
+}

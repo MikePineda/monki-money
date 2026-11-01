@@ -141,6 +141,8 @@
       "expenseCategory": "Choose an expense category for this deduction",
       "month.future": "This month has not started yet",
       "month.noActivity": "There is no income or spending in this month yet",
+      "date.future": "Choose today or an earlier day",
+      "amountCents.notZero": "Enter an amount other than 0.00",
       "file.required": "Choose the CSV file exported from your bank",
       "transferAccountId.sameAccount": "Choose an account other than the imported one",
       "matchTransactionId.sameAccount": "Choose a transaction of the imported account",

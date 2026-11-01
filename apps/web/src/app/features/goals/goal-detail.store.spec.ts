@@ -1,6 +1,6 @@
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
-import { aGoal, aProjection } from '../../../testing/goal-fixtures'
+import { aContribution, aGoal, aProjection } from '../../../testing/goal-fixtures'
 import { httpError, networkError, validationError } from '../../../testing/session-fixtures'
 import { ToastStore } from '../../core/ui/toast.store'
 import type { GoalFields } from '../../domain/goals'
@@ -23,6 +23,9 @@ describe('GoalDetailStore', () => {
     projection: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
     remove: ReturnType<typeof vi.fn>
+    contributions: ReturnType<typeof vi.fn>
+    addContribution: ReturnType<typeof vi.fn>
+    removeContribution: ReturnType<typeof vi.fn>
   }
   let toasts: { show: ReturnType<typeof vi.fn> }
 
@@ -32,6 +35,9 @@ describe('GoalDetailStore', () => {
       projection: vi.fn(async (id: number) => aProjection({ goalId: id })),
       update: vi.fn(async (id: number, body: Partial<GoalFields>) => aGoal({ id, ...body })),
       remove: vi.fn(async () => undefined),
+      contributions: vi.fn(async () => [aContribution()]),
+      addContribution: vi.fn(async () => aContribution()),
+      removeContribution: vi.fn(async () => undefined),
     }
     toasts = { show: vi.fn() }
     TestBed.configureTestingModule({
@@ -153,5 +159,71 @@ describe('GoalDetailStore', () => {
 
     expect(await store.remove()).toBe(false)
     expect(store.status()).toBe('ready')
+  })
+
+  it('test_a_goal_without_an_account_loads_its_contributions', async () => {
+    const store = setup()
+
+    await settle()
+
+    expect(store.detail()?.contributions.map((row) => row.id)).toEqual([1])
+  })
+
+  it('test_a_goal_on_an_account_keeps_no_contributions', async () => {
+    const store = setup()
+    api.show.mockResolvedValueOnce(aGoal({ id: 7, accountId: 3 }))
+
+    await settle()
+
+    expect(store.detail()?.contributions).toEqual([])
+  })
+
+  it('test_adding_a_contribution_reloads_the_goal_and_says_so', async () => {
+    const store = setup()
+    await settle()
+
+    const result = await store.addContribution({
+      amountCents: 2_500,
+      date: '2026-10-15',
+      memo: null,
+    })
+
+    expect(result).toEqual({ ok: true, fields: {} })
+    expect(api.addContribution).toHaveBeenCalledWith(7, {
+      amountCents: 2_500,
+      date: '2026-10-15',
+      memo: null,
+    })
+    expect(toasts.show).toHaveBeenCalledWith({
+      messageKey: 'goals.contributions.toast.added',
+      status: 'good',
+    })
+    await settle()
+    expect(api.projection).toHaveBeenCalledTimes(2)
+    expect(api.contributions).toHaveBeenCalledTimes(2)
+  })
+
+  it('test_a_refused_contribution_returns_the_field_messages', async () => {
+    const store = setup()
+    await settle()
+    api.addContribution.mockRejectedValueOnce(
+      validationError({ date: 'Choose today or an earlier day' })
+    )
+
+    const result = await store.addContribution({ amountCents: 100, date: '2026-10-16', memo: null })
+
+    expect(result).toEqual({ ok: false, fields: { date: 'Choose today or an earlier day' } })
+  })
+
+  it('test_deleting_a_contribution_reloads_the_goal', async () => {
+    const store = setup()
+    await settle()
+
+    expect(await store.removeContribution(1)).toBe(true)
+
+    expect(api.removeContribution).toHaveBeenCalledWith(7, 1)
+    expect(toasts.show).toHaveBeenCalledWith({ messageKey: 'goals.contributions.toast.removed' })
+    await settle()
+    expect(api.contributions).toHaveBeenCalledTimes(2)
   })
 })

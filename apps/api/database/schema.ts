@@ -133,6 +133,27 @@ export class CategoryGroupSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class GoalContributionSchema extends BaseModel {
+  static $columns = ['amountCents', 'createdAt', 'date', 'goalId', 'householdId', 'id', 'memo', 'userId'] as const
+  $columns = GoalContributionSchema.$columns
+  @column()
+  declare amountCents: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare date: string
+  @column()
+  declare goalId: number
+  @column()
+  declare householdId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare memo: string | null
+  @column()
+  declare userId: number | null
+}
+
 export class HouseholdMemberSchema extends BaseModel {
   static $columns = ['color', 'createdAt', 'displayName', 'householdId', 'id', 'joinedAt', 'role', 'updatedAt', 'userId'] as const
   $columns = HouseholdMemberSchema.$columns
@@ -615,7 +636,7 @@ export class RecurringItemSchema extends BaseModel {
 }
 
 export class SavingsGoalSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'createdByUserId', 'householdId', 'id', 'monthlyContributionCents', 'name', 'reachedAt', 'sortOrder', 'startingCents', 'status', 'targetCents', 'targetDate', 'updatedAt', 'userId'] as const
+  static $columns = ['accountId', 'createdAt', 'createdByUserId', 'householdId', 'id', 'monthlyContributionCents', 'name', 'reachedAt', 'reachedNotifiedAt', 'sortOrder', 'startingCents', 'status', 'targetCents', 'targetDate', 'updatedAt', 'userId'] as const
   $columns = SavingsGoalSchema.$columns
   @column()
   declare accountId: number | null
@@ -633,6 +654,8 @@ export class SavingsGoalSchema extends BaseModel {
   declare name: string
   @column.dateTime()
   declare reachedAt: DateTime | null
+  @column.dateTime()
+  declare reachedNotifiedAt: DateTime | null
   @column()
   declare sortOrder: number
   @column()

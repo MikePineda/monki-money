@@ -4,6 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router'
 import { RouterTestingHarness } from '@angular/router/testing'
 import {
+  aContribution,
   aGoal,
   aProjection,
   aReachedProjection,
@@ -13,13 +14,15 @@ import {
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import { aCategoryTree } from '../../../../testing/ledger-fixtures'
 import { anAccount, aSessionStub, httpError } from '../../../../testing/session-fixtures'
-import type { Goal } from '../../../core/api/api-types'
+import type { Goal, GoalContribution } from '../../../core/api/api-types'
+import type { ContributionFields } from '../../../domain/goals'
 import { SessionStore } from '../../../core/auth/session.store'
 import { AccountsApi } from '../../../core/household/accounts.api'
 import { CategoriesApi } from '../../../core/household/categories.api'
 import { CLOCK } from '../../../core/platform/clock.token'
 import { HOUSEHOLD_TIME_ZONE } from '../../../core/platform/time-zone.token'
 import { APP_LOCALE } from '../../../shared/ui/app-locale.token'
+import { AmountKeypadHarness } from '../../../shared/ui/amount-keypad/amount-keypad.harness'
 import { TextFieldHarness } from '../../../shared/ui/text-field/text-field.harness'
 import { GoalsApi, type GoalProjection } from '../data-access/goals.api'
 import GoalDetailPage from './goal-detail.page'
@@ -33,10 +36,19 @@ describe('GoalDetailPage', () => {
     projection: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
     remove: ReturnType<typeof vi.fn>
+    contributions: ReturnType<typeof vi.fn>
+    addContribution: ReturnType<typeof vi.fn>
+    removeContribution: ReturnType<typeof vi.fn>
   }
 
   async function open(
-    options: { goal?: Goal; projection?: GoalProjection; url?: string; notFound?: boolean } = {}
+    options: {
+      goal?: Goal
+      projection?: GoalProjection
+      contributions?: GoalContribution[]
+      url?: string
+      notFound?: boolean
+    } = {}
   ) {
     const goal = options.goal ?? aGoal()
     api = {
@@ -49,6 +61,11 @@ describe('GoalDetailPage', () => {
       projection: vi.fn(async () => options.projection ?? aProjection()),
       update: vi.fn(async (_id: number, body: Partial<Goal>) => ({ ...goal, ...body })),
       remove: vi.fn(async () => undefined),
+      contributions: vi.fn(async () => options.contributions ?? []),
+      addContribution: vi.fn(async (_id: number, body: ContributionFields) =>
+        aContribution({ ...body })
+      ),
+      removeContribution: vi.fn(async () => undefined),
     }
     TestBed.configureTestingModule({
       imports: [i18nTesting()],
@@ -314,5 +331,98 @@ describe('GoalDetailPage', () => {
 
     expect(text(root, '[data-testid="goal.notFound"] h2')).toBe('This goal no longer exists')
     expect(api.show).not.toHaveBeenCalled()
+  })
+
+  it('test_a_goal_without_an_account_lists_its_contributions_newest_first', async () => {
+    const { root } = await open({
+      contributions: [
+        aContribution({ id: 2, amountCents: -5_000, date: '2026-11-02', userId: 2 }),
+        aContribution({ id: 1, memo: 'Birthday money' }),
+      ],
+    })
+
+    const rows = [...root.querySelectorAll('[data-testid="goal.contribution"]')]
+    expect(rows.map((row) => text(row, '[data-testid="goal.contribution.title"]'))).toEqual([
+      'Taken out',
+      'Birthday money',
+    ])
+    expect(rows.map((row) => text(row, '[data-testid="goal.contribution.meta"]'))).toEqual([
+      '2 Nov · Alex',
+      '3 Oct · You',
+    ])
+    expect(rows.map((row) => text(row, '[data-testid="goal.contribution.amount"]'))).toEqual([
+      '−$50.00',
+      '+$250.00',
+    ])
+    expect(
+      rows[0]?.querySelector('[data-testid="goal.contribution.delete"]')?.getAttribute('aria-label')
+    ).toBe('Delete −$50.00 from 2 Nov')
+    expect(api.contributions).toHaveBeenCalledWith(1)
+  })
+
+  it('test_a_goal_without_contributions_says_what_they_are_for', async () => {
+    const { root } = await open()
+
+    expect(text(root, '[data-testid="goal.contributions.empty"]')).toContain('Nothing logged yet')
+  })
+
+  it('test_a_goal_on_an_account_has_no_contributions', async () => {
+    const { root } = await open({
+      goal: aGoal({ accountId: 3 }),
+      contributions: [aContribution()],
+    })
+
+    expect(root.querySelector('[data-testid="goal.contributions"]')).toBeNull()
+  })
+
+  it('test_add_contribution_sends_money_taken_out_as_a_negative_amount', async () => {
+    const { harness, root } = await open()
+
+    click(root, '[data-testid="goal.contributions.add"]')
+    await harness.fixture.whenStable()
+    const loader = TestbedHarnessEnvironment.documentRootLoader(harness.fixture)
+    const direction = document.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="goals.contribution.direction"] button[role="radio"]'
+    )
+    direction[1]?.click()
+    await (await loader.getHarness(AmountKeypadHarness)).press('2', '5', '00')
+    click(document, '[data-testid="goals.contribution.save"]')
+
+    await vi.waitFor(() =>
+      expect(api.addContribution).toHaveBeenCalledWith(1, {
+        amountCents: -2_500,
+        date: '2026-11-20',
+        memo: null,
+      })
+    )
+    // The goal, its projection and its contributions come back fresh.
+    await vi.waitFor(() => expect(api.projection).toHaveBeenCalledTimes(2))
+    expect(api.contributions).toHaveBeenCalledTimes(2)
+  })
+
+  it('test_add_contribution_needs_an_amount_first', async () => {
+    const { harness, root } = await open()
+
+    click(root, '[data-testid="goal.contributions.add"]')
+    await harness.fixture.whenStable()
+    click(document, '[data-testid="goals.contribution.save"]')
+    await harness.fixture.whenStable()
+
+    expect(document.body.textContent).toContain('Enter an amount above $0.00.')
+    expect(api.addContribution).not.toHaveBeenCalled()
+  })
+
+  it('test_deleting_a_contribution_asks_first', async () => {
+    const { harness, root } = await open({ contributions: [aContribution({ id: 9 })] })
+
+    click(root, '[data-testid="goal.contribution.delete"]')
+    await harness.fixture.whenStable()
+    expect(document.querySelector('app-confirm-sheet')?.textContent).toContain(
+      'Delete $250.00 from 3 Oct?'
+    )
+    expect(api.removeContribution).not.toHaveBeenCalled()
+    click(document, '[data-testid="confirm.yes"]')
+
+    await vi.waitFor(() => expect(api.removeContribution).toHaveBeenCalledWith(1, 9))
   })
 })

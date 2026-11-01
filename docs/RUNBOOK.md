@@ -372,7 +372,7 @@ a month that old would no longer find the lock: it regenerates).
 
 ## Push notifications
 
-**What is sent.** Two Web Push notifications, both from the in-process
+**What is sent.** Three Web Push notifications, all from the in-process
 scheduler (production only, `SCHEDULER=off` stops them with the insights):
 
 - **Summary ready** (`summary-ready-push`): in the tick that writes last
@@ -392,7 +392,18 @@ scheduler (production only, `SCHEDULER=off` stops them with the insights):
   their reminder time (20:00 by default) the local day is claimed (period key `YYYY-MM-DD`, per person) and "Did you log anything
   today?" goes out only when the person created nothing that day (quick
   add, receipt, import, transfer); otherwise the day is recorded as
-  `skipped:logged-today`. No amounts, merchants or names in any payload.
+  `skipped:logged-today`.
+- **Goal reached** (`goal-reached-push`): every tick reads the active (and
+  already announced) goals with what they saved today; an active goal with
+  nothing left to save gets `savings_goals.reached_notified_at` and every
+  member with the summary switch on and a device gets "You reached {goal}",
+  opening the goal. Claimed per person and reach (period key
+  `goal-<id>@<stamp unix seconds>`); a goal short of its target again has the
+  stamp cleared, so reaching it again is announced again. Reaches older than
+  a day are no longer retried. To announce a reach again by hand, clear the
+  stamp: `UPDATE savings_goals SET reached_notified_at = NULL WHERE id = ...`.
+
+No amounts or merchants in any payload; the only name is a reached goal's.
 
 Every send has a hard 10 s deadline (`PUSH_SEND_TIMEOUT_MS`): past it the
 request is dropped and counts as a failure, so a slow push service never holds
@@ -464,7 +475,7 @@ ssh "$MONKIMONEY_SSH_HOST" 'docker exec $(docker ps -q -f name=monkimoney-web | 
 ```bash
 ssh "$MONKIMONEY_SSH_HOST" 'docker exec -i $(docker ps -q -f name=monkimoney-db) psql -U monkimoney -d monkimoney' <<'SQL'
 SELECT job, period_key, household_id, user_id, attempts, outcome, error, finished_at
-  FROM scheduler_runs WHERE job IN ('summary-ready-push', 'daily-reminder')
+  FROM scheduler_runs WHERE job IN ('summary-ready-push', 'daily-reminder', 'goal-reached-push')
   ORDER BY started_at DESC LIMIT 20;
 SELECT id, household_id, user_id, user_agent, failures, last_used_at
   FROM push_subscriptions ORDER BY id;

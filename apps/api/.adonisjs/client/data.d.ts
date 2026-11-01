@@ -10,6 +10,7 @@ import type AccountTransformer from '#transformers/account_transformer'
 import type CategoryGroupTransformer from '#transformers/category_group_transformer'
 import type CategoryTransformer from '#transformers/category_transformer'
 import type CategoryTreeTransformer from '#transformers/category_tree_transformer'
+import type GoalContributionTransformer from '#transformers/goal_contribution_transformer'
 import type GoalTransformer from '#transformers/goal_transformer'
 import type HouseholdTransformer from '#transformers/household_transformer'
 import type ImportBatchDetailTransformer from '#transformers/import_batch_detail_transformer'
@@ -51,6 +52,10 @@ export namespace Data {
   export type CategoryTree = InferData<CategoryTreeTransformer>
   export namespace CategoryTree {
     export type Variants = InferVariants<CategoryTreeTransformer>
+  }
+  export type GoalContribution = InferData<GoalContributionTransformer>
+  export namespace GoalContribution {
+    export type Variants = InferVariants<GoalContributionTransformer>
   }
   export type Goal = InferData<GoalTransformer>
   export namespace Goal {
