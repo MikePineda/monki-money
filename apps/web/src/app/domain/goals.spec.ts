@@ -1,7 +1,10 @@
 import {
   EMPTY_GOAL_DRAFT,
+  contributionPayload,
+  contributionProblems,
   draftFromGoal,
   draftProblems,
+  emptyContributionDraft,
   goalOutlook,
   goalPayload,
   openEndedReason,
@@ -278,5 +281,49 @@ describe('projection facts', () => {
       '3 nov 2026'
     )
     expect(reachedOnText(null, 'en-AU', brisbane, new Date())).toBeNull()
+  })
+})
+
+describe('contribution drafts', () => {
+  const TODAY = '2026-10-15'
+
+  it('test_a_new_contribution_puts_money_in_today', () => {
+    expect(emptyContributionDraft(TODAY)).toEqual({
+      direction: 'in',
+      amountCents: 0,
+      date: TODAY,
+      memo: '',
+    })
+  })
+
+  it('test_money_taken_out_is_sent_as_a_negative_amount', () => {
+    const draft = { direction: 'out', amountCents: 2_500, date: '2026-10-01', memo: '' } as const
+
+    expect(contributionPayload(draft)).toEqual({
+      amountCents: -2_500,
+      date: '2026-10-01',
+      memo: null,
+    })
+  })
+
+  it('test_the_memo_is_trimmed_and_money_in_stays_positive', () => {
+    const draft = { direction: 'in', amountCents: 2_500, date: TODAY, memo: '  Cash jar ' } as const
+
+    expect(contributionPayload(draft)).toEqual({
+      amountCents: 2_500,
+      date: TODAY,
+      memo: 'Cash jar',
+    })
+  })
+
+  it('test_a_contribution_needs_an_amount_and_a_day_up_to_today', () => {
+    const draft = emptyContributionDraft(TODAY)
+
+    expect(contributionProblems(draft, TODAY)).toEqual(['amountCents'])
+    expect(contributionProblems({ ...draft, amountCents: 100 }, TODAY)).toEqual([])
+    expect(contributionProblems({ ...draft, amountCents: 100, date: '2026-10-16' }, TODAY)).toEqual(
+      ['date']
+    )
+    expect(contributionProblems({ ...draft, amountCents: 100, date: '' }, TODAY)).toEqual(['date'])
   })
 })

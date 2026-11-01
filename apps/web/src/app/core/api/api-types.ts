@@ -22,6 +22,8 @@ export type Transfer = Data.Transfer
 export type Goal = Data.Goal
 /** `GET /goals?include=projection`: a goal and its projection (null when none was computed). */
 export type GoalWithProjection = Data.Goal.Variants['withProjection']
+/** Money put into (positive) or taken out of (negative) a goal without an account. */
+export type GoalContribution = Data.GoalContribution
 /** A payout recorded as its gross and deductions, linked to the transfer of the net. */
 export type Payslip = Data.Payslip
 /** The LLM-written summary of a month, in the reader's language. */

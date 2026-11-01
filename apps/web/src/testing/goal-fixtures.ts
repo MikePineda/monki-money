@@ -1,4 +1,4 @@
-import type { Goal, GoalWithProjection } from '../app/core/api/api-types'
+import type { Goal, GoalContribution, GoalWithProjection } from '../app/core/api/api-types'
 import type { GoalProjection } from '../app/features/goals/data-access/goals.api'
 
 /** A synthetic savings goal of the household ($1,200 saved of $5,000, no date). */
@@ -19,6 +19,20 @@ export function aGoal(overrides: Partial<Goal> = {}): Goal {
     updatedAt: '2026-10-01T00:00:00.000Z',
     ...overrides,
   } as Goal
+}
+
+/** $250 put into goal 1 on 3 Oct 2026 by the owner (user 1), no note. */
+export function aContribution(overrides: Partial<GoalContribution> = {}): GoalContribution {
+  return {
+    id: 1,
+    goalId: 1,
+    userId: 1,
+    amountCents: 25_000,
+    date: '2026-10-03',
+    memo: null,
+    createdAt: '2026-10-03T00:00:00.000Z',
+    ...overrides,
+  } as GoalContribution
 }
 
 /**

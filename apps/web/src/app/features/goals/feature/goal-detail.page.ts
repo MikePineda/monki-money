@@ -10,6 +10,7 @@ import {
 } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco'
+import type { GoalContribution } from '../../../core/api/api-types'
 import { HouseholdDirectory } from '../../../core/household/household-directory.store'
 import { MembersStore } from '../../../core/household/members.store'
 import { CLOCK } from '../../../core/platform/clock.token'
@@ -26,11 +27,13 @@ import {
   reachedOnText,
   readyToMarkReached,
   targetPace,
+  type ContributionFields,
   type GoalDraft,
   type GoalStatus,
 } from '../../../domain/goals'
+import { formatShortDay } from '../../../domain/dates'
 import { formatMoney } from '../../../domain/money'
-import { label as monthLabel, monthOf } from '../../../domain/month'
+import { label as monthLabel, monthOf, todayIn } from '../../../domain/month'
 import { ChartFrameComponent } from '../../../shared/charts/chart-frame/chart-frame.component'
 import { ProjectionChartComponent } from '../../../shared/charts/projection-chart/projection-chart.component'
 import { IconComponent } from '../../../shared/icons/icon.component'
@@ -40,6 +43,7 @@ import { BannerComponent } from '../../../shared/ui/banner/banner.component'
 import { BottomSheetService } from '../../../shared/ui/bottom-sheet/bottom-sheet.service'
 import { ButtonComponent } from '../../../shared/ui/button/button.component'
 import { CardComponent } from '../../../shared/ui/card/card.component'
+import { openConfirmSheet } from '../../../shared/ui/confirm-sheet/confirm-sheet.component'
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component'
 import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component'
 import { ProgressTrackComponent } from '../../../shared/ui/progress-track/progress-track.component'
@@ -48,9 +52,14 @@ import { STATUS_ICON, STATUS_TEXT_CLASS } from '../../../shared/ui/status-icon'
 import { GoalDetailStore } from '../goal-detail.store'
 import { provideGoalsScope } from '../goals.scope'
 import {
+  AddContributionSheetComponent,
+  type AddContributionSheetData,
+} from '../ui/add-contribution-sheet.component'
+import {
   DeleteGoalSheetComponent,
   type DeleteGoalSheetData,
 } from '../ui/delete-goal-sheet.component'
+import { GoalContributionsComponent } from '../ui/goal-contributions.component'
 import { GoalFormComponent, type GoalKeypad } from '../ui/goal-form.component'
 import { GoalStatComponent } from '../ui/goal-stat.component'
 
@@ -64,6 +73,17 @@ import { GoalStatComponent } from '../ui/goal-stat.component'
  * t(goals.detail.openEnded.tooSlow, goals.detail.stats.none, goals.card.reached)
  */
 const STAT_KEYS = ['detail.stats.none', 'card.reached']
+/**
+ * t(goals.contributions.delete.title, goals.contributions.delete.body)
+ * t(goals.contributions.delete.confirm, goals.contributions.delete.cancel, goals.owner.you)
+ */
+const DELETE_KEYS = [
+  'contributions.delete.title',
+  'contributions.delete.body',
+  'contributions.delete.confirm',
+  'contributions.delete.cancel',
+]
+const YOU_KEY = 'owner.you'
 
 /**
  * One goal `/goals/:id`: the hero (saved of target, what is left, the
@@ -75,7 +95,10 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
  * per month when behind), and the actions: edit, mark as reached (or
  * active again), archive or restore, delete with a confirmation. An active
  * goal with nothing left to save leads with "Mark as reached"; a goal with
- * no usable rate says why honestly and offers to set a contribution.
+ * no usable rate says why honestly and offers to set a contribution. A goal
+ * without an account lists its contributions, with "Add contribution" (a
+ * sheet: money in or out, amount, day, note) and a confirmed delete per row;
+ * they are what fills its chart's months.
  */
 @Component({
   selector: 'app-goal-detail-page',
@@ -86,6 +109,7 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
     CardComponent,
     ChartFrameComponent,
     EmptyStateComponent,
+    GoalContributionsComponent,
     GoalFormComponent,
     GoalStatComponent,
     IconButtonComponent,
@@ -334,6 +358,18 @@ const STAT_KEYS = ['detail.stats.none', 'card.reached']
                 }
               </section>
 
+              @if (current.goal.accountId === null) {
+                <app-goal-contributions
+                  class="border-b border-line pb-6"
+                  [contributions]="current.contributions"
+                  [today]="today()"
+                  [names]="names()"
+                  [busy]="store.busy()"
+                  (add)="addContribution()"
+                  (remove)="removeContribution($event)"
+                />
+              }
+
               <section
                 data-testid="goal.actions"
                 class="flex flex-col gap-2"
@@ -433,6 +469,11 @@ export default class GoalDetailPage {
   protected readonly errors = signal<Record<string, string>>({})
 
   private readonly statWords = translateSignal(STAT_KEYS)
+  private readonly deleteWords = translateSignal(DELETE_KEYS, {
+    amount: '{amount}',
+    date: '{date}',
+  })
+  private readonly youWord = translateSignal(YOU_KEY)
 
   private readonly numericId = computed(() => {
     const id = Number(this.id())
@@ -443,6 +484,17 @@ export default class GoalDetailPage {
   )
   protected readonly detail = this.store.detail
   protected readonly partnerName = computed(() => this.members.partner()?.name ?? null)
+  /** The household's day, for the contributions' dates. */
+  protected readonly today = computed(() => todayIn(this.timeZone(), this.clock()))
+  /** Who logged each contribution: "You" or the partner's first name. */
+  protected readonly names = computed(
+    () =>
+      new Map<number, string>(
+        this.members
+          .people()
+          .map((person) => [person.userId, person.isYou ? this.youWord() : person.name])
+      )
+  )
 
   private readonly projection = computed(() => this.detail()?.projection)
   protected readonly outlook = computed(() => {
@@ -560,6 +612,36 @@ export default class GoalDetailPage {
 
   protected setStatus(status: GoalStatus): void {
     void this.store.setStatus(status)
+  }
+
+  protected addContribution(): void {
+    this.sheets
+      .open<ContributionFields, AddContributionSheetData>(AddContributionSheetComponent, {
+        data: { today: this.today() },
+        injector: this.injector,
+      })
+      .closed.subscribe((body) => {
+        if (body) {
+          void this.store.addContribution(body)
+        }
+      })
+  }
+
+  protected removeContribution(contribution: GoalContribution): void {
+    const amount = formatMoney(contribution.amountCents, this.locale())
+    const date = formatShortDay(contribution.date, this.locale(), this.today())
+    const [title = '', body = '', confirmLabel = '', cancelLabel = ''] = this.deleteWords()
+    openConfirmSheet(this.sheets, {
+      title: title.replace('{amount}', amount).replace('{date}', date),
+      body,
+      confirmLabel,
+      cancelLabel,
+      destructive: true,
+    }).subscribe((confirmed) => {
+      if (confirmed) {
+        void this.store.removeContribution(contribution.id)
+      }
+    })
   }
 
   protected remove(): void {
