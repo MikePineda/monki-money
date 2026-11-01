@@ -48,7 +48,9 @@ export default class PushSubscriptionService {
   /**
    * Upsert by endpoint for `user`: new keys, user agent and current
    * household on an endpoint they registered before (also from a household
-   * they left), or a new row. 404 when the endpoint is someone else's.
+   * they left), or a new row. Either way the device is seen now
+   * (`last_seen_at`; `last_used_at` stays the last delivered push). 404
+   * when the endpoint is someone else's.
    */
   async subscribe(
     household: Household,
@@ -72,7 +74,8 @@ export default class PushSubscriptionService {
       if (existing && existing.userId !== user.id) throw new PushSubscriptionNotFound()
       if (existing) {
         // A refresh counts as recent for the device cap, even when nothing else changed.
-        await existing.merge({ ...values, failures: 0, updatedAt: DateTime.now() }).save()
+        const now = DateTime.now()
+        await existing.merge({ ...values, failures: 0, lastSeenAt: now, updatedAt: now }).save()
         return { subscription: existing, created: false }
       }
 
@@ -88,6 +91,7 @@ export default class PushSubscriptionService {
           auth: values.auth,
           user_agent: values.userAgent,
           failures: 0,
+          last_seen_at: new Date(),
           created_at: new Date(),
           updated_at: new Date(),
         })

@@ -545,7 +545,7 @@ export class PayslipSchema extends BaseModel {
 }
 
 export class PushSubscriptionSchema extends BaseModel {
-  static $columns = ['auth', 'createdAt', 'endpoint', 'failures', 'householdId', 'id', 'lastUsedAt', 'p256Dh', 'updatedAt', 'userAgent', 'userId'] as const
+  static $columns = ['auth', 'createdAt', 'endpoint', 'failures', 'householdId', 'id', 'lastSeenAt', 'lastUsedAt', 'p256Dh', 'updatedAt', 'userAgent', 'userId'] as const
   $columns = PushSubscriptionSchema.$columns
   @column()
   declare auth: string
@@ -559,6 +559,8 @@ export class PushSubscriptionSchema extends BaseModel {
   declare householdId: number | null
   @column({ isPrimary: true })
   declare id: number
+  @column.dateTime()
+  declare lastSeenAt: DateTime | null
   @column.dateTime()
   declare lastUsedAt: DateTime | null
   @column({ columnName: 'p256dh' })

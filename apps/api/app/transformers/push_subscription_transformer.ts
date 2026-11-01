@@ -13,6 +13,7 @@ export default class PushSubscriptionTransformer extends BaseTransformer<PushSub
       endpoint: this.resource.endpoint,
       userAgent: this.resource.userAgent,
       lastUsedAt: isoTimestamp(this.resource.lastUsedAt),
+      lastSeenAt: isoTimestamp(this.resource.lastSeenAt),
       createdAt: isoTimestamp(this.resource.createdAt)!,
     }
   }

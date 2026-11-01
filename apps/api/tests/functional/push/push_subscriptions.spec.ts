@@ -6,6 +6,7 @@ import { MAX_DEVICES_PER_PERSON } from '#services/push/push_subscription_service
 import PushSubscription from '#models/push_subscription'
 import { createHousehold } from '#tests/helpers/household'
 import { aBrowserSubscription, anEndpoint, subscribeDevice } from '#tests/helpers/push'
+import { BACKFILL_LAST_SEEN_AT } from '#database/migrations/1792060000068_add_last_seen_at_to_push_subscriptions_table'
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15'
 
@@ -279,7 +280,8 @@ test.group('Push subscriptions', () => {
     const { household, owner, member } = await createHousehold({ users: 2 })
     const phone = await subscribeDevice(owner, household, { userAgent: IPHONE })
     const lastUse = DateTime.fromISO('2026-10-20T20:00:00Z')
-    await phone.merge({ lastUsedAt: lastUse }).save()
+    const lastSeen = DateTime.fromISO('2026-10-21T08:30:00Z')
+    await phone.merge({ lastUsedAt: lastUse, lastSeenAt: lastSeen }).save()
     const laptop = await subscribeDevice(owner, household, { userAgent: null })
     await subscribeDevice(member, household)
 
@@ -293,16 +295,18 @@ test.group('Push subscriptions', () => {
         device.browser,
         device.platform,
         device.lastUsedAt,
+        device.lastSeenAt,
       ]),
       [
-        [phone.id, 'Safari', 'iPhone', '2026-10-20T20:00:00.000Z'],
-        [laptop.id, null, null, null],
+        [phone.id, 'Safari', 'iPhone', '2026-10-20T20:00:00.000Z', '2026-10-21T08:30:00.000Z'],
+        [laptop.id, null, null, null, null],
       ]
     )
     assert.deepEqual(Object.keys(devices[0]).sort(), [
       'browser',
       'createdAt',
       'id',
+      'lastSeenAt',
       'lastUsedAt',
       'platform',
     ])
@@ -335,6 +339,69 @@ test.group('Push subscriptions', () => {
 
     const again = await client.delete(`/api/v1/push/subscriptions/${oldPhone.id}`).actingAs(owner)
     again.assertStatus(404)
+  })
+
+  test('test_a_freshly_registered_device_is_seen_now_but_never_used_yet', async ({
+    client,
+    assert,
+  }) => {
+    const { owner } = await createHousehold()
+    const before = DateTime.now().minus({ seconds: 1 })
+
+    const response = await client
+      .post('/api/v1/push/subscriptions')
+      .json(aBrowserSubscription())
+      .actingAs(owner)
+    const list = await client.get('/api/v1/push/subscriptions').actingAs(owner)
+
+    response.assertStatus(201)
+    assert.isNull(response.body().data.lastUsedAt)
+    const [device] = list.body().data
+    assert.isNull(device.lastUsedAt)
+    assert.isString(device.lastSeenAt)
+    assert.isAtLeast(DateTime.fromISO(device.lastSeenAt).toMillis(), before.toMillis())
+    assert.equal(response.body().data.lastSeenAt, device.lastSeenAt)
+  })
+
+  test('test_registering_again_refreshes_last_seen_and_keeps_last_used', async ({
+    client,
+    assert,
+  }) => {
+    const { household, owner } = await createHousehold()
+    const existing = await subscribeDevice(owner, household)
+    const lastUse = DateTime.fromISO('2026-10-20T20:00:00Z')
+    const longAgo = DateTime.fromISO('2026-09-01T00:00:00Z')
+    await existing.merge({ lastUsedAt: lastUse, lastSeenAt: longAgo }).save()
+    const before = DateTime.now().minus({ seconds: 1 })
+
+    const response = await client
+      .post('/api/v1/push/subscriptions')
+      .json(aBrowserSubscription(existing.endpoint))
+      .actingAs(owner)
+
+    response.assertStatus(200)
+    await existing.refresh()
+    assert.equal(existing.lastUsedAt?.toMillis(), lastUse.toMillis())
+    assert.isAtLeast(existing.lastSeenAt!.toMillis(), before.toMillis())
+  })
+
+  test('test_the_backfill_counts_a_device_as_seen_when_it_last_registered', async ({
+    assert,
+  }) => {
+    const { household, owner } = await createHousehold()
+    const old = await subscribeDevice(owner, household)
+    const registeredAt = '2026-08-15T10:00:00.000Z'
+    await db.from('push_subscriptions').where('id', old.id).update({ updated_at: registeredAt })
+    const seen = await subscribeDevice(owner, household)
+    const seenAt = DateTime.fromISO('2026-10-30T09:00:00Z')
+    await seen.merge({ lastSeenAt: seenAt }).save()
+
+    await db.rawQuery(BACKFILL_LAST_SEEN_AT)
+
+    await old.refresh()
+    await seen.refresh()
+    assert.equal(old.lastSeenAt?.toISO(), DateTime.fromISO(registeredAt).toISO())
+    assert.equal(seen.lastSeenAt?.toMillis(), seenAt.toMillis(), 'never re-stamped')
   })
 
   test('test_subscribing_needs_a_signed_in_person', async ({ client }) => {

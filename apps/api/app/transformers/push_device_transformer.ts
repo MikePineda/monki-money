@@ -4,8 +4,9 @@ import { deviceLabel } from '#domain/push/device_label'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 
 /**
- * One of the person's push devices as Settings lists it: what it is and
- * when it last got a notification. Never the endpoint (a capability URL)
+ * One of the person's push devices as Settings lists it: what it is, when
+ * it last got a notification (`lastUsedAt`) and when it last registered
+ * (`lastSeenAt`). Never the endpoint (a capability URL)
  * nor the keys.
  */
 export default class PushDeviceTransformer extends BaseTransformer<PushSubscription> {
@@ -16,6 +17,7 @@ export default class PushDeviceTransformer extends BaseTransformer<PushSubscript
       browser,
       platform,
       lastUsedAt: isoTimestamp(this.resource.lastUsedAt),
+      lastSeenAt: isoTimestamp(this.resource.lastSeenAt),
       createdAt: isoTimestamp(this.resource.createdAt)!,
     }
   }
