@@ -44,6 +44,11 @@ export const invitationParamsValidator = vine.create({
   params: idParams(),
 })
 
+/** `DELETE /household/linked-holders/:id`: one (holder, account) pair. */
+export const linkedHolderParamsValidator = vine.create({
+  params: idParams(),
+})
+
 /** Public invitation routes: the token from the link. */
 export const invitationTokenValidator = vine.create({
   params: vine.object({ token: vine.string().trim().minLength(20).maxLength(128) }),

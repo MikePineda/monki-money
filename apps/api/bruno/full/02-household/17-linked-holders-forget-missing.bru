@@ -1,0 +1,22 @@
+meta {
+  name: Forget a linked holder pair that is not ours
+  type: http
+  seq: 17
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/household/linked-holders/999999999
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 404
+}
+
+docs {
+  `household.linkedHolders.destroy` (any member): forgets one (holder, account)
+  pair by the `accounts[].id` of the list → 204; the holder's next transfers
+  no longer count that account. Another household's or a missing id answers
+  404, never 403.
+}

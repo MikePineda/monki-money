@@ -36,6 +36,8 @@ export type ScannedRoutes = {
     'household.invitations.store': { paramsTuple?: []; params?: {} }
     'household.invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'household.invitations.resend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'household.linkedHolders.index': { paramsTuple?: []; params?: {} }
+    'household.linkedHolders.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'accounts.index': { paramsTuple?: []; params?: {} }
     'accounts.store': { paramsTuple?: []; params?: {} }
     'accounts.reorder': { paramsTuple?: []; params?: {} }
@@ -126,6 +128,7 @@ export type ScannedRoutes = {
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
     'household.invitations.index': { paramsTuple?: []; params?: {} }
+    'household.linkedHolders.index': { paramsTuple?: []; params?: {} }
     'accounts.index': { paramsTuple?: []; params?: {} }
     'accounts.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'category_groups.index': { paramsTuple?: []; params?: {} }
@@ -165,6 +168,7 @@ export type ScannedRoutes = {
     'household.members': { paramsTuple?: []; params?: {} }
     'household.export': { paramsTuple?: []; params?: {} }
     'household.invitations.index': { paramsTuple?: []; params?: {} }
+    'household.linkedHolders.index': { paramsTuple?: []; params?: {} }
     'accounts.index': { paramsTuple?: []; params?: {} }
     'accounts.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'category_groups.index': { paramsTuple?: []; params?: {} }
@@ -254,6 +258,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'household.invitations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'household.linkedHolders.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'accounts.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'accounts.cards.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'cardId': ParamValue} }
     'category_groups.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

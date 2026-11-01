@@ -19,24 +19,24 @@ The tiers are the two top-level folders. `bru run <folder>` selects one;
 
 `full/` has one folder per resource, in dependency order:
 
-| Folder            | Requests | Routes                                                                                                              |
-| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
-| `01-session`      | 12       | config (run setup), login, me, sign-up, forgot password, email verify/code/resend, profile, notification settings   |
-| `02-household`    | 14       | household show/update/members, invitations, export (JSON and CSV), refusals of create/leave/transfer/delete/restore |
-| `03-accounts`     | 8        | accounts CRUD, reorder, cards (two accounts kept for the run: A everyday, B wallet)                                 |
-| `04-categories`   | 10       | categories and groups CRUD and reorder (and the taxonomy ids later folders use)                                     |
-| `05-transactions` | 11       | create (and its `clientId` replay), quick add, suggestions, list filters, show, update, splits, bulk categorize     |
-| `06-transfers`    | 3        | create, show, update                                                                                                |
-| `07-payslips`     | 6        | create (with the transfer of the net), list, candidates, delete, the transfer's delete                              |
-| `08-reports`      | 4        | month, trend, category, balances                                                                                    |
-| `09-tags`         | 2        | list, show                                                                                                          |
-| `10-goals`        | 7        | goals CRUD, projection, reorder                                                                                     |
-| `11-insights`     | 2        | generate, show (fake LLM in the E2E stack; 503 without an LLM)                                                      |
-| `12-imports`      | 10       | upload a synthetic NAB CSV, list, show, decide a row, bulk undo, classify, cancel, upload again, confirm            |
-| `13-rules`        | 5        | rules CRUD, apply                                                                                                   |
-| `14-recurring`    | 6        | list, merchants, create, update, detect, delete                                                                     |
-| `15-devices`      | 6        | uploads presign, receipt scan (404: nothing uploaded), push subscribe twice, unsubscribe twice                      |
-| `99-teardown`     | 8        | deletes the run's rows and accounts, `logout-all`, then `me` answers 401                                            |
+| Folder            | Requests | Routes                                                                                                                                          |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `01-session`      | 12       | config (run setup), login, me, sign-up, forgot password, email verify/code/resend, profile, notification settings                               |
+| `02-household`    | 17       | household show/update/members, invitations, export (JSON and CSV), refusals of create/leave/transfer/delete/restore, onboarding, linked holders |
+| `03-accounts`     | 8        | accounts CRUD, reorder, cards (two accounts kept for the run: A everyday, B wallet)                                                             |
+| `04-categories`   | 10       | categories and groups CRUD and reorder (and the taxonomy ids later folders use)                                                                 |
+| `05-transactions` | 11       | create (and its `clientId` replay), quick add, suggestions, list filters, show, update, splits, bulk categorize                                 |
+| `06-transfers`    | 3        | create, show, update                                                                                                                            |
+| `07-payslips`     | 6        | create (with the transfer of the net), list, candidates, delete, the transfer's delete                                                          |
+| `08-reports`      | 4        | month, trend, category, balances                                                                                                                |
+| `09-tags`         | 2        | list, show                                                                                                                                      |
+| `10-goals`        | 7        | goals CRUD, projection, reorder                                                                                                                 |
+| `11-insights`     | 2        | generate, show (fake LLM in the E2E stack; 503 without an LLM)                                                                                  |
+| `12-imports`      | 10       | upload a synthetic NAB CSV, list, show, decide a row, bulk undo, classify, cancel, upload again, confirm                                        |
+| `13-rules`        | 5        | rules CRUD, apply                                                                                                                               |
+| `14-recurring`    | 6        | list, merchants, create, update, detect, delete                                                                                                 |
+| `15-devices`      | 6        | uploads presign, receipt scan (404: nothing uploaded), push subscribe twice, unsubscribe twice                                                  |
+| `99-teardown`     | 8        | deletes the run's rows and accounts, `logout-all`, then `me` answers 401                                                                        |
 
 ### Run it
 

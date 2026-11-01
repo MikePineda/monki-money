@@ -57,6 +57,10 @@ export interface ApiDefinition {
       destroy: typeof routes['household.invitations.destroy']
       resend: typeof routes['household.invitations.resend']
     }
+    linkedHolders: {
+      index: typeof routes['household.linkedHolders.index']
+      destroy: typeof routes['household.linkedHolders.destroy']
+    }
   }
   accounts: {
     index: typeof routes['accounts.index']

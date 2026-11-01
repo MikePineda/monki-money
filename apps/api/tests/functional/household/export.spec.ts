@@ -16,6 +16,7 @@ import { categoryBySlug } from '#tests/helpers/ledger'
 import { csvLines, download, unzip } from '#tests/helpers/zip'
 import { createHousehold, type TestHousehold } from '#tests/helpers/household'
 import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
+import LinkedHolderAccount from '#models/linked_holder_account'
 import { TransactionFactory, TransferFactory } from '#database/factories/transaction_factory'
 
 /** JSON key of every table in the export, with its file in the CSV zip. */
@@ -38,6 +39,7 @@ const TABLES = {
   monthlyInsights: 'monthly_insights.csv',
   llmUsage: 'llm_usage.csv',
   ownershipTransfers: 'ownership_transfers.csv',
+  linkedHolders: 'linked_holders.csv',
 } as const
 
 type TableName = keyof typeof TABLES
@@ -249,6 +251,14 @@ async function everything(fixture: TestHousehold) {
     toUserId: owner.id,
   })
 
+  await LinkedHolderAccount.create({
+    householdId: household.id,
+    holderKey: 'linked acc trns morrow aj',
+    accountId: savings.id,
+    confirmedCount: 4,
+    lastConfirmedAt: DateTime.fromISO('2026-09-22T10:00:00Z'),
+  })
+
   return { split, plain, payslip, batch }
 }
 
@@ -305,6 +315,7 @@ async function expectedCounts(householdId: number): Promise<Record<TableName, nu
     monthlyInsights: await countIn('monthly_insights', householdId),
     llmUsage: Number(months.count),
     ownershipTransfers: await countIn('household_ownership_transfers', householdId),
+    linkedHolders: await countIn('linked_holder_accounts', householdId),
   }
 }
 
@@ -461,6 +472,20 @@ test.group('Household / export', (group) => {
       },
     ])
     assert.include(body.ownershipTransfers[0], { toUserId: owner.id })
+    assert.deepEqual(Object.keys(body.linkedHolders[0]), [
+      'id',
+      'holderKey',
+      'accountId',
+      'confirmedCount',
+      'lastConfirmedAt',
+      'createdAt',
+    ])
+    assert.include(body.linkedHolders[0], {
+      holderKey: 'linked acc trns morrow aj',
+      accountId: accounts[1].id,
+      confirmedCount: 4,
+      lastConfirmedAt: '2026-09-22T10:00:00.000Z',
+    })
     assert.equal(body.household.timezone, household.timezone)
   })
 

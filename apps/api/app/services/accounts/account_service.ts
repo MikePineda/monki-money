@@ -3,6 +3,7 @@ import Account from '#models/account'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import AccountCard from '#models/account_card'
+import ImportBatch from '#models/import_batch'
 import type Household from '#models/household'
 import { entitlementsFor } from '#config/plans'
 import { AccountInUse, AccountLimitReached } from '#exceptions/errors'
@@ -11,6 +12,7 @@ import { findInHousehold } from '#repositories/scoped'
 import AccountUsage from '#services/accounts/account_usage'
 import { nextSortOrder, reorder } from '#services/sort_order'
 import AccountBalances from '#services/accounts/account_balances'
+import ImportArchive from '#services/imports/import_archive'
 import { assertMemberOf } from '#services/households/membership_lookup'
 import type { AddCardInput, CreateAccountInput, UpdateAccountInput } from '#services/accounts/dto'
 
@@ -23,7 +25,8 @@ import type { AddCardInput, CreateAccountInput, UpdateAccountInput } from '#serv
 export default class AccountService {
   constructor(
     protected usage: AccountUsage,
-    protected balances: AccountBalances
+    protected balances: AccountBalances,
+    protected archive: ImportArchive
   ) {}
 
   async list(household: Household) {
@@ -77,17 +80,26 @@ export default class AccountService {
    * Locks the account, counts what references it and deletes it in one DB
    * transaction: a ledger row being saved at the same time either commits
    * first (and is counted: 409) or waits and then fails its own FK check.
+   * Its import batches go with it (FK cascade); once that commits, so do
+   * their archived CSVs (best effort: one the bucket keeps is left for
+   * `node ace storage:sweep-imports`).
    */
   async delete(household: Household, accountId: number) {
-    await db.transaction(async (trx) => {
+    const archived = await db.transaction(async (trx) => {
       const account = await Account.query({ client: trx })
         .where('household_id', household.id)
         .where('id', accountId)
         .forUpdate()
         .firstOrFail()
       if ((await this.usage.referenceCount(account, trx)) > 0) throw new AccountInUse()
+      const batches = await ImportBatch.query({ client: trx })
+        .where('account_id', account.id)
+        .whereNotNull('file_path')
+        .select('file_path')
       await account.delete()
+      return batches.map((batch) => batch.filePath!)
     })
+    await this.archive.discard(archived)
   }
 
   async reorder(household: Household, ids: number[]) {

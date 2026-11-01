@@ -25,6 +25,8 @@ assert {
   res.status: eq 201
   res.body.data.id: isNumber
   res.body.data.endpoint: eq https://fcm.googleapis.com/fcm/send/bruno-{{runId}}
+  res.body.data.lastUsedAt: isNull
+  res.body.data.lastSeenAt: isString
 }
 
 tests {
@@ -36,5 +38,6 @@ tests {
 docs {
   `push.subscriptions.store`: `PushSubscription.toJSON()` of the browser
   (`endpoint` on an allowed push host, `keys.p256dh` 65 bytes, `keys.auth` 16)
-  → 201 `PushSubscription` (never the keys).
+  → 201 `PushSubscription` (never the keys): seen now (`lastSeenAt`), no
+  push delivered yet (`lastUsedAt` null).
 }

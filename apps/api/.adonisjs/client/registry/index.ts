@@ -198,6 +198,18 @@ const routes = {
     tokens: [{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"api","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"v1","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"household","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"invitations","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":1,"val":"id","end":""},{"old":"/api/v1/household/invitations/:id/resend","type":0,"val":"resend","end":""}],
     types: placeholder as Registry['household.invitations.resend']['types'],
   },
+  'household.linkedHolders.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/household/linked-holders',
+    tokens: [{"old":"/api/v1/household/linked-holders","type":0,"val":"api","end":""},{"old":"/api/v1/household/linked-holders","type":0,"val":"v1","end":""},{"old":"/api/v1/household/linked-holders","type":0,"val":"household","end":""},{"old":"/api/v1/household/linked-holders","type":0,"val":"linked-holders","end":""}],
+    types: placeholder as Registry['household.linkedHolders.index']['types'],
+  },
+  'household.linkedHolders.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/household/linked-holders/:id',
+    tokens: [{"old":"/api/v1/household/linked-holders/:id","type":0,"val":"api","end":""},{"old":"/api/v1/household/linked-holders/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/household/linked-holders/:id","type":0,"val":"household","end":""},{"old":"/api/v1/household/linked-holders/:id","type":0,"val":"linked-holders","end":""},{"old":"/api/v1/household/linked-holders/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['household.linkedHolders.destroy']['types'],
+  },
   'accounts.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/accounts',

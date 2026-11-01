@@ -17,6 +17,7 @@ import HouseholdMember from '#models/household_member'
 import TransactionSplit from '#models/transaction_split'
 import { isoTimestamp } from '#domain/time/iso_timestamp'
 import { isHiddenFrom, type PrivacyViewer } from '#domain/ledger/privacy'
+import LinkedHolderAccount from '#models/linked_holder_account'
 import HouseholdOwnershipTransfer from '#models/household_ownership_transfer'
 
 /**
@@ -863,6 +864,30 @@ export function exportTables(
             fromUserId: transfer.fromUserId,
             toUserId: transfer.toUserId,
             createdAt: isoTimestamp(transfer.createdAt),
+          })
+        )
+    ),
+
+    table(
+      'linkedHolders',
+      'linked_holders.csv',
+      ['id', 'holderKey', 'accountId', 'confirmedCount', 'lastConfirmedAt', 'createdAt'],
+      () =>
+        keyset(
+          pageSize,
+          (afterId, limit) =>
+            LinkedHolderAccount.query()
+              .withScopes((scopes) => scopes.forHousehold(household))
+              .where('id', '>', afterId)
+              .orderBy('id')
+              .limit(limit),
+          (pair) => ({
+            id: pair.id,
+            holderKey: pair.holderKey,
+            accountId: pair.accountId,
+            confirmedCount: pair.confirmedCount,
+            lastConfirmedAt: isoTimestamp(pair.lastConfirmedAt),
+            createdAt: isoTimestamp(pair.createdAt),
           })
         )
     ),
