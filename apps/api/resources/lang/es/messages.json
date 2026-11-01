@@ -50,6 +50,10 @@
       "title": "Tu resumen de {month} está listo",
       "body": "Mira en un minuto cómo te fue en {month}."
     },
+    "goalReached": {
+      "title": "Llegaste a tu meta: {goal}",
+      "body": "Ya no falta nada por ahorrar. Ábrela para marcarla como alcanzada."
+    },
     "dailyReminder": {
       "title": "¿Registraste algo hoy?",
       "body": "Un registro rápido ahora mantiene el mes al día."

@@ -178,7 +178,10 @@ test.group('Goal contributions', (group) => {
     async function homeWith(count: number) {
       const home = await createHousehold()
       for (let index = 0; index < count; index++) {
-        const goal = await manualGoal(home.household.id, { name: `Goal ${index}`, sortOrder: index })
+        const goal = await manualGoal(home.household.id, {
+          name: `Goal ${index}`,
+          sortOrder: index,
+        })
         await contribute(goal, home.owner.id, 1_000 * (index + 1), '2026-10-01')
       }
       return home
@@ -203,10 +206,7 @@ test.group('Goal contributions', (group) => {
     assert.equal(forThree, forOne)
   })
 
-  test('test_a_contribution_is_deleted_and_leaves_the_saved_amount', async ({
-    client,
-    assert,
-  }) => {
+  test('test_a_contribution_is_deleted_and_leaves_the_saved_amount', async ({ client, assert }) => {
     const { household, owner, member } = await createHousehold({ users: 2 })
     const goal = await manualGoal(household.id)
     const kept = await contribute(goal, owner.id, 10_000, '2026-10-01')
@@ -243,10 +243,7 @@ test.group('Goal contributions', (group) => {
     assert.isNotNull(await GoalContribution.find(contribution.id))
   })
 
-  test('test_a_goal_that_tracks_an_account_takes_no_contributions', async ({
-    client,
-    assert,
-  }) => {
+  test('test_a_goal_that_tracks_an_account_takes_no_contributions', async ({ client, assert }) => {
     const { household, owner, accounts } = await createHousehold({
       accounts: [{ name: 'Savings', kind: 'savings', openingBalanceCents: 70_000 }],
     })

@@ -8,7 +8,8 @@ import type { PushPayload } from '#domain/push/push_payload'
  * The text of every push notification, in the recipient's language
  * (`resources/lang/<locale>/messages.json`, keys `push.<kind>.title|body`).
  * Nothing here may name an amount, a merchant or a person: notifications
- * show on a lock screen. The summary names its month only.
+ * show on a lock screen. The summary names its month only; a reached goal,
+ * its own name (what the members called it), never what it holds.
  */
 
 /** Luxon locale per app language, for month names. */
@@ -39,6 +40,18 @@ export function summaryReadyPayload(month: Month, locale: string): PushPayload {
     ...translate(locale, 'summaryReady', { month: monthName(month, locale) }),
     url: `/month/${month}`,
     tag: `summary-${month}`,
+  }
+}
+
+/** "You reached Sofa": opens the goal, where it can be marked as reached. One tag per goal. */
+export function goalReachedPayload(
+  goal: { id: number; name: string },
+  locale: string
+): PushPayload {
+  return {
+    ...translate(locale, 'goalReached', { goal: goal.name }),
+    url: `/goals/${goal.id}`,
+    tag: `goal-reached-${goal.id}`,
   }
 }
 

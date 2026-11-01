@@ -247,8 +247,7 @@ export default class GoalService {
 
     return new Map(
       goals.map((goal) => {
-        const source =
-          goal.accountId === null ? manual.get(goal.id) : tracked.get(goal.accountId)
+        const source = goal.accountId === null ? manual.get(goal.id) : tracked.get(goal.accountId)
         return [goal.id, this.project(goal, source, average, fromMonth)]
       })
     )
@@ -311,7 +310,11 @@ export default class GoalService {
           goal.id,
           {
             savedCents,
-            history: contributionHistory({ startingCents: goal.startingCents, since }, entries, month),
+            history: contributionHistory(
+              { startingCents: goal.startingCents, since },
+              entries,
+              month
+            ),
           },
         ]
       })
