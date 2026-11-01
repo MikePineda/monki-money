@@ -385,9 +385,7 @@ test.group('Push subscriptions', () => {
     assert.isAtLeast(existing.lastSeenAt!.toMillis(), before.toMillis())
   })
 
-  test('test_the_backfill_counts_a_device_as_seen_when_it_last_registered', async ({
-    assert,
-  }) => {
+  test('test_the_backfill_counts_a_device_as_seen_when_it_last_registered', async ({ assert }) => {
     const { household, owner } = await createHousehold()
     const old = await subscribeDevice(owner, household)
     const registeredAt = '2026-08-15T10:00:00.000Z'
