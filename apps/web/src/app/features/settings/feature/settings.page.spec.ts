@@ -6,14 +6,16 @@ import { RouterTestingHarness } from '@angular/router/testing'
 import type { MemberRole } from '@monkimoney/shared'
 import { i18nTesting, i18nTestingProviders } from '../../../../testing/i18n-testing'
 import {
+  COUPLE,
   aHousehold,
   aMember,
+  aMemberSummary,
   aUser,
   httpError,
   validationError,
   type SessionKind,
 } from '../../../../testing/session-fixtures'
-import type { Household } from '../../../core/api/api-types'
+import type { Household, Invitation, MemberSummary } from '../../../core/api/api-types'
 import { AuthApi } from '../../../core/auth/auth.api'
 import { SessionStore } from '../../../core/auth/session.store'
 import { HouseholdApi } from '../../../core/household/household.api'
@@ -52,15 +54,17 @@ describe('SettingsPage', () => {
   let session: Record<string, unknown> & { load: ReturnType<typeof vi.fn> }
   let outbox: { entries: WritableSignal<OutboxEntry[]>; isSyncing: WritableSignal<boolean> }
 
-  async function open(kind: Extract<SessionKind, 'owner' | 'member'>) {
+  async function open(kind: Extract<SessionKind, 'owner' | 'member'>, pending: Invitation[] = []) {
     const role = signal<MemberRole | null>(kind)
     const household = signal<Household | null>(aHousehold({ name: 'Sam’s home' }))
+    // `GET /auth/me` names the members: the card reads them from the session.
+    const members = signal<readonly MemberSummary[]>(COUPLE)
     households = {
       members: vi.fn(async () => [
         aMember(),
         aMember({ id: 101, userId: 2, fullName: 'Alex Chen', role: 'member' }),
       ]),
-      invitations: vi.fn(async () => []),
+      invitations: vi.fn(async () => pending),
       leave: vi.fn(async () => undefined),
       // The answer of a handover: the roles swapped.
       transferOwnership: vi.fn(async () => [
@@ -72,6 +76,8 @@ describe('SettingsPage', () => {
       user: signal(kind === 'member' ? aUser({ id: 2, fullName: 'Alex Chen' }) : aUser()),
       household,
       role,
+      members,
+      refresh: vi.fn(async () => undefined),
       entitlements: signal(null),
       hasFlag: () => false,
       homePath: computed(() => (household() ? '/month' : '/household/new')),
@@ -114,7 +120,7 @@ describe('SettingsPage', () => {
       )
     )
     const sheet = () => document.querySelector<HTMLElement>('app-leave-household-sheet')
-    return { harness, root, sheet, role }
+    return { harness, root, sheet, role, members }
   }
 
   /** Opens "Make owner" on the partner's row and finds the sheet's controls. */
@@ -129,6 +135,60 @@ describe('SettingsPage', () => {
     )
     return { sheet, password, confirm }
   }
+
+  function memberRows(root: HTMLElement): string[] {
+    return [...root.querySelectorAll('[data-testid="settings.members"] li')].map(
+      (row) => row.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+    )
+  }
+
+  it('test_the_members_card_reads_names_and_roles_from_the_session', async () => {
+    const { root } = await open('owner')
+
+    const [you, partner] = memberRows(root)
+    expect(you).toContain('Sam Rivera')
+    expect(you).toContain('Owner')
+    expect(partner).toContain('Alex Chen')
+    expect(partner).toContain('Member')
+    const marks = [...root.querySelectorAll('[data-testid="settings.members"] app-person-dot')]
+    expect(marks.map((mark) => mark.getAttribute('data-person'))).toEqual(['a', 'b'])
+    expect(households['members']).not.toHaveBeenCalled()
+  })
+
+  it('test_the_card_rereads_the_session_so_a_partner_who_just_joined_shows', async () => {
+    const { root, members } = await open('owner')
+    expect(session['refresh']).toHaveBeenCalledTimes(1)
+
+    members.set([...COUPLE, aMemberSummary({ id: 3, displayName: 'Jo Park', role: 'member' })])
+    await vi.waitFor(() => expect(memberRows(root)).toHaveLength(3))
+    expect(memberRows(root)[2]).toContain('Jo Park')
+  })
+
+  it('test_only_the_owner_asks_for_the_pending_invitations', async () => {
+    await open('member')
+
+    expect(households['invitations']).not.toHaveBeenCalled()
+    expect(households['members']).not.toHaveBeenCalled()
+  })
+
+  it('test_the_owner_sees_the_pending_invitations_by_email', async () => {
+    const { root } = await open('owner', [
+      {
+        id: 9,
+        email: 'jo@example.test',
+        role: 'member',
+        invitedByUserId: 1,
+        expiresAt: '2026-10-20T00:00:00.000Z',
+        createdAt: '2026-10-13T00:00:00.000Z',
+      },
+    ])
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('[data-testid="settings.invitations"]')?.textContent).toContain(
+        'jo@example.test'
+      )
+    )
+  })
 
   it('test_a_member_can_leave_and_sees_no_owner_controls', async () => {
     const { root } = await open('member')
@@ -237,9 +297,15 @@ describe('SettingsPage', () => {
   })
 
   it('test_making_the_partner_owner_needs_the_password_then_refreshes_the_session', async () => {
-    const { harness, root, role } = await open('owner')
+    const { harness, root, role, members } = await open('owner')
     // `GET /auth/me` after the handover: the caller is a member now.
-    session.load.mockImplementationOnce(async () => role.set('member'))
+    session.load.mockImplementationOnce(async () => {
+      role.set('member')
+      members.set([
+        aMemberSummary({ role: 'member' }),
+        aMemberSummary({ id: 2, displayName: 'Alex Chen', role: 'owner' }),
+      ])
+    })
     const { sheet, password, confirm } = await openOwnershipSheet(harness, root)
 
     expect(sheet()?.textContent).toContain('Make Alex Chen the owner?')
@@ -260,12 +326,29 @@ describe('SettingsPage', () => {
     )
     expect(root.querySelector('[data-testid="settings.makeOwner"]')).toBeNull()
     expect(root.querySelector('[data-testid="settings.delete"]')).toBeNull()
-    const rows = [...root.querySelectorAll('[data-testid="settings.members"] li')].map((row) =>
-      row.textContent?.replace(/\s+/g, ' ').trim()
-    )
+    const rows = memberRows(root)
     expect(rows[0]).toContain('Member')
     expect(rows[1]).toContain('Alex Chen')
     expect(rows[1]).toContain('Owner')
+  })
+
+  it('test_the_passwords_that_confirm_a_handover_or_a_deletion_can_be_shown', async () => {
+    const { harness, root } = await open('owner')
+    const { password } = await openOwnershipSheet(harness, root)
+    expect(await password.isRevealable()).toBe(true)
+    TestBed.inject(BottomSheetService).closeAll()
+
+    root.querySelector<HTMLButtonElement>('[data-testid="settings.delete"]')?.click()
+    await vi.waitFor(() =>
+      expect(document.querySelector('app-delete-household-sheet')).not.toBeNull()
+    )
+    const loader = TestbedHarnessEnvironment.documentRootLoader(harness.fixture)
+    const deletion = await loader.getHarness(
+      TextFieldHarness.with({ ancestor: 'app-delete-household-sheet', label: 'Your password' })
+    )
+    await deletion.toggleReveal()
+
+    expect(await deletion.getType()).toBe('text')
   })
 
   it('test_a_wrong_password_keeps_the_ownership_sheet_open_with_the_reason', async () => {

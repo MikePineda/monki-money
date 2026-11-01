@@ -2,7 +2,7 @@ import { DOCUMENT, Component, Injector, OnInit, computed, inject, signal } from 
 import { Router, RouterLink } from '@angular/router'
 import { TranslocoPipe, TranslocoService, translateSignal } from '@jsverse/transloco'
 import type { Observable } from 'rxjs'
-import type { Invitation, Member } from '../../../core/api/api-types'
+import type { Invitation, MemberSummary } from '../../../core/api/api-types'
 import { failureMessage } from '../../../core/api/error-messages'
 import { hasStatus, toApiError, type ApiError } from '../../../core/api/http-errors'
 import { AuthApi } from '../../../core/auth/auth.api'
@@ -184,7 +184,7 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
               >
                 <app-person-dot [person]="row.person" />
                 <span class="min-w-0 flex-1 truncate text-body text-ink-1">
-                  {{ row.member.fullName }}
+                  {{ row.member.displayName }}
                   @if (row.isYou) {
                     <span class="text-ink-3">· {{ 'settings.household.you' | transloco }}</span>
                   }
@@ -200,7 +200,7 @@ const LANGUAGE_KEYS = ['profile.languages.en', 'profile.languages.es']
                     (click)="makeOwner(row.member)"
                   >
                     {{ 'settings.household.makeOwner' | transloco
-                    }}<span class="sr-only">: {{ row.member.fullName }}</span>
+                    }}<span class="sr-only">: {{ row.member.displayName }}</span>
                   </button>
                 }
               </li>
@@ -423,7 +423,8 @@ export default class SettingsPage implements OnInit {
   protected readonly initial = computed(() => initial(this.user()?.fullName ?? ''))
   protected readonly showUpgrade = computed(() => this.session.hasFlag('billing'))
 
-  protected readonly members = signal<Member[]>([])
+  /** Names, roles and order come with the session (`GET /auth/me`); emails are not shown here. */
+  protected readonly members = this.session.members
   protected readonly invitations = signal<Invitation[]>([])
   protected readonly version = signal('')
   protected readonly busy = signal(false)
@@ -436,14 +437,14 @@ export default class SettingsPage implements OnInit {
     const youId = this.user()?.id
     return this.members().map((member, index) => ({
       member,
-      isYou: member.userId === youId,
+      isYou: member.id === youId,
       person: index === 0 ? ('a' as const) : ('b' as const),
       roleKey:
         member.role === 'owner'
           ? 'settings.household.roles.owner'
           : 'settings.household.roles.member',
       // The owner can hand the household over to anyone else in it.
-      canMakeOwner: this.isOwner() && member.userId !== youId && member.role !== 'owner',
+      canMakeOwner: this.isOwner() && member.id !== youId && member.role !== 'owner',
     }))
   })
 
@@ -474,7 +475,9 @@ export default class SettingsPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     void this.loadVersion()
-    await this.loadHousehold()
+    // A partner who joined since the app opened shows up (a failure keeps the session's list).
+    void this.session.refresh()
+    await this.loadInvitations()
   }
 
   protected setTheme(preference: ThemePreference): void {
@@ -562,7 +565,7 @@ export default class SettingsPage implements OnInit {
             params: { email },
             status: 'good',
           })
-          await this.loadHousehold()
+          await this.loadInvitations()
         })
       }
     })
@@ -576,7 +579,7 @@ export default class SettingsPage implements OnInit {
         params: { email: invitation.email },
         status: 'good',
       })
-      await this.loadHousehold()
+      await this.loadInvitations()
     })
   }
 
@@ -624,9 +627,9 @@ export default class SettingsPage implements OnInit {
     this.sheets.open<boolean>(DeleteHouseholdSheetComponent, { data, injector: this.injector })
   }
 
-  protected makeOwner(member: Member): void {
+  protected makeOwner(member: MemberSummary): void {
     const data: TransferOwnershipSheetData = {
-      memberName: member.fullName,
+      memberName: member.displayName,
       confirm: (password) => this.transferOwnership(member, password),
     }
     this.sheets.open<boolean>(TransferOwnershipSheetComponent, { data, injector: this.injector })
@@ -673,9 +676,9 @@ export default class SettingsPage implements OnInit {
    * Hands the household over, then reloads the session: the caller is a
    * member now, so the owner-only controls go and "Leave household" shows.
    */
-  private async transferOwnership(member: Member, password: string): Promise<DeleteOutcome> {
+  private async transferOwnership(member: MemberSummary, password: string): Promise<DeleteOutcome> {
     try {
-      this.members.set(await this.households.transferOwnership(member.userId, password))
+      await this.households.transferOwnership(member.id, password)
     } catch (error) {
       const failure = toApiError(error)
       if (failure.kind === 'validation') {
@@ -696,7 +699,7 @@ export default class SettingsPage implements OnInit {
     this.invitations.set([])
     this.toasts.show({
       messageKey: 'settings.household.ownerSheet.done',
-      params: { name: member.fullName },
+      params: { name: member.displayName },
       status: 'good',
     })
     await this.session.load()
@@ -727,14 +730,13 @@ export default class SettingsPage implements OnInit {
       .closed
   }
 
-  private async loadHousehold(): Promise<void> {
+  /** Pending invitations (with their emails) are the owner's alone: a member asks for nothing. */
+  private async loadInvitations(): Promise<void> {
+    if (!this.isOwner()) {
+      return
+    }
     try {
-      const [members, invitations] = await Promise.all([
-        this.households.members(),
-        this.isOwner() ? this.households.invitations() : Promise.resolve([]),
-      ])
-      this.members.set(members)
-      this.invitations.set(invitations)
+      this.invitations.set(await this.households.invitations())
     } catch (error) {
       this.showFailure(toApiError(error))
     }
