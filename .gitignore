@@ -50,5 +50,6 @@ docs/internal/
 *.csv
 !**/tests/fixtures/**/*.csv
 
-# Agent worktrees (local only)
+# Agent worktrees and personal Claude Code settings (local only)
 .claude/worktrees/
+.claude/settings.local.json

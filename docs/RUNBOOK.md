@@ -27,8 +27,8 @@ Service ids live in the hosting panel and in `docs/internal/RUNBOOK-ids.md` (loc
 
 ## GitHub
 
-- Repo `MikePineda/monki-money`. Required checks on `main`: `ci` and
-  `commitlint`; merge methods: merge commit (atomic commits) or squash.
+- Repo `MikePineda/monki-money`. Required checks on `main`: `ci`,
+  `commitlint` and `gitleaks`; merge methods: merge commit (atomic commits) or squash.
 - The protection lives as code in `.github/rulesets/main.json`. GitHub Free
   does not allow rulesets or branch protection on private repos, so it is
   applied once the repository is public (or on a paid plan), as the owner:

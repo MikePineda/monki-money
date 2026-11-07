@@ -11,6 +11,9 @@ anything while running this skill. If something needs action, report it
 with the evidence and let the owner decide (the `ship` skill has the
 rollback path).
 
+Local only: it needs ssh to the server, the Dokploy MCP server and
+`docs/internal/`, none of which a cloud session has.
+
 Ids come from `docs/internal/RUNBOOK-ids.md` (local only; otherwise the
 Dokploy panel): `applicationId` of `monkimoney-web`, the R2 backup
 `destinationId`. The server and the production URL come from

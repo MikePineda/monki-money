@@ -28,6 +28,13 @@ function workersFromEnv(value: string | undefined): number | string | undefined 
   return value.endsWith('%') ? value : Number(value)
 }
 
+/**
+ * A Chromium already on the machine, for environments that cannot download
+ * Playwright's browsers (cloud sessions, see scripts/cloud-setup.sh). WebKit has
+ * no such fallback, so that project only runs on machines with Playwright's own.
+ */
+const systemChromium = process.env.E2E_CHROMIUM_PATH
+
 export default defineConfig({
   testDir: './tests',
   outputDir: process.env.E2E_RESULTS_DIR,
@@ -48,8 +55,14 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'mobile-chromium', use: { ...devices['Pixel 7'] } },
-    { name: 'mobile-webkit', use: { ...devices['iPhone 14'] } },
+    {
+      name: 'mobile-chromium',
+      use: {
+        ...devices['Pixel 7'],
+        ...(systemChromium ? { launchOptions: { executablePath: systemChromium } } : {}),
+      },
+    },
+    ...(systemChromium ? [] : [{ name: 'mobile-webkit', use: { ...devices['iPhone 14'] } }]),
   ],
   webServer: {
     command: 'node bin/server.js',

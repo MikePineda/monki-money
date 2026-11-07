@@ -5,8 +5,9 @@ multi-household SaaS from day one). Read this file first, then
 `docs/ARCHITECTURE.md`, `docs/CONTRACTS.md` and `BRIEF.md`.
 
 **Owner Q&A lives in `docs/internal/QA.md` (gitignored): read it before
-starting a work package.** `docs/internal/` is local-only scratch (owner Q&A,
-plan copies such as `PLAN-2026-10-15.md`, notes) and is never committed.
+starting a work package, when it exists.** `docs/internal/` is local-only
+scratch (owner Q&A, plan copies such as `PLAN-2026-10-15.md`, notes) and is
+never committed, so a fresh clone or a cloud session does not have it.
 
 New ideas mid-session go to `docs/BACKLOG.md` as a dated one-liner, then you
 continue with the work in progress.
@@ -127,6 +128,31 @@ docker run --rm --network monkimoney_default -p 127.0.0.1:3333:3333 \
   -e DB_DATABASE=monkimoney -e MIGRATE_ON_START=true monkimoney:local
 curl -s localhost:3333/api/health
 ```
+
+## Cloud sessions (Claude Code on the web)
+
+`scripts/cloud-setup.sh` runs as a SessionStart hook (`.claude/settings.json`) and
+does nothing outside the cloud. It puts Node 24 on `PATH`, runs `npm ci` when a
+manifest changed, creates `apps/api/.env` and starts Postgres 17 with
+`docker compose up -d --wait db`. Its log is `/tmp/cloud-setup.log`. Node 24 and
+the Docker images come from the environment's setup script, which lives in the
+environment's settings, not in this repo.
+
+```bash
+npm run verify:quick                       # lint + typecheck + test + build
+npm run verify                             # same + E2E, on mobile-chromium only
+```
+
+- **E2E runs on the VM's Chrome.** The hook sets `E2E_CHROMIUM_PATH` from
+  `CHROME_PATH`, which drops `mobile-webkit`: the default network cannot download
+  Playwright's browsers. WebKit still needs a local run.
+- **`gh pr` and `gh issue` do not work.** The GitHub proxy rejects GraphQL. Use the
+  built-in GitHub tools or `gh api repos/{owner}/{repo}/...`.
+- **Do not merge from a cloud session unless the owner asks:** merge to `main`
+  deploys. `/ship`, `/pulse` and `npm run smoke:prod` are local-only, because they
+  need `docs/internal/`, the Dokploy MCP server or production credentials.
+- **No production secrets in the environment.** Tests use `apps/api/.env.test` and
+  `e2e/e2e.env`, and every external API is faked.
 
 ## Known traps (each one already cost time)
 

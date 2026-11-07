@@ -1,7 +1,7 @@
 # CI guards merges; it never deploys. Dokploy builds and deploys on merge to
 # main (ARM64, on the server), so there is no `docker build` here: the
 # faithful rehearsal is `docker build --target runtime .` on an ARM Mac.
-# Required checks (ruleset on main): `ci` and `commitlint`. No path filters on
+# Required checks (ruleset on main): `ci`, `commitlint` and `gitleaks`. No path filters on
 # purpose: a required check that does not run blocks the PR forever.
 name: CI
 
