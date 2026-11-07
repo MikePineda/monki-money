@@ -10,15 +10,18 @@ The PR gate for this repo. Nothing gets a pull request while it is red.
 ## Steps
 
 1. Preconditions, fix silently if needed:
-   - Node 24: `source ~/.nvm/nvm.sh && nvm use 24`.
+   - Node 24: `source ~/.nvm/nvm.sh && nvm use 24`. In a cloud session
+     (`CLAUDE_CODE_REMOTE=true`) the SessionStart hook already set it up.
    - Docker running; dev stack up for the Japa suite: `docker compose up -d`
-     (Postgres on 5432 with the `monkimoney_test` database).
+     (Postgres on 5432 with the `monkimoney_test` database). In a cloud session
+     the hook starts Postgres; `/tmp/cloud-setup.log` says why if it did not.
    - Generated contract in sync: `npm run codegen`, then check
      `git status apps/api/.adonisjs` (commit any change with the code that caused it).
 2. Run `npm run verify` from the repo root. It runs
    `turbo run lint typecheck test build` and then `npm run e2e`
    (ephemeral `docker-compose.test.yml` on the first free E2E slot, 5433/9100
-   for slot 0, Playwright on `mobile-chromium` and `mobile-webkit`; other
+   for slot 0, Playwright on `mobile-chromium` and `mobile-webkit`, or only
+   `mobile-chromium` in a cloud session; other
    worktrees running E2E at the same time get other slots). For a quicker loop while iterating
    use `npm run verify:quick` (no E2E), but the final answer needs the full run.
 3. Summarize by layer, in this order, one line each with the failing

@@ -11,6 +11,10 @@ the merge commit and the smoke run passes. **Merge = deploy**: Dokploy
 builds `main` on the server (ARM64, target `runtime`) and does a Swarm
 start-first update with automatic rollback.
 
+Local only: it needs `docs/internal/`, the Dokploy MCP server and `gh pr`, none
+of which a cloud session has. From a cloud session, push the branch and leave
+the merge to the owner.
+
 Ids (applicationId, R2 destination, service names) live in
 `docs/internal/RUNBOOK-ids.md` (local only; otherwise the Dokploy panel).
 The production URL, the SSH host and the GitHub accounts come from
