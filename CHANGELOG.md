@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.2](https://github.com/MikePineda/monki-money/compare/v0.5.1...v0.5.2) (2026-11-07)
+
+
+### Dependencies
+
+* **deps:** Bump fast-uri from 3.1.8 to 3.1.9 ([6e89910](https://github.com/MikePineda/monki-money/commit/6e89910c4497c8140f3a429010da9aac914df5ac))
+* **deps:** Bump fast-uri from 3.1.8 to 3.1.9 ([931e50b](https://github.com/MikePineda/monki-money/commit/931e50bbb358c31205ec6ff8beb98a72dd03af73))
+* **deps:** Bump undici ([343b488](https://github.com/MikePineda/monki-money/commit/343b4886a6a334e5d5eb171aa086b6db1170984b))
+* **deps:** Bump undici ([77b2169](https://github.com/MikePineda/monki-money/commit/77b21698dcaf23da2be51770ff08fdbfb67616bf))
+* **deps:** Bump vite and @angular/build ([6e43277](https://github.com/MikePineda/monki-money/commit/6e43277eecbf4aabccdf50f3e5116975c695f0dd))
+* **deps:** Bump vite and @angular/build ([8f29b7d](https://github.com/MikePineda/monki-money/commit/8f29b7d99908d87ef41b7d8d03871ca901e9bd51))
+
 ## [0.5.1](https://github.com/MikePineda/monki-money/compare/v0.5.0...v0.5.1) (2026-11-01)
 
 
