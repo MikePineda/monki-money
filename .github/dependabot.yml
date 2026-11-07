@@ -10,6 +10,10 @@ updates:
       # TypeScript majors are gated by Angular and AdonisJS support: bump by hand.
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
+      # SDK majors can change auth headers and the API version sent to the LLM
+      # provider, which CI fakes: bump by hand with one real provider call.
+      - dependency-name: '@anthropic-ai/sdk'
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: build
       include: scope
