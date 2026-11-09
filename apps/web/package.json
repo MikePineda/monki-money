@@ -28,10 +28,10 @@
     "@jsverse/transloco": "8.4.0",
     "@monkimoney/shared": "*",
     "@tuyau/core": "1.2.2",
-    "d3-scale": "4.0.2",
-    "d3-shape": "3.2.0",
+    "d3-scale": "4.0.3",
+    "d3-shape": "3.2.1",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.9.1"
   },
   "devDependencies": {
     "@angular/build": "22.2.6",
@@ -39,18 +39,18 @@
     "@angular/compiler-cli": "22.2.3",
     "@eslint/js": "^10.0.1",
     "@jsverse/transloco-keys-manager": "8.1.1",
-    "@tailwindcss/postcss": "4.3.3",
+    "@tailwindcss/postcss": "4.3.4",
     "@types/d3-scale": "4.0.9",
     "@types/d3-shape": "3.2.0",
     "angular-eslint": "22.6.0",
-    "eslint": "^10.13.0",
-    "jsdom": "^30.0.0",
-    "lucide-static": "1.59.0",
-    "postcss": "^8.5.31",
-    "tailwindcss": "4.3.3",
+    "eslint": "^10.14.0",
+    "jsdom": "^31.0.0",
+    "lucide-static": "1.69.0",
+    "postcss": "^8.5.32",
+    "tailwindcss": "4.3.4",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.48.0",
-    "vitest": "^5.0.5"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
   },
   "prettier": "@adonisjs/prettier-config"
 }
